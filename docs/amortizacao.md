@@ -10,9 +10,9 @@ Toda conta de parcela nova no CRM deve usar este motor. `lib/simulador.ts` e `li
 
 O contrato da Caixa traz as duas. A mensal é sempre a nominal dividida por 12.
 
-| Informado | Mensal | Exemplo (8,16%) |
-|---|---|---|
-| Nominal a.a. | nominal / 12 | 0,68% a.m. |
+| Informado    | Mensal                   | Exemplo (8,16%)            |
+| ------------ | ------------------------ | -------------------------- |
+| Nominal a.a. | nominal / 12             | 0,68% a.m.                 |
 | Efetiva a.a. | (1 + efetiva)^(1/12) - 1 | 8,47% efetiva = 0,68% a.m. |
 
 Erro comum: digitar a nominal como se fosse efetiva (ou o contrário). Em 200 mil e 420 meses, a diferença na parcela PRICE passa de R$ 40.
@@ -76,12 +76,12 @@ Abatida depois da parcela paga, no nº de parcela informado. Pode repetir (FGTS:
 
 ## 9. Parâmetros que mudam com o tempo
 
-| Constante | Valor | Revisar quando |
-|---|---|---|
-| `TR_MENSAL_REFERENCIA_2026` | 0,17% a.m. | a TR média mudar (BCB) |
-| `TABELA_MIP_ESTIMADA` | estimativa | tiver tabela da seguradora |
-| `DFI_MENSAL_PADRAO` | 0,0038% a.m. | idem |
-| `TAXA_ADM_PADRAO` | R$ 25 | o banco mudar |
+| Constante                   | Valor        | Revisar quando             |
+| --------------------------- | ------------ | -------------------------- |
+| `TR_MENSAL_REFERENCIA_2026` | 0,17% a.m.   | a TR média mudar (BCB)     |
+| `TABELA_MIP_ESTIMADA`       | estimativa   | tiver tabela da seguradora |
+| `DFI_MENSAL_PADRAO`         | 0,0038% a.m. | idem                       |
+| `TAXA_ADM_PADRAO`           | R$ 25        | o banco mudar              |
 
 ## Dívidas conhecidas
 
