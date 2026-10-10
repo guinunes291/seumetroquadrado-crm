@@ -200,6 +200,56 @@ export async function limparDados(c: Client): Promise<void> {
       RESTART IDENTITY CASCADE
   `);
   await c.query(`DELETE FROM auth.users`);
+  // Roleta fechada à noite (20261014120000) depende do RELÓGIO: a suíte roda a
+  // qualquer hora e, entre 22h e 9h de Brasília, todo teste de distribuição
+  // veria a roleta fechada. Estado limpo = janela desligada; quem testa a
+  // janela liga com `comRoletaNoite`, em volta do horário em que roda.
+  await c.query(`
+    INSERT INTO public.distribuicao_settings (chave, valor)
+    VALUES ('roleta_noite', '{"ativa": false, "inicio": "22:00", "fim": "09:00"}'::jsonb)
+    ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor
+  `);
+}
+
+/**
+ * Liga a roleta fechada à noite durante `fn`, com a janela posta EM VOLTA de
+ * agora (`fechada: true`) ou longe de agora (`fechada: false`) — o teste não
+ * depende da hora em que a suíte roda. Restaura a janela desligada no fim.
+ */
+export async function comRoletaNoite<T>(
+  c: Client,
+  opts: { fechada: boolean },
+  fn: () => Promise<T>,
+): Promise<T> {
+  await comoSuperuser(c);
+  // Hora de Brasília agora, em minutos; janela de 2h centrada (fechada) ou
+  // começando 3h depois (aberta). Formato HH:MM, virando a meia-noite.
+  const { rows } = await c.query<{ m: number }>(
+    `SELECT (extract(hour FROM now() AT TIME ZONE 'America/Sao_Paulo') * 60
+             + extract(minute FROM now() AT TIME ZONE 'America/Sao_Paulo'))::int AS m`,
+  );
+  const agora = rows[0].m;
+  const hhmm = (min: number) => {
+    const x = ((min % 1440) + 1440) % 1440;
+    return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
+  };
+  const [inicio, fim] = opts.fechada
+    ? [hhmm(agora - 60), hhmm(agora + 60)]
+    : [hhmm(agora + 180), hhmm(agora + 300)];
+  await c.query(
+    `UPDATE public.distribuicao_settings SET valor = $1::jsonb WHERE chave = 'roleta_noite'`,
+    [JSON.stringify({ ativa: true, inicio, fim })],
+  );
+  try {
+    return await fn();
+  } finally {
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.distribuicao_settings
+          SET valor = '{"ativa": false, "inicio": "22:00", "fim": "09:00"}'::jsonb
+        WHERE chave = 'roleta_noite'`,
+    );
+  }
 }
 
 /**

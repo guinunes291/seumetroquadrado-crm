@@ -13817,6 +13817,7 @@ export type Database = {
           visitas: number
         }[]
       }
+      roleta_janela_v1: { Args: never; Returns: Json }
       roleta_sdr_apurar_semana: {
         Args: { _semana_inicio?: string }
         Returns: Json

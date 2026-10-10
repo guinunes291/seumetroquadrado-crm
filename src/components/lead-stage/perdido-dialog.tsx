@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { lerJanela, quandoReabre } from "@/lib/roleta-noite";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -56,11 +57,20 @@ export function PerdidoDialog({ lead, onOpenChange, onDone }: Props) {
         _detalhe: detalhe.trim() || undefined,
       });
       if (error) throw error;
-      return data as unknown as string | null;
+      const novoCorretor = data as unknown as string | null;
+      // Sem novo dono pode ser a roleta fechada à noite (20261014120000): o
+      // lead espera a reabertura em vez de ir para os perdidos.
+      if (novoCorretor) return { novoCorretor, janela: null };
+      const { data: janela } = await supabase.rpc("roleta_janela_v1");
+      return { novoCorretor, janela: lerJanela(janela) };
     },
-    onSuccess: (novoCorretor) => {
+    onSuccess: ({ novoCorretor, janela }) => {
       if (novoCorretor) {
         toast.success("Lead redistribuído para outro corretor");
+      } else if (janela?.ativa && janela.fechada) {
+        toast(
+          `Roleta fechada à noite — o lead sai da sua carteira e vai para outro corretor ${quandoReabre(janela.reabre_em)}.`,
+        );
       } else {
         toast("Sem corretor disponível — lead movido para perdidos");
       }

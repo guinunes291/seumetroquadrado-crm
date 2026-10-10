@@ -641,6 +641,7 @@ export const DISTRIBUICAO_KEYS = [
   ["distribuicao:vendas-mes-anterior"],
   ["distribuicao:corretores"],
   ["distribuicao:wip"],
+  ["distribuicao:roleta-noite"],
   // A página de métricas de Campanhas lê as mesmas linhas que a Central
   // agora edita — sem estas chaves ela ficaria stale após cada mutação.
   ["gestao:campanhas"],
@@ -727,7 +728,11 @@ export function useResolverExcecao() {
     },
     onSuccess: (res, args) => {
       invalidate();
-      if (res && res.ok === false) {
+      if (res && res.ok === false && res.motivo === "roleta_fechada_noite") {
+        toast.info(
+          "Roleta fechada à noite — o lead entra na reabertura. Para entregar agora, use Atribuir a um corretor.",
+        );
+      } else if (res && res.ok === false) {
         toast.warning(
           `Ainda sem corretor apto${res.motivo ? ` (${motivoExcecaoLabel(res.motivo)})` : ""} — exceção mantida.`,
         );
@@ -772,6 +777,10 @@ export function useDistribuirManual() {
         // que está passando por cima do corte geográfico (fica no log também).
         if (res.aviso_zona) toast.warning(res.aviso_zona);
         if (res.corretor_id) void notificarCorretorTransferencia(args.leadId, res.corretor_id);
+      } else if (res?.motivo === "roleta_fechada_noite") {
+        toast.info(
+          "Roleta fechada à noite — o lead entra na reabertura. Para entregar agora, escolha o corretor.",
+        );
       } else {
         toast.warning(`Sem corretor apto (${res?.motivo ?? "?"}) — lead na fila de exceções.`);
       }
@@ -814,10 +823,18 @@ export function useRodarDistribuicao() {
         sem_corretor?: number;
         repassados_sla?: number;
         redistribuidos?: number;
+        roleta_fechada?: boolean;
+        reabre_as?: string | null;
       } | null;
     },
     onSuccess: (res) => {
       invalidate();
+      if (res?.roleta_fechada) {
+        toast.info(
+          `Roleta fechada à noite — a rodada volta sozinha às ${res.reabre_as ?? "09:00"}.`,
+        );
+        return;
+      }
       toast.success(
         `Rodada concluída: ${res?.distribuidos ?? 0} distribuídos · ` +
           `${res?.sem_corretor ?? 0} sem corretor · ${res?.repassados_sla ?? 0} repasses SLA · ` +
@@ -842,10 +859,18 @@ export function useEscoarEstoque(slug: string) {
         distribuidos?: number;
         corretores_aptos?: number;
         restante_estoque?: number;
+        roleta_fechada?: boolean;
+        reabre_as?: string | null;
       } | null;
     },
     onSuccess: (res) => {
       invalidate();
+      if (res?.roleta_fechada) {
+        toast.info(
+          `Roleta fechada à noite — o estoque (${res.restante_estoque ?? 0}) volta a ser entregue às ${res.reabre_as ?? "09:00"}.`,
+        );
+        return;
+      }
       toast.success(
         `${res?.distribuidos ?? 0} leads do estoque distribuídos para ${res?.corretores_aptos ?? 0} corretor(es) apto(s) · ` +
           `${res?.restante_estoque ?? 0} ainda no estoque.`,

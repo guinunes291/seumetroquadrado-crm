@@ -6,6 +6,7 @@ import {
   blocoObservacoesCorretor,
   validarPayloadLead,
 } from "@/lib/webhook-lead-payload";
+import { lerAdiadoNoite, notaLeadNoite } from "@/lib/roleta-noite";
 import {
   MOTIVO_VOLTA,
   lerVolta,
@@ -356,6 +357,11 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         let corretorId: string | null = null;
         let motivo: string | null = null;
         let excecaoMotivo: string | null = null;
+        // Roleta fechada à noite (20261014120000): o motor não sorteia e o lead
+        // espera a reabertura. O contrato antigo fica (distributed: false,
+        // motivo: sem_corretor_disponivel); roleta_fechada/reabre_as dizem ao
+        // Marquinhos que não é "lead órfão".
+        let adiadoNoite: { reabreAs: string | null } | null = null;
 
         if (data.distribuir) {
           if (campanha && roletaAtiva && campanha.tipo === "zona") {
@@ -382,6 +388,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               } else {
                 motivo = "sem_corretor_disponivel";
                 excecaoMotivo = res?.motivo ?? "sem_apto_na_zona";
+                adiadoNoite = lerAdiadoNoite(res);
               }
             }
           } else if (campanha && roletaAtiva) {
@@ -411,6 +418,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               } else {
                 motivo = "sem_corretor_disponivel";
                 excecaoMotivo = res?.motivo ?? "sem_apto_na_campanha";
+                adiadoNoite = lerAdiadoNoite(res);
               }
             }
           } else {
@@ -433,9 +441,27 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               } else {
                 motivo = "sem_corretor_disponivel";
                 excecaoMotivo = res?.motivo ?? null;
+                adiadoNoite = lerAdiadoNoite(res);
               }
             }
           }
+        }
+
+        // Quem receber às 9h sabe por que o lead chegou de madrugada e o que o
+        // cliente já ouviu do robô.
+        if (adiadoNoite) {
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: lead.id,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: "Sistema: chegou com a roleta fechada",
+            conteudo: notaLeadNoite({
+              reabreAs: adiadoNoite.reabreAs,
+              chegouEm: new Date(),
+              viaMarquinhos: data.origem === "chatbot",
+            }),
+            metadata: { fonte: "webhook_lead", evento: "roleta_fechada_noite" },
+          });
         }
 
         // Filho da campanha: o corretor sabe que a pessoa já passou pelo CRM e
@@ -600,6 +626,8 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             notificacao,
             motivo,
             excecao_motivo: excecaoMotivo,
+            roleta_fechada: adiadoNoite !== null,
+            reabre_as: adiadoNoite?.reabreAs ?? null,
             // Registro mãe: true quando a pessoa já existia e este é o filho
             // novo da campanha (para o corretor sorteado, é um lead novo).
             registro_adicional: volta?.acao === "registro_filho",

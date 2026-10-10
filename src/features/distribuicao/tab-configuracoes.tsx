@@ -37,6 +37,7 @@ import {
   SettingStatuses,
 } from "./setting-fields";
 import { origemLabel } from "@/lib/origem";
+import { RoletaNoiteConfig } from "./roleta-noite";
 
 const SEM_ROLETA = "__nenhuma__";
 
@@ -142,7 +143,9 @@ export function TabConfiguracoes() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Roletas — funcionamento</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="space-y-4 overflow-x-auto">
+          {/* _roleta_fechada_agora (20261014120000): chave ausente = ligada, 22h–9h. */}
+          <RoletaNoiteConfig />
           {roletasQ.isLoading ? (
             <Skeleton className="h-20 w-full" />
           ) : (
@@ -196,9 +199,10 @@ export function TabConfiguracoes() {
             </Table>
           )}
           <p className="mt-2 text-xs text-muted-foreground">
-            Sem horário definido = 24h. Com horário e "distribuir mesmo assim" desligado, o lead
-            espera a próxima janela (o cron re-tenta a cada minuto). Participantes e propriedades de
-            cada fila (equipe fixa, projeto, token de campanha) ficam na aba Filas.
+            Horário por fila: sem horário definido = 24h (a roleta fechada à noite, acima, vale por
+            cima de todas). Com horário e "distribuir mesmo assim" desligado, o lead espera a
+            próxima janela (o cron re-tenta a cada minuto). Participantes e propriedades de cada
+            fila (equipe fixa, projeto, token de campanha) ficam na aba Filas.
           </p>
         </CardContent>
       </Card>

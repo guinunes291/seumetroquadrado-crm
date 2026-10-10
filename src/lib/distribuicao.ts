@@ -108,7 +108,8 @@ export type MotivoExcecao =
   | "dados_incompletos"
   | "sem_corretor_na_zona"
   | "zona_sem_time"
-  | "zona_sem_roleta";
+  | "zona_sem_roleta"
+  | "roleta_fechada_noite";
 
 export const MOTIVO_EXCECAO_LABEL: Record<MotivoExcecao, string> = {
   sem_corretor_ativo: "Nenhum corretor ativo na roleta",
@@ -121,6 +122,8 @@ export const MOTIVO_EXCECAO_LABEL: Record<MotivoExcecao, string> = {
   sem_corretor_na_zona: "Esperando o time da zona (ninguém da zona apto agora)",
   zona_sem_time: "Zona sem time montado",
   zona_sem_roleta: "Zona sem roleta vinculada",
+  // Não é exceção: o motor devolve 'adiado' e o lead espera a reabertura.
+  roleta_fechada_noite: "Roleta fechada à noite — o lead entra na reabertura",
 };
 
 export function motivoExcecaoLabel(motivo: string): string {

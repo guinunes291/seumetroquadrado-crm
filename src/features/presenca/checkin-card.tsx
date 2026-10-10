@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { cn } from "@/lib/utils";
+import { RoletaFechadaAviso } from "@/features/distribuicao/roleta-noite";
 import { useCheckin, useEncerrarPresenca, useMinhaPresenca } from "./presenca-client";
 import {
   enderecoCurto,
@@ -77,6 +78,8 @@ export function CheckinCard({ className }: { className?: string }) {
             </StatusBadge>
           )}
         </div>
+
+        <RoletaFechadaAviso publico="corretor" />
 
         <div>
           <p className="mb-2 text-sm font-medium">Onde você está trabalhando hoje?</p>

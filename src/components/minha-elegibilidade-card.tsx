@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { motivoInaptidaoLabel } from "@/lib/distribuicao";
 import { useMinhaElegibilidade } from "@/features/distribuicao/queries";
+import { RoletaFechadaAviso } from "@/features/distribuicao/roleta-noite";
 
 export function MinhaElegibilidadeCard() {
   const q = useMinhaElegibilidade();
@@ -20,6 +21,8 @@ export function MinhaElegibilidadeCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* "Apto" abaixo = pronto para a reabertura: à noite ninguém recebe. */}
+        <RoletaFechadaAviso publico="corretor" />
         {q.isLoading ? (
           <Skeleton className="h-20 w-full" />
         ) : (

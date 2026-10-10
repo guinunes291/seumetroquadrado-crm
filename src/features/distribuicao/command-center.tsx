@@ -38,16 +38,10 @@ import { TabHistorico } from "./tab-historico";
 import { TabPolitica } from "./tab-politica";
 import { TabConfiguracoes } from "./tab-configuracoes";
 import { TabAuditoria } from "./tab-auditoria";
+import { RoletaFechadaAviso } from "./roleta-noite";
 
 export type DistribuicaoTab =
-  | "visao"
-  | "filas"
-  | "corretores"
-  | "excecoes"
-  | "historico"
-  | "politica"
-  | "config"
-  | "auditoria";
+  "visao" | "filas" | "corretores" | "excecoes" | "historico" | "politica" | "config" | "auditoria";
 
 export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
   "visao",
@@ -123,6 +117,8 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           )
         }
       />
+
+      <RoletaFechadaAviso publico="gestao" className="mb-4" />
 
       {/* Dashboard de saúde da distribuição */}
       <StatGrid className="mb-6 xl:grid-cols-5">
