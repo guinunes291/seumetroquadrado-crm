@@ -1,8 +1,10 @@
 // SDR — zona de interesse obrigatória no registro (decisão do dono,
 // 05/10/2026). A regra mora no banco (tests/db/sdr-zona.test.ts: SMQZ2 sem
 // zona, roleta só na zona); aqui se trava o que a tela faz antes de bater na
-// RPC: o campo é obrigatório nos dois diálogos, a sugestão do banco entra
-// como valor inicial, e a zona escolhida vai no pedido.
+// RPC: o campo é obrigatório na entrega, a sugestão do banco entra como valor
+// inicial, e a zona escolhida vai no pedido. O agendamento do SDR passou a ser
+// a passagem do discador (10/10/2026): a zona dela está em
+// tests/pre-venda-lancamento.test.tsx.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -36,7 +38,6 @@ vi.mock("@/features/sdr/client", async (importOriginal) => {
 });
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: vi.fn(), from: vi.fn() } }));
 
-import { AgendarVisitaSdrDialog } from "@/features/sdr/agendar-visita-sdr-dialog";
 import { EntregarLeadSdrDialog } from "@/features/sdr/entregar-lead-sdr-dialog";
 
 function montar(ui: React.ReactElement) {
@@ -119,58 +120,6 @@ describe("EntregarLeadSdrDialog", () => {
     await waitFor(() =>
       expect(estado.entregar).toHaveBeenCalledWith(lead.id, "Cliente pronto", "Norte"),
     );
-  });
-});
-
-describe("AgendarVisitaSdrDialog", () => {
-  it("sem zona o botão trava; com zona e endereço a RPC recebe a zona", async () => {
-    estado.zonaDoLead.mockResolvedValue(null);
-    estado.agendar.mockResolvedValue(resultado);
-    montar(
-      <AgendarVisitaSdrDialog
-        lead={{ ...lead, projeto_nome: "Residencial Sol" }}
-        open
-        onOpenChange={() => {}}
-      />,
-    );
-    const botao = screen.getByText("Agendar e entregar") as HTMLButtonElement;
-    await waitFor(() => expect(estado.zonaDoLead).toHaveBeenCalledWith(lead.id));
-    expect(botao.disabled).toBe(true);
-    fireEvent.click(screen.getByRole("radio", { name: "Leste" }));
-    expect(botao.disabled).toBe(false);
-    fireEvent.click(botao);
-    await waitFor(() => expect(estado.agendar).toHaveBeenCalled());
-    expect(estado.agendar.mock.calls[0][0]).toMatchObject({
-      leadId: lead.id,
-      zona: "Leste",
-      local: "Residencial Sol",
-    });
-  });
-
-  it("o erro do banco (SMQZ2) chega como mensagem no toast", async () => {
-    estado.zonaDoLead.mockResolvedValue("Oeste");
-    estado.agendar.mockRejectedValue(
-      Object.assign(new Error("Informe a zona em que o cliente tem interesse"), {
-        code: "SMQZ2",
-      }),
-    );
-    montar(
-      <AgendarVisitaSdrDialog
-        lead={{ ...lead, projeto_nome: "Sol" }}
-        open
-        onOpenChange={() => {}}
-      />,
-    );
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: "Oeste" }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
-    );
-    fireEvent.click(screen.getByText("Agendar e entregar"));
-    await waitFor(() => expect(estado.toast.error).toHaveBeenCalled());
-    expect(estado.toast.error.mock.calls[0][1]).toMatchObject({
-      description: expect.stringContaining("zona em que o cliente tem interesse"),
-    });
   });
 });
 

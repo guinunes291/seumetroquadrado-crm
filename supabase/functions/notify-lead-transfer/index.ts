@@ -65,6 +65,8 @@ function mensagemSdr(opts: {
     local: string | null;
     tipoRenda: string | null;
     fgts: boolean | null;
+    /** sim | nao | nao_sabe (passagem do discador, 10/10/2026). */
+    restricaoCpf: string | null;
     resumo: string | null;
   };
 }): string {
@@ -77,6 +79,15 @@ function mensagemSdr(opts: {
       : `📌 Entrega manual (sem visita marcada)\n`) +
     `💰 Renda: ${opts.renda ?? "—"}${opts.sdr.tipoRenda ? ` (${opts.sdr.tipoRenda})` : ""}\n` +
     `🏦 FGTS: ${opts.sdr.fgts == null ? "—" : opts.sdr.fgts ? "sim" : "não"}\n` +
+    (opts.sdr.restricaoCpf
+      ? `🪪 CPF: ${
+          opts.sdr.restricaoCpf === "sim"
+            ? "com restrição (informado pelo cliente)"
+            : opts.sdr.restricaoCpf === "nao"
+              ? "sem restrição"
+              : "cliente não sabe se tem restrição"
+        }\n`
+      : "") +
     (opts.sdr.resumo ? `📝 ${opts.sdr.resumo.slice(0, 300)}\n` : "") +
     `🙋 SDR: ${opts.sdr.sdrNome ?? "—"}\n\n` +
     `🔗 Abrir no CRM: ${opts.link}`
@@ -266,7 +277,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   let sdrInfo: Parameters<typeof mensagemSdr>[0]["sdr"] | undefined;
   if (contextoSdr) {
-    const [{ data: sdrProf }, { data: visita }] = await Promise.all([
+    // A restrição no CPF (migration 20261014120000) é lida à parte: num banco
+    // que ainda não tem a coluna, a leitura falha sozinha e a mensagem sai sem
+    // a linha, em vez de não sair.
+    const [{ data: sdrProf }, { data: visita }, { data: cpf }] = await Promise.all([
       supabase
         .from("profiles")
         .select("nome")
@@ -281,6 +295,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .order("data_inicio", { ascending: true })
         .limit(1)
         .maybeSingle(),
+      supabase.from("leads").select("restricao_cpf").eq("id", leadId).maybeSingle(),
     ]);
     const visitaFmt = visita?.data_inicio
       ? new Date(visita.data_inicio as string).toLocaleString("pt-BR", {
@@ -297,6 +312,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       local: (visita?.local as string | null) ?? null,
       tipoRenda: (leadAny.tipo_renda as string | null) ?? null,
       fgts: typeof leadAny.usa_fgts === "boolean" ? (leadAny.usa_fgts as boolean) : null,
+      restricaoCpf:
+        ((cpf as Record<string, unknown> | null)?.restricao_cpf as string | null) ?? null,
       resumo: (leadAny.resumo_qualificacao as string | null) ?? null,
     };
   }

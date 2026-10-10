@@ -411,16 +411,20 @@ export const SISTEMAS: Sistema[] = [
     // devolvidos, perdidos), reaquecimento de lead parado de corretor e
     // entrega pela roleta de agendados. Só o papel sdr vê este card (admin
     // enxerga tudo, como sempre). Decisões em docs/politica-sdr-v1.md.
+    // Desde 10/10/2026 a porta é o Painel: o SDR trabalha no discador e entra
+    // no CRM para passar o cliente adiante; a Minha base inteira fica a um
+    // clique dentro do painel (?tab=base) — o teto de seis seções não cabe uma
+    // sétima.
     id: "sdr",
     titulo: "Pré-venda (SDR)",
-    descricao: "Esquente, qualifique e agende. O corretor recebe o lead pronto pela roleta.",
+    descricao: "Passe o cliente do discador. O corretor recebe o lead pronto pela roleta.",
     icon: Fire,
     home: { to: "/sdr" },
     roles: ["sdr"],
     cor: "sdr",
     grupo: "operacao",
     secoes: [
-      { id: "base", label: "Minha base", icon: Fire, to: "/sdr" },
+      { id: "base", label: "Painel", icon: Fire, to: "/sdr" },
       {
         // Reativação: base de quem cumpriu a cadência sem responder. É trilha
         // do SDR/discador, nunca do corretor — por isso vive aqui.
@@ -445,7 +449,7 @@ export const SISTEMAS: Sistema[] = [
       },
       {
         id: "agenda",
-        label: "Visitas & confirmações",
+        label: "Tarefas & visitas",
         icon: CalendarDots,
         to: "/sdr",
         search: { tab: "agenda" },

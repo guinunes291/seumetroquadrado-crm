@@ -95,7 +95,9 @@ export function motivoEntregaValido(motivo: string): boolean {
 /** Regras do motor, para a timeline e o histórico dizerem o que aconteceu. */
 export const SDR_REGRA_LABEL: Record<string, string> = {
   roleta_sdr: "Roleta de agendados do SDR",
+  roleta_sdr_zona: "Time da zona do cliente",
   sdr_prioridade_corretor_original: "Prioridade do corretor original",
+  sdr_retorno_corretor_origem: "Voltou ao corretor que falou com o cliente nos últimos dias",
   espelho_adicionado: "Espelho adicionado pelo admin",
   espelho_substituido: "Dono substituído pelo admin",
   "base_sdr:estoque": "Estoque sem dono → base do SDR",
@@ -136,4 +138,103 @@ export function comparecimentoPct(realizadas: number, noShow: number): number | 
   const total = realizadas + noShow;
   if (total <= 0) return null;
   return Math.round((1000 * realizadas) / total) / 10;
+}
+
+// ---------------------------------------------------------------------------
+// Passagem do discador (decisões do dono, 10/10/2026). O SDR passa o dia no
+// discador e só entra no CRM para agendar ou recolher documentação: a
+// passagem leva o mínimo que o corretor precisa. A régua de obrigatórios é a
+// mesma da RPC sdr_passar_cliente (SMQP1), na mesma ordem e com os mesmos
+// nomes, para a tela travar antes de bater no banco.
+// ---------------------------------------------------------------------------
+
+/** Códigos do Postgres da passagem. */
+export const PASSAGEM_ERRCODE = {
+  /** Faltou campo obrigatório (a mensagem lista quais). */
+  falta: "SMQP1",
+  /** O cliente está com corretor de "agendado" em diante: quem move é a gestão. */
+  comCorretor: "SMQP2",
+  /** O cliente já foi passado: a remarcação é pela visita no painel. */
+  jaPassado: "SMQP3",
+} as const;
+
+export type ModoPassagem = "visita" | "documentacao";
+export type RestricaoCpf = "sim" | "nao" | "nao_sabe";
+
+/** Atalhos de tipo de renda (o banco guarda texto livre). */
+export const TIPOS_RENDA = [
+  "CLT",
+  "Autônomo",
+  "Servidor público",
+  "Aposentado ou pensionista",
+  "Informal",
+  "Formal + informal",
+] as const;
+
+/** Atalhos de quem decide a compra. */
+export const QUEM_DECIDE = ["Sozinho(a)", "Com o cônjuge", "Com a família"] as const;
+
+export const RESTRICAO_CPF_OPCOES: ReadonlyArray<{ valor: RestricaoCpf; rotulo: string }> = [
+  { valor: "nao", rotulo: "Não" },
+  { valor: "sim", rotulo: "Sim" },
+  { valor: "nao_sabe", rotulo: "Não sabe" },
+];
+
+export function restricaoCpfValida(v: unknown): v is RestricaoCpf {
+  return v === "sim" || v === "nao" || v === "nao_sabe";
+}
+
+export type FormPassagem = {
+  modo: ModoPassagem;
+  nome: string;
+  telefone: string;
+  renda: string;
+  tipoRenda: string;
+  fgts: "sim" | "nao" | null;
+  decisor: string;
+  restricaoCpf: RestricaoCpf | null;
+  resumo: string;
+  zona: string | null;
+  local: string;
+  /** "AAAA-MM-DDTHH:MM" no fuso do aparelho (input datetime-local). */
+  inicio: string;
+};
+
+/** O que falta para passar o cliente — vazio = pode passar. */
+export function camposFaltandoPassagem(f: FormPassagem): string[] {
+  const vazio = (s: string | null | undefined) => !s || s.trim() === "";
+  const faltam: string[] = [];
+  if (vazio(f.nome)) faltam.push("nome");
+  if (vazio(f.telefone)) faltam.push("telefone");
+  if (vazio(f.renda)) faltam.push("renda");
+  if (vazio(f.tipoRenda)) faltam.push("tipo de renda");
+  if (!f.fgts) faltam.push("FGTS");
+  if (vazio(f.decisor)) faltam.push("quem decide");
+  if (!f.restricaoCpf) faltam.push("restrição no CPF");
+  if (f.modo === "visita") {
+    if (!zonaInteresseValida(f.zona)) faltam.push("zona");
+    if (vazio(f.local)) faltam.push("endereço da visita");
+    if (vazio(f.inicio) || Number.isNaN(new Date(f.inicio).getTime())) faltam.push("data e hora");
+  }
+  return faltam;
+}
+
+/** O corpo da RPC sdr_passar_cliente. */
+export function payloadPassagem(f: FormPassagem): Record<string, string | null> {
+  const t = (s: string) => (s.trim() === "" ? null : s.trim());
+  const visita = f.modo === "visita";
+  return {
+    modo: f.modo,
+    nome: t(f.nome),
+    telefone: t(f.telefone),
+    renda: t(f.renda),
+    tipo_renda: t(f.tipoRenda),
+    fgts: f.fgts,
+    decisor: t(f.decisor),
+    restricao_cpf: f.restricaoCpf,
+    resumo: t(f.resumo),
+    zona: f.zona,
+    local: visita ? t(f.local) : null,
+    inicio: visita && t(f.inicio) ? new Date(f.inicio).toISOString() : null,
+  };
 }

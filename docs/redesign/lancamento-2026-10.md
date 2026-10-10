@@ -336,21 +336,39 @@ O quiz e o certificado que o vídeo mostra ao lado da trilha têm telas
 próprias (`quiz-page`, `certificado-page`); repeti-los na trilha seria uma
 segunda tela de quiz.
 
-## Próximas fases — o miolo de cada módulo
+## Fase 11 — Pré-venda (06) ✅
 
-Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
-de composição e acabamento. Todos os módulos estão feitos (acima), menos a
-Pré-venda, que espera duas decisões do dono:
+O quadro do vídeo tem quatro colunas de contagem por etapa (Sem contato, Em
+conversa, Qualificado, Agendado), a roleta como roda de iniciais e o cartão
+navy "Lead entregue". Antes de desenhar, o dono descreveu o dia real do SDR
+(10/10/2026): **ele passa o dia no discador e só entra no CRM para agendar ou
+recolher documentação**. As colunas do vídeo ficariam vazias — o lead já nasce
+agendado. A tela segue o vídeo na forma e o SDR real no conteúdo
+(`docs/politica-sdr-v1.md` §7):
 
-| Módulo             | O vídeo mostra                                                          | O que já existe                   |
-| ------------------ | ----------------------------------------------------------------------- | --------------------------------- |
-| 06 Pré-venda (SDR) | Quatro colunas de contagem e a roleta desenhada como roda de corretores | Hub `/sdr`; a roda é desenho novo |
+- **"Passar cliente do discador"** (botão dourado no topo): uma tela, uma
+  chamada (`sdr_passar_cliente`) — telefone (cria ou puxa o cliente), renda,
+  tipo de renda, FGTS, quem decide e restrição no CPF obrigatórios; na
+  visita, zona, dia e endereço. Ou "Só documentação". O "Agendar visita" da
+  ficha abre a mesma passagem, já com o que a ficha sabe.
+- **Cinco colunas do que acontece depois da passagem**, que é o que paga:
+  A confirmar → Confirmada → Realizada → Pasta → Venda (as três últimas na
+  semana da folha, sábado a sexta). Cada coluna com o primeiro cliente como
+  o mini-cartão do vídeo e a barra relativa à maior.
+- **Roleta em número, roda com pontos anônimos** — sem iniciais e sem "o
+  próximo da vez": quem recebe sai no agendamento (agenda livre, zona,
+  corretor de origem). O banco devolve só a contagem.
+- **"Lead entregue"** (navy, como no vídeo): quem recebeu o último cliente
+  passado e o que recebeu (renda, tipo, FGTS, CPF, visita).
+- **Confirmações** com resultado (Confirmou / Remarcar / Não atendeu), e as
+  listas "Reagendar" (no-show) e "Sem visita marcada" (documentação).
 
-A Pré-venda espera duas decisões: (1) quais status do lead entram em cada
-coluna — Sem contato, Em conversa, Qualificado, Agendado; (2) se o SDR pode
-ver os nomes dos corretores da fila da roleta (a roda do vídeo mostra as
-iniciais deles), dado que expor a carteira dos colegas já foi tratado como
-assunto de clima do time.
+O hub tem seis seções no teto: "Minha base" virou **Painel** (a base inteira
+fica a um clique, em `?tab=base`) e "Visitas & confirmações" virou **Tarefas
+& visitas**. O "Contatos hoje" sai do Raio-X do SDR — ele liga do discador e
+o CRM mostraria zero.
+
+Com a Pré-venda, os dez módulos do vídeo estão feitos.
 
 Fora de escopo de propósito: o contador `00 / 10` e a pílula com a URL são
 recursos de edição do vídeo, não do produto. O logo continua o PNG da marca

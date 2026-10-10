@@ -41,14 +41,14 @@ const LEFT: Slot[] = [
 ];
 const RIGHT: Slot[] = [{ to: "/agendamentos", label: "Agenda", icon: CalendarDots }];
 
-// SDR (2026-09-04): o dia dele é base → reaquecer → visitas. Mesma barra,
-// destinos do hub próprio.
+// SDR (2026-09-04): mesma barra, destinos do hub próprio. Desde 10/10/2026 o
+// /sdr é o Painel (o SDR trabalha no discador e passa o cliente pelo CRM).
 const LEFT_SDR: Slot[] = [
-  { to: "/sdr", label: "Base", icon: Fire },
+  { to: "/sdr", label: "Painel", icon: Fire },
   { to: "/sdr", search: { tab: "reaquecer" }, label: "Reaquecer", icon: ArrowsClockwise },
 ];
 const RIGHT_SDR: Slot[] = [
-  { to: "/sdr", search: { tab: "agenda" }, label: "Visitas", icon: CalendarDots },
+  { to: "/sdr", search: { tab: "agenda" }, label: "Tarefas", icon: CalendarDots },
 ];
 
 function isActive(loc: { pathname: string; search: Record<string, unknown> }, slot: Slot) {

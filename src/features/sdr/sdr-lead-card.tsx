@@ -24,7 +24,7 @@ import {
   requisitosQualificado,
   situacaoSdr,
 } from "@/lib/sdr";
-import { AgendarVisitaSdrDialog } from "./agendar-visita-sdr-dialog";
+import { PassarClienteDialog } from "./passar-cliente-dialog";
 import { EntregarLeadSdrDialog } from "./entregar-lead-sdr-dialog";
 import { useInvalidarSdr, useLeadReaquecivel, useMarcarInteresse, usePegarLead } from "./client";
 
@@ -206,7 +206,7 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
               <p className="text-xs text-muted-foreground">
                 {faltam.length === 0
                   ? "Tudo pronto para qualificar."
-                  : `Para qualificar ainda falta: ${faltam.join(", ")}. Preencha em "Editar dados".`}
+                  : `Para qualificar ainda falta: ${faltam.join(", ")}. Esses dados entram pelo "Agendar visita".`}
               </p>
             )}
             <div className="flex flex-wrap gap-2">
@@ -260,10 +260,13 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
       </CardContent>
 
       {agendarAberto && (
-        <AgendarVisitaSdrDialog
-          lead={{ id: lead.id, nome: lead.nome, projeto_nome: lead.projeto_nome }}
+        // A mesma passagem do discador, com o que a ficha já sabe (decisão de
+        // 10/10/2026: toda visita do SDR leva renda, FGTS, quem decide e CPF).
+        <PassarClienteDialog
           open={agendarAberto}
+          leadId={lead.id}
           onOpenChange={setAgendarAberto}
+          onDone={() => invalidar(lead.id)}
         />
       )}
       {entregarAberto && (

@@ -101,6 +101,7 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
 | `sdr_meta_comparecimento_pct`  | 60       | Meta do Raio-X.                                                                                  |
 | `sdr_teto_leads_ativos`        | 0        | Teto de leads ativos por corretor na roleta do SDR (0 = sem teto).                               |
 | `sdr_aviso_corretor_url`       | URL prod | Edge Function do WhatsApp de entrega ao corretor (vazio = não avisa); o banco manda só um token. |
+| `sdr_origem_recente_dias`      | 7        | Dias de contato do corretor para o lead que o SDR puxou voltar a ele no agendamento (§7).        |
 
 Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 
@@ -115,6 +116,7 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 | Teto de leads ativos próprio da roleta do SDR                   | `supabase/migrations/20260904120000_sdr_teto_proprio.sql`              |
 | Visita por qualquer caminho passa pela roleta; dedup            | `supabase/migrations/20260904130000_sdr_visita_roleta.sql`             |
 | Aviso ao corretor pelo banco, Marcão fora, endereço obrigatório | `supabase/migrations/20260904140000_sdr_aviso_corretor.sql`            |
+| Passagem do discador, corretor de origem, confirmação, painel   | `supabase/migrations/20261014120000_sdr_passagem_discador.sql` (§7)    |
 | Suíte de banco                                                  | `tests/db/sdr.test.ts` (29 casos, ponta a ponta)                       |
 | Regras puras + testes                                           | `src/lib/sdr.ts`, `tests/sdr.test.ts`                                  |
 | Fronteira do cliente (RPCs/tabelas novas)                       | `src/features/sdr/client.ts`                                           |
@@ -139,6 +141,9 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 | `devolver_lead_ao_sdr(lead, motivo)`                | admin (UI)                              | Devolução manual                                            |
 | `sdr_reentregar_visitas_pendentes()`                | admin / SDR (SQL)                       | Reparo: visitas que ficaram no nome de um SDR vão à roleta  |
 | `sdr_raio_x(sdr, de, ate)`                          | SDR / gestão                            | KPIs + metas                                                |
+| `sdr_passar_cliente(payload)`                       | SDR (passagem do discador)              | Dedup + qualificação obrigatória + visita, numa transação   |
+| `sdr_registrar_confirmacao(visita, resultado, ...)` | SDR dono / admin                        | Confirmou, remarcar (novo horário) ou não atendeu           |
+| `sdr_painel(sdr)`                                   | SDR / admin                             | Colunas depois da passagem + contagem de aptos da roleta    |
 | `devolver_leads_sdr_parados()`                      | cron `sdr-devolver-parados` 09:30 BRT   | Devolução por 7 dias sem registro                           |
 | `alimentar_base_sdr_perdidos()`                     | cron `sdr-alimentar-perdidos` 08:00 BRT | Perdidos reciclados                                         |
 | `distribuir_estoque_roleta` (redefinida)            | cron `distribuir-estoque-plantao`       | Com a flag ligada delega a `distribuir_estoque_sdr`         |
@@ -175,3 +180,60 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 - A suíte `tests/db/dedup-leads.test.ts` já falhava antes desta entrega por causa
   do índice global `leads_telefone_unico_ativo_uidx` (migration 20260902151250) —
   não é efeito do SDR.
+
+## 7. Decisões de 10/10/2026: a passagem do discador
+
+O dono descreveu o dia real do SDR: **ele fica praticamente o dia inteiro no
+discador fazendo as bases; no CRM só cria ou puxa o lead quando há agendamento
+ou recolha de documentação**. As bases do discador são praticamente as do
+CRM. O CRM deixou de ser onde o SDR trabalha a base e passou a ser onde ele
+passa o cliente adiante. Migration `20261014120000_sdr_passagem_discador.sql`
+(espelho `0075`), testes em `tests/db/sdr-passagem.test.ts` e
+`tests/pre-venda-lancamento.test.tsx`.
+
+1. **Passagem em uma chamada** (`sdr_passar_cliente`, botão "Passar cliente
+   do discador"). Cadastro com dedup (cria na base do SDR ou puxa o
+   existente), qualificação e visita numa transação. **Obrigatórios**
+   (decisão "a"): renda, tipo de renda, FGTS, quem decide e restrição no CPF;
+   na visita, também zona, endereço e data. Faltou campo: `SMQP1` com a lista
+   e nada gravado. Sem corretor apto: nada gravado, nem o cadastro. Cliente
+   com corretor de "agendado" em diante: `SMQP2` (quem move é a gestão).
+   Cliente já passado: `SMQP3`. O "Agendar visita" da ficha abre a mesma
+   passagem. Antes disto o agendamento só exigia data, endereço e zona, e
+   nenhuma tela gravava tipo de renda nem quem decide.
+2. **Só documentação**: o mesmo cadastro, sem visita. O lead fica na base do
+   SDR (em atendimento, sem corretor) e a **gestão acompanha com o SDR até o
+   agendamento** (resposta do dono). Aparece no painel em "Sem visita marcada".
+3. **Restrição no CPF** (`leads.restricao_cpf`: sim, não, não sabe):
+   obrigatória na passagem, mas **não bloqueia** o agendamento — o corretor
+   fica sabendo antes da visita: a linha "🪪 CPF" entra no WhatsApp de
+   entrega (`notify-lead-transfer`, que precisa ser publicada de novo; até lá
+   a mensagem sai sem a linha).
+4. **Corretor de origem** (decisão "b": "nunca bloquear, porém se o lead teve
+   interação recente com corretor e foi reativado com SDR, o lead deve voltar
+   ao corretor de origem caso haja agendamento"). O SDR puxa sem bloqueio;
+   se o corretor dono teve contato com o cliente (ligação, WhatsApp, e-mail,
+   SMS, visita ou reunião) nos últimos `sdr_origem_recente_dias` (7), ele fica
+   em `leads.sdr_corretor_origem_id` e **recebe a visita de volta**, mesmo
+   fora da roleta, com as guardas da prioridade do corretor original: conta
+   ativa, papel corretor, região do cliente e agenda livre no horário —
+   falhando uma, roleta (o motivo fica no log: `prioridade_recusa`). Regra no
+   log: `sdr_retorno_corretor_origem`. Vale também para a entrega manual com
+   motivo (mesmo motor). A marca é usada uma vez: numa devolução posterior o
+   lead segue a régua normal. O SDR não escreve a coluna (guarda de posse).
+5. **Confirmação com resultado** (`sdr_registrar_confirmacao`): Confirmou (a
+   visita fica "confirmado"), Pediu para remarcar (novo horário com o mesmo
+   corretor, recusado se ele tem compromisso; D-1/D-0 novas para o SDR) e Não
+   atendeu. Remarcar e não atendeu avisam o corretor (sino e push).
+6. **Painel** (`sdr_painel`, a porta do hub): A confirmar → Confirmada →
+   Realizada → Pasta → Venda (as três últimas na semana da folha, sábado a
+   sexta), Reagendar (no-show dos últimos 14 dias sem visita nova), Sem visita
+   marcada, o último lead entregue e a **roleta só em número**: a contagem de
+   aptos sai do banco, os nomes não (a vez depende da agenda no horário e de
+   quem já tentou; o placar da roleta já mostra a cada corretor só a própria
+   linha).
+7. **Raio-X**: "Contatos hoje" sai para o SDR (ele liga do discador; o CRM
+   mostraria zero). O admin segue vendo, com a ressalva. O próximo passo é
+   ligar o agente do SDR no 3C Plus ao webhook que já grava as chamadas — antes
+   disso, conferir o caminho em que a tabulação muda a etapa e dá posse, feito
+   para o corretor.
