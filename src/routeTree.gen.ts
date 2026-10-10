@@ -121,6 +121,7 @@ import { Route as AuthenticatedAcademiaModuloCodigoIndexRouteImport } from './ro
 import { Route as AuthenticatedAcademiaModuloCodigoQuizRouteImport } from './routes/_authenticated/academia/modulo.$codigo.quiz'
 import { Route as ApiPublicLeadsIdCorretorRouteImport } from './routes/api/public/leads/$id.corretor'
 import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
+import { Route as ApiPublicLeadsIdInteracoesRouteImport } from './routes/api/public/leads/$id.interacoes'
 import { Route as ApiPublicLeadsIdPerdaRouteImport } from './routes/api/public/leads/$id.perda'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 import { Route as AuthenticatedAcademiaModuloCodigoAulaOrdemRouteImport } from './routes/_authenticated/academia/modulo.$codigo.aula.$ordem'
@@ -723,6 +724,12 @@ const ApiPublicLeadsIdEventosRoute = ApiPublicLeadsIdEventosRouteImport.update({
   path: '/eventos',
   getParentRoute: () => ApiPublicLeadsIdRoute,
 } as any)
+const ApiPublicLeadsIdInteracoesRoute =
+  ApiPublicLeadsIdInteracoesRouteImport.update({
+    id: '/interacoes',
+    path: '/interacoes',
+    getParentRoute: () => ApiPublicLeadsIdRoute,
+  } as any)
 const ApiPublicLeadsIdPerdaRoute = ApiPublicLeadsIdPerdaRouteImport.update({
   id: '/perda',
   path: '/perda',
@@ -852,6 +859,7 @@ export interface FileRoutesByFullPath {
   '/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
+  '/api/public/leads/$id/interacoes': typeof ApiPublicLeadsIdInteracoesRoute
   '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
   '/academia/modulo/$codigo/': typeof AuthenticatedAcademiaModuloCodigoIndexRoute
@@ -968,6 +976,7 @@ export interface FileRoutesByTo {
   '/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
+  '/api/public/leads/$id/interacoes': typeof ApiPublicLeadsIdInteracoesRoute
   '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
   '/academia/modulo/$codigo': typeof AuthenticatedAcademiaModuloCodigoIndexRoute
@@ -1086,6 +1095,7 @@ export interface FileRoutesById {
   '/_authenticated/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
+  '/api/public/leads/$id/interacoes': typeof ApiPublicLeadsIdInteracoesRoute
   '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
   '/_authenticated/academia/modulo/$codigo/': typeof AuthenticatedAcademiaModuloCodigoIndexRoute
@@ -1204,6 +1214,7 @@ export interface FileRouteTypes {
     | '/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
+    | '/api/public/leads/$id/interacoes'
     | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
     | '/academia/modulo/$codigo/'
@@ -1320,6 +1331,7 @@ export interface FileRouteTypes {
     | '/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
+    | '/api/public/leads/$id/interacoes'
     | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
     | '/academia/modulo/$codigo'
@@ -1437,6 +1449,7 @@ export interface FileRouteTypes {
     | '/_authenticated/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
+    | '/api/public/leads/$id/interacoes'
     | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
     | '/_authenticated/academia/modulo/$codigo/'
@@ -2271,6 +2284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsIdEventosRouteImport
       parentRoute: typeof ApiPublicLeadsIdRoute
     }
+    '/api/public/leads/$id/interacoes': {
+      id: '/api/public/leads/$id/interacoes'
+      path: '/interacoes'
+      fullPath: '/api/public/leads/$id/interacoes'
+      preLoaderRoute: typeof ApiPublicLeadsIdInteracoesRouteImport
+      parentRoute: typeof ApiPublicLeadsIdRoute
+    }
     '/api/public/leads/$id/perda': {
       id: '/api/public/leads/$id/perda'
       path: '/perda'
@@ -2462,12 +2482,14 @@ const AuthenticatedRouteRouteWithChildren =
 interface ApiPublicLeadsIdRouteChildren {
   ApiPublicLeadsIdCorretorRoute: typeof ApiPublicLeadsIdCorretorRoute
   ApiPublicLeadsIdEventosRoute: typeof ApiPublicLeadsIdEventosRoute
+  ApiPublicLeadsIdInteracoesRoute: typeof ApiPublicLeadsIdInteracoesRoute
   ApiPublicLeadsIdPerdaRoute: typeof ApiPublicLeadsIdPerdaRoute
 }
 
 const ApiPublicLeadsIdRouteChildren: ApiPublicLeadsIdRouteChildren = {
   ApiPublicLeadsIdCorretorRoute: ApiPublicLeadsIdCorretorRoute,
   ApiPublicLeadsIdEventosRoute: ApiPublicLeadsIdEventosRoute,
+  ApiPublicLeadsIdInteracoesRoute: ApiPublicLeadsIdInteracoesRoute,
   ApiPublicLeadsIdPerdaRoute: ApiPublicLeadsIdPerdaRoute,
 }
 
