@@ -75,7 +75,7 @@ import { usePublicarFaseDoLead } from "@/features/nav/contexto-jornada";
 import { useAuth } from "@/hooks/use-auth";
 import { SdrLeadCard } from "@/features/sdr/sdr-lead-card";
 import { EspelhoLeadCard } from "@/features/sdr/espelho-lead-card";
-import { AgendarVisitaSdrDialog } from "@/features/sdr/agendar-visita-sdr-dialog";
+import { PassarClienteDialog } from "@/features/sdr/passar-cliente-dialog";
 
 const LEAD_TABS = [
   "timeline",
@@ -578,9 +578,9 @@ function LeadDetailPage() {
         }}
       />
       {agendarSdrOpen && (
-        <AgendarVisitaSdrDialog
-          lead={{ id: lead.id, nome: lead.nome, projeto_nome: lead.projeto_nome }}
+        <PassarClienteDialog
           open={agendarSdrOpen}
+          leadId={lead.id}
           onOpenChange={setAgendarSdrOpen}
         />
       )}

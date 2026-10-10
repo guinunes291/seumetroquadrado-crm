@@ -365,22 +365,30 @@ export function ConteudoOperacao() {
         id="sdr"
         numero="7"
         titulo="Pré-venda (SDR)"
-        resumo="A pré-venda esquenta, qualifica e agenda — o corretor recebe o cliente pronto."
+        resumo="O SDR trabalha no discador e passa o cliente pelo CRM — o corretor recebe o cliente pronto."
       >
         <Bloco titulo="O fluxo" quem="SDR">
           <Passos
             itens={[
-              "Minha base: trabalhe os clientes da pré-venda, confirme interesse e perfil.",
-              "Reaquecer (parados): retome clientes de corretor sem registro há dias — a posse continua com o corretor.",
-              "Agende a visita; ou entregue sem visita marcada, informando o motivo obrigatório.",
-              "O cliente entra na base do corretor escolhido pela roleta, na etapa “Qualificação Corretor”.",
-              "Visitas & confirmações: confirme a visita na véspera e no dia. Do comparecimento em diante, o corretor assume.",
+              "No discador, ao fechar uma visita (ou a recolha de documentos), clique em “Passar cliente do discador”.",
+              "Informe telefone, nome, renda, tipo de renda, FGTS, quem decide e restrição no CPF. Na visita, também a zona, o dia e o endereço.",
+              "A roleta escolhe o corretor e ele recebe tudo no WhatsApp. Se um corretor falou com o cliente nos últimos 7 dias, a visita volta para ele.",
+              "Confirmações: ligue na véspera e no dia e responda Confirmou, Remarcar ou Não atendeu. O corretor fica sabendo.",
+              "No painel, acompanhe a semana da folha: a confirmar, confirmada, realizada, pasta e venda.",
             ]}
           />
           <Tela
             src="sdr"
-            legenda="Hub da pré-venda: minha base, reaquecer, entregues, visitas e raio-x."
+            legenda="Painel da pré-venda: as visitas depois da passagem, a roleta e as confirmações."
           />
+        </Bloco>
+
+        <Bloco titulo="Só documentação" quem="SDR · Gestão">
+          <p>
+            Quando o cliente vai mandar documentos antes da visita, escolha{" "}
+            <strong>Só documentação</strong> na passagem. Ele fica na sua base, em “Sem visita
+            marcada”, e a gestão acompanha com você até a visita ser agendada.
+          </p>
         </Bloco>
 
         <Bloco titulo="Cadastrar ou puxar clientes para a sua base" quem="SDR">
@@ -402,7 +410,8 @@ export function ConteudoOperacao() {
           <p>
             Ao marcar a visita (pelo botão “Agendar visita” ou pela agenda da ficha), o crédito fica
             com quem marcou, o cliente vai para <strong>Agendado</strong> com o corretor e o SDR
-            continua vendo o cliente junto com ele.
+            continua vendo o cliente junto com ele. O “Agendar visita” da ficha abre a mesma
+            passagem, já com o que a ficha sabe do cliente.
           </p>
         </Bloco>
 

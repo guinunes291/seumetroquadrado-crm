@@ -1,12 +1,18 @@
-// Hub do SDR (/sdr): Minha base · Reaquecer · Entregues · Visitas & confirmações
-// · Raio-X. Sem abas próprias: a sidebar contextual navega por ?tab= (mesmo
-// padrão do Follow-Up). O admin enxerga o hub de qualquer SDR pelo seletor.
+// Hub do SDR (/sdr): Painel · Reativação · Reaquecer · Entregues · Tarefas &
+// visitas · Raio-X (a Minha base inteira fica a um clique, em ?tab=base). Sem
+// abas próprias: a sidebar contextual navega por ?tab= (mesmo padrão do
+// Follow-Up). O admin enxerga o hub de qualquer SDR pelo seletor.
+//
+// Desde 10/10/2026 o painel é a porta: o SDR passa o dia no discador e entra
+// no CRM para passar o cliente adiante (PassarClienteDialog) e acompanhar o
+// que acontece depois (PainelSdr).
 
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ArrowSquareIn,
   ArrowsClockwise,
   CalendarDots,
   ChartLineUp,
@@ -50,8 +56,11 @@ import { LEAD_STATUS_BADGE_TONE, leadStatusLabel, type LeadStatus } from "@/lib/
 import { SDR_ETAPAS_BASE, SDR_ETAPA_LABEL, SITUACAO_SDR_LABEL, situacaoSdr } from "@/lib/sdr";
 import { cn } from "@/lib/utils";
 import { useMinhaBase, usePegarLead, useRaioXSdr, useReaquecer, type LeadSdrRow } from "./client";
+import { ConfirmacaoAcoes } from "./confirmacao-acoes";
+import { PainelSdr } from "./painel-sdr";
+import { PassarClienteDialog } from "./passar-cliente-dialog";
 
-export type SdrTab = "reaquecer" | "entregues" | "agenda" | "raio-x";
+export type SdrTab = "base" | "reaquecer" | "entregues" | "agenda" | "raio-x";
 
 // ---------------------------------------------------------------------------
 // Seletor de SDR (admin)
@@ -456,6 +465,18 @@ function AgendaView({ sdrId }: { sdrId: string }) {
     ],
   );
 
+  // A confirmação responde pela VISITA (o resultado vai para o corretor);
+  // as outras tarefas só se concluem.
+  const proximaVisita = (leadId: string | null) =>
+    leadId
+      ? (visitas.data ?? []).find(
+          (v) =>
+            v.lead_id === leadId &&
+            (v.status === "agendado" || v.status === "confirmado") &&
+            new Date(v.data_inicio).getTime() > Date.now(),
+        )
+      : undefined;
+
   const concluir = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -465,7 +486,7 @@ function AgendaView({ sdrId }: { sdrId: string }) {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Confirmação registrada");
+      toast.success("Tarefa concluída");
       void tarefas.refetch();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -474,7 +495,7 @@ function AgendaView({ sdrId }: { sdrId: string }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section className="space-y-2">
-        <h2 className="font-display text-base font-semibold">Confirmações pendentes</h2>
+        <h2 className="font-display text-base font-semibold">Suas tarefas</h2>
         {tarefas.isLoading ? (
           <Skeleton className="h-40 w-full" />
         ) : tarefas.isError ? (
@@ -482,14 +503,17 @@ function AgendaView({ sdrId }: { sdrId: string }) {
         ) : !tarefas.data?.length ? (
           <EmptyState
             icon={CheckCircle}
-            title="Nada a confirmar"
-            description="As tarefas D-1 e D-0 das visitas que você agendar aparecem aqui."
+            title="Nenhuma tarefa aberta"
+            description="As confirmações D-1 e D-0 das visitas que você agendar aparecem aqui."
           />
         ) : (
           <ul className="space-y-2">
             {tarefas.data.map((t) => {
               const vencida = !!t.data_vencimento && new Date(t.data_vencimento) < new Date();
               const lead = t.leads;
+              const visita = t.titulo.startsWith("Confirmar visita de")
+                ? proximaVisita(t.lead_id)
+                : undefined;
               return (
                 <li
                   key={t.id}
@@ -511,14 +535,27 @@ function AgendaView({ sdrId }: { sdrId: string }) {
                       {t.data_vencimento && ` · ${formatRelativeTime(t.data_vencimento)}`}
                     </div>
                   </button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={concluir.isPending}
-                    onClick={() => concluir.mutate(t.id)}
-                  >
-                    Confirmado
-                  </Button>
+                  {visita ? (
+                    <ConfirmacaoAcoes
+                      visita={{
+                        agendamento_id: visita.id,
+                        nome: lead?.nome ?? visita.titulo,
+                        data_inicio: visita.data_inicio,
+                        corretor_nome: visita.corretor_id
+                          ? (nomes.data?.[visita.corretor_id] ?? null)
+                          : null,
+                      }}
+                    />
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={concluir.isPending}
+                      onClick={() => concluir.mutate(t.id)}
+                    >
+                      Feito
+                    </Button>
+                  )}
                 </li>
               );
             })}
@@ -579,7 +616,7 @@ function AgendaView({ sdrId }: { sdrId: string }) {
 // ---------------------------------------------------------------------------
 // Raio-X
 // ---------------------------------------------------------------------------
-function RaioXView({ sdrId }: { sdrId: string }) {
+function RaioXView({ sdrId, mostrarContatos }: { sdrId: string; mostrarContatos: boolean }) {
   const q = useRaioXSdr(sdrId);
   if (q.isLoading) return <Skeleton className="h-64 w-full" />;
   if (q.isError || !q.data) return <QueryErrorState error={q.error} onRetry={() => q.refetch()} />;
@@ -600,12 +637,17 @@ function RaioXView({ sdrId }: { sdrId: string }) {
           icon={Fire}
           hint={`${x.base.reaquecendo} reaquecendo`}
         />
-        <StatTile
-          title="Contatos hoje"
-          value={x.contatos.hoje}
-          intent={intent(x.contatos.hoje >= x.metas.contatos_dia)}
-          hint={`meta ${x.metas.contatos_dia}/dia · ${x.contatos.periodo} no período`}
-        />
+        {/* O SDR liga do discador: o CRM só vê o que foi registrado nele, e
+            "0 contatos" diria que ele não trabalhou. Para o SDR o número sai
+            até as ligações do discador chegarem ao CRM (decisão de 10/10). */}
+        {mostrarContatos && (
+          <StatTile
+            title="Contatos no CRM hoje"
+            value={x.contatos.hoje}
+            intent={intent(x.contatos.hoje >= x.metas.contatos_dia)}
+            hint={`meta ${x.metas.contatos_dia}/dia · ${x.contatos.periodo} no período · as ligações do discador não entram`}
+          />
+        )}
         <StatTile
           title="Visitas agendadas na semana"
           value={x.agendamentos.semana}
@@ -664,6 +706,9 @@ export function SdrPage({ tab }: { tab?: SdrTab }) {
   const sdrs = useSdrs(isAdmin);
   const [sdrEscolhido, setSdrEscolhido] = useState<string | null>(null);
   const sdrId = isAdmin ? (sdrEscolhido ?? sdrs.data?.[0]?.id ?? null) : (user?.id ?? null);
+  // Só o SDR passa cliente (a RPC recusa o admin, que acompanha pelo seletor).
+  const podePassar = isSdr && !isAdmin;
+  const [passar, setPassar] = useState(false);
 
   const titulo =
     tab === "reaquecer"
@@ -671,10 +716,12 @@ export function SdrPage({ tab }: { tab?: SdrTab }) {
       : tab === "entregues"
         ? "Leads entregues"
         : tab === "agenda"
-          ? "Visitas & confirmações"
+          ? "Tarefas & visitas"
           : tab === "raio-x"
             ? "Raio-X do SDR"
-            : "Minha base";
+            : tab === "base"
+              ? "Minha base"
+              : "Pré-venda (SDR)";
 
   return (
     <div className="space-y-4">
@@ -688,8 +735,10 @@ export function SdrPage({ tab }: { tab?: SdrTab }) {
               : tab === "agenda"
                 ? "Você confirma a visita (D-1 e no dia); o corretor atende da visita em diante."
                 : tab === "raio-x"
-                  ? "Contatos, agendamentos, comparecimento e entregas contra as metas."
-                  : "Esquente, qualifique e agende: o corretor recebe o lead pronto pela roleta."
+                  ? "Agendamentos, comparecimento e entregas contra as metas."
+                  : tab === "base"
+                    ? "Todos os clientes da sua base que ainda não foram para um corretor."
+                    : "Passe o cliente do discador e acompanhe até a venda. O corretor recebe o lead pronto pela roleta."
         }
         actions={
           isAdmin && (sdrs.data?.length ?? 0) > 0 ? (
@@ -705,9 +754,17 @@ export function SdrPage({ tab }: { tab?: SdrTab }) {
                 ))}
               </SelectContent>
             </Select>
+          ) : podePassar ? (
+            <Button
+              className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
+              onClick={() => setPassar(true)}
+            >
+              <ArrowSquareIn className="mr-1.5 h-4 w-4" weight="bold" /> Passar cliente do discador
+            </Button>
           ) : undefined
         }
       />
+      {passar && <PassarClienteDialog open onOpenChange={setPassar} />}
 
       {isAdmin && !sdrId ? (
         <EmptyState
@@ -724,9 +781,11 @@ export function SdrPage({ tab }: { tab?: SdrTab }) {
       ) : tab === "agenda" ? (
         <AgendaView sdrId={sdrId} />
       ) : tab === "raio-x" ? (
-        <RaioXView sdrId={sdrId} />
-      ) : (
+        <RaioXView sdrId={sdrId} mostrarContatos={isAdmin} />
+      ) : tab === "base" ? (
         <BaseView sdrId={sdrId} podeImportar={isAdmin || isSdr} />
+      ) : (
+        <PainelSdr sdrId={sdrId} podePassar={podePassar} onPassar={() => setPassar(true)} />
       )}
     </div>
   );

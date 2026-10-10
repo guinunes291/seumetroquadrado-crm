@@ -526,6 +526,13 @@
       "when": 1791903600000,
       "tag": "0074_presenca_por_filial",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791990000000,
+      "tag": "0075_sdr_passagem_discador",
+      "breakpoints": true
     }
   ]
 }
