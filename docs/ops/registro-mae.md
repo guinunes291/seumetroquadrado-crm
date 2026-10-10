@@ -4,7 +4,7 @@ Decisões do dono em 03/10/2026.
 
 | Fatia | Migration                                               | Testes                                                                               |
 | ----- | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| A     | `20261010120300_registro_mae_clientes` (Drizzle `0054`) | `tests/db/registro-mae.test.ts` (banco), `tests/buscar-oportunidade.test.tsx`        |
+| A     | `20261010120300_registro_mae_clientes` (Drizzle `0054`) | `tests/db/registro-mae.test.ts` (banco), `tests/buscar-oportunidade.test.tsx` (tela) |
 | B     | `20261010120400_registro_mae_volta_campanha` (`0055`)   | `tests/db/registro-mae-campanha.test.ts` (banco), `tests/webhook-lead-volta.test.ts` |
 
 ## 1. O que o dono pediu
@@ -80,19 +80,44 @@ quando há duplicata antiga. Criá-los sem condição poderia derrubar o deploy.
 
 ## 5. Na tela
 
-No **Novo lead**, o corretor vê no topo o bloco **"Buscar oportunidade"**
-(telefone, e-mail ou CPF formatado). Os resultados possíveis:
+Decisão do dono em 10/10/2026: **a busca é a primeira tela do Novo lead do
+corretor**, sempre. Ela verifica se o cliente já está no CRM ou se precisa
+mesmo de um cadastro novo, que vira o cadastro mãe dele.
 
-- **Não encontrado:** segue o cadastro normal abaixo.
-- **Já é dele:** link para o lead.
-- **Outro corretor em Visita realizada ou além:** bloqueado, com o motivo.
-- **Existe no CRM:** mostra quais informações virão prontas e o botão **"Criar
-  meu registro"**. O registro nasce na carteira dele, em Aguardando atendimento,
-  origem captação própria, e entra na cadência como qualquer lead novo.
+**1. Buscar oportunidade.** Três campos, cada um com a sua máscara:
+**telefone**, **e-mail** e **CPF**. O corretor preenche pelo menos um (pode
+preencher mais). Campo preenchido errado (telefone sem DDD, e-mail sem
+domínio, CPF com dígito verificador errado) impede a busca e aponta qual: um
+"não encontrado" por erro de digitação viraria um cadastro mãe duplicado. O
+banco procura na ordem telefone → CPF → e-mail e devolve a primeira mãe. Os
+resultados:
 
-Se o corretor ignorar a busca e cadastrar um telefone que já está em outra
-carteira, o diálogo não dá mais o erro "lead duplicado em outra carteira". Ele
-leva o corretor para a busca, já preenchida.
+| Resultado                                      | O que a tela faz                                                                                                                                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Existe no CRM**                              | Diz por qual dado achou, quais informações virão prontas e mostra **"Criar meu registro"**. O registro nasce na carteira dele, em Aguardando atendimento, origem captação própria, e entra na cadência. |
+| **Já é dele**                                  | Link para o lead.                                                                                                                                                                                       |
+| **Outro corretor em Visita realizada ou além** | Bloqueado, com o motivo. Não abre o cadastro.                                                                                                                                                           |
+| **Não encontrado**                             | Segue para o cadastro.                                                                                                                                                                                  |
+
+**2. Cadastro do cliente novo.** Vem com o telefone, o e-mail e o CPF da busca
+já preenchidos e o aviso "este será o cadastro mãe do cliente". Antes de
+criar, o diálogo **busca de novo** com os três valores do cadastro: o
+corretor pode ter mudado algum depois da busca. Se agora achar alguém, volta
+para a busca com o resultado, sem criar nada.
+
+O CPF entra no lead logo depois da criação (o `criar_lead_dedup` não recebe
+CPF), pelo mesmo `update` do "Editar dados". O gatilho do registro mãe o leva
+para a mãe, e é por ele que a busca por CPF acha a pessoa depois. Se essa
+gravação falhar, o lead fica criado e o corretor é avisado para completar na
+ficha.
+
+Se ainda assim o banco acusar o telefone em outra carteira na criação
+(corrida entre dois cadastros), o diálogo volta para a busca e a refaz
+sozinho.
+
+**Gestão e SDR** abrem direto no cadastro, como antes: a busca e o registro
+filho são do corretor no banco (`buscar_oportunidade` e
+`criar_registro_filho` recusam os outros papéis).
 
 ## 6. O encerramento
 

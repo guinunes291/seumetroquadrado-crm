@@ -1,6 +1,12 @@
-// Diálogo global de "Novo lead" — extraído de leads.index.tsx (F1) sem
-// mudança de comportamento. Montado uma vez no shell autenticado e aberto de
-// qualquer tela pelo evento "open-novo-lead" (botão da lista, palette ⌘K).
+// Diálogo global de "Novo lead" — extraído de leads.index.tsx (F1). Montado
+// uma vez no shell autenticado e aberto de qualquer tela pelo evento
+// "open-novo-lead" (botão da lista, palette ⌘K).
+//
+// Corretor: duas etapas. A primeira é SEMPRE a busca por telefone, e-mail ou
+// CPF (registro mãe, docs/ops/registro-mae.md): achou, cria o registro filho
+// dele; não achou, segue para o cadastro, que vira o cadastro mãe do cliente.
+// Gestão e SDR abrem direto no cadastro (a busca e o registro filho são do
+// corretor no banco).
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,17 +33,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
-import { maskPhoneBR } from "@/lib/masks";
+import { isValidBrazilPhone, isValidCPF, isValidEmail } from "@/lib/validators";
+import { maskCPF, maskPhoneBR } from "@/lib/masks";
 import { origemLabel } from "@/lib/origem";
 import { ZONAS_REGIAO } from "@/lib/zonas";
-import { BuscarOportunidade } from "@/features/leads/buscar-oportunidade";
+import { BuscarOportunidade, type ClienteEncontrado } from "@/features/leads/buscar-oportunidade";
+import {
+  buscarOportunidade,
+  errosDaBusca,
+  type BuscaCliente,
+  type ErrosBusca,
+} from "@/features/leads/oportunidade";
 
 /** O telefone já existe na carteira de outro corretor: em vez de erro, o
- *  corretor é levado ao "Buscar oportunidade" para criar o registro dele. */
+ *  corretor volta ao "Buscar oportunidade" para criar o registro dele. */
 class DuplicadoEmOutraCarteira extends Error {
-  constructor(readonly telefone: string) {
+  constructor() {
     super("Este cliente já existe no CRM.");
+  }
+}
+
+/** A conferência final do cadastro achou o cliente (o corretor mudou telefone,
+ *  e-mail ou CPF depois da busca): volta para a busca, com o resultado. */
+class ClienteJaCadastrado extends Error {
+  constructor(readonly resultado: ClienteEncontrado) {
+    super("Este cliente já tem cadastro no CRM.");
   }
 }
 
@@ -117,11 +137,19 @@ function NovoLeadForm({
   mostrarOportunidade?: boolean;
 }) {
   const qc = useQueryClient();
-  const [consultaOportunidade, setConsultaOportunidade] = useState<string | null>(null);
+  // Corretor começa SEMPRE pela busca; os outros papéis, direto no cadastro.
+  // Derivado (não o valor inicial do useState): os papéis chegam depois do
+  // login, e o ⌘K logo na entrada abriria o corretor preso no cadastro.
+  const [etapaCorretor, setEtapa] = useState<"busca" | "cadastro">("busca");
+  const etapa = mostrarOportunidade ? etapaCorretor : "cadastro";
+  const [errosBusca, setErrosBusca] = useState<ErrosBusca>({});
+  const [encontrado, setEncontrado] = useState<ClienteEncontrado | null>(null);
   const [form, setForm] = useState({
     nome: "",
     telefone: "",
     email: "",
+    // Só no fluxo do corretor: vem da busca e vai para o cadastro mãe.
+    cpf: "",
     origem: canManage ? "outro" : "captacao_corretor",
     projeto_nome: "",
     bairro: "",
@@ -157,6 +185,48 @@ function NovoLeadForm({
     },
   });
 
+  const identidade: BuscaCliente = { telefone: form.telefone, email: form.email, cpf: form.cpf };
+
+  // Primeira tela do corretor. "duplicado": o cadastro acusou o telefone em
+  // outra carteira e a busca roda sozinha para mostrar o cliente.
+  const busca = useMutation({
+    mutationFn: (v: { b: BuscaCliente; motivo: "busca" | "duplicado" }) => buscarOportunidade(v.b),
+    onSuccess: (r, v) => {
+      if (r.encontrado) {
+        setEncontrado(r);
+        return;
+      }
+      if (v.motivo === "duplicado") {
+        // O banco vê o telefone em outra carteira, mas a busca não acha a
+        // mãe: voltar ao cadastro só repetiria o erro.
+        toast.error("Este telefone já está na carteira de outro corretor. Fale com a gestão.");
+        return;
+      }
+      setEtapa("cadastro");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function buscar() {
+    const erros = errosDaBusca(identidade);
+    setErrosBusca(erros);
+    setEncontrado(null);
+    if (Object.keys(erros).length === 0) busca.mutate({ b: identidade, motivo: "busca" });
+  }
+
+  function mudarBusca(campo: keyof BuscaCliente, valor: string) {
+    setForm((f) => ({ ...f, [campo]: valor }));
+    // Resultado e erros são do que estava digitado: mudou, some.
+    setEncontrado(null);
+    setErrosBusca({});
+  }
+
+  function voltarParaBusca() {
+    setEncontrado(null);
+    setErrosBusca({});
+    setEtapa("busca");
+  }
+
   const create = useMutation({
     mutationFn: async () => {
       if (!form.nome.trim() || !form.telefone.trim()) {
@@ -167,6 +237,17 @@ function NovoLeadForm({
       }
       if (form.email.trim() && !isValidEmail(form.email)) {
         throw new Error("E-mail inválido.");
+      }
+      const cpf = mostrarOportunidade ? form.cpf.trim() : "";
+      if (cpf && !isValidCPF(cpf)) {
+        throw new Error("CPF inválido: confira os 11 dígitos.");
+      }
+
+      // Conferência final do corretor: telefone, e-mail ou CPF podem ter
+      // mudado depois da busca. Só nasce cadastro mãe novo se ninguém casa.
+      if (mostrarOportunidade) {
+        const achado = await buscarOportunidade(identidade);
+        if (achado.encontrado) throw new ClienteJaCadastrado(achado);
       }
 
       // Duplicidade por e-mail: checagem client-side (best-effort, sob RLS).
@@ -239,6 +320,7 @@ function NovoLeadForm({
           corretorNome: resultado.nome ?? null,
           selfAssigned: false,
           sdrPegou: true,
+          cpfPendente: false,
         };
       }
       if (resultado.duplicado && resultado.bloqueado_etapa) {
@@ -247,7 +329,7 @@ function NovoLeadForm({
         );
       }
       if (resultado.duplicado && mostrarOportunidade && !resultado.na_carteira) {
-        throw new DuplicadoEmOutraCarteira(form.telefone.trim());
+        throw new DuplicadoEmOutraCarteira();
       }
       if (resultado.duplicado) {
         throw new Error(
@@ -257,6 +339,19 @@ function NovoLeadForm({
         );
       }
       const data = { id: resultado.lead_id };
+
+      // CPF da busca: o criar_lead_dedup não recebe CPF, então ele entra logo
+      // depois, pelo mesmo caminho do "Editar dados" — e o gatilho do
+      // registro mãe o leva para a mãe (é o que a busca por CPF encontra).
+      // Falhar aqui não desfaz o lead: o corretor completa na ficha.
+      let cpfPendente = false;
+      if (cpf) {
+        const { error: cpfErr } = await supabase
+          .from("leads")
+          .update({ cpf: maskCPF(cpf) })
+          .eq("id", data.id);
+        cpfPendente = !!cpfErr;
+      }
 
       if (podeDistribuir && distribuirAuto && data?.id) {
         // Distribuição v3: triagem única (origem → roleta → corretor apto).
@@ -271,6 +366,7 @@ function NovoLeadForm({
           corretorNome: null as string | null,
           selfAssigned: false,
           sdrPegou: false,
+          cpfPendente,
         };
       }
       return {
@@ -282,10 +378,14 @@ function NovoLeadForm({
           : null,
         selfAssigned: !canManage,
         sdrPegou: false,
+        cpfPendente,
       };
     },
     onSuccess: (r) => {
       if (r.sdrPegou) qc.invalidateQueries({ queryKey: ["sdr:base"] });
+      if (r.cpfPendente) {
+        toast.warning("Lead criado, mas o CPF não foi salvo: preencha em “Editar dados”.");
+      }
       toast.success(
         r.sdrPegou
           ? `Este cliente já existia no CRM${r.corretorNome ? ` ("${r.corretorNome}")` : ""}: entrou na sua base de pré-venda`
@@ -308,24 +408,79 @@ function NovoLeadForm({
       onClose();
     },
     onError: (e: Error) => {
+      if (e instanceof ClienteJaCadastrado) {
+        setErrosBusca({});
+        setEncontrado(e.resultado);
+        setEtapa("busca");
+        toast.info("Este cliente já tem cadastro no CRM: veja o resultado da busca.");
+        return;
+      }
       if (e instanceof DuplicadoEmOutraCarteira) {
-        setConsultaOportunidade(e.telefone);
-        toast.info("Este cliente já existe no CRM: veja acima como criar o seu registro.");
+        setErrosBusca({});
+        setEncontrado(null);
+        setEtapa("busca");
+        busca.mutate({ b: identidade, motivo: "duplicado" });
         return;
       }
       toast.error(e.message);
     },
   });
 
+  if (etapa === "busca") {
+    return (
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Novo lead</DialogTitle>
+          <DialogDescription>
+            Primeiro passo: veja se o cliente já tem cadastro no CRM.
+          </DialogDescription>
+        </DialogHeader>
+        <BuscarOportunidade
+          valores={identidade}
+          onChange={mudarBusca}
+          onBuscar={buscar}
+          erros={errosBusca}
+          resultado={encontrado}
+          onCriado={onClose}
+        />
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          {/* Com um resultado na tela, a ação é a dele (criar o registro, abrir
+              o lead). Mudar um campo apaga o resultado e o botão volta. */}
+          {!encontrado && (
+            <Button onClick={buscar} loading={busca.isPending}>
+              Buscar cliente
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    );
+  }
+
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Novo lead</DialogTitle>
-        <DialogDescription>Adicione um lead manualmente.</DialogDescription>
+        <DialogDescription>
+          {mostrarOportunidade
+            ? "Cliente novo no CRM: preencha o cadastro."
+            : "Adicione um lead manualmente."}
+        </DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
         {mostrarOportunidade && (
-          <BuscarOportunidade consultaInicial={consultaOportunidade} onCriado={onClose} />
+          <div
+            role="status"
+            className="rounded-lg border border-border-subtle bg-muted/30 p-3 text-sm"
+            data-testid="cadastro-mae"
+          >
+            Nenhum cadastro no CRM com esses dados. <b>Este será o cadastro mãe do cliente.</b>{" "}
+            <button type="button" className="underline" onClick={voltarParaBusca}>
+              Voltar à busca
+            </button>
+          </div>
         )}
         <div>
           <Label>Nome *</Label>
@@ -350,6 +505,19 @@ function NovoLeadForm({
             />
           </div>
         </div>
+        {mostrarOportunidade && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>CPF</Label>
+              <Input
+                inputMode="numeric"
+                placeholder="000.000.000-00"
+                value={form.cpf}
+                onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })}
+              />
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Origem</Label>

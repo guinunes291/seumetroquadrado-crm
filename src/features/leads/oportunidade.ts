@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { rpc } from "@/features/dashboard/queries";
+import { isValidBrazilPhone, isValidCPF, isValidEmail, onlyDigits } from "@/lib/validators";
 
 export const oportunidadeSchema = z.union([
   z.object({ encontrado: z.literal(false) }),
@@ -40,31 +41,56 @@ export const registroFilhoSchema = z.union([
 
 export type RegistroFilho = z.infer<typeof registroFilhoSchema>;
 
-/** O que o corretor digitou vira telefone, e-mail ou CPF. */
-export function classificarBusca(texto: string): {
-  telefone: string | null;
-  email: string | null;
-  cpf: string | null;
+/** A primeira tela do Novo lead: um campo para cada jeito de achar o cliente. */
+export type BuscaCliente = { telefone: string; email: string; cpf: string };
+
+export type ErrosBusca = Partial<Record<keyof BuscaCliente | "geral", string>>;
+
+/** O que impede a busca. Vazio = pode buscar. Um campo preenchido errado
+ *  também impede: um "não encontrado" por erro de digitação viraria um
+ *  cadastro mãe duplicado, justamente o que a busca existe para evitar. */
+export function errosDaBusca(b: BuscaCliente): ErrosBusca {
+  const tel = b.telefone.trim();
+  const mail = b.email.trim();
+  const cpf = b.cpf.trim();
+  if (!tel && !mail && !cpf) return { geral: "Preencha o telefone, o e-mail ou o CPF do cliente." };
+  const erros: ErrosBusca = {};
+  if (tel && !isValidBrazilPhone(tel)) erros.telefone = "Telefone inválido: DDD + número.";
+  if (mail && !isValidEmail(mail)) erros.email = "E-mail inválido.";
+  if (cpf && !isValidCPF(cpf)) erros.cpf = "CPF inválido: confira os 11 dígitos.";
+  return erros;
+}
+
+/** Argumentos da RPC: só o que foi preenchido. O banco procura nessa ordem —
+ *  telefone, CPF, e-mail — e devolve a primeira mãe que achar. */
+export function argumentosDaBusca(b: BuscaCliente): {
+  _telefone: string | null;
+  _email: string | null;
+  _cpf: string | null;
 } {
-  const t = texto.trim();
-  if (t.includes("@")) return { telefone: null, email: t.toLowerCase(), cpf: null };
-  const digitos = t.replace(/\D/g, "");
-  // CPF formatado (000.000.000-00) é CPF; 11 dígitos soltos são celular —
-  // um CPF sem pontuação cai como telefone e não acha, e o corretor redigita.
-  if (/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(t)) return { telefone: null, email: null, cpf: digitos };
-  return { telefone: digitos.length >= 9 ? t : null, email: null, cpf: null };
+  return {
+    _telefone: b.telefone.trim() || null,
+    _email: b.email.trim().toLowerCase() || null,
+    _cpf: onlyDigits(b.cpf) || null,
+  };
+}
+
+const ROTULO_MATCH: Record<"telefone" | "cpf" | "email", string> = {
+  telefone: "pelo telefone",
+  cpf: "pelo CPF",
+  email: "pelo e-mail",
+};
+
+export function rotuloMatch(m: "telefone" | "cpf" | "email"): string {
+  return ROTULO_MATCH[m];
 }
 
 export { rotulosHerdados } from "./campos-cliente";
 
-export async function buscarOportunidade(texto: string): Promise<Oportunidade> {
-  const args = classificarBusca(texto);
-  if (!args.telefone && !args.email && !args.cpf) return { encontrado: false };
-  const { data, error } = await rpc("buscar_oportunidade", {
-    _telefone: args.telefone,
-    _email: args.email,
-    _cpf: args.cpf,
-  });
+export async function buscarOportunidade(b: BuscaCliente): Promise<Oportunidade> {
+  const args = argumentosDaBusca(b);
+  if (!args._telefone && !args._email && !args._cpf) return { encontrado: false };
+  const { data, error } = await rpc("buscar_oportunidade", args);
   if (error) throw error;
   return oportunidadeSchema.parse(data);
 }

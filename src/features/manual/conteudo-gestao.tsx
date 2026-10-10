@@ -20,7 +20,7 @@ export function ConteudoGestao() {
           </p>
           <Passos
             itens={[
-              'Novo cliente: botão "Novo lead" — nome e telefone são o mínimo.',
+              'Novo cliente: botão "Novo lead". O corretor busca primeiro por telefone, e-mail ou CPF: se o cliente já existe, cria o registro dele com os dados prontos; se não, cadastra (nome e telefone são o mínimo) e esse vira o cadastro mãe.',
               "Importar planilha: botão de importação, com conferência antes de gravar.",
               "Selecionar vários: use as caixinhas; aparece a barra de ações em massa.",
               'Em massa você pode: "Transferir" para outro corretor, agendar follow-up e descartar com motivo.',
@@ -147,8 +147,8 @@ export function ConteudoGestao() {
             de novo para fechar.
           </p>
           <Aviso>
-            Produtos, Projetos em Foco e Vitrine mostram só as construtoras parceiras: Vibra, Trisul,
-            Plano&amp;Plano, Mundo APTO, Holos, Engelux, Conx, Cavazani, Cury, Longitude,
+            Produtos, Projetos em Foco e Vitrine mostram só as construtoras parceiras: Vibra,
+            Trisul, Plano&amp;Plano, Mundo APTO, Holos, Engelux, Conx, Cavazani, Cury, Longitude,
             Direcional, Riva, Econ e Emccamp. O Catálogo da gestão continua mostrando tudo. Para
             aparecer em Produtos, o empreendimento precisa de zona e de book ou tabela.
           </Aviso>
@@ -160,8 +160,8 @@ export function ConteudoGestao() {
           <p>
             Em <strong>Materiais</strong>, cole as linhas (sem títulos) nesta ordem: nome do
             empreendimento, link do book, link da tabela, link da capa e preço a partir de (aceita
-            “R$ 450.000”, “320 mil” ou “1,2 mi”). Coluna vazia não apaga nada. Nomes que não
-            batem com o cadastro aparecem numa lista para corrigir.
+            “R$ 450.000”, “320 mil” ou “1,2 mi”). Coluna vazia não apaga nada. Nomes que não batem
+            com o cadastro aparecem numa lista para corrigir.
           </p>
         </Bloco>
 
@@ -170,8 +170,8 @@ export function ConteudoGestao() {
             Links do Google Drive funcionam como capa e banner, desde que o arquivo esteja
             compartilhado como “Qualquer pessoa com o link”. Faça o banner de campanha em{" "}
             <strong>2400 × 600 px</strong> (JPG, até 500 KB), com a metade esquerda limpa para o
-            texto e o elemento principal no centro-direita. Não escreva nome, preço ou datas na
-            arte — o CRM já mostra.
+            texto e o elemento principal no centro-direita. Não escreva nome, preço ou datas na arte
+            — o CRM já mostra.
           </p>
         </Bloco>
 
@@ -379,8 +379,8 @@ export function ConteudoGestao() {
             ]}
           />
           <Aviso>
-            Só pode pedir um lote novo quando o anterior terminar a cadência e a sua carteira estiver
-            abaixo de 65 clientes. Se a zona tiver menos de 30, vem o que houver.
+            Só pode pedir um lote novo quando o anterior terminar a cadência e a sua carteira
+            estiver abaixo de 65 clientes. Se a zona tiver menos de 30, vem o que houver.
           </Aviso>
         </Bloco>
 
@@ -388,11 +388,23 @@ export function ConteudoGestao() {
           <Tabela
             cabecalho={["Situação", "O que acontece"]}
             linhas={[
-              ["Cliente parado há mais de 30 dias (Bolsão) ou 60 dias (corretor)", "Volta para a roleta ou para o Bolsão"],
-              ["Cliente sem próximo passo marcado há vários dias", "Pode ser devolvido — sempre marque o próximo passo"],
+              [
+                "Cliente parado há mais de 30 dias (Bolsão) ou 60 dias (corretor)",
+                "Volta para a roleta ou para o Bolsão",
+              ],
+              [
+                "Cliente sem próximo passo marcado há vários dias",
+                "Pode ser devolvido — sempre marque o próximo passo",
+              ],
               ["Carteira acima de 65 clientes", "Os parados há mais tempo saem até caber"],
-              ["Cliente em “Qualificação Corretor”", "Fica protegido com você durante o prazo da etapa"],
-              ["Visita, proposta, análise, venda ou cliente que você mesmo captou", "Nunca sai da sua carteira por essas regras"],
+              [
+                "Cliente em “Qualificação Corretor”",
+                "Fica protegido com você durante o prazo da etapa",
+              ],
+              [
+                "Visita, proposta, análise, venda ou cliente que você mesmo captou",
+                "Nunca sai da sua carteira por essas regras",
+              ],
             ]}
           />
           <Aviso tipo="atencao">
