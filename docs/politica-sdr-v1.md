@@ -190,6 +190,9 @@ CRM. O CRM deixou de ser onde o SDR trabalha a base e passou a ser onde ele
 passa o cliente adiante. Migration `20261014120000_sdr_passagem_discador.sql`
 (espelho `0075`), testes em `tests/db/sdr-passagem.test.ts` e
 `tests/pre-venda-lancamento.test.tsx`.
+Em produção desde 10/10/2026: aplicada à mão no banco da Lovable e ainda sem
+registro no drizzle, que espera a `0074` (ver `docs/ops/presenca-filiais.md`
+§6).
 
 1. **Passagem em uma chamada** (`sdr_passar_cliente`, botão "Passar cliente
    do discador"). Cadastro com dedup (cria na base do SDR ou puxa o

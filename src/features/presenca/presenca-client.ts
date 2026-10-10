@@ -5,9 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-// Tabelas/funções de presença ainda não estão nos tipos gerados (migration pendente).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as any;
+import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { useAuth } from "@/hooks/use-auth";
 import {
   motivoPresencaLabel,
@@ -30,7 +28,7 @@ export function useMinhaPresenca(enabled = true) {
     // do dia (auto-checkout das 23h) aparece no próximo foco da janela.
     staleTime: 60_000,
     queryFn: async (): Promise<MinhaPresenca> => {
-      const { data, error } = await sb.rpc("presenca_minha_v1");
+      const { data, error } = await supabasePendente.rpc("presenca_minha_v1");
       if (error) throw error;
       return parseMinhaPresenca(data);
     },
@@ -92,7 +90,7 @@ export function useCheckin() {
   return useMutation({
     mutationFn: async (args: { modo: "loja" | "casa"; filial?: string }) => {
       const geo = args.modo === "loja" ? await obterLocalizacao() : null;
-      const { data, error } = await sb.rpc("presenca_checkin", {
+      const { data, error } = await supabasePendente.rpc("presenca_checkin", {
         _modo: args.modo,
         _filial: args.filial,
         _latitude: geo?.lat,
@@ -142,7 +140,7 @@ export function usePresencaHoje(enabled: boolean) {
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async (): Promise<PresencaHojeRow[]> => {
-      const { data, error } = await sb.rpc("presenca_hoje_v1");
+      const { data, error } = await supabasePendente.rpc("presenca_hoje_v1");
       if (error) throw error;
       return (data ?? []) as PresencaHojeRow[];
     },
@@ -154,7 +152,7 @@ export function useCheckinPelaGestao() {
   const invalidar = useInvalidarPresenca();
   return useMutation({
     mutationFn: async (args: { corretorId: string; filial: string; nome: string }) => {
-      const { error } = await sb.rpc("presenca_checkin", {
+      const { error } = await supabasePendente.rpc("presenca_checkin", {
         _modo: "loja",
         _filial: args.filial,
         _corretor_id: args.corretorId,
@@ -186,7 +184,7 @@ export function useFiliais(enabled = true) {
     queryKey: [...PRESENCA_KEY, "filiais"],
     enabled,
     queryFn: async (): Promise<FilialRow[]> => {
-      const { data, error } = await sb
+      const { data, error } = await supabasePendente
         .from("filiais")
         .select("id, slug, nome, endereco, latitude, longitude, raio_metros, ativa, ordem")
         .order("ordem")
@@ -202,7 +200,7 @@ export function useSalvarFilial() {
   return useMutation({
     mutationFn: async (f: Pick<FilialRow, "id"> & Partial<Omit<FilialRow, "id" | "slug">>) => {
       const { id, ...campos } = f;
-      const { data, error } = await sb
+      const { data, error } = await supabasePendente
         .from("filiais")
         .update(campos)
         .eq("id", id)

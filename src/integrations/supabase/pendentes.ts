@@ -15,10 +15,18 @@
 //   • construtoras_parceiras (+ logo_url)
 //   • projeto_eventos
 //   • rpc projetos_demanda_v1()
+//
+// Presença por filial (migration 20261013120000_presenca_por_filial.sql, a
+// 0074): a tabela filiais e as RPCs presenca_checkin, presenca_hoje_v1 e
+// presenca_minha_v1. O Lovable regenerou types.ts em 10/10/2026 a partir da
+// produção, que ainda não tem a 0074, e esses tipos saíram de lá. Depois que a
+// 0074 rodar em produção e o Lovable regenerar types.ts com eles, apague o
+// bloco de presença daqui e troque `supabasePendente` por `supabase` em
+// src/features/presenca/presenca-client.ts.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
-import type { Database } from "./types";
+import type { Database, Json } from "./types";
 
 type Pub = Database["public"];
 type Tabelas = Pub["Tables"];
@@ -89,6 +97,41 @@ export type DemandaRow = {
   ultimo_envio: string | null;
 };
 
+export type FilialRowPendente = {
+  ativa: boolean;
+  created_at: string;
+  endereco: string | null;
+  id: string;
+  latitude: number | null;
+  longitude: number | null;
+  nome: string;
+  ordem: number;
+  raio_metros: number;
+  slug: string;
+  updated_at: string;
+};
+
+type FilialInsert = Partial<FilialRowPendente> & Pick<FilialRowPendente, "nome" | "slug">;
+
+type PresencaHojeLinha = {
+  apto_roleta: boolean;
+  avatar_url: string;
+  checkin_em: string;
+  corretor_id: string;
+  distancia_m: number;
+  encerrado_em: string;
+  filial_nome: string;
+  filial_slug: string;
+  localizacao: string;
+  modo: string;
+  motivo: string;
+  nome: string;
+  origem: string;
+  presente: boolean;
+  vendas_mes_anterior: number;
+  vendas_minimas: number;
+};
+
 type ColunasNovasProjetos = {
   preco_atualizado_em: string | null;
   tabela_atualizada_em: string | null;
@@ -123,9 +166,28 @@ export type DatabasePendente = Omit<Database, "public"> & {
         Update: Partial<ProjetoEventoInsert>;
         Relationships: [];
       };
+      filiais: {
+        Row: FilialRowPendente;
+        Insert: FilialInsert;
+        Update: Partial<FilialRowPendente>;
+        Relationships: [];
+      };
     };
     Functions: Pub["Functions"] & {
       projetos_demanda_v1: { Args: never; Returns: DemandaRow[] };
+      presenca_checkin: {
+        Args: {
+          _corretor_id?: string;
+          _filial?: string;
+          _latitude?: number;
+          _longitude?: number;
+          _modo: string;
+          _precisao_m?: number;
+        };
+        Returns: Json;
+      };
+      presenca_hoje_v1: { Args: never; Returns: PresencaHojeLinha[] };
+      presenca_minha_v1: { Args: never; Returns: Json };
     };
   };
 };

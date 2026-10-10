@@ -9,6 +9,7 @@ import {
   requireApiLeadAccess,
 } from "@/lib/api-client-auth.server";
 import { auditarEscrita, clientIp } from "@/lib/write-api-auth";
+import type { Json } from "@/integrations/supabase/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_CONTEUDO = 6000;
@@ -43,7 +44,10 @@ export const Route = createFileRoute("/api/public/leads/$id/interacoes")({
 
         const conteudo = typeof body.conteudo === "string" ? body.conteudo.trim() : "";
         if (!conteudo || conteudo.length > MAX_CONTEUDO) {
-          return jsonResponse({ error: `conteudo é obrigatório (1 a ${MAX_CONTEUDO} caracteres)` }, 422);
+          return jsonResponse(
+            { error: `conteudo é obrigatório (1 a ${MAX_CONTEUDO} caracteres)` },
+            422,
+          );
         }
 
         let titulo = TITULO_PADRAO;
@@ -70,7 +74,7 @@ export const Route = createFileRoute("/api/public/leads/$id/interacoes")({
           chaveDedupe = c || null;
         }
 
-        let metadataIn: Record<string, unknown> = {};
+        let metadataIn: { [key: string]: Json | undefined } = {};
         if (body.metadata !== undefined && body.metadata !== null) {
           if (typeof body.metadata !== "object" || Array.isArray(body.metadata)) {
             return jsonResponse({ error: "metadata deve ser um objeto" }, 422);
@@ -84,7 +88,8 @@ export const Route = createFileRoute("/api/public/leads/$id/interacoes")({
           if (size > MAX_METADATA_BYTES) {
             return jsonResponse({ error: `metadata excede ${MAX_METADATA_BYTES} bytes` }, 413);
           }
-          metadataIn = body.metadata as Record<string, unknown>;
+          // Veio de request.json() e já foi conferido como objeto: é JSON.
+          metadataIn = body.metadata as { [key: string]: Json | undefined };
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -112,7 +117,7 @@ export const Route = createFileRoute("/api/public/leads/$id/interacoes")({
           }
         }
 
-        const metadata = {
+        const metadata: Json = {
           ...metadataIn,
           fonte: "api_publica",
           endpoint: "leads/:id/interacoes",
@@ -129,7 +134,7 @@ export const Route = createFileRoute("/api/public/leads/$id/interacoes")({
             direcao: "interna",
             titulo,
             conteudo,
-            metadata: metadata as never,
+            metadata,
             ocorreu_em: new Date().toISOString(),
           })
           .select()
