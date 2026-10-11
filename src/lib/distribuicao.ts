@@ -67,7 +67,11 @@ export type MotivoInaptidao =
   | "pct_trabalhado_abaixo_minimo"
   | "sem_modelo_contrato"
   | "onboarding_pendente"
-  | "conflito_agenda";
+  | "conflito_agenda"
+  | "regra_65_sem_vaga"
+  | "roleta_desativada"
+  | "fora_da_regiao"
+  | "sem_zona_no_perfil";
 
 export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   nao_participante: "Não participa da roleta",
@@ -84,6 +88,11 @@ export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   sem_modelo_contrato: "Sem modelo de contrato definido",
   onboarding_pendente: "Onboarding não concluído",
   conflito_agenda: "Conflito de agenda no horário da visita",
+  regra_65_sem_vaga: "Em atendimento no teto (regra dos 65)",
+  roleta_desativada: "Roleta desligada",
+  // Fila por zona (2026-10-15): a roleta só sorteia quem atende a zona.
+  fora_da_regiao: "Não atende esta zona",
+  sem_zona_no_perfil: "Sem zona no perfil (a gestão define)",
 };
 
 export function motivoInaptidaoLabel(motivo: string): string {

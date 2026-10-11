@@ -307,6 +307,20 @@ export function ConteudoOperacao() {
           </p>
         </Bloco>
 
+        <Bloco titulo="A vez de cada um, por zona" quem="SDR · Corretor · Gestão">
+          <p>
+            O <strong>SDR</strong> e a gestão escolhem a zona no painel da Pré-venda e veem a fila
+            de cada roleta dela, com nomes: quem é o 1º, o 2º… e quem está fora agora (sem check-in,
+            pausado, cota do dia). O <strong>corretor</strong> vê só a própria posição em{" "}
+            <strong>Sua vez nas roletas</strong>, na Central de Comando — por exemplo, “Agendados do
+            SDR · Leste — 2º de 6”.
+          </p>
+          <Aviso>
+            A fila é a ordem se os próximos clientes forem daquela zona. Quem tem visita no horário
+            é pulado, e o corretor que falou com o cliente nos últimos 7 dias fura a fila.
+          </Aviso>
+        </Bloco>
+
         <Bloco titulo="Quem está apto a receber">
           <p>
             O sistema pula o corretor quando: não participa ou está pausado na roleta; perfil

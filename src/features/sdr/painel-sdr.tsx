@@ -6,19 +6,14 @@
 // e o que pede ação: as confirmações D-1/D-0 (com o resultado), quem não
 // compareceu e quem está sem visita marcada (documentação; a gestão acompanha).
 //
-// A roleta aparece em número, nunca em nomes nem "o próximo da vez": quem
-// recebe sai no agendamento (agenda livre no horário, zona do cliente,
-// corretor de origem com prioridade). Uma leitura só: sdr_painel.
+// A roleta é a fila de cada roleta por zona, com nomes (decisão do dono,
+// 11/10/2026: "a roleta será apenas para o SDR e os corretores vendo em qual
+// posição da fila estão. Por fila de zona"), em FilaZonaCard. O painel em si
+// é uma leitura só: sdr_painel.
 
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  CalendarPlus,
-  Phone,
-  ShuffleAngular,
-  WarningCircle,
-} from "@phosphor-icons/react";
+import { ArrowRight, CalendarPlus, Phone, ShuffleAngular } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QueryErrorState } from "@/components/ui/query-error-state";
@@ -29,17 +24,12 @@ import { iniciais } from "@/lib/prateleira";
 import { cn } from "@/lib/utils";
 import { ConfirmacaoAcoes } from "./confirmacao-acoes";
 import { PassarClienteDialog } from "./passar-cliente-dialog";
-import {
-  usePainelSdr,
-  type EntregaPainel,
-  type PainelSdr,
-  type RoletaPainel,
-} from "./painel-client";
+import { FilaZonaCard } from "@/features/roletas/fila-zona-card";
+import { usePainelSdr, type EntregaPainel, type PainelSdr } from "./painel-client";
 import {
   colunasDoPainel,
   etiquetasDaEntrega,
   rotuloSemana,
-  textoRoleta,
   type ColunaPainel,
 } from "./painel-derive";
 
@@ -85,71 +75,6 @@ function CartaoColuna({ c }: { c: ColunaPainel }) {
         </div>
       </div>
     </li>
-  );
-}
-
-/** A roda do vídeo, com pontos anônimos: quantos estão aptos, não quem. */
-function RodaAnonima({ n }: { n: number }) {
-  const pontos = Math.min(n, 8);
-  return (
-    <svg viewBox="0 0 120 120" className="h-28 w-28 shrink-0" aria-hidden="true">
-      <circle
-        cx="60"
-        cy="60"
-        r="44"
-        fill="none"
-        className="stroke-border"
-        strokeWidth="1.5"
-        strokeDasharray="3 4"
-      />
-      <circle cx="60" cy="60" r="9" className="fill-primary dark:fill-navy-300" />
-      {Array.from({ length: pontos }, (_, i) => {
-        const a = (2 * Math.PI * i) / pontos - Math.PI / 2;
-        return (
-          <circle
-            key={i}
-            data-testid="ponto-roleta"
-            cx={60 + 44 * Math.cos(a)}
-            cy={60 + 44 * Math.sin(a)}
-            r="9"
-            className="fill-primary/85 dark:fill-navy-300"
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
-function RoletaCard({ r }: { r: RoletaPainel }) {
-  const t = textoRoleta(r);
-  return (
-    <section
-      aria-label="Roleta do SDR"
-      className="flex items-center gap-4 rounded-2xl border border-border-subtle bg-card p-5 text-card-foreground"
-    >
-      <div className="min-w-0 flex-1">
-        <h2 className="font-display text-lg font-bold">Roleta</h2>
-        <p className="text-xs text-muted-foreground">
-          distribui a visita que você agenda a um corretor apto
-        </p>
-        <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {t.titulo}
-        </p>
-        <p className="font-display text-3xl font-bold tracking-tight" data-testid="roleta-numero">
-          {t.numero}
-        </p>
-        <p
-          className={cn(
-            "mt-1 flex items-start gap-1 text-xs",
-            t.alerta ? "text-warning" : "text-muted-foreground",
-          )}
-        >
-          {t.alerta && <WarningCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" weight="fill" />}
-          {t.detalhe}
-        </p>
-      </div>
-      <RodaAnonima n={r.aptos} />
-    </section>
   );
 }
 
@@ -434,8 +359,8 @@ export function PainelSdr({
           <CartaoColuna key={c.chave} c={c} />
         ))}
       </ol>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <RoletaCard r={p.roleta} />
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <FilaZonaCard />
         <EntregaCard e={p.ultima_entrega} onPassar={podePassar ? onPassar : undefined} />
       </div>
       <Confirmacoes p={p} />

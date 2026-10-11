@@ -69,6 +69,7 @@ import { desfechoPara, type OpcaoDesfecho } from "@/features/fila-unica/desfecho
 import { useDesfecho } from "@/features/fila-unica/use-desfecho";
 import { FILA_UNICA_FUNIL_KEY } from "@/features/fila-unica/use-fila-funil";
 import { useFilaUnica, FILA_UNICA_SEM_ACAO_KEY } from "@/features/fila-unica/use-fila-unica";
+import { MinhasPosicoesRoletas } from "@/features/roletas/minhas-posicoes-card";
 import {
   CalendarCheck,
   CalendarX,
@@ -169,10 +170,12 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   const abrirWhatsApp = useWhatsAppLead();
   const { ligar, discando } = useLigarLead();
   const { user } = useAuth();
-  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const { isAdmin, isGestor, isSuperintendente, isCorretor } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
   // A gestão pode abrir a fila de um corretor ("Ver a fila" na tabela).
   const outro = !!corretorId && corretorId !== user?.id;
+  // A posição nas roletas é do próprio corretor (o banco não lê a de outro).
+  const verPosicoes = isCorretor && !outro;
   const alvo = outro ? corretorId : undefined;
   const { fila, isLoading, isError, error, refetch } = useFilaUnica({ corretorId: alvo });
   const equipe = useFilaEquipe(gestao);
@@ -407,6 +410,8 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
           <div className="space-y-3 md:space-y-4">
             {/* Celular: o placar compacto (no desktop ele está no hero). */}
             <FilaCockpit fila={fila} carteira={carteira} className="md:hidden" />
+            {/* A vez dele em cada roleta (decisão de 11/10/2026). */}
+            {verPosicoes && <MinhasPosicoesRoletas className="md:hidden" />}
 
             {emFormacao > 0 && (
               <p
@@ -557,7 +562,10 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
                 )}
                 {gestao && <FilaEquipe atual={alvo ?? null} />}
               </div>
-              <FilaLateral className="hidden md:flex" />
+              <FilaLateral
+                className="hidden md:flex"
+                topo={verPosicoes ? <MinhasPosicoesRoletas /> : undefined}
+              />
             </div>
 
             {/* O funil completo (metas, parados, vazamentos) — o "Ver funil"

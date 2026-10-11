@@ -2,7 +2,8 @@
 // dono em 10/10/2026): ele passa o dia no discador e entra no CRM para passar
 // o cliente adiante. A regra mora no banco (tests/db/sdr-passagem.test.ts);
 // aqui se trava a tela: o que a passagem exige antes de bater na RPC, o que o
-// painel conta, e que a roleta aparece em número, nunca em nomes.
+// painel conta e a roleta como fila da zona (decisão de 11/10/2026: o SDR vê
+// a ordem com nomes, o 1º em destaque).
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,18 +11,14 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { QueryClient, QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
 import { camposFaltandoPassagem, payloadPassagem, type FormPassagem } from "@/lib/sdr";
 import type { PainelSdr as PainelDados } from "@/features/sdr/painel-client";
-import {
-  colunasDoPainel,
-  etiquetasDaEntrega,
-  rotuloSemana,
-  textoRoleta,
-} from "@/features/sdr/painel-derive";
+import { colunasDoPainel, etiquetasDaEntrega, rotuloSemana } from "@/features/sdr/painel-derive";
 
 const estado = vi.hoisted(() => ({
   passar: vi.fn(),
   confirmar: vi.fn(),
   prefill: vi.fn(),
   painel: vi.fn(),
+  filas: vi.fn(),
   navigate: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -47,6 +44,10 @@ vi.mock("@/features/sdr/painel-client", () => ({
       queryFn: () => estado.prefill(leadId),
     }),
   usePainelSdr: () => useQuery({ queryKey: ["painel"], queryFn: () => estado.painel() }),
+}));
+vi.mock("@/features/roletas/fila-client", () => ({
+  useFilasZona: (zona: string | null) =>
+    useQuery({ queryKey: ["filas", zona], queryFn: () => estado.filas(zona) }),
 }));
 
 import { PassarClienteDialog } from "@/features/sdr/passar-cliente-dialog";
@@ -212,22 +213,6 @@ describe("conta do painel", () => {
     expect(rotuloSemana(PAINEL.semana)).toBe("sáb 10/10 a sex 16/10");
   });
 
-  it("a roleta é um número; sem aptos, diz para onde a visita vai", () => {
-    expect(textoRoleta(PAINEL.roleta)).toMatchObject({
-      numero: "6 corretores",
-      alerta: false,
-    });
-    expect(textoRoleta(PAINEL.roleta).detalhe).toContain("regra semanal ativa");
-    expect(textoRoleta({ ...PAINEL.roleta, aptos: 1, sombra: true }).numero).toBe("1 corretor");
-    expect(textoRoleta({ ...PAINEL.roleta, aptos: 1, sombra: true }).detalhe).toContain("em teste");
-    const zero = textoRoleta({ ...PAINEL.roleta, aptos: 0 });
-    expect(zero.alerta).toBe(true);
-    expect(zero.detalhe).toContain("time da zona");
-    expect(textoRoleta({ ...PAINEL.roleta, aptos: 0, zona_estrita: false }).detalhe).toContain(
-      "entrega manual",
-    );
-  });
-
   it("o lead entregue leva o que o corretor recebeu", () => {
     const t = etiquetasDaEntrega(PAINEL.ultima_entrega!);
     expect(t.slice(0, 4)).toEqual(["Renda 4.700", "CLT", "FGTS sim", "CPF sem restrição"]);
@@ -375,17 +360,43 @@ describe("PassarClienteDialog", () => {
 });
 
 describe("PainelSdr", () => {
-  it("colunas, roleta em número sem nomes, lead entregue e as confirmações", async () => {
+  it("colunas, roleta da zona com o 1º em destaque, lead entregue e as confirmações", async () => {
     estado.painel.mockResolvedValue(PAINEL);
+    estado.filas.mockResolvedValue({
+      zona: "Norte",
+      zona_estrita: true,
+      zonas: ["Norte"],
+      roletas: [
+        {
+          slug: "agendados-sdr",
+          nome: "Agendados do SDR",
+          papel: "sdr",
+          mecanica: "ponderado_semana",
+          equipe_fixa: false,
+          exige_presenca: false,
+          fora_do_horario: false,
+          segue_zona: false,
+          fila: [
+            { posicao: 1, corretor_id: "c1", nome: "Bianca Torres" },
+            { posicao: 2, corretor_id: "c2", nome: "Lucas Moura" },
+          ],
+          fora: [],
+        },
+      ],
+    });
     estado.confirmar.mockResolvedValue({ agendamento_id: "a1", data_inicio: futuro(20) });
     montar(<PainelSdr sdrId={null} podePassar onPassar={() => {}} />);
     await waitFor(() => expect(screen.getAllByTestId("coluna-pre-venda")).toHaveLength(5));
 
-    const roleta = screen.getByRole("region", { name: "Roleta do SDR" });
-    expect(within(roleta).getByTestId("roleta-numero").textContent).toBe("6 corretores");
-    expect(within(roleta).getAllByTestId("ponto-roleta")).toHaveLength(6);
-    // Nenhum nome ou inicial de corretor na roleta.
-    expect(roleta.textContent).not.toMatch(/Bianca|Lucas|BT|LM/);
+    const roleta = screen.getByRole("region", { name: "Roleta" });
+    await waitFor(() => expect(within(roleta).getAllByTestId("fila-pessoa")).toHaveLength(2));
+    const fila = within(roleta).getAllByTestId("fila-pessoa");
+    expect(fila[0].textContent).toContain("1º");
+    expect(fila[0].textContent).toContain("Bianca Torres");
+    expect(fila[0].textContent).toContain("próximo");
+    expect(fila[1].textContent).toContain("Lucas Moura");
+    expect(within(roleta).getAllByTestId("roda-ponto")).toHaveLength(2);
+    expect(estado.filas).toHaveBeenCalledWith("Norte");
 
     const entrega = screen.getByRole("region", { name: "Lead entregue" });
     expect(entrega.textContent).toContain("Bianca Torres");
