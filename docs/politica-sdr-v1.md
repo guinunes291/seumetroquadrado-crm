@@ -230,12 +230,34 @@ no drizzle em 11/10, depois da `0074`, ver `docs/ops/presenca-filiais.md` §6).
 6. **Painel** (`sdr_painel`, a porta do hub): A confirmar → Confirmada →
    Realizada → Pasta → Venda (as três últimas na semana da folha, sábado a
    sexta), Reagendar (no-show dos últimos 14 dias sem visita nova), Sem visita
-   marcada, o último lead entregue e a **roleta só em número**: a contagem de
-   aptos sai do banco, os nomes não (a vez depende da agenda no horário e de
-   quem já tentou; o placar da roleta já mostra a cada corretor só a própria
-   linha).
+   marcada e o último lead entregue. A roleta nasceu "só em número" e virou a
+   fila de cada roleta por zona, com nomes, em 11/10 (§8).
 7. **Raio-X**: "Contatos hoje" sai para o SDR (ele liga do discador; o CRM
    mostraria zero). O admin segue vendo, com a ressalva. O próximo passo é
    ligar o agente do SDR no 3C Plus ao webhook que já grava as chamadas — antes
    disso, conferir o caminho em que a tabulação muda a etapa e dá posse, feito
    para o corretor.
+
+## 8. Decisão de 11/10/2026: a roleta como fila por zona
+
+Ao comparar com a roleta do vídeo de lançamento, o dono decidiu: **"a roleta
+será apenas para o SDR e os corretores vendo em qual posição da fila estão.
+Por fila de zona."** Valem todas as roletas: a da zona, a fila do SDR
+(Agendados do SDR), a do Marquinhos e as de campanha (Facebook Ads).
+
+- **O SDR** (e a gestão) escolhe a zona no painel da Pré-venda e vê a fila de
+  cada roleta dela, **com nomes**: a do SDR em destaque, na roda de iniciais
+  com o 1º na seta, e as outras numa linha cada ("1º Lara · 2º Leo…"), com
+  quem está fora agora e por quê. Substitui a "roleta só em número" do §7.
+- **O corretor** vê só a própria posição, em "Sua vez nas roletas", na
+  Central de Comando: "Agendados do SDR · Leste — 2º de 6", ou "fora da fila
+  agora" com o motivo (e o atalho do check-in, quando é isso que falta).
+- A ordem vem do banco (`roletas_filas_zona_v1` e
+  `minhas_posicoes_roletas_v1`, migration `20261015120000`), que **lê** o
+  estado de cada motor e prevê a vez com a régua dele, sem mudar quem
+  recebe. O que só o lead decide continua valendo e fica dito na tela: quem
+  tem visita no horário é pulado e o corretor que falou com o cliente nos
+  últimos 7 dias fura a fila (§7, item 4).
+
+Detalhes por motor, limites e testes em
+[`docs/ops/roletas-fila-por-zona.md`](./ops/roletas-fila-por-zona.md).

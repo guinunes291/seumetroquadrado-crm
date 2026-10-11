@@ -190,9 +190,10 @@ export function OQueASamiFaz() {
   );
 }
 
-export function FilaLateral({ className }: { className?: string }) {
+export function FilaLateral({ className, topo }: { className?: string; topo?: React.ReactNode }) {
   return (
     <aside className={cn("flex flex-col gap-3", className)} aria-label="Ao lado da fila">
+      {topo}
       <AgendaDeHoje />
       <ComoAFilaSeMantem />
       <OQueASamiFaz />

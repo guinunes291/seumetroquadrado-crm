@@ -1,10 +1,10 @@
 // A conta do painel da pré-venda (como no vídeo de lançamento, com o que o SDR
-// de fato faz no CRM): as cinco colunas depois da passagem, o texto da roleta
-// e as etiquetas do "lead entregue". Pura, para ser testável
+// de fato faz no CRM): as cinco colunas depois da passagem e as etiquetas do
+// "lead entregue". Pura, para ser testável
 // (tests/pre-venda-lancamento.test.tsx).
 
 import { quandoDaVisita } from "@/features/visitas/visita-derive";
-import type { EntregaPainel, PainelSdr, RoletaPainel } from "./painel-client";
+import type { EntregaPainel, PainelSdr } from "./painel-client";
 
 export type ChaveColuna = "a_confirmar" | "confirmada" | "realizada" | "pasta" | "venda";
 
@@ -93,38 +93,6 @@ export function colunasDoPainel(p: PainelSdr, agora = new Date()): ColunaPainel[
 /** "sáb 10/10 a sex 16/10" — a semana da folha do SDR. */
 export function rotuloSemana(semana: { de: string; ate: string }): string {
   return `sáb ${curto(semana.de)} a sex ${curto(semana.ate)}`;
-}
-
-export type TextoRoleta = { numero: string; titulo: string; detalhe: string; alerta: boolean };
-
-/**
- * A roleta para o SDR é um número, não uma fila: a vez de cada corretor
- * depende da agenda no horário da visita e de quem já tentou o cliente, e o
- * corretor de origem tem prioridade — "o próximo da vez" seria uma promessa
- * falsa ao cliente.
- */
-export function textoRoleta(r: RoletaPainel): TextoRoleta {
-  const regra = r.regra_semanal
-    ? r.sombra
-      ? "regra semanal em teste"
-      : "regra semanal ativa"
-    : "time montado pela gestão";
-  if (r.aptos === 0) {
-    return {
-      numero: "0 corretores",
-      titulo: "Sem corretores aptos nesta semana",
-      detalhe: r.zona_estrita
-        ? "A visita vai para o time da zona do cliente; sem ninguém livre lá, a gestão entrega."
-        : "O agendamento não acha corretor: a gestão faz a entrega manual.",
-      alerta: true,
-    };
-  }
-  return {
-    numero: `${r.aptos} ${r.aptos === 1 ? "corretor" : "corretores"}`,
-    titulo: "Na roleta do SDR nesta semana",
-    detalhe: `${regra}. Quem recebe sai no agendamento: agenda livre no horário e zona do cliente.`,
-    alerta: false,
-  };
 }
 
 /** As etiquetas do cartão "lead entregue" (o que o corretor recebeu). */

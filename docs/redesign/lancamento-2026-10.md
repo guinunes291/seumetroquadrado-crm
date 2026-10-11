@@ -355,9 +355,13 @@ agendado. A tela segue o vídeo na forma e o SDR real no conteúdo
   A confirmar → Confirmada → Realizada → Pasta → Venda (as três últimas na
   semana da folha, sábado a sexta). Cada coluna com o primeiro cliente como
   o mini-cartão do vídeo e a barra relativa à maior.
-- **Roleta em número, roda com pontos anônimos** — sem iniciais e sem "o
-  próximo da vez": quem recebe sai no agendamento (agenda livre, zona,
-  corretor de origem). O banco devolve só a contagem.
+- **Roleta como fila por zona** (decisão do dono, 11/10/2026: "a roleta será
+  apenas para o SDR e os corretores vendo em qual posição da fila estão. Por
+  fila de zona"). O SDR escolhe a zona e vê a fila de cada roleta dela, com
+  nomes; a dele fica na roda de iniciais do vídeo, com o 1º na seta. O
+  corretor vê a própria posição na Central de Comando. Nasceu como "roleta em
+  número, pontos anônimos" e mudou no mesmo fim de semana; ver
+  `docs/ops/roletas-fila-por-zona.md`.
 - **"Lead entregue"** (navy, como no vídeo): quem recebeu o último cliente
   passado e o que recebeu (renda, tipo, FGTS, CPF, visita).
 - **Confirmações** com resultado (Confirmou / Remarcar / Não atendeu), e as
