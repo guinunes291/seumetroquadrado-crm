@@ -99,6 +99,14 @@ Exemplo conferido: R$ 200 mil, 8,16%, 420 meses, PRICE sem TR, R$ 20 mil na parc
 | `DFI_MENSAL_PADRAO`         | 0,0038% a.m. | idem                       |
 | `TAXA_ADM_PADRAO`           | R$ 25        | o banco mudar              |
 
+## PDF (único formato de exportação)
+
+Gerador: `src/features/simulador-amortizacao/planilha-pdf.ts`, carregado só no clique. Visual desenhado no Claude Design (artifact "PDF Simulação de Financiamento SMQ") na identidade da SMQ: Azul Marinho #0F1E3A, Dourado Aurum #B89968, Creme #F5F1EA, Montserrat nos títulos e Inter no texto (fontes self-hosted em `public/fonts/aurum`), logo redesenhado em vetor.
+
+Páginas: capa e resumo (dados do contrato, 1ª parcela de cada sistema, comparativo) · efeito das amortizações (se houver) · leitura para o cliente, premissas, glossário e próximo passo com o consultor · evolução ano a ano por sistema · (PDF completo) mês a mês por sistema em paisagem. Rodapé com "página X de Y" nas margens da folha (`@page` margin boxes, Chrome 131+).
+
+A capa leva o nome do cliente (campo na tela, preenchido pelo dossiê) e o consultor (nome, telefone e CRECI do perfil do corretor logado).
+
 ## Dívidas conhecidas
 
 - `lib/simulador.ts` converte a taxa anual como EFETIVA; `lib/mcmv-estimativa.ts` trata como NOMINAL. Nenhum dos dois tem correção, SAC ou obra. Migrar os dois para este motor.

@@ -39,6 +39,20 @@ async function aguardarImagens(doc: Document, timeoutMs: number): Promise<void> 
 }
 
 /**
+ * Espera as fontes do documento (@font-face) carregarem, com teto. Sem isto
+ * o navegador imprime com a fonte de fallback quando a fonte da marca ainda
+ * está chegando (planilha de amortização, 2026-10-11).
+ */
+async function aguardarFontes(doc: Document, timeoutMs: number): Promise<void> {
+  const fontes = (doc as Document & { fonts?: FontFaceSet }).fonts;
+  if (!fontes?.ready) return;
+  await Promise.race([
+    fontes.ready.then(() => undefined),
+    new Promise<void>((resolve) => window.setTimeout(resolve, timeoutMs)),
+  ]);
+}
+
+/**
  * Abre a caixa de impressão com o HTML renderizado. Usa iframe oculto (mesma
  * origem, sem bloqueio de pop-up); se o browser recusar, cai para uma aba nova.
  * Resolve quando a caixa de impressão foi chamada.
@@ -71,6 +85,7 @@ export function imprimirHtml(
         return;
       }
       await aguardarImagens(win.document, timeout);
+      await aguardarFontes(win.document, 3000);
       win.addEventListener("afterprint", limpar, { once: true });
       win.focus();
       win.print();
@@ -92,6 +107,7 @@ async function abrirEmAba(html: string, timeoutMs: number): Promise<void> {
   win.document.write(html);
   win.document.close();
   await aguardarImagens(win.document, timeoutMs);
+  await aguardarFontes(win.document, 3000);
   win.focus();
   win.setTimeout(() => win.print(), 300);
 }

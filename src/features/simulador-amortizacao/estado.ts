@@ -63,6 +63,8 @@ export interface FormSimulador {
   valorAvaliacao: number;
   taxaAdm: number;
   renda: number;
+  /** Nome do cliente para a capa do PDF (opcional). */
+  cliente: string;
   despesasIniciais: number;
   obraAtiva: boolean;
   obraMeses: number;
@@ -87,6 +89,7 @@ export interface PrefillSimulador {
   sistema?: "SAC" | "PRICE";
   renda?: number;
   avaliacao?: number;
+  cliente?: string;
 }
 
 export function formInicial(prefill: PrefillSimulador = {}): FormSimulador {
@@ -108,6 +111,7 @@ export function formInicial(prefill: PrefillSimulador = {}): FormSimulador {
     valorAvaliacao: prefill.avaliacao ?? 0,
     taxaAdm: TAXA_ADM_PADRAO,
     renda: prefill.renda ?? 0,
+    cliente: prefill.cliente ?? "",
     despesasIniciais: 0,
     obraAtiva: false,
     obraMeses: 24,

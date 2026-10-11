@@ -50,7 +50,7 @@ export function QualificacaoTab({ lead }: { lead: DossieLead }) {
 /** Abre a planilha de amortização com os dados do contrato (aprovação de crédito). */
 function BotaoPlanilhaAmortizacao({ lead }: { lead: DossieLead }) {
   const aprovacao = useAprovacaoParaPlanilha(lead.id);
-  const busca = prefillDaAprovacao(aprovacao.data, lead.renda_informada);
+  const busca = { ...prefillDaAprovacao(aprovacao.data, lead.renda_informada), cliente: lead.nome };
   return (
     <Button asChild variant="outline" className="w-full justify-start">
       <Link to="/simulador-amortizacao" search={busca}>

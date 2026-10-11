@@ -52,6 +52,7 @@ import {
   type SistemaAmortizacao,
 } from "@/lib/amortizacao";
 import { parseValorBR } from "@/lib/simulador";
+import { useConsultorPdf } from "./consultor";
 import { cn } from "@/lib/utils";
 import {
   agruparPorAno,
@@ -107,6 +108,7 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
     return out;
   }, [form, resultados]);
 
+  const consultor = useConsultorPdf();
   const sistemasAtivos = (["SAC", "PRICE"] as const).filter((s) => resultados[s]);
   const avisos = [...new Set(sistemasAtivos.flatMap((s) => resultados[s]!.avisos))];
 
@@ -115,7 +117,14 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
   async function exportarPdf(completo: boolean) {
     try {
       const { imprimirPlanilha } = await import("./planilha-pdf");
-      await imprimirPlanilha({ form, resultados, analises, completo });
+      await imprimirPlanilha({
+        form,
+        resultados,
+        analises,
+        completo,
+        consultor: consultor.data ?? undefined,
+        cliente: form.cliente.trim() || null,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível gerar o PDF.");
     }
@@ -343,9 +352,22 @@ function Formulario({
         <CollapsibleContent className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Correção e renda</CardTitle>
+              <CardTitle className="text-sm">Cliente, renda e correção</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <Campo
+                label="Nome do cliente"
+                htmlFor="planilha-cliente"
+                hint="Aparece na capa do PDF"
+              >
+                <Input
+                  id="planilha-cliente"
+                  value={form.cliente}
+                  maxLength={80}
+                  placeholder="ex.: Mariana e Rafael"
+                  onChange={(e) => set("cliente", e.target.value)}
+                />
+              </Campo>
               <Campo label="Correção do saldo">
                 <Select
                   value={form.modoCorrecao}
