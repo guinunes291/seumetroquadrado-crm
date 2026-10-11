@@ -1,5 +1,5 @@
-// Base de segurança do Mapa de Lojas — os 45 stands do mapa standalone
-// (Mapa_Stands_Vendas, outubro/2026), copiados como estavam.
+// Base de segurança do Mapa de Lojas — os 54 stands do mapa standalone
+// (Mapa_Stands_Vendas, atualização de 11/10/2026), copiados como estavam.
 //
 // A fonte VIVA é a planilha (ver PLANILHA_LOJAS em lojas.ts). Esta lista existe
 // por dois motivos:
@@ -8,9 +8,10 @@
 //  2) linha da planilha sem latitude/longitude herda daqui a posição do mesmo
 //     endereço (mesma regra do HTML), em vez de sumir do mapa.
 //
-// As coordenadas são ESTIMADAS (3 casas, ~100 m): o pino nasce "aproximado" e
-// o navegador refina pelo endereço (usePosicoesRefinadas). Para mudar um stand,
-// mude a planilha — editar aqui só altera o fallback.
+// As coordenadas são ESTIMADAS (3 casas, ~100 m) e três stands novos vieram
+// sem nenhuma (null): o pino nasce "aproximado" ou só na lista, e o navegador
+// refina pelo endereço (usePosicoesRefinadas). Para mudar um stand, mude a
+// planilha — editar aqui só altera o fallback.
 
 import type { LojaSemente } from "@/lib/lojas/lojas";
 
@@ -266,6 +267,7 @@ export const LOJAS_SEMENTE: readonly LojaSemente[] = [
     zona: "Zona Sul",
     lat: -23.628,
     lng: -46.615,
+    obs: "Decorados: Best, Class, Hype Style, Gran Sky, Verdi, Vibe e Liv",
   },
   {
     construtora: "Econ",
@@ -275,6 +277,7 @@ export const LOJAS_SEMENTE: readonly LojaSemente[] = [
     zona: "Zona Sul",
     lat: -23.68,
     lng: -46.696,
+    obs: "Decorados: Best, Class, Hype Style, Gran Sky, Verdi, Vibe e Liv",
   },
   {
     construtora: "Econ",
@@ -284,6 +287,7 @@ export const LOJAS_SEMENTE: readonly LojaSemente[] = [
     zona: "Zona Sul",
     lat: -23.69,
     lng: -46.67,
+    obs: "Decorados: Best, Class, Hype Style, Gran Sky, Verdi, Vibe e Liv",
   },
   {
     construtora: "Econ",
@@ -293,6 +297,7 @@ export const LOJAS_SEMENTE: readonly LojaSemente[] = [
     zona: "Zona Sul",
     lat: -23.7,
     lng: -46.69,
+    obs: "Decorados: Best, Class, Hype Style, Gran Sky, Verdi, Vibe e Liv",
   },
   {
     construtora: "Direcional Engenharia",
@@ -323,12 +328,13 @@ export const LOJAS_SEMENTE: readonly LojaSemente[] = [
   },
   {
     construtora: "Riva",
-    nome: "Santo Amaro",
-    endereco: "Rua João Dias, 1243",
+    nome: "Riva House",
+    endereco: "Avenida João Dias, 1243",
     bairro: "Santo Amaro",
     zona: "Zona Sul",
     lat: -23.646,
     lng: -46.724,
+    obs: "Decorados: 011 Brooklin, Equale, Abyta Santo Amaro e Abyta Nações Unidas",
   },
   {
     construtora: "Riva",
@@ -338,6 +344,7 @@ export const LOJAS_SEMENTE: readonly LojaSemente[] = [
     zona: "Zona Oeste",
     lat: -23.523,
     lng: -46.73,
+    obs: "Decorados: Signature, Estilo Lapa e Concept",
   },
   {
     construtora: "Longitude Incorporadora",
@@ -422,5 +429,93 @@ export const LOJAS_SEMENTE: readonly LojaSemente[] = [
     zona: "Zona Oeste",
     lat: -23.566,
     lng: -46.716,
+  },
+  {
+    construtora: "A confirmar",
+    nome: "Rubi Condomínio Clube",
+    endereco: "Rua Armando Endres, 494",
+    bairro: "Jd. Vila Galvão, Guarulhos",
+    zona: "Grande SP",
+    lat: -23.45,
+    lng: -46.534,
+  },
+  {
+    construtora: "HM Engenharia",
+    nome: "HM Smart Freguesia e Marquês",
+    endereco: "Av. Marquês de São Vicente, 515",
+    bairro: "Barra Funda",
+    zona: "Zona Oeste",
+    lat: -23.524,
+    lng: -46.67,
+    obs: "Stand e decorado (Smart Marquês)",
+  },
+  {
+    construtora: "Vibra",
+    nome: "Alcântara Machado",
+    endereco: "Av. Alcântara Machado, 2800",
+    bairro: "Brás",
+    zona: "Zona Leste",
+    lat: -23.543,
+    lng: -46.595,
+    obs: "Decorados de 37 e 42 m²",
+  },
+  {
+    construtora: "Vibra",
+    nome: "Anhaia Melo",
+    endereco: "Av. Luís Inácio de Anhaia Melo, 3500",
+    bairro: "Vila Prudente",
+    zona: "Zona Leste",
+    lat: -23.59,
+    lng: -46.556,
+    obs: "Decorado de 35 m²",
+  },
+  {
+    construtora: "Vibra",
+    nome: "Nossa Senhora do Sabará",
+    endereco: "Av. Nossa Senhora do Sabará, 110",
+    bairro: "São Paulo",
+    zona: "Zona Sul",
+    lat: -23.635,
+    lng: -46.66,
+    obs: "Decorado de 37 m²",
+  },
+  {
+    construtora: "Vibra",
+    nome: "Laudo Ferreira de Camargo",
+    endereco: "Av. Ministro Laudo Ferreira de Camargo, 433",
+    bairro: "São Paulo",
+    zona: "Zona Sul",
+    lat: null,
+    lng: null,
+    obs: "Decorados de 37 e 42 m²",
+  },
+  {
+    construtora: "Vibra",
+    nome: "Vila Romana",
+    endereco: "Rua Aurélia, 421",
+    bairro: "Vila Romana",
+    zona: "Zona Oeste",
+    lat: -23.529,
+    lng: -46.695,
+    obs: "Decorado de 44 m²",
+  },
+  {
+    construtora: "HM Engenharia",
+    nome: "HM Smart Vila das Belezas",
+    endereco: "Estrada de Itapecerica, 934",
+    bairro: "Vila das Belezas",
+    zona: "Zona Sul",
+    lat: null,
+    lng: null,
+  },
+  {
+    construtora: "HM Engenharia",
+    nome: "HM Smart Zike Tuma (Interlagos)",
+    endereco: "Rua Zike Tuma, 1100",
+    bairro: "Jardim Ubirajara",
+    zona: "Zona Sul",
+    lat: null,
+    lng: null,
+    obs: "Stand e decorado na obra",
   },
 ];

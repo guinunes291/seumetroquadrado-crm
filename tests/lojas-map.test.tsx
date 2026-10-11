@@ -127,6 +127,7 @@ const props = {
   mostrarMetro: false,
   onSelecionar: () => {},
   onEnviar: () => {},
+  onAbrirPlanta: () => {},
 };
 
 beforeEach(() => {
@@ -235,5 +236,60 @@ describe("<LojasMap />", () => {
     render(<LojasMap lojas={[{ ...A, exata: true }]} {...props} />);
     await waitFor(() => expect(estado.marcadores).toHaveLength(1));
     expect(estado.marcadores[0].popup!().textContent).not.toContain("Posição aproximada");
+  });
+
+  it("popup lista as plantas do stand DEPOIS dos botões de ação", async () => {
+    const vibra = loja({ id: "v", construtora: "Vibra", nome: "Alcântara Machado" });
+    render(<LojasMap lojas={[vibra]} {...props} />);
+    await waitFor(() => expect(estado.marcadores).toHaveLength(1));
+
+    const popup = estado.marcadores[0].popup!();
+    const imgs = [...popup.querySelectorAll("img")].filter((i) =>
+      i.getAttribute("src")?.startsWith("/lojas/plantas/"),
+    );
+    expect(imgs.map((i) => i.getAttribute("src"))).toEqual([
+      "/lojas/plantas/vb37.jpg",
+      "/lojas/plantas/vb42.jpg",
+    ]);
+    expect(popup.textContent).not.toContain("mais próxima");
+
+    const comoChegar = [...popup.querySelectorAll("a")].find(
+      (a) => a.textContent === "Como chegar",
+    )!;
+    // DOCUMENT_POSITION_FOLLOWING (4): a planta vem depois do botão.
+    expect(comoChegar.compareDocumentPosition(imgs[0]) & 4).toBe(4);
+  });
+
+  it("com metragem, a planta mais parecida vem primeiro, etiquetada, e abre ampliada", async () => {
+    const onAbrirPlanta = vi.fn();
+    const vibra = loja({ id: "v", construtora: "Vibra", nome: "Alcântara Machado" });
+    render(
+      <LojasMap lojas={[vibra]} {...props} onAbrirPlanta={onAbrirPlanta} m2={41} tolerancia={3} />,
+    );
+    await waitFor(() => expect(estado.marcadores).toHaveLength(1));
+
+    const popup = estado.marcadores[0].popup!();
+    const botoes = [...popup.querySelectorAll("button")].filter((b) => b.querySelector("img"));
+    expect(botoes[0].textContent).toContain("42 m²");
+    expect(botoes[0].textContent).toContain("mais próxima");
+    expect(botoes[1].textContent).not.toContain("mais próxima");
+
+    botoes[0].click();
+    expect(onAbrirPlanta).toHaveBeenCalledWith(vibra, "vb42");
+  });
+
+  it("não etiqueta 'mais próxima' quando nem a melhor planta cabe na margem", async () => {
+    const vibra = loja({ id: "v", construtora: "Vibra", nome: "Alcântara Machado" });
+    render(<LojasMap lojas={[vibra]} {...props} m2={55} tolerancia={3} />);
+    await waitFor(() => expect(estado.marcadores).toHaveLength(1));
+    expect(estado.marcadores[0].popup!().textContent).not.toContain("mais próxima");
+  });
+
+  it("stand sem planta não ganha a seção", async () => {
+    render(<LojasMap lojas={[A]} {...props} />);
+    await waitFor(() => expect(estado.marcadores).toHaveLength(1));
+    const popup = estado.marcadores[0].popup!();
+    expect(popup.querySelector('img[src^="/lojas/plantas/"]')).toBeNull();
+    expect(popup.textContent).not.toContain("Plantas");
   });
 });
