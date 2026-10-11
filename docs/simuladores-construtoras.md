@@ -3,10 +3,13 @@
 Motor genérico: `src/lib/simuladores/fluxo.ts` (funções puras, sem React).
 Motor da Vibra: `src/lib/simuladores/vibra.ts`, com a tabela oficial em `src/lib/simuladores/tabela-vibra.ts` (ver a seção 10).
 Motor da Mundo Apto: `src/lib/simuladores/mundo-apto.ts`, com os vencimentos da política em `src/lib/simuladores/tabela-mundo-apto.ts` (ver a seção 11).
+Motor da Longitude: `src/lib/simuladores/longitude.ts`, com as premissas por empreendimento em `src/lib/simuladores/tabela-longitude.ts` (ver a seção 12).
 Regras por construtora: `src/lib/simuladores/construtoras.ts`.
 Recursos estimados pela renda: `src/lib/simuladores/recursos.ts` (reusa `lib/orcamento`, tabela APROVE 2026).
 Tela: `/simuladores` (módulo Documentação & Projetos), uma aba por construtora: Vibra, Direcional, Longitude e Mundo Apto.
-Testes: `tests/simuladores-fluxo.test.ts`, `tests/simuladores-estado.test.ts`, `tests/simuladores-pdf.test.ts`, `tests/simuladores-vibra.test.ts`, `tests/simuladores-vibra-saidas.test.ts`, `tests/simuladores-mundo-apto.test.ts`, `tests/simuladores-mundo-apto-saidas.test.ts` e `tests/simuladores-page.test.tsx`.
+Testes: `tests/simuladores-fluxo.test.ts`, `tests/simuladores-estado.test.ts`, `tests/simuladores-pdf.test.ts`, `tests/simuladores-vibra.test.ts`, `tests/simuladores-vibra-saidas.test.ts`, `tests/simuladores-mundo-apto.test.ts`, `tests/simuladores-mundo-apto-saidas.test.ts`, `tests/simuladores-longitude.test.ts`, `tests/simuladores-longitude-saidas.test.ts` e `tests/simuladores-page.test.tsx`.
+
+**Pró-soluto** (definição da operação, 2026-10-11): tudo o que sobra depois do financiamento (com FGTS e subsídio), do ato e dos sinais. Entram anuais, mensais durante a obra, mensais pós-obra, única, semestrais e o que mais houver. É o critério das três abas com regra própria: na Vibra fica de fora os 4 atos; na Mundo Apto, o ato e as entradas de 30/60/90 dias; na Longitude, o ato.
 
 A Planilha de amortização (`/simulador-amortizacao`, ver `docs/amortizacao.md`) responde quanto o cliente paga **ao banco**. Os Simuladores respondem quanto ele paga **à construtora**. As duas telas têm link uma para a outra.
 
@@ -72,7 +75,7 @@ Na **renda comprometida** a tela soma a mensal com a parcela cheia do banco. É 
 
 ## 4. Estado das regras (out/2026) e como calibrar
 
-A **Vibra** está conferida com o simulador oficial do canal (seção 10) e a **Mundo Apto** com a política de crédito do Tabelão de out/2026 (seção 11), cada uma com motor próprio. Direcional e Longitude ainda abrem no fluxo genérico com o **padrão da operação**, porque os simuladores de referência delas não puderam ser lidos (o da Longitude exige login; o _smq-fluxo_ não abriu daqui):
+A **Vibra** está conferida com o simulador oficial do canal (seção 10), a **Mundo Apto** com a política de crédito do Tabelão de out/2026 (seção 11) e a **Longitude** com o código do simulador oficial (seção 12), cada uma com motor próprio. Só a **Direcional** ainda abre no fluxo genérico com o **padrão da operação**, porque o simulador de referência dela (_smq-fluxo_) não pôde ser lido:
 
 - parcelado até 20% do imóvel (regra 80/20 do CRM);
 - INCC projetado de 6,55% ao ano (INCC-M acumulado em 12 meses até ago/2026, FGV);
@@ -203,6 +206,37 @@ Cada mês sai uma mensal de até R$ 1.800 (30% da renda) e entra uma de pós de 
 
 **Preencher pela política** põe R$ 100 em cada parcela de pós (é o que fecha os 36 meses), leva as parcelas até o limite de cada regra (no associativo: mensais até 12%, anual ou semestral, única, pós até o teto e, só se ainda faltar, mensais acima de 12%) e deixa o resto no ato e nas entradas, com o teto das entradas pela renda (o excedente fica no ato, que é livre) e o ato mínimo do SFH.
 
-**Leituras da política** (o que ela não diz com todas as letras, todas em `mundo-apto.ts`): pró-soluto é tudo menos ato e entradas; as mensais pré começam depois da entrada de 90 dias; semestrais em junho e dezembro (a política diz "livre" e o quadro da campanha de adimplência põe a primeira em 30/12/2026); o prazo mínimo de 36 meses não é cobrado na tabela direta, que não tem pós para completá-lo.
+**Pró-soluto** é tudo menos ato e entradas (definição confirmada pela operação). **Leituras da política** (o que ela não diz com todas as letras, todas em `mundo-apto.ts`): as mensais pré começam depois da entrada de 90 dias; semestrais em junho e dezembro (a política diz "livre" e o quadro da campanha de adimplência põe a primeira em 30/12/2026); o prazo mínimo de 36 meses não é cobrado na tabela direta, que não tem pós para completá-lo.
 
 **Atualizar**: quando vier Tabelão novo, confira as páginas "Modalidades de pagamento" e "Vencimentos e regras gerais". Vencimentos e versão ficam em `tabela-mundo-apto.ts`; os percentuais de cada modalidade em `MODALIDADES_MA` (`mundo-apto.ts`). Suba a `versao` da Mundo Apto em `construtoras.ts`. Os preços promocionais das unidades do Tabelão não entram aqui: o valor vem da tabela de unidades do catálogo ou é digitado.
+
+## 12. Longitude: as regras do simulador oficial
+
+Fonte: o código do simulador oficial (simulador.longitude.com.br, `simulador.js`), modo **linear**, conferido em 11/10/2026. O fluxo é uma tabela de linhas, como no simulador da Longitude:
+
+| Linha         | Quantidade                                   | Teto de cada parcela                             |
+| ------------- | -------------------------------------------- | ------------------------------------------------ |
+| Ato           | 1                                            | ato mínimo do empreendimento (quando cadastrado) |
+| Pré-chaves    | meses do ato até a entrega (entra a entrega) | comprometimento pré × renda (ex.: 25,99%)        |
+| Anuais        | dezembros depois do ato até a entrega        | 100% da renda                                    |
+| Pós-chaves    | total de parcelas − pré-chaves               | total pós × renda − 1ª parcela do banco          |
+| Outros        | 1                                            | livre, mas sempre pede aprovação                 |
+| Periodicidade | R$ 100 no 37º mês, se ato + pré + pós ≤ 36   | fixo                                             |
+| Adimplência   | avaliação − tabela, fora do valor final      | fixo                                             |
+
+Banco: financiamento até 80% da avaliação; FGTS + subsídio + financiamento até a avaliação. A 1ª parcela do financiamento é limitada a 30% da renda (vazio = os 30%).
+
+**Premissas práticas** (o quadro do simulador oficial): comprometimento pré-chaves, pró-soluto pós-chaves (total pós ÷ valor final), comprometimento total pós ((pós + 1ª parcela) ÷ renda) e referência ((ato + banco) ÷ valor final, mínimo de 60%). Sem erro e sem aviso: **APTO PARA VENDA**. Senão: **NECESSÁRIO APROVAÇÃO**, com a lista do que pede aprovação. Fluxo abaixo da tabela é **desconto** (pede aprovação); acima é **ganho de preço** (não pede).
+
+**Cada mês sem assinar**: o total de parcelas do pró-soluto é fixo; sai uma pré-chaves (teto alto, % da renda) e entra uma pós-chaves (teto baixo, também limitado a % do valor). Assinando em dezembro, aquele dezembro sai das anuais. Exemplo (Cittá, renda de R$ 4 mil, tabela de R$ 220 mil, banco de R$ 170 mil, entrega jun/2028):
+
+| Assinando em | Pré-chaves | Ato mínimo para fechar | Diferença    |
+| ------------ | ---------- | ---------------------- | ------------ |
+| out/2026     | 20         | R$ 10.230,00           | -            |
+| nov/2026     | 19         | R$ 11.269,60           | +R$ 1.039,60 |
+| dez/2026     | 18         | R$ 16.309,20           | +R$ 6.079,20 |
+| jan/2027     | 17         | R$ 17.348,80           | +R$ 7.118,80 |
+
+**Premissas por empreendimento**: no simulador oficial elas vêm do painel da Longitude (e variam pelo score de crédito B2E do cliente). O código só traz um fallback de 7 empreendimentos (Vibe, Zen, Cittá, Estação Dom Bosco, Perus, Rio Branco e Tietê) e o padrão (60 parcelas; 25,99% / 8,99% / 45% / 60%). A tela abre com esses valores, mostra todos no card **Premissas do empreendimento** e deixa o corretor ajustar para o que o simulador oficial mostrar. A previsão de entrega vem do catálogo quando ele tem a data (quase nenhum tem); senão o corretor digita.
+
+Fica de fora: o modo **regressivo** e as regras por **score B2E**, que dependem do motor de crédito e do painel da Longitude. O pró-soluto exibido inclui os R$ 100 da periodicidade (o oficial deixa de fora), pela definição da operação.

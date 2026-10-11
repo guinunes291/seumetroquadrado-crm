@@ -1,10 +1,10 @@
 // Simuladores — o fluxo de pagamento das construtoras parceiras (Vibra,
 // Direcional, Longitude, Mundo Apto), uma aba por construtora.
 //
-// A Vibra (simulador-vibra.tsx) e a Mundo Apto (simulador-mundo-apto.tsx)
-// têm simulador próprio: as regras delas limitam cada parcela pela renda, um
-// modelo diferente do daqui. As outras abas usam o fluxo genérico abaixo até
-// cada uma ganhar a regra conferida.
+// Vibra (simulador-vibra.tsx), Mundo Apto (simulador-mundo-apto.tsx) e
+// Longitude (simulador-longitude.tsx) têm simulador próprio: as regras delas
+// limitam cada parcela pela renda, um modelo diferente do daqui. A Direcional
+// usa o fluxo genérico abaixo até ganhar a regra conferida.
 //
 // No fluxo genérico, o corretor escolhe o empreendimento (a entrega vem do cadastro do projeto),
 // a unidade (o valor vem da tabela de unidades), digita os recursos do banco
@@ -89,13 +89,16 @@ import {
   useTrocarConstrutora,
 } from "./pecas";
 
-// As abas da Vibra e da Mundo Apto são módulos à parte (tabela, motor e PDF
+// As abas com regra própria são módulos à parte (tabela, motor e PDF
 // próprios): só carregam quando o corretor abre a aba.
 const SimuladorVibra = lazy(() =>
   import("./simulador-vibra").then((m) => ({ default: m.SimuladorVibra })),
 );
 const SimuladorMundoApto = lazy(() =>
   import("./simulador-mundo-apto").then((m) => ({ default: m.SimuladorMundoApto })),
+);
+const SimuladorLongitude = lazy(() =>
+  import("./simulador-longitude").then((m) => ({ default: m.SimuladorLongitude })),
 );
 
 const SEM_PROJETO = "__outro";
@@ -133,6 +136,8 @@ export function SimuladoresPage(props: PropsSimulador) {
     >
       {modelo === "tabela_vibra" ? (
         <SimuladorVibra prefill={props.prefill} />
+      ) : modelo === "premissas_longitude" ? (
+        <SimuladorLongitude prefill={props.prefill} />
       ) : (
         <SimuladorMundoApto prefill={props.prefill} />
       )}

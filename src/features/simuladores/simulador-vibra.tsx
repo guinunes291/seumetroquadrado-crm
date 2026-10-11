@@ -252,7 +252,7 @@ export function SimuladorVibra({ prefill }: { prefill?: PrefillFluxo & { projeto
                 }
               />
               {form.renda > 0 && (
-                <QuantoCustaEsperarLinhas cenarios={cenarios} rotuloAtos="os 4 atos" />
+                <QuantoCustaEsperarLinhas cenarios={cenarios} rotuloAtos="4 atos" />
               )}
               <CronogramaLinhas
                 parcelas={r.cronograma.map((p) => ({

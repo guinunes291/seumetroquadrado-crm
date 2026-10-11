@@ -272,7 +272,7 @@ describe("projeção do INCC", () => {
 });
 
 describe("presets e ajustes por usuário", () => {
-  it("as quatro construtoras pedidas, na ordem pedida; Vibra e Mundo Apto conferidas", () => {
+  it("as quatro construtoras pedidas, na ordem pedida; só a Direcional a conferir", () => {
     expect(SIMULADORES_CONSTRUTORAS.map((s) => s.nome)).toEqual([
       "Vibra",
       "Direcional",
@@ -283,7 +283,7 @@ describe("presets e ajustes por usuário", () => {
     expect(SIMULADORES_CONSTRUTORAS.map((s) => [s.id, s.modelo, !!s.conferidoEm])).toEqual([
       ["vibra", "tabela_vibra", true],
       ["direcional", "generico", false],
-      ["longitude", "generico", false],
+      ["longitude", "premissas_longitude", true],
       ["mundo-apto", "politica_mundo_apto", true],
     ]);
     // Trocar de modelo subiu a versão: ajustes de regra salvos antes não valem.

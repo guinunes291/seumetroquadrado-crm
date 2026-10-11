@@ -49,6 +49,8 @@ export interface LinhaVisivel {
   descricao: string;
   /** Verde (dentro do teto), vermelho (acima) ou sem cor. */
   tom: "ok" | "excedeu" | "neutro";
+  /** Valor pela regra (periodicidade, adimplência): não editável. */
+  travada?: boolean;
 }
 
 const GRADE_LINHA = "sm:grid-cols-[minmax(0,1fr)_2.5rem_8.5rem_8.5rem]";
@@ -139,7 +141,7 @@ function LinhaFluxo({ l, onValor }: { l: LinhaVisivel; onValor: (v: number) => v
         rotulo={`${l.rotulo}: valor da parcela`}
         value={l.valor}
         onChange={onValor}
-        disabled={!ativa}
+        disabled={!ativa || l.travada}
         className={tom}
       />
       {l.qtd > 1 ? (
@@ -147,6 +149,7 @@ function LinhaFluxo({ l, onValor }: { l: LinhaVisivel; onValor: (v: number) => v
           rotulo={`${l.rotulo}: total`}
           value={l.total}
           onChange={(t) => onValor(centavos(t / l.qtd))}
+          disabled={l.travada}
           className={tom}
         />
       ) : (
@@ -199,7 +202,7 @@ export function QuantoCustaEsperarLinhas({
   rotuloAtos,
 }: {
   cenarios: CenarioEsperaLinhas[];
-  /** "os atos", "ato e entradas". */
+  /** O que compõe a entrada: "4 atos", "ato e entradas", "ato". */
   rotuloAtos: string;
 }) {
   if (cenarios.length < 2 || cenarios[0].mensais === 0) return null;
@@ -213,18 +216,18 @@ export function QuantoCustaEsperarLinhas({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm">
-          Assinando em <b>{rotuloMes(agora.hoje)}</b> são <b>{agora.mensais} mensais</b> e{" "}
-          {rotuloAtos} precisam somar no mínimo <b>{brl(agora.atosMinimos)}</b>.{" "}
+          Assinando em <b>{rotuloMes(agora.hoje)}</b> são <b>{agora.mensais} mensais</b> e a entrada
+          mínima ({rotuloAtos}) é <b>{brl(agora.atosMinimos)}</b>.{" "}
           {prox.mensais < agora.mensais &&
             (prox.diferenca > 0 ? (
               <>
-                Em {rotuloMes(prox.hoje)} sobram {prox.mensais} e esse mínimo sobe{" "}
+                Em {rotuloMes(prox.hoje)} sobram {prox.mensais} e ela sobe{" "}
                 <b>{brl(prox.diferenca)}</b>.
               </>
             ) : (
               <>
-                Em {rotuloMes(prox.hoje)} sobram {prox.mensais}; o mínimo ainda não sobe porque o
-                fluxo tem folga (ou o pró-soluto já está no limite).
+                Em {rotuloMes(prox.hoje)} sobram {prox.mensais}; a entrada mínima ainda não sobe
+                porque o fluxo tem folga (ou o pró-soluto já está no limite).
               </>
             ))}
         </p>

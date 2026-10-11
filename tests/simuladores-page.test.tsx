@@ -47,6 +47,14 @@ vi.mock("@/features/projetos/use-prateleira-dados", () => ({
         status_entrega: "Obras",
       },
       {
+        id: "p-lc",
+        nome: "Longitude Città",
+        construtora: "Longitude",
+        mes_entrega: null,
+        ano_entrega: null,
+        status_entrega: null,
+      },
+      {
         id: "p-cury",
         nome: "Cury Centro",
         construtora: "Cury",
@@ -142,11 +150,11 @@ describe("Simuladores", () => {
   });
 
   it("projeto de outra construtora não aparece na aba; trocar de aba navega", () => {
-    renderizar("longitude");
-    // O ?projeto= é da Direcional: na aba Longitude ele não é aplicado.
+    renderizar("direcional", { projeto: "p-pvs", valor: 260_000 });
+    // O ?projeto= é da Vibra: na aba Direcional ele não é aplicado.
     expect((screen.getByLabelText("Entrega das chaves") as HTMLInputElement).value).toBe("");
     expect(screen.getByText(/Informe a previsão de entrega/)).toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Direcional/ }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Longitude/ }));
     expect(navegar).toHaveBeenCalledWith(expect.objectContaining({ to: "/simuladores" }));
   });
 
@@ -254,5 +262,49 @@ describe("Simuladores · Mundo Apto", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/FALTA INCLUIR R\$\s16\.200,00/);
     fireEvent.click(screen.getByRole("button", { name: /Preencher pela política/ }));
     expect(screen.getByRole("status")).toHaveTextContent(/fora da política: Prazo do contrato/);
+  });
+});
+
+describe("Simuladores · Longitude", () => {
+  const longitude = () =>
+    renderizar("longitude", {
+      projeto: "p-lc",
+      valor: 220_000,
+      renda: 4_000,
+      financiamento: 160_000,
+      subsidio: 10_000,
+      parcela: 1_200,
+    });
+
+  it("projeto do catálogo abre o empreendimento; sem entrega, pede a data", async () => {
+    longitude();
+    expect(
+      await screen.findByText(/Informe a previsão de entrega: as pré-chaves/),
+    ).toBeInTheDocument();
+    expect((screen.getByLabelText("Parcelas do pró-soluto") as HTMLInputElement).value).toBe("60");
+    expect((screen.getByLabelText("Pré-chaves (% da renda)") as HTMLInputElement).value).toBe(
+      "25.99",
+    );
+  });
+
+  it("com entrega e avaliação, preencher pelas premissas deixa APTO PARA VENDA", async () => {
+    longitude();
+    fireEvent.change(await screen.findByLabelText("Previsão de entrega"), {
+      target: { value: "2028-06" },
+    });
+    fireEvent.change(screen.getByLabelText("Valor de avaliação"), { target: { value: "230000" } });
+    fireEvent.click(screen.getByRole("button", { name: /Preencher pelas premissas/ }));
+    expect(screen.getByRole("status")).toHaveTextContent(/APTO PARA VENDA/);
+    expect((screen.getByLabelText("Ato: valor da parcela") as HTMLInputElement).value).toBe(
+      "10230",
+    );
+    expect(screen.getByText("Premissas práticas")).toBeInTheDocument();
+    expect(screen.getByText(/\+R\$\s1\.039,60/)).toBeInTheDocument();
+
+    // Tirando R$ 1.000 do ato o fluxo fica abaixo da tabela: desconto pede aprovação.
+    fireEvent.change(screen.getByLabelText("Ato: valor da parcela"), { target: { value: "9230" } });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /NECESSÁRIO APROVAÇÃO: desconto de R\$\s1\.000,00/,
+    );
   });
 });

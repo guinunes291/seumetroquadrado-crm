@@ -34,9 +34,12 @@
 //   • a única cai no habite-se e a mensal pós começa no mês seguinte
 //     (tabela de vencimentos por empreendimento); anual em dezembro.
 //
+// PRÓ-SOLUTO (definição da operação, confirmada em 2026-10-11): tudo o que
+// sobra depois do financiamento (com FGTS e subsídio), do ato e dos sinais.
+// Aqui: mensais da obra, semestrais ou anuais, única e mensal pós; ficam de
+// fora o ato e as entradas de 30/60/90 dias.
+//
 // LEITURAS DA POLÍTICA (o que ela não diz com todas as letras):
-//   • Pró-soluto = tudo o que é parcelado com a construtora MENOS o ato e as
-//     entradas de 30/60/90 dias (o mesmo critério da Vibra, que exclui os atos).
 //   • As mensais pré começam depois da entrada de 90 dias (5º mês) e vão até
 //     o mês anterior ao habite-se. Por isso cada mês sem assinar é uma mensal
 //     a menos.

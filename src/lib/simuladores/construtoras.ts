@@ -16,9 +16,12 @@
 //     09/04/2026 (Tabelão out/2026). Motor próprio em mundo-apto.ts, com a
 //     tabela de vencimentos em tabela-mundo-apto.ts; `regras` também não é
 //     usado na aba dela.
-//   • DIRECIONAL e LONGITUDE: os simuladores de referência (o da Longitude é
-//     fechado por login; o smq-fluxo não pôde ser lido) ainda não deram a
-//     regra. Os presets abrem com o padrão da OPERAÇÃO, não com o da
+//   • LONGITUDE: regras conferidas com o código do simulador oficial (modo
+//     linear). Motor próprio em longitude.ts; as premissas de cada
+//     empreendimento abrem com o fallback do código (tabela-longitude.ts) e
+//     ficam editáveis na tela, porque as vigentes vêm do painel da Longitude.
+//   • DIRECIONAL: o simulador de referência (smq-fluxo) ainda não deu a
+//     regra. O preset abre com o padrão da OPERAÇÃO, não com o da
 //     construtora:
 //   • teto de parcelamento = regra 80/20 do CRM (TETO_PARCELAMENTO_CONSTRUTORA,
 //     a mesma do Match e da pré-qualificação APROVE);
@@ -34,6 +37,7 @@ import type { Periodicidade, RegrasFluxo } from "@/lib/simuladores/fluxo";
 import type { SimuladorId } from "@/lib/simuladores/ids";
 import { CONFERIDA_EM, FONTE_TABELA_VIBRA } from "@/lib/simuladores/tabela-vibra";
 import { CONFERIDA_EM_MA, FONTE_POLITICA_MA } from "@/lib/simuladores/tabela-mundo-apto";
+import { CONFERIDA_EM_LONGITUDE, FONTE_LONGITUDE } from "@/lib/simuladores/tabela-longitude";
 
 export type { SimuladorId } from "@/lib/simuladores/ids";
 
@@ -43,9 +47,13 @@ export type { SimuladorId } from "@/lib/simuladores/ids";
  * tabela_vibra → tabela oficial da Vibra por empreendimento, com teto de cada
  *                parcela pela renda (vibra.ts);
  * politica_mundo_apto → política de crédito da Mundo Apto: modalidades,
- *                teto pela renda líquida e limites por grupo (mundo-apto.ts).
+ *                teto pela renda líquida e limites por grupo (mundo-apto.ts);
+ * premissas_longitude → regras do simulador da Longitude: pré-chaves até a
+ *                entrega, pós-chaves com o resto, premissas práticas
+ *                (longitude.ts).
  */
-export type ModeloSimulador = "generico" | "tabela_vibra" | "politica_mundo_apto";
+export type ModeloSimulador =
+  "generico" | "tabela_vibra" | "politica_mundo_apto" | "premissas_longitude";
 
 export interface SimuladorConstrutora {
   id: SimuladorId;
@@ -98,7 +106,14 @@ export const SIMULADORES_CONSTRUTORAS: readonly SimuladorConstrutora[] = [
     fonte: FONTE_TABELA_VIBRA,
   },
   preset("direcional", "Direcional"),
-  preset("longitude", "Longitude"),
+  {
+    ...preset("longitude", "Longitude"),
+    modelo: "premissas_longitude",
+    // v2: saiu do fluxo genérico para as regras do simulador oficial.
+    versao: 2,
+    conferidoEm: CONFERIDA_EM_LONGITUDE,
+    fonte: FONTE_LONGITUDE,
+  },
   {
     ...preset("mundo-apto", "Mundo Apto"),
     modelo: "politica_mundo_apto",

@@ -195,3 +195,28 @@ ${
 <div class="rodape">${escHtml(d.rodape)}</div>
 </body></html>`;
 }
+
+/** Uma regra conferida contra o fluxo (a tabela "Conferência" da folha). */
+export interface ItemConferenciaPdf {
+  rotulo: string;
+  atual: string;
+  limite: string;
+  situacao: "atende" | "não atende" | "pede aprovação" | "a confirmar";
+  nota?: string;
+}
+
+/** Seção "Conferência ..." da folha, já em HTML escapado (para `secaoExtra`). */
+export function secaoConferencia(titulo: string, itens: ItemConferenciaPdf[]): string {
+  const linhas = itens
+    .map(
+      (
+        c,
+      ) => `<tr><td>${escHtml(c.rotulo)}${c.nota ? `<div class="teto">${escHtml(c.nota)}</div>` : ""}</td>
+        <td>${escHtml(c.atual)}</td><td>${escHtml(c.limite)}</td>
+        <td class="${c.situacao === "atende" ? "passou" : c.situacao === "a confirmar" ? "" : "falhou"}">${escHtml(c.situacao)}</td></tr>`,
+    )
+    .join("");
+  return `<section><h2>${escHtml(titulo)}</h2>
+    <table class="tabela"><thead><tr><th>Regra</th><th>No fluxo</th><th>Limite</th><th>Situação</th></tr></thead>
+    <tbody>${linhas}</tbody></table></section>`;
+}
