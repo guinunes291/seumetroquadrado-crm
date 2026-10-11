@@ -6,6 +6,14 @@ Testes: `tests/amortizacao.test.ts` (valores conferidos com implementação inde
 
 Toda conta de parcela nova no CRM deve usar este motor. `lib/simulador.ts` e `lib/mcmv-estimativa.ts` são anteriores e têm convenções diferentes (ver "Dívidas" no fim).
 
+## Entrada da tela
+
+O corretor digita só os três dados do contrato: valor do financiamento, taxa de juros a.a. (nominal por padrão; na Caixa, os "Juros Nominais") e prazo em meses, e escolhe SAC, PRICE ou comparar. Os campos aceitam "208.000" e "8,16".
+
+Todo o resto tem padrão e fica recolhido em "Calculado automaticamente": TR projetada, seguros por idade, taxa adm, 1ª cobrança no mês seguinte. A base do DFI (valor do imóvel) é estimada como financiamento ÷ 0,8 quando o corretor não informa a avaliação.
+
+O botão do dossiê do lead preenche os três dados, o sistema, a renda e o valor do imóvel da simulação a partir da aprovação de crédito vigente (view `aprovacoes_credito_vigentes`). Sem aprovação, leva só a renda informada.
+
 ## 1. Taxa de juros: nominal x efetiva
 
 O contrato da Caixa traz as duas. A mensal é sempre a nominal dividida por 12.
