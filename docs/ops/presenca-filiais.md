@@ -208,70 +208,63 @@ SELECT slug FROM public.roletas
 SELECT has_function_privilege('anon', 'public.marcar_presenca(boolean)', 'EXECUTE');  -- false
 ```
 
-### Estado em produção em 10/10/2026
-
-Conferido no banco da Lovable às 18:08 UTC:
+### Estado em produção (11/10/2026)
 
 | Migration                            | No banco                | Em `drizzle.__drizzle_migrations` |
 | ------------------------------------ | ----------------------- | --------------------------------- |
 | `0073` (Marquinhos antes da zona)    | aplicada à mão em 10/10 | sim (id 76)                       |
-| `0074` (esta)                        | **não**                 | não                               |
-| `0075` (passagem do discador do SDR) | aplicada à mão em 10/10 | **não, de propósito**             |
+| `0074` (esta)                        | aplicada à mão em 11/10 | sim (id 77)                       |
+| `0075` (passagem do discador do SDR) | aplicada à mão em 10/10 | sim (id 78)                       |
 
-**Por que a 0074 ficou de fora.** Tudo indica que o site publicado ainda é
-anterior ao #264. Às 16:50 UTC de 10/10, o check-in automático do login ainda
-marcava presença (6 presentes), e isso só o login antigo faz. A 0074 liga
-`exigir_presenca` em 21 filas e trava o `UPDATE` direto em
-`profiles.presente`, que é justamente o que o login antigo usa. Se ela entrar
-antes da publicação, ninguém fica apto e as filas param de distribuir.
+**Por que a 0074 esperou um dia.** Em 10/10, o site publicado ainda era
+anterior ao #264: o check-in automático do login antigo marcava presença. A
+0074 liga `exigir_presenca` em todas as filas e trava o `UPDATE` direto em
+`profiles.presente`, que é o que o login antigo usa. Se entrasse antes da
+publicação, ninguém ficaria apto e as filas parariam de distribuir. A 0075
+ficou sem registro até lá porque o migrador da Lovable só aplica as entradas
+com `when` maior que o `created_at` do último registro: registrá-la antes faria
+o migrador pular a 0074 para sempre.
 
-**Por que a 0075 está sem registro.** O migrador da Lovable só aplica as
-entradas do journal com `when` maior que o `created_at` do último registro.
-Registrar a 0075 (`1791990000000`) antes da 0074 (`1791903600000`) faria o
-migrador pular a 0074 para sempre.
+**Como entrou (11/10, ~10:55 UTC).** Depois da publicação do `main` em
+`caf3900`:
 
-**Ordem para ligar:**
+1. Antes de aplicar, as 4 funções que a 0074 substitui (`marcar_presenca`,
+   `marcar_presenca_admin`, `protect_profile_sensitive_fields` e
+   `resetar_presenca_diaria`) foram comparadas com o repositório. O md5 de
+   `pg_get_functiondef` bateu: nada feito direto em produção foi perdido.
+2. O arquivo entrou em 5 blocos pela ferramenta de banco da Lovable.
+3. Conferência contra o harness local com o repositório inteiro aplicado:
+   - as 17 funções têm o md5 da definição idêntico;
+   - colunas, restrições, índices, políticas, gatilhos, configurações e as 3
+     filiais também são iguais;
+   - só as permissões padrão da plataforma diferem: o papel `sandbox_exec`, o
+     privilégio `m` do Postgres 17 e os grants automáticos a `service_role`.
+4. Registro no drizzle: 0074 (id 77) e depois 0075 (id 78).
+5. Resultado: 33 filas com presença obrigatória; só `agendados-sdr` fica fora.
 
-1. Publicar o site na Lovable (Publish) com o `main` atual e conferir que
-   `/presenca` abre no site publicado.
-2. Aplicar `drizzle/migrations/0074_presenca_por_filial.sql` pela ferramenta
-   de banco da Lovable.
-3. Registrar a 0074 e depois a 0075, nessa ordem. A sequência de `id` está em
-   76, igual ao maior `id`, então o `INSERT` não precisa dele:
+**O que a regra encontrou.** Em outubro conta setembro: 14 vendas aprovadas e
+nenhuma pendente de aprovação (2 rejeitadas). Com o mínimo de 3, só 1 dos 48
+corretores ativos pode trabalhar de casa; os outros precisam do check-in numa
+filial. Os 2 corretores que o login antigo marcou presentes às 07:45 de 11/10
+seguem presentes até o reset da meia-noite (a 0074 não mexe em quem já estava
+presente); o check-in deles em `/presenca` registra onde estão.
 
-   ```sql
-   INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES
-     ('8690e420006e66512d086c1887d7b1992a73017742752d4d341bfce69a0da3d2', 1791903600000), -- 0074
-     ('800ec22efc5f92c0fa03446500da3ab8430a6e4869a5a8b25fee037cb1659907', 1791990000000); -- 0075
-   ```
+**Falta:**
 
-4. Rodar as conferências do item 3.
-5. Quando o Lovable regenerar `types.ts` com `filiais` e as RPCs de presença,
-   apagar o bloco de presença de `src/integrations/supabase/pendentes.ts` e
-   trocar `supabasePendente` por `supabase` em
-   `src/features/presenca/presenca-client.ts`.
+- Quando o Lovable regenerar `types.ts` com `filiais` e as RPCs de presença,
+  apagar o bloco de presença de `src/integrations/supabase/pendentes.ts` e
+  trocar `supabasePendente` por `supabase` em
+  `src/features/presenca/presenca-client.ts`.
+- **Cron das 23h.** A produção não tem o job `auto-checkout-presenca`; só
+  existe `resetar-presenca-diaria` (`0 3 * * *`, meia-noite de Brasília). A
+  0074 recriou a função `auto_checkout_presenca()`, mas não agenda o job, que
+  vinha de uma migration de junho que nunca chegou à produção. Se a gestão
+  quiser o encerramento às 23h:
 
-Se o migrador da Lovable rodar sozinho antes do passo 1, ele aplica a 0074 por
-conta própria e reaplica a 0075, que é idempotente. Até hoje ele não rodou
-quando `drizzle/` chegou ao `main` (ver `docs/ops/em-atendimento-teto-65.md`
-§5.3), mas esse é mais um motivo para publicar logo.
-
-**Tipos.** Às 16:07 UTC, o Lovable regenerou `types.ts` a partir da produção,
-e os tipos da 0074 saíram de lá. O cliente de presença virou
-`supabase as any`, e o CI do `main` ficou vermelho no teto de escapes. Os
-tipos voltaram como fronteira em `src/integrations/supabase/pendentes.ts`,
-cujo único escape já estava contado.
-
-**Cron das 23h.** A produção não tem a função `auto_checkout_presenca()` nem
-o job `auto-checkout-presenca`. Só existe `resetar-presenca-diaria`
-(`0 3 * * *`). A 0074 recria a função, mas não agenda o job, que vinha de uma
-migration de junho que nunca chegou à produção. Se a gestão quiser o
-encerramento às 23h de Brasília, o job entra depois da 0074:
-
-```sql
-SELECT cron.schedule('auto-checkout-presenca', '0 2 * * *',
-  $$ SELECT public.auto_checkout_presenca(); $$);
-```
+  ```sql
+  SELECT cron.schedule('auto-checkout-presenca', '0 2 * * *',
+    $$ SELECT public.auto_checkout_presenca(); $$);
+  ```
 
 ## 7. Conferências do dia a dia
 
