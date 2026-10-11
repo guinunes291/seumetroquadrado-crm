@@ -15,6 +15,14 @@
 // sistema em paisagem. Rodapé com página X de Y nas margens da folha.
 
 import { escHtml, imprimirHtml } from "@/lib/pdf-print";
+import {
+  capaMarca,
+  dataPorExtensoMarca,
+  estilosMarca,
+  faixaMarca,
+  MARCA,
+  RODAPE_CLIENTE,
+} from "@/lib/pdf-marca";
 import type { AnaliseAmortizacoes, LinhaPlanilha, ResultadoSimulacao } from "@/lib/amortizacao";
 import {
   agruparPorAno,
@@ -28,21 +36,7 @@ import {
   type Trecho,
 } from "@/features/simulador-amortizacao/estado";
 
-const C = {
-  navy: "#0F1E3A",
-  gold: "#B89968",
-  goldEscuro: "#8C6E40",
-  creme: "#F5F1EA",
-  cremeClaro: "#FAF7F1",
-  areia: "#EFE5D2",
-  texto: "#1B2333",
-  suave: "#5A6275",
-  medio: "#4A5265",
-  linha: "#EEE7DA",
-  borda: "#E2D9C7",
-  claroSobreNavy: "#CFC6B4",
-  branco: "#FFFFFF",
-} as const;
+const C = { ...MARCA, areia: MARCA.goldClaro } as const;
 
 type Sistema = "SAC" | "PRICE";
 export type Resultados = Partial<Record<Sistema, ResultadoSimulacao>>;
@@ -64,32 +58,16 @@ const mil = (v: number) =>
   v >= 1000 ? `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil` : brl(v);
 const e = escHtml;
 
-/** Logo da SMQ em vetor (moldura, telhado duplo e m²). */
-function logo(tamanho: number, rotulo = false): string {
-  const aria = rotulo ? `role="img" aria-label="Seu Metro Quadrado"` : `aria-hidden="true"`;
-  return `<svg width="${tamanho}" height="${tamanho}" viewBox="0 0 100 100" ${aria}>
-    <rect x="5" y="5" width="90" height="90" fill="none" stroke="${C.creme}" stroke-width="7"/>
-    <path d="M27 52 V39 L50 18 L73 39 V62" fill="none" stroke="${C.gold}" stroke-width="7"/>
-    <path d="M37 54 L51 40 L67 56 V82" fill="none" stroke="${C.creme}" stroke-width="8"/>
-    <text x="20" y="82" font-family="Montserrat, sans-serif" font-weight="800" font-size="30" fill="${C.creme}">m</text>
-    <text x="45" y="68" font-family="Montserrat, sans-serif" font-weight="800" font-size="17" fill="${C.creme}">2</text>
-  </svg>`;
-}
-
-/** Faixa azul do topo das páginas internas. */
+/** Faixa azul do topo das páginas internas (kit da marca). */
 function faixa(f: FormSimulador, extra = ""): string {
-  return `<div class="faixa">
-    <div class="marca">${logo(28)}<span>SEU METRO QUADRADO</span>${extra ? `<em>${e(extra)}</em>` : ""}</div>
-    <span>Simulação de financiamento · ${e(mil(valorFinanciadoDe(f)))} em ${f.prazoMeses} meses</span>
-  </div>`;
+  return faixaMarca({
+    rotuloHtml: extra ? e(extra) : undefined,
+    direitaHtml: `Simulação de financiamento · ${e(mil(valorFinanciadoDe(f)))} em ${f.prazoMeses} meses`,
+  });
 }
 
 function trechos(frase: Trecho[]): string {
   return frase.map((t) => (t.forte ? `<strong>${e(t.texto)}</strong>` : e(t.texto))).join("");
-}
-
-function dataExtenso(d: Date): string {
-  return d.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
 }
 
 // ---------------------------------------------------------------------------
@@ -207,17 +185,13 @@ function capa(args: {
     .join("")}</tbody></table>`;
 
   return `<section class="pagina">
-    <div class="capa-topo">
-      <div class="capa-linha">
-        <div class="marca-capa">${logo(52, true)}<div><b>SEU METRO QUADRADO</b><span>Imóveis na planta e Minha Casa Minha Vida</span></div></div>
-        <span class="capa-data">${e(dataExtenso(geradoEm))}</span>
-      </div>
-      <div class="capa-titulo">
-        <span class="sobre">SIMULAÇÃO DE FINANCIAMENTO</span>
-        <h1>Planilha de amortização <span>${e(sistemas.join(" x "))}</span></h1>
-        ${para ? `<span class="para">${para}</span>` : ""}
-      </div>
-    </div>
+    ${capaMarca({
+      sobre: "SIMULAÇÃO DE FINANCIAMENTO",
+      tituloHtml: "Planilha de amortização",
+      destaqueHtml: e(sistemas.join(" x ")),
+      subtituloHtml: para || undefined,
+      direitaHtml: e(dataPorExtensoMarca(geradoEm)),
+    })}
     <div class="kpis">${kpis}</div>
     <div class="dests dests-${sistemas.length}">${sistemas.map((s, i) => destaque(s, i === 0)).join("")}</div>
     <div class="bloco">
@@ -432,42 +406,14 @@ export function tituloPdf(f: FormSimulador): string {
 }
 
 function estilos(origem: string, completo: boolean): string {
-  const rodape = `font-family: Inter, sans-serif; font-size: 8pt; color: ${C.suave};`;
-  return `
-  @font-face { font-family: Montserrat; font-weight: 100 900; src: url("${origem}/fonts/aurum/montserrat-latin-wght-normal.woff2") format("woff2"); }
-  @font-face { font-family: Inter; font-weight: 100 900; src: url("${origem}/fonts/aurum/inter-latin-wght-normal.woff2") format("woff2"); }
-  @page {
-    size: A4; margin: 12mm 12mm 16mm; background: ${C.creme};
-    @bottom-left { content: "Seu Metro Quadrado · @seumetroquadrado_oficial"; ${rodape} }
-    @bottom-right { content: "página " counter(page) " de " counter(pages); ${rodape} }
-  }
-  @page paisagem {
-    size: A4 landscape; margin: 10mm 12mm 14mm; background: ${C.creme};
-    @bottom-left { content: "Seu Metro Quadrado · @seumetroquadrado_oficial"; ${rodape} }
-    @bottom-right { content: "página " counter(page) " de " counter(pages); ${rodape} }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; background: ${C.creme}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { font: 10pt/1.45 Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: ${C.texto}; }
-  b, strong { font-weight: 600; }
-  h1, h2, .kpi-v, .dest-v, .dest-t, .sobre, .marca span, .marca-capa b, .sub-t, .efc b, .caixa > b, .cta b { font-family: Montserrat, Inter, sans-serif; }
-  .quebra { break-before: page; }
+  return `${estilosMarca({ origem, rodape: RODAPE_CLIENTE })}
+  h2, .kpi-v, .dest-v, .dest-t, .sobre, .sub-t, .efc b, .caixa > b, .cta b { font-family: Montserrat, Inter, sans-serif; }
   .paisagem { page: paisagem; }
+  .pagina .m-capa, .pagina .m-faixa { margin-bottom: 0; }
   .pagina { display: flex; flex-direction: column; gap: 16px; }
 
-  .capa-topo { background: ${C.navy}; color: ${C.creme}; border-radius: 14px; padding: 30px 34px 28px; display: flex; flex-direction: column; gap: 24px; }
-  .capa-linha { display: flex; justify-content: space-between; align-items: center; }
-  .marca-capa { display: flex; align-items: center; gap: 14px; }
-  .marca-capa div { display: flex; flex-direction: column; gap: 2px; }
-  .marca-capa b { font-weight: 800; font-size: 11.5pt; letter-spacing: 0.04em; }
-  .marca-capa span, .capa-data { font-size: 8.5pt; color: ${C.claroSobreNavy}; }
-  .capa-titulo { display: flex; flex-direction: column; gap: 8px; }
   .sobre { font-weight: 700; font-size: 8.5pt; letter-spacing: 0.18em; color: ${C.gold}; }
   .sobre.escuro { color: ${C.goldEscuro}; }
-  h1 { margin: 0; font-weight: 800; font-size: 22pt; line-height: 1.12; letter-spacing: -0.01em; }
-  h1 span { color: ${C.gold}; }
-  .para { font-size: 10.5pt; color: #E4DCCB; }
-  .para strong { color: ${C.creme}; }
 
   .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .kpi { background: ${C.branco}; border: 1px solid ${C.borda}; border-radius: 10px; padding: 11px 13px; display: flex; flex-direction: column; gap: 3px; }
@@ -520,11 +466,6 @@ function estilos(origem: string, completo: boolean): string {
   .mm tr.fgts td { background: ${C.areia}; font-weight: 600; }
   .mm tr.obra td { background: #F7F0E2; }
 
-  .faixa { background: ${C.navy}; color: ${C.creme}; border-radius: 10px; padding: 11px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 8.5pt; }
-  .faixa > span { color: ${C.claroSobreNavy}; }
-  .marca { display: flex; align-items: center; gap: 9px; }
-  .marca span { font-weight: 800; font-size: 9pt; letter-spacing: 0.06em; }
-  .marca em { font-style: normal; color: ${C.gold}; font-weight: 600; margin-left: 10px; }
   .titulo-pag { display: flex; flex-direction: column; gap: 5px; }
   .titulo-pag.linha { flex-direction: row; justify-content: space-between; align-items: flex-end; }
   .titulo-pag p { margin: 0; font-size: 10pt; color: ${C.medio}; }
