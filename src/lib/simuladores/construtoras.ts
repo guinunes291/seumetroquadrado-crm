@@ -7,10 +7,15 @@
 // `versao` de uma construtora descarta os ajustes antigos de todo mundo, para
 // ninguém ficar simulando com regra velha depois que a tabela mudou.
 //
-// ESTADO DAS REGRAS (out/2026): os simuladores de referência (o site
-// smq-fluxo para Vibra, Direcional e Longitude, e o do Canal Imob para Mundo
-// Apto) não puderam ser lidos na criação desta tela. Por isso os presets
-// abrem com o padrão da OPERAÇÃO, não com o da construtora:
+// ESTADO DAS REGRAS (out/2026):
+//   • VIBRA: conferida com o simulador oficial do canal (Vibra Parcerias,
+//     Equipe Grego). O modelo dela é outro (teto de cada parcela pela renda,
+//     tabela por empreendimento) e mora em vibra.ts / tabela-vibra.ts; o
+//     `regras` abaixo não é usado na aba dela.
+//   • DIRECIONAL, LONGITUDE e MUNDO APTO: os simuladores de referência (o da
+//     Longitude é fechado por login; o smq-fluxo e o do Canal Imob não
+//     puderam ser lidos) ainda não deram a regra. Os presets abrem com o
+//     padrão da OPERAÇÃO, não com o da construtora:
 //   • teto de parcelamento = regra 80/20 do CRM (TETO_PARCELAMENTO_CONSTRUTORA,
 //     a mesma do Match e da pré-qualificação APROVE);
 //   • INCC projetado = INCC-M acumulado em 12 meses até ago/2026 (6,55%, FGV);
@@ -23,13 +28,23 @@
 import { TETO_PARCELAMENTO_CONSTRUTORA } from "@/lib/orcamento";
 import type { Periodicidade, RegrasFluxo } from "@/lib/simuladores/fluxo";
 import type { SimuladorId } from "@/lib/simuladores/ids";
+import { CONFERIDA_EM, FONTE_TABELA_VIBRA } from "@/lib/simuladores/tabela-vibra";
 
 export type { SimuladorId } from "@/lib/simuladores/ids";
+
+/**
+ * generico     → saldo dividido em mensais até a entrega (fluxo.ts), regras
+ *                editáveis no card "Regras da construtora";
+ * tabela_vibra → tabela oficial da Vibra por empreendimento, com teto de cada
+ *                parcela pela renda (vibra.ts).
+ */
+export type ModeloSimulador = "generico" | "tabela_vibra";
 
 export interface SimuladorConstrutora {
   id: SimuladorId;
   /** Nome da parceira — casa com `projetos.construtora` via mesmaConstrutora. */
   nome: string;
+  modelo: ModeloSimulador;
   /** Sobe quando o preset muda: invalida os ajustes salvos pelos corretores. */
   versao: number;
   regras: RegrasFluxo;
@@ -57,6 +72,7 @@ export const REGRAS_PADRAO: RegrasFluxo = {
 const preset = (id: SimuladorId, nome: string): SimuladorConstrutora => ({
   id,
   nome,
+  modelo: "generico",
   versao: 1,
   regras: { ...REGRAS_PADRAO },
   conferidoEm: null,
@@ -65,7 +81,15 @@ const preset = (id: SimuladorId, nome: string): SimuladorConstrutora => ({
 
 /** Ordem das abas: a mesma em que a operação pediu os simuladores. */
 export const SIMULADORES_CONSTRUTORAS: readonly SimuladorConstrutora[] = [
-  preset("vibra", "Vibra"),
+  {
+    ...preset("vibra", "Vibra"),
+    modelo: "tabela_vibra",
+    // v2: saiu do fluxo genérico para a tabela oficial (os ajustes de regra
+    // salvos na v1 não valem mais).
+    versao: 2,
+    conferidoEm: CONFERIDA_EM,
+    fonte: FONTE_TABELA_VIBRA,
+  },
   preset("direcional", "Direcional"),
   preset("longitude", "Longitude"),
   preset("mundo-apto", "Mundo Apto"),

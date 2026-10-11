@@ -1,7 +1,8 @@
 // Tela de Simuladores renderizada de ponta a ponta (com o catálogo, as
 // preferências e o Supabase simulados): o link do dossiê traz o banco, o
 // projeto traz a entrega, o corretor digita ato e chaves e a tela monta o
-// fluxo, o "quanto custa esperar" e o cronograma.
+// fluxo, o "quanto custa esperar" e o cronograma. A aba Vibra usa a tabela
+// oficial da construtora (teto de cada parcela pela renda).
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -22,12 +23,20 @@ vi.mock("@/features/projetos/use-prateleira-dados", () => ({
     isLoading: false,
     data: [
       {
-        id: "p-vibra",
-        nome: "Vibra Estação",
-        construtora: "Vibra Residencial",
+        id: "p-dir",
+        nome: "Direcional Estação",
+        construtora: "Direcional",
         mes_entrega: 6,
         ano_entrega: 2028,
         status_entrega: "Em obras",
+      },
+      {
+        id: "p-pvs",
+        nome: "Parque Vila Sonia",
+        construtora: "Vibra",
+        mes_entrega: 11,
+        ano_entrega: 2028,
+        status_entrega: "Lançamento",
       },
       {
         id: "p-cury",
@@ -46,6 +55,7 @@ vi.mock("@/integrations/supabase/client", () => {
     select: () => consulta,
     eq: () => consulta,
     is: () => consulta,
+    in: () => consulta,
     not: () => consulta,
     order: async () => ({ data: [], error: null }),
   };
@@ -53,21 +63,22 @@ vi.mock("@/integrations/supabase/client", () => {
 });
 
 import { SimuladoresPage } from "@/features/simuladores/simuladores-page";
+import type { SimuladorId } from "@/lib/simuladores/ids";
 
-function renderizar(construtora: "vibra" | "mundo-apto" = "vibra") {
+function renderizar(
+  construtora: SimuladorId = "direcional",
+  prefill: React.ComponentProps<typeof SimuladoresPage>["prefill"] = {
+    projeto: "p-dir",
+    valor: 260_000,
+    financiamento: 190_000,
+    subsidio: 8_000,
+    fgts: 12_000,
+  },
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <SimuladoresPage
-        construtora={construtora}
-        prefill={{
-          projeto: "p-vibra",
-          valor: 260_000,
-          financiamento: 190_000,
-          subsidio: 8_000,
-          fgts: 12_000,
-        }}
-      />
+      <SimuladoresPage construtora={construtora} prefill={prefill} />
     </QueryClientProvider>,
   );
 }
@@ -91,7 +102,10 @@ describe("Simuladores", () => {
     for (const nome of ["Vibra", "Direcional", "Longitude", "Mundo Apto"]) {
       expect(screen.getByRole("tab", { name: new RegExp(nome) })).toBeInTheDocument();
     }
-    expect(screen.getByRole("tab", { name: /Vibra/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Direcional/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(screen.getByText(/ainda não foram conferidas com a tabela vigente/)).toBeInTheDocument();
   });
 
@@ -121,10 +135,74 @@ describe("Simuladores", () => {
 
   it("projeto de outra construtora não aparece na aba; trocar de aba navega", () => {
     renderizar("mundo-apto");
-    // O ?projeto= é da Vibra: na aba Mundo Apto ele não é aplicado.
+    // O ?projeto= é da Direcional: na aba Mundo Apto ele não é aplicado.
     expect((screen.getByLabelText("Entrega das chaves") as HTMLInputElement).value).toBe("");
     expect(screen.getByText(/Informe a previsão de entrega/)).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Longitude/ }));
     expect(navegar).toHaveBeenCalledWith(expect.objectContaining({ to: "/simuladores" }));
+  });
+
+  it("trocar de aba leva os dados do cliente na URL", () => {
+    renderizar();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Vibra/ }));
+    expect(navegar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: expect.objectContaining({
+          construtora: "vibra",
+          valor: 260_000,
+          financiamento: 190_000,
+          subsidio: 8_000,
+          fgts: 12_000,
+        }),
+      }),
+    );
+  });
+});
+
+describe("Simuladores · Vibra", () => {
+  const vibra = () =>
+    renderizar("vibra", {
+      projeto: "p-pvs",
+      valor: 300_000,
+      renda: 5_000,
+      financiamento: 210_000,
+      subsidio: 30_000,
+      fgts: 10_000,
+    });
+
+  it("projeto do catálogo abre o empreendimento da tabela; falta o total até a entrega", async () => {
+    vibra();
+    expect(await screen.findByText(/FALTA INCLUIR R\$\s52\.100,00/)).toBeInTheDocument();
+    expect(screen.getByText(/Tabela da Vibra de out\/2026/)).toBeInTheDocument();
+    expect((screen.getByLabelText("Subsídio + FGTS") as HTMLInputElement).value).toBe("40000");
+    // Tetos da renda de R$ 5 mil na linha das Mensais 1 (28%).
+    expect(
+      screen.getByText(/fev\/2027 a mar\/2027 · máx\. R\$\s1\.400,00 cada/),
+    ).toBeInTheDocument();
+  });
+
+  it("preencher pelo teto fecha; parcela acima do teto avisa", async () => {
+    vibra();
+    fireEvent.click(await screen.findByRole("button", { name: /Preencher pelo teto/ }));
+    expect(screen.getByText("FECHOU! O cliente tem perfil para este projeto.")).toBeInTheDocument();
+    const m1 = screen.getByLabelText("Mensais 1: valor da parcela") as HTMLInputElement;
+    expect(m1.value).toBe("1400");
+    expect(screen.getByText("Quanto custa esperar")).toBeInTheDocument();
+    expect(screen.getByText(/\+R\$\s1\.400,00/)).toBeInTheDocument();
+
+    fireEvent.change(m1, { target: { value: "1500" } });
+    expect(screen.getByText(/FALTA INCLUIR|SOBRA/)).toHaveTextContent(/SOBRA R\$\s200,00/);
+    fireEvent.change(screen.getByLabelText("1º ato (assinatura): valor da parcela"), {
+      target: { value: "3475" },
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(/A conta fecha, mas passa do limite/);
+  });
+
+  it("um mês depois a tabela já perdeu uma mensal", async () => {
+    vibra();
+    const mes = await screen.findByLabelText("Mês do ato (assinatura)");
+    fireEvent.change(mes, { target: { value: "2026-11" } });
+    expect(screen.getByText(/a primeira mensal já saiu da conta/)).toBeInTheDocument();
+    expect(screen.getByText(/mar\/2027 · máx\. R\$\s1\.400,00 cada/)).toBeInTheDocument();
   });
 });

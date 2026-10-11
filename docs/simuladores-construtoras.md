@@ -1,10 +1,11 @@
 # Simuladores das construtoras: como o fluxo é calculado
 
-Motor: `src/lib/simuladores/fluxo.ts` (funções puras, sem React).
+Motor genérico: `src/lib/simuladores/fluxo.ts` (funções puras, sem React).
+Motor da Vibra: `src/lib/simuladores/vibra.ts`, com a tabela oficial em `src/lib/simuladores/tabela-vibra.ts` (ver a seção 10).
 Regras por construtora: `src/lib/simuladores/construtoras.ts`.
 Recursos estimados pela renda: `src/lib/simuladores/recursos.ts` (reusa `lib/orcamento`, tabela APROVE 2026).
 Tela: `/simuladores` (módulo Documentação & Projetos), uma aba por construtora: Vibra, Direcional, Longitude e Mundo Apto.
-Testes: `tests/simuladores-fluxo.test.ts`, `tests/simuladores-estado.test.ts` e `tests/simuladores-pdf.test.ts`.
+Testes: `tests/simuladores-fluxo.test.ts`, `tests/simuladores-estado.test.ts`, `tests/simuladores-pdf.test.ts`, `tests/simuladores-vibra.test.ts`, `tests/simuladores-vibra-saidas.test.ts` e `tests/simuladores-page.test.tsx`.
 
 A Planilha de amortização (`/simulador-amortizacao`, ver `docs/amortizacao.md`) responde quanto o cliente paga **ao banco**. Os Simuladores respondem quanto ele paga **à construtora**. As duas telas têm link uma para a outra.
 
@@ -70,14 +71,14 @@ Na **renda comprometida** a tela soma a mensal com a parcela cheia do banco. É 
 
 ## 4. Estado das regras (out/2026) e como calibrar
 
-Os simuladores de referência da operação (o site _smq-fluxo_ para Vibra, Direcional e Longitude, e o do Canal Imob para a Mundo Apto) não puderam ser lidos quando a tela foi criada. As quatro construtoras abrem com o **padrão da operação**:
+A **Vibra** está conferida com o simulador oficial do canal e usa um motor próprio (seção 10). As outras três (Direcional, Longitude e Mundo Apto) ainda abrem no fluxo genérico com o **padrão da operação**, porque os simuladores de referência delas não puderam ser lidos (o da Longitude exige login; o _smq-fluxo_ e o do Canal Imob não abriram daqui):
 
 - parcelado até 20% do imóvel (regra 80/20 do CRM);
 - INCC projetado de 6,55% ao ano (INCC-M acumulado em 12 meses até ago/2026, FGV);
 - juros pós-chaves de 1% a.m., a convenção mais comum de mercado, mas **pós-chaves desligado**;
 - ato mínimo, piso da mensal e intermediárias **sem regra**.
 
-Enquanto `conferidoEm` for `null`, a tela mostra "regras a conferir". Para calibrar uma construtora com a tabela vigente:
+Enquanto `conferidoEm` for `null`, a tela mostra "regras a conferir". Para calibrar uma construtora do fluxo genérico com a tabela vigente:
 
 1. Em `SIMULADORES_CONSTRUTORAS`, troque o `preset(...)` dela por regras explícitas.
 2. Preencha `conferidoEm` (data) e `fonte` (ex.: "tabela out/2026 enviada pelo gerente").
@@ -113,4 +114,48 @@ A entrega vem de `projetos.mes_entrega` / `ano_entrega`. Se o cadastro só tem o
 
 `/simuladores?construtora=mundo-apto&projeto={id}&valor=250000&renda=7000` abre a aba e preenche os campos. Também aceita `financiamento`, `subsidio`, `fgts` e `parcela`.
 
+Trocar de aba leva valor, renda e recursos do banco na URL: o mesmo cliente aparece já preenchido na outra construtora, mesmo quando o formulário é diferente (a Vibra soma subsídio e FGTS num campo só; de volta às outras abas a soma vai como subsídio).
+
 O dossiê do lead (aba Qualificação) tem o botão **Fluxo da construtora**. Com aprovação de crédito vigente (view `aprovacoes_credito_vigentes`), ele leva financiamento, subsídio, FGTS, parcela e a renda da carta (`features/simuladores/prefill-lead.ts`, mesma fonte da planilha de amortização). Sem aprovação, leva só a renda informada.
+
+## 10. Vibra: a tabela oficial do canal
+
+Fonte: o simulador do canal Vibra Parcerias (Equipe Grego), versão de out/2026, conferido em 11/10/2026. A Vibra não divide o saldo em mensais iguais: cada **tipo** de parcela tem um teto pela **renda**, e o corretor monta o fluxo até a soma bater.
+
+```
+Financiamento líquido = financiado × retenção     (0,99 ou 0,985: 1% ou 1,5% para o INCC até a Caixa)
+Total até a entrega   = valor − financiamento líquido − (subsídio + FGTS)
+FECHOU                = soma do fluxo = total até a entrega
+```
+
+| Linha     | Quando                                           | Teto de cada parcela               |
+| --------- | ------------------------------------------------ | ---------------------------------- |
+| 4 atos    | mês do ato e os 3 seguintes (0, 30, 60, 90 dias) | livre                              |
+| Mensais 1 | a partir do 5º mês, em sequência                 | 28% da renda                       |
+| Mensais 2 | logo depois das Mensais 1                        | 22% da renda                       |
+| Mensais 3 | logo depois das Mensais 2                        | 18% da renda                       |
+| Anuais    | dezembro da tabela (a 2ª, 12 meses depois)       | 100% da renda                      |
+| Única     | data da tabela                                   | 50% ou 100% da renda (tabela)      |
+| Pós-chave | a partir da data da tabela                       | 10% da renda; total ≤ 5% do imóvel |
+
+Pró-soluto (tudo menos os atos) ≤ 15% do imóvel. "Parcela morando" = 30% da renda.
+
+**Cada mês sem assinar o produto perde uma mensal.** As quantidades da tabela (g1, g2, g3) valem para quem assina no mês-base dela (out/2026). As faixas são datas fixas da obra; quem assina um mês depois empurra os 4 atos um mês e a mensal que caía no 5º mês some. A tela recalcula a partir do **Mês do ato**: sai primeiro a faixa de 28%, depois a de 22%, depois a de 18%. Exemplo (Parque Vila Sônia, renda de R$ 5 mil, imóvel de R$ 300 mil, R$ 210 mil financiados e R$ 40 mil de subsídio + FGTS, total até a entrega de R$ 52.100):
+
+| Assinando em | Mensais | Parcelado máximo | Atos no mínimo | Diferença |
+| ------------ | ------- | ---------------- | -------------- | --------- |
+| out/2026     | 17      | R$ 37.400,00     | R$ 14.700,00   | -         |
+| nov/2026     | 16      | R$ 36.000,00     | R$ 16.100,00   | +R$ 1.400 |
+| dez/2026     | 15      | R$ 34.600,00     | R$ 17.500,00   | +R$ 2.800 |
+| jan/2027     | 14      | R$ 33.500,00     | R$ 18.600,00   | +R$ 3.900 |
+
+Anual, única e pós-chave seguem a mesma lógica: o que cairia dentro do período dos atos sai do fluxo (vira ato).
+
+O que a tela do CRM faz além do simulador oficial:
+
+- **Preencher pelo teto**: põe cada parcela no máximo, na ordem do calendário (Mensais 1, 2, 3, anuais, única e por último o pós-chave, que pesa junto com a parcela do banco), até cobrir o total ou bater os 15% de pró-soluto. O que não cabe vai para os 4 atos, em partes iguais. É ponto de partida: o corretor ajusta linha a linha.
+- **Status mais honesto**: o oficial mostra "FECHOU!" sempre que a soma bate, mesmo com parcela acima do teto. Aqui, se a soma bate mas algo passa do limite, o status diz o quê ("A conta fecha, mas passa do limite da Vibra: Mensais 2 (máx. R$ 1.100,00 cada)").
+- **Unidade do catálogo**: o empreendimento da tabela é ligado ao projeto do catálogo pelo nome normalizado (sem acento, sem "Vibra", Pq./Vl./Jd. por extenso) e, nos casos de grafia diferente, pela lista `NOMES_NO_CATALOGO`. A **previsão de entrega** vale a da tabela da Vibra, não a do catálogo (o Marechal Tito, por exemplo, está jul/2027 no catálogo e jan/2028 na tabela).
+- WhatsApp, PDF (a mesma folha do oficial, com quanto custa esperar e o cronograma) e o cronograma mês a mês.
+
+**Atualizar a tabela todo mês**: copie o objeto `EMPREENDIMENTOS` do código-fonte do simulador oficial e cole em `tabela-vibra.ts` sem mudar o formato (o `prettier-ignore` mantém uma linha por empreendimento, igual à fonte). Atualize `CONFERIDA_EM` e suba a `versao` da Vibra em `construtoras.ts`. Os testes de `tests/simuladores-vibra.test.ts` conferem que as datas são válidas e que as mensais terminam antes do pós-chave.
