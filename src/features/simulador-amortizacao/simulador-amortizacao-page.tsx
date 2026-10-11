@@ -6,8 +6,10 @@
 
 import { lazy, Suspense, useId, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
 import {
   ArrowsLeftRight,
+  Buildings,
   CaretDown,
   Copy,
   FilePdf,
@@ -123,6 +125,13 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
         description="SAC e PRICE mês a mês, com TR, seguros, taxa de administração, fase de obra e amortização com FGTS."
         actions={
           <>
+            {/* Saiu da sidebar na chegada dos Simuladores (2026-10-11): as duas
+                telas se apontam — construtora lá, banco aqui. */}
+            <Button variant="outline" asChild>
+              <Link to="/simuladores">
+                <Buildings className="mr-1.5 h-4 w-4" /> Fluxo das construtoras
+              </Link>
+            </Button>
             <Button variant="outline" onClick={copiarResumo} disabled={!sistemasAtivos.length}>
               <Copy className="mr-1.5 h-4 w-4" /> Copiar resumo
             </Button>

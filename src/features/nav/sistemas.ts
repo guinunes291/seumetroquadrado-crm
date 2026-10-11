@@ -473,8 +473,9 @@ export const SISTEMAS: Sistema[] = [
     cor: "projetos",
     grupo: "consulta",
     // /links-uteis saiu da sidebar (corte 2026-08-30) mas a rota segue viva
-    // com dono — o acesso é o botão em Projetos em Foco e o ⌘K.
-    dominioExtra: ["/links-uteis"],
+    // com dono — o acesso é o botão em Projetos em Foco e o ⌘K. A Planilha de
+    // amortização saiu na chegada dos Simuladores (2026-10-11, ver a seção).
+    dominioExtra: ["/links-uteis", "/simulador-amortizacao"],
     secoes: [
       { id: "projetos-foco", label: "Projetos em Foco", icon: Star, to: "/projetos-foco" },
       // Catálogo completo é da gestão — o corretor trabalha só os produtos em
@@ -493,15 +494,17 @@ export const SISTEMAS: Sistema[] = [
       // o cliente é atendido — e o stand costuma ficar longe da obra. Todos os
       // papéis, SDR incluso: quem agenda visita precisa saber para onde mandar.
       { id: "mapa-lojas", label: "Mapa de Lojas", icon: Storefront, to: "/mapa-lojas" },
-      // Planilha de amortização (2026-10-10): SAC x PRICE mês a mês com TR,
-      // seguros, obra e FGTS. Consulta de apoio à venda, todos os papéis — o
-      // dossiê do lead abre a mesma tela já preenchida.
-      {
-        id: "simulador-amortizacao",
-        label: "Planilha de amortização",
-        icon: Calculator,
-        to: "/simulador-amortizacao",
-      },
+      // Simuladores (2026-10-11): o fluxo de pagamento das construtoras
+      // (Vibra, Direcional, Longitude, Mundo Apto) — ato, mensais contadas até
+      // a entrega, intermediárias e chaves. Todos os papéis.
+      //
+      // O módulo já estava no teto de 6 seções, e a Planilha de amortização
+      // (2026-10-10) é a outra metade da mesma pergunta ("quanto o cliente
+      // paga?" — à construtora aqui, ao banco lá). Em vez de esticar o teto,
+      // a seção virou "Simuladores" e a planilha seguiu o padrão do corte de
+      // 2026-08-30: rota viva (dominioExtra), botão no cabeçalho dos
+      // Simuladores como porta visível, atalho no ⌘K e o link do dossiê.
+      { id: "simuladores", label: "Simuladores", icon: Calculator, to: "/simuladores" },
       {
         id: "materiais",
         label: "Materiais (gestão)",
@@ -789,6 +792,13 @@ export const ATALHOS_EXTRAS: AtalhoExtra[] = [
   { label: "Check-in (presença na filial)", icon: Storefront, to: "/presenca", roles: OPERACAO },
   { label: "Match IA", icon: SamiMark, to: "/match" },
   { label: "Links Úteis", icon: Link, to: "/links-uteis" },
+  // Saiu da sidebar quando a seção virou "Simuladores" (2026-10-11): a porta
+  // visível é o botão no cabeçalho dos Simuladores e o link no dossiê.
+  {
+    label: "Planilha de amortização (SAC x PRICE)",
+    icon: ChartLineUp,
+    to: "/simulador-amortizacao",
+  },
   {
     label: "Relatórios (Operação)",
     icon: Layout,
