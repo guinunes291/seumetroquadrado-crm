@@ -39,6 +39,14 @@ vi.mock("@/features/projetos/use-prateleira-dados", () => ({
         status_entrega: "Lançamento",
       },
       {
+        id: "p-mab",
+        nome: "MA Brooklin",
+        construtora: "Mundo Apto",
+        mes_entrega: 6,
+        ano_entrega: 2027,
+        status_entrega: "Obras",
+      },
+      {
         id: "p-cury",
         nome: "Cury Centro",
         construtora: "Cury",
@@ -134,11 +142,11 @@ describe("Simuladores", () => {
   });
 
   it("projeto de outra construtora não aparece na aba; trocar de aba navega", () => {
-    renderizar("mundo-apto");
-    // O ?projeto= é da Direcional: na aba Mundo Apto ele não é aplicado.
+    renderizar("longitude");
+    // O ?projeto= é da Direcional: na aba Longitude ele não é aplicado.
     expect((screen.getByLabelText("Entrega das chaves") as HTMLInputElement).value).toBe("");
     expect(screen.getByText(/Informe a previsão de entrega/)).toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Longitude/ }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Direcional/ }));
     expect(navegar).toHaveBeenCalledWith(expect.objectContaining({ to: "/simuladores" }));
   });
 
@@ -204,5 +212,47 @@ describe("Simuladores · Vibra", () => {
     fireEvent.change(mes, { target: { value: "2026-11" } });
     expect(screen.getByText(/a primeira mensal já saiu da conta/)).toBeInTheDocument();
     expect(screen.getByText(/mar\/2027 · máx\. R\$\s1\.400,00 cada/)).toBeInTheDocument();
+  });
+});
+
+describe("Simuladores · Mundo Apto", () => {
+  const mundoApto = () =>
+    renderizar("mundo-apto", {
+      projeto: "p-mab",
+      valor: 322_720,
+      renda: 6_000,
+      financiamento: 230_000,
+      subsidio: 10_000,
+      fgts: 15_000,
+    });
+
+  it("projeto do catálogo abre o empreendimento da política; preencher fecha", async () => {
+    mundoApto();
+    expect(await screen.findByText(/FALTA INCLUIR R\$\s67\.720,00/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Política de crédito da Mundo Apto de 09\/04\/2026/),
+    ).toBeInTheDocument();
+    expect((screen.getByLabelText("Habite-se") as HTMLInputElement).value).toBe("2027-06");
+    fireEvent.click(screen.getByRole("button", { name: /Preencher pela política/ }));
+    expect(
+      screen.getByText("FECHOU! O fluxo atende a política da Mundo Apto."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Conferência da política")).toBeInTheDocument();
+    expect(screen.getAllByText("36 meses").length).toBeGreaterThan(0);
+    expect(
+      (screen.getByLabelText("Mensais durante a obra: valor da parcela") as HTMLInputElement).value,
+    ).toBe("1800");
+  });
+
+  it("sem pós o fluxo perde as parcelas e o prazo fica abaixo de 36 meses", async () => {
+    mundoApto();
+    fireEvent.click(await screen.findByRole("button", { name: /Preencher pela política/ }));
+    fireEvent.change(screen.getByLabelText("Parcelas depois do habite-se"), {
+      target: { value: "0" },
+    });
+    // As 27 parcelas de R$ 600 saem da conta.
+    expect(screen.getByRole("status")).toHaveTextContent(/FALTA INCLUIR R\$\s16\.200,00/);
+    fireEvent.click(screen.getByRole("button", { name: /Preencher pela política/ }));
+    expect(screen.getByRole("status")).toHaveTextContent(/fora da política: Prazo do contrato/);
   });
 });

@@ -272,7 +272,7 @@ describe("projeção do INCC", () => {
 });
 
 describe("presets e ajustes por usuário", () => {
-  it("as quatro construtoras pedidas, na ordem pedida, com regra a conferir", () => {
+  it("as quatro construtoras pedidas, na ordem pedida; Vibra e Mundo Apto conferidas", () => {
     expect(SIMULADORES_CONSTRUTORAS.map((s) => s.nome)).toEqual([
       "Vibra",
       "Direcional",
@@ -280,8 +280,18 @@ describe("presets e ajustes por usuário", () => {
       "Mundo Apto",
     ]);
     expect(simuladorPorId("nao-existe").id).toBe("vibra");
+    expect(SIMULADORES_CONSTRUTORAS.map((s) => [s.id, s.modelo, !!s.conferidoEm])).toEqual([
+      ["vibra", "tabela_vibra", true],
+      ["direcional", "generico", false],
+      ["longitude", "generico", false],
+      ["mundo-apto", "politica_mundo_apto", true],
+    ]);
+    // Trocar de modelo subiu a versão: ajustes de regra salvos antes não valem.
     expect(chaveRegrasAjustadas(simuladorPorId("mundo-apto"))).toBe(
-      "simuladores:regras:v1:mundo-apto",
+      "simuladores:regras:v2:mundo-apto",
+    );
+    expect(chaveRegrasAjustadas(simuladorPorId("direcional"))).toBe(
+      "simuladores:regras:v1:direcional",
     );
   });
 

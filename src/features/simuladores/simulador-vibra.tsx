@@ -15,17 +15,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  CheckCircle,
-  Copy,
-  Eraser,
-  FilePdf,
-  Hourglass,
-  ListChecks,
-  MagicWand,
-  SealCheck,
-  WarningCircle,
-} from "@phosphor-icons/react";
+import { Copy, FilePdf, MagicWand, SealCheck } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,7 +29,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useProjetosPrateleira } from "@/features/projetos/use-prateleira-dados";
 import { parceiraDoProjetoOuNome } from "@/lib/construtoras";
-import { centavos } from "@/lib/amortizacao";
 import { rotuloMes } from "@/lib/simuladores/fluxo";
 import { simuladorPorId, type SimuladorId } from "@/lib/simuladores/construtoras";
 import { estimarRecursosPelaRenda } from "@/lib/simuladores/recursos";
@@ -53,19 +42,23 @@ import {
   sugestaoPeloTeto,
   textoStatusVibra,
   VIGENCIA_VIBRA,
-  type CenarioEsperaVibra,
   type IdLinhaVibra,
   type LinhaResultadoVibra,
-  type ParcelaVibra,
   type ResultadoVibra,
 } from "@/lib/simuladores/vibra";
-import { cn } from "@/lib/utils";
 import { brl, pct, type PrefillFluxo } from "./estado";
+import {
+  CardLinhasFluxo,
+  CronogramaLinhas,
+  LinhaRodape,
+  QuantoCustaEsperarLinhas,
+  StatusFluxo,
+  type LinhaVisivel,
+} from "./fluxo-linhas";
 import {
   Alertas,
   CabecalhoSimuladores,
   Campo,
-  CampoValor,
   Kpi,
   Numero,
   SwitchLinha,
@@ -203,7 +196,12 @@ export function SimuladorVibra({ prefill }: { prefill?: PrefillFluxo & { projeto
             </Card>
           ) : (
             <>
-              <Status resultado={r} />
+              <StatusFluxo
+                tom={
+                  r.status === "fechou" ? "ok" : r.status === "incompleto" ? "neutro" : "pendente"
+                }
+                texto={textoStatusVibra(r)}
+              />
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Kpi
                   titulo="Financiamento líquido"
@@ -227,19 +225,48 @@ export function SimuladorVibra({ prefill }: { prefill?: PrefillFluxo & { projeto
                   sub="pela tabela da Vibra"
                 />
               </div>
-              <CardFluxo
-                resultado={r}
-                renda={form.renda}
-                setParcela={setParcela}
-                preencher={() => {
-                  const parcelas = sugestaoPeloTeto(entrada);
-                  setForm((f) => ({ ...f, parcelas }));
-                  if (form.renda <= 0) toast.info("Informe a renda: os tetos dependem dela.");
-                }}
+              <CardLinhasFluxo
+                linhas={r.linhas.map((l) => linhaVisivel(l, r))}
+                onValor={(id, v) => setParcela(id as IdLinhaVibra, v)}
+                instrucao='Digite o valor da parcela ou o total da linha. Verde: dentro do limite. Vermelho: acima. "Preencher pelo teto" põe cada parcela no máximo, na ordem do calendário, e o que não couber vai para os 4 atos.'
+                rotuloPreencher="Preencher pelo teto"
+                preencher={() => setForm((f) => ({ ...f, parcelas: sugestaoPeloTeto(entrada) }))}
+                podePreencher={form.renda > 0}
                 zerar={() => set("parcelas", { ...PARCELAS_ZERADAS })}
+                rodape={
+                  <>
+                    <LinhaRodape rotulo="Total do fluxo" valor={brl(r.totalFluxo)} forte />
+                    <LinhaRodape
+                      rotulo="Pró-soluto comprometido (sem os atos, máximo 15%)"
+                      valor={pct(r.proSoluto.pct)}
+                      alerta={r.proSoluto.excedeu}
+                    />
+                    {r.posChave.total > 0 && (
+                      <LinhaRodape
+                        rotulo={`Pós-chave no total (máximo ${brl(r.posChave.teto)}, 5% do imóvel)`}
+                        valor={brl(r.posChave.total)}
+                        alerta={r.posChave.excedeu}
+                      />
+                    )}
+                  </>
+                }
               />
-              {form.renda > 0 && <QuantoCustaEsperar cenarios={cenarios} />}
-              <Cronograma parcelas={r.cronograma} />
+              {form.renda > 0 && (
+                <QuantoCustaEsperarLinhas cenarios={cenarios} rotuloAtos="os 4 atos" />
+              )}
+              <CronogramaLinhas
+                parcelas={r.cronograma.map((p) => ({
+                  ...p,
+                  destaque:
+                    p.tipo === "ato"
+                      ? "entrada"
+                      : p.tipo === "mensal"
+                        ? null
+                        : p.tipo === "pos_chave"
+                          ? "pos"
+                          : "intermediaria",
+                }))}
+              />
               <div className="space-y-1 text-[11px] text-muted-foreground">
                 <p>{notaRetencao(r)}</p>
                 <p>{notaCaixa(form.documentacao)}</p>
@@ -475,299 +502,21 @@ function CardCliente({ form, setForm, set }: { form: FormVibra; setForm: SetForm
 // Resultado
 // ============================================================================
 
-function Status({ resultado: r }: { resultado: ResultadoVibra }) {
-  const ok = r.status === "fechou";
-  const neutro = r.status === "incompleto";
-  return (
-    <div
-      role="status"
-      className={cn(
-        "flex items-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-bold",
-        ok && "border-exito-500 bg-exito-500/10 text-exito-700 dark:text-exito-300",
-        !ok && !neutro && "border-perigo-500 bg-perigo-500/5 text-perigo-700 dark:text-perigo-300",
-        neutro && "bg-muted/40 font-medium text-muted-foreground",
-      )}
-    >
-      {ok ? (
-        <CheckCircle weight="fill" className="h-5 w-5 shrink-0" />
-      ) : (
-        <WarningCircle className="h-5 w-5 shrink-0" />
-      )}
-      <span>{textoStatusVibra(r)}</span>
-    </div>
-  );
-}
-
-const GRADE_LINHA = "sm:grid-cols-[minmax(0,1fr)_2.5rem_8.5rem_8.5rem]";
-
-function CardFluxo({
-  resultado: r,
-  renda,
-  setParcela,
-  preencher,
-  zerar,
-}: {
-  resultado: ResultadoVibra;
-  renda: number;
-  setParcela: (id: IdLinhaVibra, v: number) => void;
-  preencher: () => void;
-  zerar: () => void;
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-2">
-        <CardTitle className="text-sm">Fluxo de pagamento</CardTitle>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={zerar}>
-            <Eraser className="mr-1.5 h-4 w-4" /> Zerar
-          </Button>
-          <Button size="sm" onClick={preencher} disabled={renda <= 0}>
-            <ListChecks className="mr-1.5 h-4 w-4" /> Preencher pelo teto
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-[11px] text-muted-foreground">
-          Digite o valor da parcela ou o total da linha. Verde: dentro do limite. Vermelho: acima.
-          &quot;Preencher pelo teto&quot; põe cada parcela no máximo, na ordem do calendário, e o
-          que não couber vai para os 4 atos.
-        </p>
-        <div
-          className={cn(
-            "hidden gap-2 border-b pb-1 text-[11px] font-medium text-muted-foreground sm:grid",
-            GRADE_LINHA,
-          )}
-        >
-          <span>Parcela</span>
-          <span className="text-center">Qtd</span>
-          <span className="text-right">Valor da parcela</span>
-          <span className="text-right">Total</span>
-        </div>
-        <ul>
-          {r.linhas.map((l) => (
-            <LinhaFluxo key={l.id} l={l} r={r} onValor={(v) => setParcela(l.id, v)} />
-          ))}
-        </ul>
-        <div className="space-y-1 border-t pt-2 text-sm">
-          <div className="flex justify-between font-semibold">
-            <span>Total do fluxo</span>
-            <span className="tabular-nums">{brl(r.totalFluxo)}</span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">
-              Pró-soluto comprometido (sem os atos, máximo 15%)
-            </span>
-            <span
-              className={cn(
-                "font-semibold tabular-nums",
-                r.proSoluto.excedeu && "text-perigo-600 dark:text-perigo-400",
-              )}
-            >
-              {pct(r.proSoluto.pct)}
-            </span>
-          </div>
-          {r.posChave.total > 0 && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">
-                Pós-chave no total (máximo {brl(r.posChave.teto)}, 5% do imóvel)
-              </span>
-              <span
-                className={cn(
-                  "font-semibold tabular-nums",
-                  r.posChave.excedeu && "text-perigo-600 dark:text-perigo-400",
-                )}
-              >
-                {brl(r.posChave.total)}
-              </span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function LinhaFluxo({
-  l,
-  r,
-  onValor,
-}: {
-  l: LinhaResultadoVibra;
-  r: ResultadoVibra;
-  onValor: (v: number) => void;
-}) {
+function linhaVisivel(l: LinhaResultadoVibra, r: ResultadoVibra): LinhaVisivel {
   const ativa = l.qtd > 0;
-  const tom = !ativa
-    ? ""
-    : l.excedeu || (l.tipo === "pos_chave" && r.posChave.excedeu)
-      ? "border-perigo-500 bg-perigo-500/5"
-      : l.teto != null && l.valor > 0
-        ? "border-exito-500 bg-exito-500/5"
-        : "";
-  return (
-    <li
-      className={cn(
-        "grid grid-cols-2 items-center gap-x-2 gap-y-1.5 border-b py-2 last:border-0",
-        GRADE_LINHA,
-        !ativa && "opacity-55",
-      )}
-    >
-      <div className="col-span-2 min-w-0 sm:col-span-1">
-        <div className="text-sm font-medium">
-          {l.rotulo}
-          {ativa && l.qtd > 1 && (
-            <span className="font-normal text-muted-foreground sm:hidden"> · {l.qtd}x</span>
-          )}
-        </div>
-        <div className="text-[11px] text-muted-foreground">
-          {ativa ? `${quandoLinha(l)} · ${tetoLinha(l, r)}` : "não tem nesta assinatura"}
-        </div>
-      </div>
-      <div className="hidden text-center text-sm tabular-nums sm:block">{ativa ? l.qtd : "-"}</div>
-      <CampoValor
-        rotulo={`${l.rotulo}: valor da parcela`}
-        value={l.valor}
-        onChange={onValor}
-        disabled={!ativa}
-        className={tom}
-      />
-      {l.qtd > 1 ? (
-        <CampoValor
-          rotulo={`${l.rotulo}: total`}
-          value={l.total}
-          onChange={(t) => onValor(centavos(t / l.qtd))}
-          className={tom}
-        />
-      ) : (
-        <div className="pr-3 text-right text-sm tabular-nums text-muted-foreground">
-          {l.total > 0 ? brl(l.total) : "-"}
-        </div>
-      )}
-    </li>
-  );
-}
-
-function QuantoCustaEsperar({ cenarios }: { cenarios: CenarioEsperaVibra[] }) {
-  if (cenarios.length < 2 || cenarios[0].mensais === 0) return null;
-  const [agora, prox] = cenarios;
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Hourglass className="h-4 w-4 text-gold-600" /> Quanto custa esperar
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm">
-          Assinando em <b>{rotuloMes(agora.hoje)}</b> são <b>{agora.mensais} mensais</b> e os atos
-          precisam somar no mínimo <b>{brl(agora.atosMinimos)}</b>.{" "}
-          {prox.mensais < agora.mensais &&
-            (prox.diferenca > 0 ? (
-              <>
-                Em {rotuloMes(prox.hoje)} sobram {prox.mensais} e o mínimo dos atos sobe{" "}
-                <b>{brl(prox.diferenca)}</b>.
-              </>
-            ) : (
-              <>
-                Em {rotuloMes(prox.hoje)} sobram {prox.mensais}; os atos ainda não sobem porque o
-                fluxo tem folga (ou o pró-soluto já está no limite de 15%).
-              </>
-            ))}
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b text-muted-foreground">
-                <th className="py-1.5 pr-3 text-left font-medium">Assinando em</th>
-                <th className="py-1.5 pr-3 text-right font-medium">Mensais</th>
-                <th className="hidden py-1.5 pr-3 text-right font-medium sm:table-cell">
-                  Parcelado máx.
-                </th>
-                <th className="py-1.5 pr-3 text-right font-medium">Atos no mínimo</th>
-                <th className="py-1.5 text-right font-medium">Diferença</th>
-              </tr>
-            </thead>
-            <tbody className="tabular-nums">
-              {cenarios.map((c, i) => (
-                <tr
-                  key={c.hoje}
-                  className={cn("border-b last:border-0", i === 0 && "font-semibold")}
-                >
-                  <td className="py-1.5 pr-3">
-                    {rotuloMes(c.hoje)}
-                    {i === 0 && " (agora)"}
-                  </td>
-                  <td className="py-1.5 pr-3 text-right">{c.mensais}</td>
-                  <td className="hidden py-1.5 pr-3 text-right sm:table-cell">
-                    {brl(c.capacidadeParcelado)}
-                  </td>
-                  <td className="py-1.5 pr-3 text-right">{brl(c.atosMinimos)}</td>
-                  <td
-                    className={cn(
-                      "py-1.5 text-right",
-                      c.diferenca > 0 && "text-perigo-600 dark:text-perigo-400",
-                    )}
-                  >
-                    {i === 0 ? "-" : `+${brl(c.diferenca)}`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-const TOM_PARCELA: Record<ParcelaVibra["tipo"], string> = {
-  ato: "bg-gold/10",
-  mensal: "",
-  anual: "bg-anil-500/5",
-  unica: "bg-anil-500/5",
-  pos_chave: "bg-ardosia-500/5",
-};
-
-function Cronograma({ parcelas }: { parcelas: ParcelaVibra[] }) {
-  if (parcelas.length === 0) return null;
-  let acumulado = 0;
-  const TH = "sticky top-0 bg-card px-2 py-2 text-right font-medium text-muted-foreground";
-  const TD = "px-2 py-1.5 text-right tabular-nums";
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Cronograma mês a mês</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="max-h-[420px] overflow-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b">
-                <th className={cn(TH, "text-left")}>Mês</th>
-                <th className={cn(TH, "text-left")}>Parcela</th>
-                <th className={TH}>Valor</th>
-                <th className={TH}>Acumulado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parcelas.map((p, i) => {
-                acumulado = centavos(acumulado + p.valor);
-                return (
-                  <tr
-                    key={`${p.competencia}-${p.id}-${i}`}
-                    className={cn("border-b last:border-0", TOM_PARCELA[p.tipo])}
-                  >
-                    <td className={cn(TD, "text-left")}>{rotuloMes(p.competencia)}</td>
-                    <td className={cn(TD, "whitespace-nowrap text-left")}>{p.rotulo}</td>
-                    <td className={cn(TD, "font-semibold")}>{brl(p.valor)}</td>
-                    <td className={TD}>{brl(acumulado)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return {
+    id: l.id,
+    rotulo: l.rotulo,
+    qtd: l.qtd,
+    valor: l.valor,
+    total: l.total,
+    descricao: ativa ? `${quandoLinha(l)} · ${tetoLinha(l, r)}` : "não tem nesta assinatura",
+    tom: !ativa
+      ? "neutro"
+      : l.excedeu || (l.tipo === "pos_chave" && r.posChave.excedeu)
+        ? "excedeu"
+        : l.teto != null && l.valor > 0
+          ? "ok"
+          : "neutro",
+  };
 }

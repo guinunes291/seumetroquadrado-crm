@@ -2,10 +2,11 @@
 
 Motor genérico: `src/lib/simuladores/fluxo.ts` (funções puras, sem React).
 Motor da Vibra: `src/lib/simuladores/vibra.ts`, com a tabela oficial em `src/lib/simuladores/tabela-vibra.ts` (ver a seção 10).
+Motor da Mundo Apto: `src/lib/simuladores/mundo-apto.ts`, com os vencimentos da política em `src/lib/simuladores/tabela-mundo-apto.ts` (ver a seção 11).
 Regras por construtora: `src/lib/simuladores/construtoras.ts`.
 Recursos estimados pela renda: `src/lib/simuladores/recursos.ts` (reusa `lib/orcamento`, tabela APROVE 2026).
 Tela: `/simuladores` (módulo Documentação & Projetos), uma aba por construtora: Vibra, Direcional, Longitude e Mundo Apto.
-Testes: `tests/simuladores-fluxo.test.ts`, `tests/simuladores-estado.test.ts`, `tests/simuladores-pdf.test.ts`, `tests/simuladores-vibra.test.ts`, `tests/simuladores-vibra-saidas.test.ts` e `tests/simuladores-page.test.tsx`.
+Testes: `tests/simuladores-fluxo.test.ts`, `tests/simuladores-estado.test.ts`, `tests/simuladores-pdf.test.ts`, `tests/simuladores-vibra.test.ts`, `tests/simuladores-vibra-saidas.test.ts`, `tests/simuladores-mundo-apto.test.ts`, `tests/simuladores-mundo-apto-saidas.test.ts` e `tests/simuladores-page.test.tsx`.
 
 A Planilha de amortização (`/simulador-amortizacao`, ver `docs/amortizacao.md`) responde quanto o cliente paga **ao banco**. Os Simuladores respondem quanto ele paga **à construtora**. As duas telas têm link uma para a outra.
 
@@ -71,7 +72,7 @@ Na **renda comprometida** a tela soma a mensal com a parcela cheia do banco. É 
 
 ## 4. Estado das regras (out/2026) e como calibrar
 
-A **Vibra** está conferida com o simulador oficial do canal e usa um motor próprio (seção 10). As outras três (Direcional, Longitude e Mundo Apto) ainda abrem no fluxo genérico com o **padrão da operação**, porque os simuladores de referência delas não puderam ser lidos (o da Longitude exige login; o _smq-fluxo_ e o do Canal Imob não abriram daqui):
+A **Vibra** está conferida com o simulador oficial do canal (seção 10) e a **Mundo Apto** com a política de crédito do Tabelão de out/2026 (seção 11), cada uma com motor próprio. Direcional e Longitude ainda abrem no fluxo genérico com o **padrão da operação**, porque os simuladores de referência delas não puderam ser lidos (o da Longitude exige login; o _smq-fluxo_ não abriu daqui):
 
 - parcelado até 20% do imóvel (regra 80/20 do CRM);
 - INCC projetado de 6,55% ao ano (INCC-M acumulado em 12 meses até ago/2026, FGV);
@@ -159,3 +160,49 @@ O que a tela do CRM faz além do simulador oficial:
 - WhatsApp, PDF (a mesma folha do oficial, com quanto custa esperar e o cronograma) e o cronograma mês a mês.
 
 **Atualizar a tabela todo mês**: copie o objeto `EMPREENDIMENTOS` do código-fonte do simulador oficial e cole em `tabela-vibra.ts` sem mudar o formato (o `prettier-ignore` mantém uma linha por empreendimento, igual à fonte). Atualize `CONFERIDA_EM` e suba a `versao` da Vibra em `construtoras.ts`. Os testes de `tests/simuladores-vibra.test.ts` conferem que as datas são válidas e que as mensais terminam antes do pós-chave.
+
+## 11. Mundo Apto: a política de crédito do Tabelão
+
+Fonte: "Tabelão Promocional Outubro 2026" da Mundo Apto Parcerias, páginas da Política de Análise de Crédito (versão de 09/04/2026), conferidas em 11/10/2026. Vale também para a marca Elevato. Como na Vibra, cada parcela tem teto pela renda (aqui, a **renda líquida**) e a política limita quanto do preço vai em cada grupo.
+
+```
+Com a construtora = valor − financiamento − subsídio − FGTS   (tabela direta: o valor inteiro)
+FECHOU            = soma do fluxo = com a construtora, e todas as regras da política atendidas
+```
+
+| Parcela       | Associativo (SICAQ)                | SFH (banco)                        | Tabela direta        |
+| ------------- | ---------------------------------- | ---------------------------------- | -------------------- |
+| Ato           | livre                              | livre, mínimo 6% do preço          | ato + entradas = 30% |
+| Entrada 30    | livre                              | 100% da renda                      | (idem)               |
+| Entrada 60/90 | 100% da renda                      | 100% da renda                      | (idem)               |
+| Mensal pré    | 30% da renda, até 12% do preço\*   | 30% da renda, "24% (mín.)"\*\*     | parcelas = 70%       |
+| Semestral     | 100% da renda                      | 100% da renda                      | (idem)               |
+| Anual         | 100% da renda, até 5% do preço     | 100% da renda                      | (idem)               |
+| Única         | 100% da renda (no habite-se)       | 100% da renda (no habite-se)       | (idem)               |
+| Mensal pós    | 10% da renda, até 8%, até 42 meses | só R$ 100/mês para fechar 36 meses | não tem              |
+| Financiamento | livre                              | até 70% com o FGTS                 | não tem              |
+
+\* Os 12% podem ser ultrapassados se cada mensal cabe nos 30% da renda e o pró-soluto fica até 25% (observação 7). A tela mostra "acima de 12%, permitido".
+
+\*\* Ao pé da letra, 6% de ato + 70% de financiamento + 24% de mensais já fecham 100%, sem espaço para entradas, intermediárias ou o pós de R$ 100 que a própria política permite. A tela mostra essa regra com o ícone "a confirmar", sem tirar o FECHOU, até o gerente confirmar a leitura.
+
+Regras gerais, conferidas no card **Conferência da política**: pró-soluto até 25% (associativo e SFH), prazo mínimo de 36 meses (associativo e SFH), nenhuma parcela abaixo de R$ 100, semestral **ou** anual (a tela deixa escolher uma).
+
+**Vencimentos por empreendimento**: a única cai no **habite-se** e a mensal pós começa no mês seguinte (a tabela da política bate com a entrega do catálogo: MA Brooklin jun/2027, Santa Cecília abr/2027 etc.). Os seis empreendimentos com "—" na política (Praça da Sé, Pacaembu, Vila Matilde, Jabaquara, Freguesia, Inajar) não têm semestral, anual, única nem mensal pós; o habite-se vem do catálogo ou é digitado. "Outro" serve para empreendimento fora da tabela.
+
+**Cada mês sem assinar sai uma mensal**: as mensais pré vão do 5º mês (depois da entrada de 90 dias) até o mês anterior ao habite-se. Exemplo (MA Brooklin, unidade 2006 a R$ 322.720, renda líquida de R$ 6 mil, R$ 230 mil de financiamento, R$ 10 mil de subsídio e R$ 15 mil de FGTS, com a construtora R$ 67.720):
+
+| Assinando em | Mensais | Parcelado máximo | Entrada mínima | Diferença |
+| ------------ | ------- | ---------------- | -------------- | --------- |
+| out/2026     | 4       | R$ 29.400,00     | R$ 38.320,00   | -         |
+| nov/2026     | 3       | R$ 28.200,00     | R$ 39.520,00   | +R$ 1.200 |
+| dez/2026     | 2       | R$ 27.000,00     | R$ 40.720,00   | +R$ 2.400 |
+| jan/2027     | 1       | R$ 25.800,00     | R$ 41.920,00   | +R$ 3.600 |
+
+Cada mês sai uma mensal de até R$ 1.800 (30% da renda) e entra uma de pós de até R$ 600 (o prazo de 36 meses passa a terminar um mês depois): a entrada sobe R$ 1.200 por mês.
+
+**Preencher pela política** põe R$ 100 em cada parcela de pós (é o que fecha os 36 meses), leva as parcelas até o limite de cada regra (no associativo: mensais até 12%, anual ou semestral, única, pós até o teto e, só se ainda faltar, mensais acima de 12%) e deixa o resto no ato e nas entradas, com o teto das entradas pela renda (o excedente fica no ato, que é livre) e o ato mínimo do SFH.
+
+**Leituras da política** (o que ela não diz com todas as letras, todas em `mundo-apto.ts`): pró-soluto é tudo menos ato e entradas; as mensais pré começam depois da entrada de 90 dias; semestrais em junho e dezembro (a política diz "livre" e o quadro da campanha de adimplência põe a primeira em 30/12/2026); o prazo mínimo de 36 meses não é cobrado na tabela direta, que não tem pós para completá-lo.
+
+**Atualizar**: quando vier Tabelão novo, confira as páginas "Modalidades de pagamento" e "Vencimentos e regras gerais". Vencimentos e versão ficam em `tabela-mundo-apto.ts`; os percentuais de cada modalidade em `MODALIDADES_MA` (`mundo-apto.ts`). Suba a `versao` da Mundo Apto em `construtoras.ts`. Os preços promocionais das unidades do Tabelão não entram aqui: o valor vem da tabela de unidades do catálogo ou é digitado.

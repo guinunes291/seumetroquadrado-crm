@@ -12,10 +12,14 @@
 //     Equipe Grego). O modelo dela é outro (teto de cada parcela pela renda,
 //     tabela por empreendimento) e mora em vibra.ts / tabela-vibra.ts; o
 //     `regras` abaixo não é usado na aba dela.
-//   • DIRECIONAL, LONGITUDE e MUNDO APTO: os simuladores de referência (o da
-//     Longitude é fechado por login; o smq-fluxo e o do Canal Imob não
-//     puderam ser lidos) ainda não deram a regra. Os presets abrem com o
-//     padrão da OPERAÇÃO, não com o da construtora:
+//   • MUNDO APTO: conferida com a Política de Análise de Crédito de
+//     09/04/2026 (Tabelão out/2026). Motor próprio em mundo-apto.ts, com a
+//     tabela de vencimentos em tabela-mundo-apto.ts; `regras` também não é
+//     usado na aba dela.
+//   • DIRECIONAL e LONGITUDE: os simuladores de referência (o da Longitude é
+//     fechado por login; o smq-fluxo não pôde ser lido) ainda não deram a
+//     regra. Os presets abrem com o padrão da OPERAÇÃO, não com o da
+//     construtora:
 //   • teto de parcelamento = regra 80/20 do CRM (TETO_PARCELAMENTO_CONSTRUTORA,
 //     a mesma do Match e da pré-qualificação APROVE);
 //   • INCC projetado = INCC-M acumulado em 12 meses até ago/2026 (6,55%, FGV);
@@ -29,6 +33,7 @@ import { TETO_PARCELAMENTO_CONSTRUTORA } from "@/lib/orcamento";
 import type { Periodicidade, RegrasFluxo } from "@/lib/simuladores/fluxo";
 import type { SimuladorId } from "@/lib/simuladores/ids";
 import { CONFERIDA_EM, FONTE_TABELA_VIBRA } from "@/lib/simuladores/tabela-vibra";
+import { CONFERIDA_EM_MA, FONTE_POLITICA_MA } from "@/lib/simuladores/tabela-mundo-apto";
 
 export type { SimuladorId } from "@/lib/simuladores/ids";
 
@@ -36,9 +41,11 @@ export type { SimuladorId } from "@/lib/simuladores/ids";
  * generico     → saldo dividido em mensais até a entrega (fluxo.ts), regras
  *                editáveis no card "Regras da construtora";
  * tabela_vibra → tabela oficial da Vibra por empreendimento, com teto de cada
- *                parcela pela renda (vibra.ts).
+ *                parcela pela renda (vibra.ts);
+ * politica_mundo_apto → política de crédito da Mundo Apto: modalidades,
+ *                teto pela renda líquida e limites por grupo (mundo-apto.ts).
  */
-export type ModeloSimulador = "generico" | "tabela_vibra";
+export type ModeloSimulador = "generico" | "tabela_vibra" | "politica_mundo_apto";
 
 export interface SimuladorConstrutora {
   id: SimuladorId;
@@ -92,7 +99,15 @@ export const SIMULADORES_CONSTRUTORAS: readonly SimuladorConstrutora[] = [
   },
   preset("direcional", "Direcional"),
   preset("longitude", "Longitude"),
-  preset("mundo-apto", "Mundo Apto"),
+  {
+    ...preset("mundo-apto", "Mundo Apto"),
+    modelo: "politica_mundo_apto",
+    // v2: saiu do fluxo genérico para a política de crédito (os ajustes de
+    // regra salvos na v1 não valem mais).
+    versao: 2,
+    conferidoEm: CONFERIDA_EM_MA,
+    fonte: FONTE_POLITICA_MA,
+  },
 ];
 
 export function simuladorPorId(id: string | null | undefined): SimuladorConstrutora {
