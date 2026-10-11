@@ -94,6 +94,44 @@ export function textoMinhaPosicao(p: MinhaPosicao): TextoPosicao {
   };
 }
 
+export type GrupoFora = {
+  motivo: string;
+  rotulo: string;
+  /** As filas, sem repetir a mesma roleta em zonas diferentes. */
+  filas: string[];
+  checkin: boolean;
+};
+
+/**
+ * Quem está fora, agrupado pelo motivo: o corretor sem check-in fica fora de
+ * todas as filas que exigem presença — em vez de uma linha por roleta e zona
+ * (30+ para quem atende três zonas), uma linha por motivo.
+ */
+export function agruparFora(ps: MinhaPosicao[]): GrupoFora[] {
+  const grupos = new Map<string, GrupoFora>();
+  for (const p of ps) {
+    if (p.apto && p.posicao != null) continue;
+    const motivo = p.motivos[0] ?? "sem_motivo";
+    const g = grupos.get(motivo) ?? {
+      motivo,
+      rotulo: motivo === "sem_motivo" ? "Fora da fila agora" : motivoInaptidaoLabel(motivo),
+      filas: [],
+      checkin: motivo === "ausente_hoje",
+    };
+    const nome = nomeDaFila(p);
+    if (!g.filas.includes(nome)) g.filas.push(nome);
+    grupos.set(motivo, g);
+  }
+  // O check-in primeiro (é o que ele resolve agora), depois o resto.
+  return [...grupos.values()].sort((a, b) => Number(b.checkin) - Number(a.checkin));
+}
+
+/** "Zona Leste, Marquinhos e mais 8" — a lista curta de um grupo. */
+export function filasEmLinha(filas: string[], max = 3): string {
+  if (filas.length <= max) return filas.join(", ");
+  return `${filas.slice(0, max).join(", ")} e mais ${filas.length - max}`;
+}
+
 /** Primeiro quem está na fila (pela posição), depois quem está fora. */
 export function ordenarMinhas(ps: MinhaPosicao[]): MinhaPosicao[] {
   return [...ps].sort((a, b) => {
