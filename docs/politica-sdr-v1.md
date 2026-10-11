@@ -262,5 +262,12 @@ Por fila de zona."** Valem todas as roletas: a da zona, a fila do SDR
   tem visita no horário é pulado e o corretor que falou com o cliente nos
   últimos 7 dias fura a fila (§7, item 4).
 
+- **A vez é uma só** (11/10, migration `20261017120000`): o mesmo corretor
+  não é o 1º da fila em mais de uma zona. Quem atende duas zonas fica com a
+  mais movimentada (leads dos últimos 30 dias) e, na outra, aparece como "vez
+  no Sul" até receber; o motor entrega à mesma pessoa que a tela mostra. Vale
+  para os Agendados do SDR e para as roletas de zona (a reserva do passo 3
+  fica fora). Chave `vez_unica_por_zona` em Configurações.
+
 Detalhes por motor, limites e testes em
 [`docs/ops/roletas-fila-por-zona.md`](./ops/roletas-fila-por-zona.md).

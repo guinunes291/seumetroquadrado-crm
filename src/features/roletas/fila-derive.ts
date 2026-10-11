@@ -24,9 +24,10 @@ export function comoAndaAVez(m: MecanicaRoleta): string {
 /** "1º Lara · 2º Leo · 3º Lia" — a fila em uma linha. */
 export function filaEmLinha(r: FilaRoleta, max = 6): string {
   if (r.fila.length === 0) return "";
+  const curtos = nomesCurtos(r.fila.map((p) => p.nome));
   const nomes = r.fila
     .slice(0, max)
-    .map((p) => `${ordinal(p.posicao ?? 0)} ${primeiroNome(p.nome)}`)
+    .map((p, i) => `${ordinal(p.posicao ?? 0)} ${curtos[i]}`)
     .join(" · ");
   return r.fila.length > max ? `${nomes} · +${r.fila.length - max}` : nomes;
 }
@@ -35,11 +36,39 @@ export function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0] || nome;
 }
 
+/**
+ * O primeiro nome de cada um; quando ele se repete na mesma lista, a inicial
+ * do sobrenome desempata ("Ana C." e "Ana R." — visto no Centro, 11/10).
+ */
+export function nomesCurtos(nomes: string[]): string[] {
+  const repetidos = new Set<string>();
+  const vistos = new Set<string>();
+  for (const n of nomes) {
+    const p = primeiroNome(n);
+    if (vistos.has(p)) repetidos.add(p);
+    vistos.add(p);
+  }
+  return nomes.map((n) => {
+    const partes = n.trim().split(/\s+/);
+    const p = partes[0] || n;
+    const inicial = partes[1]?.[0];
+    return repetidos.has(p) && inicial ? `${p} ${inicial.toUpperCase()}.` : p;
+  });
+}
+
+/** "no Sul", "na Grande SP" — a zona dentro da frase. */
+export function emZona(zona: string): string {
+  return zona === "Grande SP" ? "na Grande SP" : `no ${zona}`;
+}
+
 /** Quem está fora da fila agora e por quê (um motivo, o primeiro). */
 export function foraEmLinha(r: FilaRoleta, max = 4): string {
-  const xs = r.fora.slice(0, max).map((p) => {
+  const curtos = nomesCurtos(r.fora.map((p) => p.nome));
+  const xs = r.fora.slice(0, max).map((p, i) => {
     const m = p.motivos?.[0];
-    return m ? `${primeiroNome(p.nome)} (${motivoInaptidaoLabel(m).toLowerCase()})` : p.nome;
+    // A vez é uma só: ele é o 1º de outra zona — diz qual.
+    if (m === "vez_em_outra_zona" && p.vez_em) return `${curtos[i]} (vez ${emZona(p.vez_em)})`;
+    return m ? `${curtos[i]} (${motivoInaptidaoLabel(m).toLowerCase()})` : p.nome;
   });
   return r.fora.length > max ? `${xs.join(", ")} e mais ${r.fora.length - max}` : xs.join(", ");
 }
@@ -67,15 +96,29 @@ export type TextoPosicao = {
   apto: boolean;
 };
 
-/** A linha do corretor: "Zona Leste — 2º de 6" ou "fora agora — sem check-in". */
-export function textoMinhaPosicao(p: MinhaPosicao): TextoPosicao {
+/** "Agendados do SDR · Leste", "Roleta Zona Leste", "Cury · lead sem zona". */
+export function nomeDaFilaComZona(p: MinhaPosicao): string {
   const base = nomeDaFila(p);
   // A roleta de zona já é a zona; a do SDR sem zona é "fora" (toda visita tem
   // zona); nas outras, sem zona é a fila dos leads que chegam sem zona.
-  const fila =
-    p.papel === "zona" || (p.papel === "sdr" && !p.zona)
-      ? base
-      : `${base} · ${p.zona ?? "lead sem zona"}`;
+  return p.papel === "zona" || (p.papel === "sdr" && !p.zona)
+    ? base
+    : `${base} · ${p.zona ?? "lead sem zona"}`;
+}
+
+/** A linha do corretor: "Zona Leste — 2º de 6" ou "fora agora — sem check-in". */
+export function textoMinhaPosicao(p: MinhaPosicao): TextoPosicao {
+  const fila = nomeDaFilaComZona(p);
+  // A vez é uma só: ele é o 1º de outra zona; aqui a vez passa ao próximo.
+  if (p.motivos.includes("vez_em_outra_zona") && p.vez_em) {
+    return {
+      fila,
+      valor: `vez ${emZona(p.vez_em)}`,
+      detalhe: `Você é o próximo ${emZona(p.vez_em)}; aqui a vez passa ao próximo até a sua chegar.`,
+      checkin: false,
+      apto: false,
+    };
+  }
   if (p.apto && p.posicao != null) {
     return {
       fila,
@@ -112,15 +155,23 @@ export function agruparFora(ps: MinhaPosicao[]): GrupoFora[] {
   for (const p of ps) {
     if (p.apto && p.posicao != null) continue;
     const motivo = p.motivos[0] ?? "sem_motivo";
-    const g = grupos.get(motivo) ?? {
+    // A vez é uma só: um grupo por zona onde a vez dele está ("Sua vez agora
+    // é no Sul"), com a fila E a zona de onde ele saiu.
+    const vez = motivo === "vez_em_outra_zona" && p.vez_em ? p.vez_em : null;
+    const chave = vez ? `${motivo}:${vez}` : motivo;
+    const g = grupos.get(chave) ?? {
       motivo,
-      rotulo: motivo === "sem_motivo" ? "Fora da fila agora" : motivoInaptidaoLabel(motivo),
+      rotulo: vez
+        ? `Sua vez agora é ${emZona(vez)}`
+        : motivo === "sem_motivo"
+          ? "Fora da fila agora"
+          : motivoInaptidaoLabel(motivo),
       filas: [],
       checkin: motivo === "ausente_hoje",
     };
-    const nome = nomeDaFila(p);
+    const nome = vez ? nomeDaFilaComZona(p) : nomeDaFila(p);
     if (!g.filas.includes(nome)) g.filas.push(nome);
-    grupos.set(motivo, g);
+    grupos.set(chave, g);
   }
   // O check-in primeiro (é o que ele resolve agora), depois o resto.
   return [...grupos.values()].sort((a, b) => Number(b.checkin) - Number(a.checkin));

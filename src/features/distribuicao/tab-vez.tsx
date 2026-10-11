@@ -12,7 +12,9 @@ export function TabVez() {
       <p className="text-sm text-muted-foreground">
         Quem recebe o próximo lead de cada zona, roleta por roleta, na ordem em que o motor vai
         entregar — a fila do SDR em destaque e, embaixo, a roleta da zona, o Marquinhos e as
-        campanhas. Quem está fora aparece com o motivo. Para mudar a fila, use a aba Filas.
+        campanhas. Quem está fora aparece com o motivo. A vez é uma só: quem é o 1º de uma zona não
+        é o 1º de outra (&ldquo;vez no Sul&rdquo;); a chave fica em Configurações. Para mudar a
+        fila, use a aba Filas.
       </p>
       <FilaZonaCard subtitulo="a fila de cada roleta da zona — o próximo lead vai para o 1º" />
     </div>

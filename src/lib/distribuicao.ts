@@ -71,7 +71,8 @@ export type MotivoInaptidao =
   | "regra_65_sem_vaga"
   | "roleta_desativada"
   | "fora_da_regiao"
-  | "sem_zona_no_perfil";
+  | "sem_zona_no_perfil"
+  | "vez_em_outra_zona";
 
 export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   nao_participante: "Não participa da roleta",
@@ -93,6 +94,8 @@ export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   // Fila por zona (2026-10-15): a roleta só sorteia quem atende a zona.
   fora_da_regiao: "Não atende esta zona",
   sem_zona_no_perfil: "Sem zona no perfil (a gestão define)",
+  // A vez é uma só (2026-10-17): é o 1º da fila de outra zona.
+  vez_em_outra_zona: "A vez agora é em outra zona",
 };
 
 export function motivoInaptidaoLabel(motivo: string): string {

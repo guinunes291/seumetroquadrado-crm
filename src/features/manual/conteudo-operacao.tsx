@@ -316,6 +316,12 @@ export function ConteudoOperacao() {
             <strong>Sua vez nas roletas</strong>, na Central de Comando — por exemplo, “Agendados do
             SDR · Leste — 2º de 6”.
           </p>
+          <p>
+            <strong>A vez é uma só.</strong> Quem atende duas zonas não fica em 1º nas duas ao mesmo
+            tempo: fica com a zona mais movimentada e, na outra, aparece como “vez no Sul” até
+            receber. Vale para os Agendados do SDR e para as roletas de zona; a chave está na
+            Central de Distribuição, em Configurações.
+          </p>
           <Aviso>
             A fila é a ordem se os próximos clientes forem daquela zona. Quem tem visita no horário
             é pulado, e o corretor que falou com o cliente nos últimos 7 dias fura a fila.
