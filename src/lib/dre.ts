@@ -8,6 +8,8 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { escHtml, imprimirHtml } from "@/lib/pdf-print";
+import { estilosMarca, faixaMarca, MARCA, RODAPE_INTERNO } from "@/lib/pdf-marca";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -342,26 +344,30 @@ export function downloadCsv(fileName: string, rows: Array<Record<string, unknown
 }
 
 /**
- * "Exportar PDF" no padrão do repo (raio-x-pdf): documento HTML paisagem
- * auto-contido na caixa de impressão do browser — "Salvar como PDF" gera o
- * arquivo, sem lib de PDF no bundle.
+ * HTML do "Exportar PDF" do DRE, no visual da marca (kit lib/pdf-marca,
+ * 2026-10-11): folha A4 paisagem, faixa azul, tabela com cabeçalho
+ * azul-marinho e subtotais destacados. Puro para poder ser testado.
  */
-export function imprimirDrePdf(opts: { titulo: string; subtitulo: string; grade: DreGrade }): void {
+export function montarHtmlDre(opts: {
+  titulo: string;
+  subtitulo: string;
+  grade: DreGrade;
+  geradoEm?: Date;
+  origem?: string;
+}): string {
   const { titulo, subtitulo, grade } = opts;
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = escHtml;
   const celula = (def: DreLinhaDef, v: number) => {
     const texto = def.moeda === false ? String(Math.round(v)) : dreMoeda2(v);
-    const cor = v < 0 ? "color:#b3261e;" : "";
-    return `<td style="text-align:right;padding:4px 6px;white-space:nowrap;${cor}">${esc(texto)}</td>`;
+    return `<td class="n${v < 0 ? " neg" : ""}">${esc(texto)}</td>`;
   };
   const linhas = DRE_LINHAS.map((def) => {
     const serie = grade[def.key];
     const secao = def.secaoAntes
-      ? `<tr><td colspan="14" style="padding:10px 6px 4px;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:0.08em;color:#666">${esc(def.secaoAntes)}</td></tr>`
+      ? `<tr class="secao"><td colspan="14">${esc(def.secaoAntes)}</td></tr>`
       : "";
-    const estilo = def.subtotal ? "font-weight:700;background:#f2efe9;" : "";
-    return `${secao}<tr style="${estilo}">
-      <td style="padding:4px 6px;white-space:nowrap;">${esc(def.rotulo)}</td>
+    return `${secao}<tr${def.subtotal ? ' class="sub"' : ""}>
+      <td>${esc(def.rotulo)}</td>
       ${serie
         .slice(1)
         .map((v) => celula(def, v))
@@ -369,19 +375,27 @@ export function imprimirDrePdf(opts: { titulo: string; subtitulo: string; grade:
       ${celula(def, serie[0])}
     </tr>`;
   }).join("");
+  const geradoEm = (opts.geradoEm ?? new Date()).toLocaleDateString("pt-BR");
+  const M = MARCA;
 
-  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>${esc(titulo)}</title>
-<style>
-  @page { size: A4 landscape; margin: 12mm; }
-  body { font: 11px/1.45 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1c1b1a; }
-  h1 { font-size: 18px; margin: 0 0 2px; }
-  p.sub { margin: 0 0 12px; color: #666; }
-  table { border-collapse: collapse; width: 100%; font-size: 10px; }
-  thead th { text-align: right; padding: 4px 6px; border-bottom: 1.5px solid #1c1b1a; }
+<style>${estilosMarca({ paisagem: true, rodape: RODAPE_INTERNO, origem: opts.origem })}
+  h1 { font-size: 17pt; font-weight: 800; margin: 0 0 2px; color: ${M.navy}; }
+  p.sub { margin: 0 0 12px; color: ${M.suave}; font-size: 9.5pt; }
+  table { border-collapse: collapse; width: 100%; font-size: 8pt; font-variant-numeric: tabular-nums; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  thead th { text-align: right; padding: 6px 6px; background: ${M.navy}; color: ${M.creme}; font-size: 7.5pt; font-weight: 600; letter-spacing: 0.04em; }
   thead th:first-child { text-align: left; }
-  tbody tr { border-bottom: 0.5px solid #ddd; }
+  td { padding: 3.5px 6px; border-bottom: 1px solid ${M.linha}; background: ${M.branco}; white-space: nowrap; }
+  td.n { text-align: right; }
+  td.neg { color: ${M.perigo}; }
+  tr.sub td { font-weight: 700; background: ${M.goldClaro}; color: ${M.navy}; }
+  tr.sub td.neg { color: ${M.perigo}; }
+  tr.secao td { background: transparent; border-bottom: 0; padding: 10px 6px 4px; font-family: Montserrat, Inter, sans-serif; font-weight: 700; text-transform: uppercase; font-size: 7.5pt; letter-spacing: 0.12em; color: ${M.goldEscuro}; }
 </style></head><body>
+${faixaMarca({ rotuloHtml: "DRE", direitaHtml: `gerado em ${esc(geradoEm)}` })}
 <h1>${esc(titulo)}</h1>
 <p class="sub">${esc(subtitulo)}</p>
 <table>
@@ -389,28 +403,13 @@ export function imprimirDrePdf(opts: { titulo: string; subtitulo: string; grade:
   <tbody>${linhas}</tbody>
 </table>
 </body></html>`;
+}
 
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.setAttribute("title", "DRE para impressão");
-  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
-  let encerrado = false;
-  const limpar = () => {
-    if (encerrado) return;
-    encerrado = true;
-    window.setTimeout(() => iframe.remove(), 1000);
-  };
-  iframe.onload = () => {
-    const win = iframe.contentWindow;
-    if (!win) {
-      iframe.remove();
-      return;
-    }
-    win.addEventListener("afterprint", limpar, { once: true });
-    win.focus();
-    win.print();
-    window.setTimeout(limpar, 60_000);
-  };
-  iframe.srcdoc = html;
-  document.body.appendChild(iframe);
+/**
+ * "Exportar PDF" no padrão do repo: documento HTML paisagem na caixa de
+ * impressão do browser (mesmo mecanismo de todos os PDFs, lib/pdf-print, que
+ * espera as fontes da marca) — "Salvar como PDF" gera o arquivo.
+ */
+export function imprimirDrePdf(opts: { titulo: string; subtitulo: string; grade: DreGrade }): void {
+  void imprimirHtml(montarHtmlDre(opts), { tituloIframe: "DRE para impressão" });
 }

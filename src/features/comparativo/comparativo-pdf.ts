@@ -10,29 +10,32 @@
 // Todo texto que vem do banco ou do corretor passa por escHtml.
 
 import { escHtml as esc, imprimirHtml } from "@/lib/pdf-print";
+import { capaMarca, estilosMarca, MARCA, RODAPE_CLIENTE } from "@/lib/pdf-marca";
 import type { Comparativo, ProjetoComparativo } from "./comparativo";
 import { ROTULO_NIVEL, type NivelEncaixe } from "./encaixe";
 
+// Visual da marca (kit lib/pdf-marca, 2026-10-11): mesma identidade dos
+// demais PDFs do CRM.
 const C = {
-  navy: "#1b2a4a",
-  navy700: "#2c4270",
-  navy400: "#7386a8",
-  gold: "#c69a2e",
-  gold200: "#f0e2bd",
-  texto: "#16202e",
-  suave: "#5b6577",
-  linha: "#dfe4ec",
-  fundo: "#f6f8fb",
-  sucesso: "#1f7a4d",
-  sucessoFundo: "#e8f5ee",
-  alerta: "#9a5b00",
-  alertaFundo: "#fdf3e1",
-  branco: "#ffffff",
+  navy: MARCA.navy,
+  navy700: MARCA.navyMedio,
+  navy400: MARCA.navySuave,
+  gold: MARCA.gold,
+  gold200: MARCA.goldClaro,
+  texto: MARCA.texto,
+  suave: MARCA.suave,
+  linha: MARCA.linha,
+  fundo: MARCA.cremeClaro,
+  sucesso: MARCA.sucesso,
+  sucessoFundo: MARCA.sucessoFundo,
+  alerta: MARCA.alerta,
+  alertaFundo: MARCA.alertaFundo,
+  branco: MARCA.branco,
 } as const;
 
 const COR_NIVEL: Record<NivelEncaixe, { fg: string; bg: string }> = {
   otimo: { fg: C.sucesso, bg: C.sucessoFundo },
-  bom: { fg: C.navy700, bg: "#e8eef8" },
+  bom: { fg: C.navy700, bg: "#E6EAF2" },
   parcial: { fg: C.alerta, bg: C.alertaFundo },
   sem_dados: { fg: C.suave, bg: C.fundo },
 };
@@ -158,7 +161,11 @@ function paginaProjeto(p: ProjetoComparativo, indice: number, c: Comparativo): s
   </section>`;
 }
 
-export function montarHtmlComparativo(c: Comparativo): string {
+export function montarHtmlComparativo(
+  c: Comparativo,
+  /** origem das fontes self-hosted (padrão: a do app; "" em testes). */
+  opts: { origem?: string } = {},
+): string {
   const para = c.clientePrimeiroNome
     ? `Seleção para ${esc(c.clientePrimeiroNome)}`
     : "Seleção de empreendimentos";
@@ -182,42 +189,27 @@ export function montarHtmlComparativo(c: Comparativo): string {
 <meta charset="utf-8">
 <title>${esc(c.titulo)}</title>
 <style>
-  @page { size: A4 portrait; margin: 12mm 12mm 14mm; }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font-family: "Sora", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: ${C.texto}; font-size: 10pt; line-height: 1.45;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
-  h1, h2, h3 { margin: 0; font-weight: 600; }
+  ${estilosMarca({ rodape: RODAPE_CLIENTE, origem: opts.origem })}
+  h1, h2, h3 { margin: 0; font-weight: 700; }
   p { margin: 0 0 6px; }
   img { display: block; object-fit: cover; background: ${C.fundo}; }
 
-  .capa {
-    background: ${C.navy}; color: ${C.branco}; padding: 18px 20px; border-radius: 10px;
-    border-bottom: 4px solid ${C.gold}; margin-bottom: 14px;
-  }
-  .marca { font-size: 8.5pt; letter-spacing: .16em; text-transform: uppercase; color: ${C.gold200}; }
-  .capa h1 { font-size: 22pt; line-height: 1.15; margin: 6px 0 4px; }
-  .capa .sub { font-size: 9.5pt; color: #c9d3e6; }
   .mensagem {
-    margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 10pt;
-    background: rgba(255,255,255,.08); border-left: 3px solid ${C.gold}; color: #eef2f9;
+    padding: 10px 12px; border-radius: 8px; font-size: 10pt;
+    background: rgba(245,241,234,.08); border-left: 3px solid ${C.gold}; color: ${MARCA.textoSobreNavy};
   }
-  .perfil { margin-top: 12px; }
-  .perfil-rotulo { font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; color: ${C.gold200}; margin-bottom: 4px; }
-  .capa .chips span { background: rgba(255,255,255,.12); color: #eef2f9; border-color: rgba(255,255,255,.2); }
+  .perfil-rotulo { font-family: Montserrat, Inter, sans-serif; font-size: 8pt; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: ${C.gold}; margin-bottom: 5px; }
+  .m-capa .chips span { background: rgba(245,241,234,.10); color: ${MARCA.textoSobreNavy}; border-color: rgba(245,241,234,.22); }
 
   .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .chips span {
     font-size: 8.5pt; padding: 2px 9px; border-radius: 999px;
-    background: ${C.fundo}; border: 1px solid ${C.linha}; color: ${C.texto};
+    background: ${C.branco}; border: 1px solid ${MARCA.borda}; color: ${C.texto};
   }
 
-  h2.secao { font-size: 12pt; color: ${C.navy}; border-bottom: 2px solid ${C.gold}; padding-bottom: 4px; margin: 4px 0 8px; }
+  h2.secao { font-size: 13pt; font-weight: 800; color: ${C.navy}; border-bottom: 2px solid ${C.gold}; padding-bottom: 4px; margin: 4px 0 8px; }
 
-  table.lado { width: 100%; border-collapse: collapse; font-size: 9pt; table-layout: fixed; }
+  table.lado { width: 100%; border-collapse: collapse; font-size: 9pt; table-layout: fixed; background: ${C.branco}; }
   table.lado th, table.lado td { padding: 6px 7px; border-bottom: 1px solid ${C.linha}; text-align: left; vertical-align: top; }
   table.lado thead th { vertical-align: bottom; }
   table.lado th[scope=row] { width: 25mm; font-size: 8pt; color: ${C.suave}; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
@@ -225,7 +217,7 @@ export function montarHtmlComparativo(c: Comparativo): string {
   table.lado thead th[scope=col] { border-bottom: 2px solid ${C.gold}; }
   .mini { width: 100%; height: 26mm; border-radius: 6px; margin-bottom: 5px; }
   .mini-vazia { background: ${C.fundo}; border: 1px dashed ${C.linha}; }
-  .col-nome { font-size: 10.5pt; color: ${C.navy}; font-weight: 700; line-height: 1.2; }
+  .col-nome { font-family: Montserrat, Inter, sans-serif; font-size: 10.5pt; color: ${C.navy}; font-weight: 800; line-height: 1.2; }
   .col-sub { font-size: 8pt; color: ${C.suave}; font-weight: 400; }
   .selo { display: inline-block; font-size: 8pt; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
   .vazio { color: ${C.suave}; font-style: italic; }
@@ -233,9 +225,9 @@ export function montarHtmlComparativo(c: Comparativo): string {
   .projeto-topo { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
   .num {
     flex: none; width: 9mm; height: 9mm; border-radius: 50%; background: ${C.navy}; color: ${C.gold200};
-    display: grid; place-items: center; font-weight: 700; font-size: 11pt;
+    display: grid; place-items: center; font-family: Montserrat, Inter, sans-serif; font-weight: 800; font-size: 11pt;
   }
-  .projeto h2 { font-size: 17pt; color: ${C.navy}; line-height: 1.15; }
+  .projeto h2 { font-size: 17pt; font-weight: 800; color: ${C.navy}; line-height: 1.15; }
   .projeto-sub { font-size: 9pt; color: ${C.suave}; }
   .capa-img { width: 100%; height: 78mm; border-radius: 8px; }
   .capa-vazia { display: grid; place-items: center; color: ${C.navy400}; font-size: 14pt; border: 1px dashed ${C.linha}; }
@@ -246,13 +238,13 @@ export function montarHtmlComparativo(c: Comparativo): string {
   .fotos-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
   .foto { width: 100%; height: 30mm; border-radius: 6px; }
 
-  .ficha { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 12px; margin: 10px 0; padding: 10px 12px; background: ${C.fundo}; border-radius: 8px; }
+  .ficha { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 12px; margin: 10px 0; padding: 10px 12px; background: ${C.branco}; border: 1px solid ${MARCA.borda}; border-radius: 10px; }
   .ficha-item span { display: block; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; color: ${C.suave}; }
   .ficha-item strong { font-size: 9.5pt; color: ${C.navy}; }
 
   .bloco { margin-top: 10px; break-inside: avoid; }
   .bloco h3 { font-size: 10.5pt; color: ${C.navy}; margin-bottom: 6px; }
-  .combina { border: 1px solid ${C.gold}; background: #fdf8ec; border-radius: 8px; padding: 10px 12px; }
+  .combina { border: 1px solid ${C.gold}; border-left: 4px solid ${C.gold}; background: ${C.branco}; border-radius: 10px; padding: 10px 12px; }
   .combina-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
   .combina-topo h3 { margin: 0; }
   .nota-corretor { font-size: 9.5pt; font-style: italic; }
@@ -268,18 +260,17 @@ export function montarHtmlComparativo(c: Comparativo): string {
   .planta { width: 100%; height: 72mm; object-fit: contain; background: ${C.branco}; }
   .plantas figcaption { font-size: 8.5pt; text-align: center; color: ${C.navy}; font-weight: 600; padding-top: 3px; }
 
-  .rodape { margin-top: 16px; border-top: 1px solid ${C.linha}; padding-top: 6px; font-size: 7.5pt; color: ${C.suave}; break-inside: avoid; }
-  @media print { .quebra { break-before: page; } }
+  .rodape { margin-top: 16px; border-top: 2px solid ${C.gold}; padding-top: 6px; font-size: 7.5pt; color: ${C.suave}; break-inside: avoid; }
+
 </style>
 </head>
 <body>
-  <header class="capa">
-    <div class="marca">Seu Metro Quadrado</div>
-    <h1>${para}</h1>
-    <div class="sub">${c.projetos.length} empreendimentos lado a lado · ${esc(c.dataLabel)}${corretorLinha ? ` · ${corretorLinha}` : ""}</div>
-    ${mensagem}
-    ${perfil}
-  </header>
+  ${capaMarca({
+    sobre: "SELEÇÃO DE EMPREENDIMENTOS",
+    tituloHtml: para,
+    subtituloHtml: `${c.projetos.length} empreendimentos lado a lado · ${esc(c.dataLabel)}${corretorLinha ? ` · ${corretorLinha}` : ""}`,
+    extraHtml: mensagem + perfil || undefined,
+  })}
 
   <h2 class="secao">Comparativo lado a lado</h2>
   ${tabelaLadoALado(c)}

@@ -4,6 +4,7 @@
 
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Certificate, Printer } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
@@ -52,21 +53,29 @@ export function CertificadoPage({ codigo }: { codigo: string }) {
 
   return (
     <div className="p-4 md:p-6 print:p-0">
-      {/* O layout do app (menu, cabeçalho) não some na impressão por conta
-          própria: só o certificado fica visível no papel. */}
-      <style>{`@media print {
-  @page { size: A4 landscape; margin: 12mm; }
-  body * { visibility: hidden; }
-  #certificado-academia, #certificado-academia * { visibility: visible; }
-  #certificado-academia { position: absolute; inset: 0; margin: auto; }
-}`}</style>
       <div className="mb-4 flex flex-wrap gap-2 print:hidden">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link to="/academia/progresso">
             <ArrowLeft className="mr-1 h-4 w-4" /> Progresso
           </Link>
         </Button>
-        <Button size="sm" onClick={() => window.print()}>
+        <Button
+          size="sm"
+          onClick={() => {
+            // PDF no visual da marca (kit lib/pdf-marca), carregado só no clique.
+            void import("./certificado-pdf")
+              .then(({ imprimirCertificado }) =>
+                imprimirCertificado({
+                  nome: q.data.nome ?? "Participante",
+                  nivel: ROTULO_NIVEL[c.nivel],
+                  dataExtenso: dataPorExtenso(c.emitido_em),
+                  emitidoEm: dataBr(c.emitido_em),
+                  codigo: c.codigo,
+                }),
+              )
+              .catch(() => toast.error("Não foi possível gerar o PDF do certificado."));
+          }}
+        >
           <Printer className="mr-1.5 h-4 w-4" /> Imprimir ou salvar em PDF
         </Button>
       </div>

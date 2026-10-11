@@ -7,20 +7,23 @@
 // (apresentação), e a regra da página é contato oculto em apresentação.
 
 import { escHtml, imprimirHtml } from "@/lib/pdf-print";
+import { capaMarca, estilosMarca, MARCA, RODAPE_INTERNO } from "@/lib/pdf-marca";
 
 // ---------------------------------------------------------------------------
 // Paleta (hex fixo: o PDF não herda o tema do app e precisa imprimir igual)
 // ---------------------------------------------------------------------------
 
+// Visual da marca (kit lib/pdf-marca, 2026-10-11): mesma identidade da
+// planilha de amortização e dos demais PDFs do CRM.
 const C = {
-  navy: "#1b2a4a",
-  navy400: "#7386a8",
-  gold: "#c69a2e",
-  texto: "#16202e",
-  suave: "#5b6577",
-  linha: "#dfe4ec",
-  fundo: "#f6f8fb",
-  branco: "#ffffff",
+  navy: MARCA.navy,
+  navy400: MARCA.navySuave,
+  gold: MARCA.gold,
+  texto: MARCA.texto,
+  suave: MARCA.suave,
+  linha: MARCA.linha,
+  fundo: MARCA.cremeClaro,
+  branco: MARCA.branco,
 } as const;
 
 export type CelulaPdf = string | number | null | undefined;
@@ -33,6 +36,8 @@ export type DocumentoRelatorio = {
   blocos: BlocoPdf[];
   /** Nota extra do rodapé (metodologia, avisos). */
   rodape?: string;
+  /** Origem das fontes self-hosted (padrão: a do app; "" em testes). */
+  origem?: string;
 };
 
 export const escPdf = escHtml;
@@ -119,48 +124,40 @@ export function montarHtmlRelatorio(doc: DocumentoRelatorio): string {
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>${escPdf(doc.titulo)} — ${escPdf(doc.periodo)}</title>
-<style>
-  @page { size: A4; margin: 14mm 12mm; }
-  * { box-sizing: border-box; }
-  body {
-    font: 10pt/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    color: ${C.texto}; margin: 0;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
-  header { border-bottom: 3px solid ${C.gold}; padding-bottom: 10px; margin-bottom: 14px; }
-  .marca { font-size: 8pt; letter-spacing: 0.14em; text-transform: uppercase; color: ${C.navy400}; }
-  h1 { font-size: 19pt; margin: 2px 0 2px; color: ${C.navy}; }
-  .sub { font-size: 9pt; color: ${C.suave}; }
-  section { margin-bottom: 14px; break-inside: avoid; }
-  .secao-titulo { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-  .secao-titulo h2 { font-size: 11.5pt; margin: 0; color: ${C.navy}; }
+<style>${estilosMarca({ rodape: RODAPE_INTERNO, origem: doc.origem })}
+  section { margin-bottom: 16px; break-inside: avoid; }
+  .secao-titulo { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+  .secao-titulo h2 { font-size: 12pt; font-weight: 800; margin: 0; color: ${C.navy}; }
   .secao-titulo span { font-size: 8pt; color: ${C.suave}; }
   .kpis { display: flex; gap: 8px; flex-wrap: wrap; }
   .kpi {
-    flex: 1 1 110px; border: 1px solid ${C.linha}; border-radius: 6px;
-    padding: 7px 9px; background: ${C.fundo};
+    flex: 1 1 110px; border: 1px solid ${MARCA.borda}; border-radius: 10px;
+    padding: 9px 11px; background: ${C.branco};
   }
-  .kpi-label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.06em; color: ${C.suave}; }
-  .kpi-valor { font-size: 14pt; font-weight: 700; color: ${C.navy}; }
+  .kpi-label { font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: ${C.suave}; }
+  .kpi-valor { font-family: Montserrat, Inter, sans-serif; font-size: 14pt; font-weight: 800; color: ${C.navy}; }
   .kpi-hint { font-size: 7.5pt; color: ${C.suave}; }
-  .tabela { border-collapse: collapse; width: 100%; font-size: 8.5pt; }
+  .tabela { border-collapse: collapse; width: 100%; font-size: 8.5pt; font-variant-numeric: tabular-nums; }
+  .tabela thead { display: table-header-group; }
+  .tabela tr { break-inside: avoid; }
   .tabela thead th {
-    padding: 4px 6px; border-bottom: 1.5px solid ${C.navy};
-    font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.05em; color: ${C.navy};
+    padding: 6px 7px; background: ${C.navy}; color: ${MARCA.creme};
+    font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
   }
-  .tabela tbody td { padding: 3.5px 6px; border-bottom: 0.5px solid ${C.linha}; vertical-align: top; }
+  .tabela tbody td { padding: 4px 7px; border-bottom: 1px solid ${C.linha}; vertical-align: top; background: ${C.branco}; }
   .tabela tbody tr:nth-child(even) td { background: ${C.fundo}; }
   .vazio { font-size: 9pt; color: ${C.suave}; }
   .rodape {
-    margin-top: 16px; border-top: 1px solid ${C.linha}; padding-top: 6px;
+    margin-top: 14px; padding-top: 6px; border-top: 2px solid ${C.gold};
     font-size: 7.5pt; color: ${C.suave};
   }
 </style></head><body>
-<header>
-  <div class="marca">Seu Metro Quadrado · Relatórios</div>
-  <h1>${escPdf(doc.titulo)}</h1>
-  <div class="sub">Período: ${escPdf(doc.periodo)} · gerado em ${escPdf(geradoEm)}</div>
-</header>
+${capaMarca({
+  sobre: "RELATÓRIO DE GESTÃO",
+  tituloHtml: escPdf(doc.titulo),
+  subtituloHtml: `Período: ${escPdf(doc.periodo)} · gerado em ${escPdf(geradoEm)}`,
+  linhaMarca: "Inteligência comercial",
+})}
 ${secoes}
 <div class="rodape">
   ${doc.rodape ? `${escPdf(doc.rodape)}<br>` : ""}

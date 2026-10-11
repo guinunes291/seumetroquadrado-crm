@@ -22,6 +22,7 @@ import {
   type Tom,
 } from "./raio-x-relatorio";
 import { escHtml as esc, imprimirHtml, slugPdf as slug } from "@/lib/pdf-print";
+import { capaMarca, estilosMarca, MARCA, RODAPE_INTERNO } from "@/lib/pdf-marca";
 import type { ComparacaoMetrica } from "./raio-x-derive";
 import type { PerformanceDrillRow } from "./queries";
 
@@ -29,20 +30,22 @@ import type { PerformanceDrillRow } from "./queries";
 // Paleta (hex fixo: o PDF não herda o tema do app e precisa imprimir igual)
 // ---------------------------------------------------------------------------
 
+// Visual da marca (kit lib/pdf-marca, 2026-10-11): mesma identidade dos
+// demais PDFs do CRM. Os gráficos SVG leem daqui, então mudam junto.
 const C = {
-  navy: "#1b2a4a",
-  navy700: "#2c4270",
-  navy400: "#7386a8",
-  gold: "#c69a2e",
-  gold200: "#f0e2bd",
-  texto: "#16202e",
-  suave: "#5b6577",
-  linha: "#dfe4ec",
-  fundo: "#f6f8fb",
-  sucesso: "#1f7a4d",
-  alerta: "#b26a00",
-  perigo: "#bc3b2e",
-  branco: "#ffffff",
+  navy: MARCA.navy,
+  navy700: MARCA.navyMedio,
+  navy400: MARCA.navySuave,
+  gold: MARCA.gold,
+  gold200: MARCA.goldClaro,
+  texto: MARCA.texto,
+  suave: MARCA.suave,
+  linha: MARCA.linha,
+  fundo: MARCA.cremeClaro,
+  sucesso: MARCA.sucesso,
+  alerta: MARCA.alerta,
+  perigo: MARCA.perigo,
+  branco: MARCA.branco,
 } as const;
 
 const TOM_COR: Record<Tom, string> = {
@@ -525,43 +528,22 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
 <meta charset="utf-8">
 <title>${esc(`raio-x-${slug(r.nome)}-${r.geradoEm.toISOString().slice(0, 10)}`)}</title>
 <style>
-  @page { size: A4 portrait; margin: 13mm 12mm 16mm; }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font-family: "Sora", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: ${C.texto};
-    font-size: 10pt;
-    line-height: 1.45;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  h1, h2, h3 { margin: 0; font-weight: 600; }
+  ${estilosMarca({ rodape: RODAPE_INTERNO })}
+  h1, h2, h3 { margin: 0; font-weight: 700; }
   p { margin: 0 0 6px; }
 
-  /* Cabeçalho */
-  .capa {
-    background: ${C.navy};
-    color: ${C.branco};
-    padding: 16px 18px;
-    border-radius: 8px;
-    border-bottom: 4px solid ${C.gold};
-    margin-bottom: 14px;
-  }
-  .capa .marca { font-size: 8.5pt; letter-spacing: .16em; text-transform: uppercase; color: ${C.gold200}; }
-  .capa h1 { font-size: 20pt; line-height: 1.15; margin: 4px 0 2px; }
-  .capa .sub { font-size: 9.5pt; color: #c9d3e6; }
-  .chips { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Capa (kit da marca) */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chips span {
-    font-size: 8pt; padding: 2px 8px; border-radius: 999px;
-    background: rgba(255,255,255,.12); color: #eef2f9; border: 1px solid rgba(255,255,255,.18);
+    font-size: 8pt; padding: 2px 9px; border-radius: 999px;
+    background: rgba(245,241,234,.10); color: ${MARCA.textoSobreNavy}; border: 1px solid rgba(245,241,234,.22);
   }
-  .sinal { margin-top: 10px; font-size: 9pt; color: ${C.gold200}; border-top: 1px solid rgba(255,255,255,.15); padding-top: 8px; }
+  .sinal { font-size: 9pt; color: ${MARCA.gold}; border-top: 1px solid rgba(245,241,234,.18); padding-top: 8px; }
 
   /* Seções */
   .secao { break-inside: avoid; margin-bottom: 14px; }
   .secao h2 {
-    font-size: 11.5pt; color: ${C.navy};
+    font-size: 12pt; font-weight: 800; color: ${C.navy};
     border-bottom: 2px solid ${C.gold};
     padding-bottom: 4px; margin-bottom: 8px;
     display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
@@ -570,9 +552,9 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
 
   /* KPIs */
   .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .kpi { border: 1px solid ${C.linha}; border-radius: 6px; padding: 8px 10px; background: ${C.fundo}; }
+  .kpi { border: 1px solid ${MARCA.borda}; border-radius: 10px; padding: 9px 11px; background: ${C.branco}; }
   .kpi-label { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: ${C.suave}; }
-  .kpi-valor { font-size: 15pt; font-weight: 600; color: ${C.navy}; line-height: 1.25; }
+  .kpi-valor { font-family: Montserrat, Inter, sans-serif; font-size: 15pt; font-weight: 800; color: ${C.navy}; line-height: 1.25; }
   .kpi-base { font-size: 8pt; color: ${C.suave}; }
 
   /* Leitura do período */
@@ -582,17 +564,20 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
 
   /* Destaque */
   .destaque {
-    border: 1px solid ${C.gold}; background: #fdf8ec; border-radius: 8px;
+    border: 1px solid ${C.gold}; background: ${C.branco}; border-left: 4px solid ${C.gold}; border-radius: 10px;
     padding: 12px 14px; margin-bottom: 14px; break-inside: avoid;
   }
-  .destaque-rotulo { font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; color: ${C.gold}; font-weight: 600; }
-  .destaque-valor { font-size: 19pt; font-weight: 700; color: ${C.navy}; line-height: 1.2; }
+  .destaque-rotulo { font-family: Montserrat, Inter, sans-serif; font-size: 8pt; letter-spacing: .14em; text-transform: uppercase; color: ${MARCA.goldEscuro}; font-weight: 700; }
+  .destaque-valor { font-family: Montserrat, Inter, sans-serif; font-size: 19pt; font-weight: 800; color: ${C.navy}; line-height: 1.2; }
   .destaque p { font-size: 9.5pt; margin: 4px 0 0; }
 
   /* Tabelas */
   table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 9pt; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
   th, td { padding: 4px 6px; border-bottom: 1px solid ${C.linha}; text-align: left; vertical-align: top; }
-  th { background: ${C.fundo}; color: ${C.navy}; font-size: 8pt; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+  td { background: ${C.branco}; }
+  th { background: ${C.navy}; color: ${MARCA.creme}; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
   td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
   tbody tr:last-child td { border-bottom: none; }
   .plano td { font-size: 9pt; }
@@ -603,9 +588,9 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
 
   /* Cards */
   .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .card { border: 1px solid ${C.linha}; border-radius: 6px; padding: 8px 10px; }
+  .card { border: 1px solid ${MARCA.borda}; border-radius: 10px; padding: 8px 10px; background: ${C.branco}; }
   .card-rotulo { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: ${C.suave}; }
-  .card-valor { font-size: 13pt; font-weight: 600; color: ${C.navy}; }
+  .card-valor { font-family: Montserrat, Inter, sans-serif; font-size: 13pt; font-weight: 800; color: ${C.navy}; }
   .card-sub { font-size: 8pt; color: ${C.suave}; font-weight: 400; }
 
   /* Duas colunas */
@@ -625,20 +610,21 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
   .linha-escrita { border-bottom: 1px solid ${C.navy400}; height: 18px; }
 
   .rodape {
-    margin-top: 16px; border-top: 1px solid ${C.linha}; padding-top: 6px;
+    margin-top: 16px; border-top: 2px solid ${C.gold}; padding-top: 6px;
     font-size: 7.5pt; color: ${C.suave};
   }
   @media print { .quebra { break-before: page; } }
 </style>
 </head>
 <body>
-  <header class="capa">
-    <div class="marca">Seu Metro Quadrado · Inteligência comercial</div>
-    <h1>Raio-X do Corretor — ${esc(r.nome)}</h1>
-    <div class="sub">Relatório individual de performance · gerado em ${esc(dataGeracao)}${r.geradoPor ? ` por ${esc(r.geradoPor)}` : ""}</div>
-    <div class="chips">${chips.map((c) => `<span>${esc(c)}</span>`).join("")}</div>
-    ${sinalHtml}
-  </header>
+  ${capaMarca({
+    sobre: "INTELIGÊNCIA COMERCIAL",
+    tituloHtml: "Raio-X do Corretor",
+    destaqueHtml: esc(r.nome),
+    subtituloHtml: `Relatório individual de performance · gerado em ${esc(dataGeracao)}${r.geradoPor ? ` por ${esc(r.geradoPor)}` : ""}`,
+    linhaMarca: "Inteligência comercial",
+    extraHtml: `<div class="chips">${chips.map((c) => `<span>${esc(c)}</span>`).join("")}</div>${sinalHtml}`,
+  })}
 
   ${secao("1. Placar do período", r.periodoLabel, `<div class="kpis">${kpis}</div>`)}
 
