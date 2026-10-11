@@ -1,9 +1,11 @@
 // Central de Distribuição — página /distribuicao, o lugar ÚNICO de
 // configuração da distribuição. Dashboard de saúde + abas: visão geral,
 // filas (todas as roletas: zonas, sistema, base e campanhas), corretores
-// (presença, zonas, vínculo, onboarding), exceções, histórico, política
-// (parâmetros do motor v2, admin), configurações (admin) e auditoria.
+// (presença, zonas, vínculo, onboarding), a vez por zona (quem recebe o
+// próximo lead de cada roleta), exceções, histórico, política (parâmetros do
+// motor v2, admin), configurações (admin) e auditoria.
 
+import { lazy, Suspense } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
@@ -24,6 +26,7 @@ import {
 } from "@phosphor-icons/react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRoles } from "@/hooks/use-auth";
@@ -39,10 +42,16 @@ import { TabPolitica } from "./tab-politica";
 import { TabConfiguracoes } from "./tab-configuracoes";
 import { TabAuditoria } from "./tab-auditoria";
 
+// A vez por zona reaproveita o cartão da Pré-venda (FilaZonaCard). A Central
+// já faz parte do chunk principal: importá-lo direto estourou o orçamento de
+// 250 KB gzip (CI do #277). Sob demanda, como o placar do SDR na aba Filas.
+const TabVez = lazy(() => import("./tab-vez").then(({ TabVez }) => ({ default: TabVez })));
+
 export type DistribuicaoTab =
   | "visao"
   | "filas"
   | "corretores"
+  | "vez"
   | "excecoes"
   | "historico"
   | "politica"
@@ -53,6 +62,7 @@ export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
   "visao",
   "filas",
   "corretores",
+  "vez",
   "excecoes",
   "historico",
   "politica",
@@ -213,6 +223,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="filas">Filas</TabsTrigger>
           <TabsTrigger value="corretores">Corretores</TabsTrigger>
+          <TabsTrigger value="vez">A vez por zona</TabsTrigger>
           <TabsTrigger value="excecoes">
             Exceções
             {(r?.excecoes_pendentes ?? 0) > 0 && (
@@ -239,6 +250,11 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         </TabsContent>
         <TabsContent value="corretores">
           <TabCorretores somenteLeitura={somenteLeitura} />
+        </TabsContent>
+        <TabsContent value="vez">
+          <Suspense fallback={<Skeleton className="h-72 w-full rounded-2xl" />}>
+            <TabVez />
+          </Suspense>
         </TabsContent>
         <TabsContent value="excecoes">
           <TabExcecoes somenteLeitura={somenteLeitura} />
