@@ -152,7 +152,12 @@ function OutraFila({ r }: { r: FilaRoleta }) {
   );
 }
 
-export function FilaZonaCard() {
+export function FilaZonaCard({
+  subtitulo = "a fila de cada roleta da zona — a visita que você agenda vai para o 1º",
+}: {
+  /** O SDR agenda; a gestão só olha (Central de Distribuição). */
+  subtitulo?: string;
+} = {}) {
   // A última zona olhada, se ainda é uma das chips; senão a primeira.
   const [zona, setZona] = useState<string>(
     () => zonaInicial([...ZONAS_REGIAO, SEM_ZONA], lerZonaSalva()) ?? SEM_ZONA,
@@ -178,9 +183,7 @@ export function FilaZonaCard() {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="font-display text-lg font-bold">Roleta</h2>
-          <p className="text-xs text-muted-foreground">
-            a fila de cada roleta da zona — a visita que você agenda vai para o 1º
-          </p>
+          <p className="text-xs text-muted-foreground">{subtitulo}</p>
         </div>
       </div>
 

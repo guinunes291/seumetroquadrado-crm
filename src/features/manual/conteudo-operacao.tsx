@@ -309,9 +309,10 @@ export function ConteudoOperacao() {
 
         <Bloco titulo="A vez de cada um, por zona" quem="SDR · Corretor · Gestão">
           <p>
-            O <strong>SDR</strong> e a gestão escolhem a zona no painel da Pré-venda e veem a fila
-            de cada roleta dela, com nomes: quem é o 1º, o 2º… e quem está fora agora (sem check-in,
-            pausado, cota do dia). O <strong>corretor</strong> vê só a própria posição em{" "}
+            O <strong>SDR</strong> escolhe a zona no painel da Pré-venda e vê a fila de cada roleta
+            dela, com nomes: quem é o 1º, o 2º… e quem está fora agora (sem check-in, pausado, cota
+            do dia). A <strong>gestão</strong> tem a mesma visão na Central de Distribuição, aba{" "}
+            <strong>A vez por zona</strong>. O <strong>corretor</strong> vê só a própria posição em{" "}
             <strong>Sua vez nas roletas</strong>, na Central de Comando — por exemplo, “Agendados do
             SDR · Leste — 2º de 6”.
           </p>

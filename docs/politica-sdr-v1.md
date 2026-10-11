@@ -249,6 +249,9 @@ Por fila de zona."** Valem todas as roletas: a da zona, a fila do SDR
   cada roleta dela, **com nomes**: a do SDR em destaque, na roda de iniciais
   com o 1º na seta, e as outras numa linha cada ("1º Lara · 2º Leo…"), com
   quem está fora agora e por quê. Substitui a "roleta só em número" do §7.
+- **A gestão** (admin, gestor, superintendente) tem a mesma visão na Central
+  de Distribuição → aba **A vez por zona** (só leitura; montar a fila continua
+  na aba Filas). O admin também a vê na Pré-venda.
 - **O corretor** vê só a própria posição, em "Sua vez nas roletas", na
   Central de Comando: "Agendados do SDR · Leste — 2º de 6", ou "fora da fila
   agora" com o motivo (e o atalho do check-in, quando é isso que falta).

@@ -1,8 +1,9 @@
 // Central de Distribuição — página /distribuicao, o lugar ÚNICO de
 // configuração da distribuição. Dashboard de saúde + abas: visão geral,
 // filas (todas as roletas: zonas, sistema, base e campanhas), corretores
-// (presença, zonas, vínculo, onboarding), exceções, histórico, política
-// (parâmetros do motor v2, admin), configurações (admin) e auditoria.
+// (presença, zonas, vínculo, onboarding), a vez por zona (quem recebe o
+// próximo lead de cada roleta), exceções, histórico, política (parâmetros do
+// motor v2, admin), configurações (admin) e auditoria.
 
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -33,6 +34,7 @@ import { DISTRIBUICAO_KEYS, useDistribuicaoResumo, useRodarDistribuicao } from "
 import { TabVisaoGeral } from "./tab-visao-geral";
 import { TabFilas } from "./tab-filas";
 import { TabCorretores } from "./tab-corretores";
+import { TabVez } from "./tab-vez";
 import { TabExcecoes } from "./tab-excecoes";
 import { TabHistorico } from "./tab-historico";
 import { TabPolitica } from "./tab-politica";
@@ -43,6 +45,7 @@ export type DistribuicaoTab =
   | "visao"
   | "filas"
   | "corretores"
+  | "vez"
   | "excecoes"
   | "historico"
   | "politica"
@@ -53,6 +56,7 @@ export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
   "visao",
   "filas",
   "corretores",
+  "vez",
   "excecoes",
   "historico",
   "politica",
@@ -213,6 +217,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="filas">Filas</TabsTrigger>
           <TabsTrigger value="corretores">Corretores</TabsTrigger>
+          <TabsTrigger value="vez">A vez por zona</TabsTrigger>
           <TabsTrigger value="excecoes">
             Exceções
             {(r?.excecoes_pendentes ?? 0) > 0 && (
@@ -239,6 +244,9 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         </TabsContent>
         <TabsContent value="corretores">
           <TabCorretores somenteLeitura={somenteLeitura} />
+        </TabsContent>
+        <TabsContent value="vez">
+          <TabVez />
         </TabsContent>
         <TabsContent value="excecoes">
           <TabExcecoes somenteLeitura={somenteLeitura} />

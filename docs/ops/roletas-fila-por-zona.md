@@ -18,10 +18,10 @@ anônimos). Isso saiu.
 
 ## 2. O que cada um vê
 
-| Quem                          | Onde                                         | O quê                                                                                                                                                                                                                                                           |
-| ----------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SDR, admin, gestor, superint. | Pré-venda → Painel, cartão **Roleta**        | Escolhe a zona (ou "Sem zona"). A fila do SDR em destaque, na roda de iniciais com o 1º na seta; embaixo, a roleta da zona, o Marquinhos e as campanhas de equipe fixa, "1º Lara · 2º Leo…".                                                                    |
-| Corretor (na própria fila)    | Central de Comando → **Sua vez nas roletas** | Em cima, onde ele está na fila: "Agendados do SDR · Leste — 2º de 6". Embaixo, onde está fora, agrupado pelo motivo ("Sem check-in…: Marquinhos, Cury Leopoldina, Jardim BF e mais 8"), com o atalho do check-in quando o motivo é esse. Nenhum nome de colega. |
+| Quem                                                                                                        | Onde                                         | O quê                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SDR (Pré-venda → Painel) e gestão (Central de Distribuição → **A vez por zona**; admin também na Pré-venda) | cartão **Roleta**                            | Escolhe a zona (ou "Sem zona"). A fila do SDR em destaque, na roda de iniciais com o 1º na seta; embaixo, a roleta da zona, o Marquinhos e as campanhas de equipe fixa, "1º Lara · 2º Leo…". Na Central de Distribuição é só leitura: montar a fila é na aba Filas. |
+| Corretor (na própria fila)                                                                                  | Central de Comando → **Sua vez nas roletas** | Em cima, onde ele está na fila: "Agendados do SDR · Leste — 2º de 6". Embaixo, onde está fora, agrupado pelo motivo ("Sem check-in…: Marquinhos, Cury Leopoldina, Jardim BF e mais 8"), com o atalho do check-in quando o motivo é esse. Nenhum nome de colega.     |
 
 A zona escolhida pelo SDR fica lembrada no navegador dele (`localStorage`); é
 só conveniência.
@@ -83,6 +83,15 @@ zona no perfil"; a gestão define a região na Central de Distribuição.
   zona, acesso por papel, o corretor sem nomes de colegas, e nenhuma escrita.
 - `tests/roletas-fila-zona.test.tsx` (12 testes): textos, troca de zona,
   reserva e o painel do corretor com o atalho do check-in.
+
+## 6b. Correção 0077 — só a participação ativa
+
+A linha de participação removida pela gestão (`roleta_participantes.ativo =
+false`) entrava em "Sua vez" como "Não atende esta zona" (visto com a Zona
+Norte de uma corretora em 11/10). Removido não é "fora da fila": a roleta
+não é dele. `minhas_posicoes_roletas_v1` passa a listar só a participação
+ativa (`20261016120000`, drizzle `0077`). Para o SDR nada muda: removido de
+uma roleta de zona, o corretor deixa de atender a zona e some da lista dela.
 
 ## 7. Em produção (11/10/2026)
 

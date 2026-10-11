@@ -540,6 +540,13 @@
       "when": 1792076400000,
       "tag": "0076_roletas_fila_por_zona",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792162800000,
+      "tag": "0077_minhas_posicoes_so_ativas",
+      "breakpoints": true
     }
   ]
 }

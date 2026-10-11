@@ -466,6 +466,24 @@ describe("acesso e leitura", () => {
     });
   });
 
+  it("roleta de onde a gestão removeu o corretor não aparece em Sua vez (0077)", async () => {
+    // Visto em produção (11/10): a remoção da Zona Norte aparecia como "Não
+    // atende esta zona", como se faltasse cadastro. Removido não é "fora".
+    expect((await minhas(luca)).some((m) => m.slug === "zona-leste")).toBe(true);
+    await comoUsuario(c, admin.id);
+    await c.query(
+      `SELECT public.gerenciar_participante_roleta('zona-leste', $1, 'remover', 'teste 0077')`,
+      [luca.id],
+    );
+    await comoSuperuser(c);
+    expect((await minhas(luca)).some((m) => m.slug === "zona-leste")).toBe(false);
+    // Removido da roleta da zona, deixa de atender o Leste (a roleta É a
+    // região): some da lista da zona também para o SDR, nem como "fora".
+    const zona = roleta(await filas(sdr, "Leste"), "zona-leste");
+    expect(ids(zona.fila)).not.toContain(luca.id);
+    expect(ids(zona.fora)).not.toContain(luca.id);
+  });
+
   it("ler as filas não mexe em cursor nenhum", async () => {
     const antes = await cursores();
     await filas(sdr, "Leste");
