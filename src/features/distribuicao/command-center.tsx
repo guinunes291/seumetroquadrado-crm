@@ -5,6 +5,7 @@
 // próximo lead de cada roleta), exceções, histórico, política (parâmetros do
 // motor v2, admin), configurações (admin) e auditoria.
 
+import { lazy, Suspense } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
@@ -25,6 +26,7 @@ import {
 } from "@phosphor-icons/react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRoles } from "@/hooks/use-auth";
@@ -34,12 +36,16 @@ import { DISTRIBUICAO_KEYS, useDistribuicaoResumo, useRodarDistribuicao } from "
 import { TabVisaoGeral } from "./tab-visao-geral";
 import { TabFilas } from "./tab-filas";
 import { TabCorretores } from "./tab-corretores";
-import { TabVez } from "./tab-vez";
 import { TabExcecoes } from "./tab-excecoes";
 import { TabHistorico } from "./tab-historico";
 import { TabPolitica } from "./tab-politica";
 import { TabConfiguracoes } from "./tab-configuracoes";
 import { TabAuditoria } from "./tab-auditoria";
+
+// A vez por zona reaproveita o cartão da Pré-venda (FilaZonaCard). A Central
+// já faz parte do chunk principal: importá-lo direto estourou o orçamento de
+// 250 KB gzip (CI do #277). Sob demanda, como o placar do SDR na aba Filas.
+const TabVez = lazy(() => import("./tab-vez").then(({ TabVez }) => ({ default: TabVez })));
 
 export type DistribuicaoTab =
   | "visao"
@@ -246,7 +252,9 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           <TabCorretores somenteLeitura={somenteLeitura} />
         </TabsContent>
         <TabsContent value="vez">
-          <TabVez />
+          <Suspense fallback={<Skeleton className="h-72 w-full rounded-2xl" />}>
+            <TabVez />
+          </Suspense>
         </TabsContent>
         <TabsContent value="excecoes">
           <TabExcecoes somenteLeitura={somenteLeitura} />
