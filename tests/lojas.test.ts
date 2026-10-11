@@ -1,7 +1,9 @@
 // Domínio do Mapa de Lojas: leitura da planilha de stands, base de segurança,
-// filtros, distância, links para o cliente e as regras do refinamento de
-// posição pelo endereço.
+// filtros, distância, plantas e metragem, links para o cliente e as regras do
+// refinamento de posição pelo endereço.
 
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   aceitarGeocodificacao,
@@ -11,23 +13,33 @@ import {
   corDaConstrutora,
   distanciaDaLoja,
   distanciaKm,
+  distanciaM2,
   enderecoCompleto,
   filtrarLojas,
   filtrosLojasVazios,
   formatarDistancia,
+  formatarM2,
   iniciaisDaConstrutora,
   lerCacheGeo,
   linkComoChegar,
   linkFotosGoogle,
   linkStreetView,
   LOJAS_BASE,
+  metragemMaisProxima,
+  metragensDaLoja,
+  metragensDisponiveis,
+  metragensDoTexto,
   normalizarEndereco,
+  ordenarLojas,
+  ordenarPlantas,
   ordenarPorDistancia,
+  plantasDaLoja,
   rowsToLojas,
   urlGeocodificacao,
   zonasDasLojas,
   type Loja,
 } from "@/lib/lojas/lojas";
+import { PLANTAS, PLANTAS_POR_STAND, urlPlanta } from "@/lib/lojas/plantas";
 import { mensagemLoja } from "@/lib/whatsapp";
 
 const CABECALHO = [
@@ -59,12 +71,29 @@ const loja = (over: Partial<Loja> = {}): Loja => ({
 });
 
 describe("base de segurança", () => {
-  it("traz os 45 stands do mapa standalone, todos com posição estimada e id único", () => {
-    expect(LOJAS_BASE).toHaveLength(45);
-    expect(new Set(LOJAS_BASE.map((l) => l.id)).size).toBe(45);
-    expect(LOJAS_BASE.every((l) => l.lat != null && l.lng != null)).toBe(true);
+  it("traz os 54 stands do mapa standalone (11/10/2026), com id único", () => {
+    expect(LOJAS_BASE).toHaveLength(54);
+    expect(new Set(LOJAS_BASE.map((l) => l.id)).size).toBe(54);
     // Estimada até o navegador achar o endereço — nunca "exata" de nascença.
     expect(LOJAS_BASE.some((l) => l.exata)).toBe(false);
+  });
+
+  it("aceita stand sem posição: entra na lista e espera o navegador achar o endereço", () => {
+    const semPosicao = LOJAS_BASE.filter((l) => l.lat == null || l.lng == null).map((l) => l.nome);
+    expect(semPosicao).toEqual([
+      "Laudo Ferreira de Camargo",
+      "HM Smart Vila das Belezas",
+      "HM Smart Zike Tuma (Interlagos)",
+    ]);
+  });
+
+  it("traz as construtoras novas da atualização", () => {
+    const total = (c: string) => LOJAS_BASE.filter((l) => l.construtora === c).length;
+    expect(total("Vibra")).toBe(5);
+    expect(total("HM Engenharia")).toBe(3);
+    expect(LOJAS_BASE.find((l) => l.nome === "Riva House")?.endereco).toBe(
+      "Avenida João Dias, 1243",
+    );
   });
 
   it("preserva a observação dos stands da Longitude (decorado ou só atendimento)", () => {
@@ -157,7 +186,7 @@ describe("filtros e ordem", () => {
   });
 
   it("combina construtora e zona", () => {
-    const r = filtrarLojas(lojas, { q: "", construtora: "Cury", zona: "Zona Sul" });
+    const r = filtrarLojas(lojas, { ...filtrosLojasVazios, construtora: "Cury", zona: "Zona Sul" });
     expect(r.map((l) => l.id)).toEqual(["3"]);
   });
 
@@ -216,6 +245,10 @@ describe("cor e sigla do pino", () => {
     expect(corDaConstrutora("Direcional Engenharia")).toBe("#2c3e50");
     expect(corDaConstrutora("Vitta Residencial")).toBe("#8e44ad");
     expect(corDaConstrutora("Longitude Incorporadora")).toBe("#6d4c41");
+    // As que entraram em 11/10/2026, com a cor que o standalone lhes deu.
+    expect(corDaConstrutora("Vibra")).toBe("#7f8c8d");
+    expect(corDaConstrutora("HM Engenharia")).toBe("#a04000");
+    expect(corDaConstrutora("A confirmar")).toBe("#117a65");
   });
 
   it("dá cor determinística a construtora nova", () => {
@@ -317,5 +350,104 @@ describe("refinamento de posição", () => {
     expect(lerCacheGeo(JSON.stringify({ ok: [-23.5, -46.6], ruim: "x", curto: [1] }))).toEqual({
       ok: [-23.5, -46.6],
     });
+  });
+});
+
+describe("plantas", () => {
+  const RAIZ = resolve(__dirname, "..");
+
+  it("toda planta tem arquivo em public/lojas/plantas", () => {
+    for (const p of Object.values(PLANTAS)) {
+      expect(existsSync(resolve(RAIZ, "public", `.${urlPlanta(p)}`)), p.id).toBe(true);
+    }
+  });
+
+  it("todo vínculo aponta para planta registrada e para um stand que existe", () => {
+    const stands = new Set(LOJAS_BASE.map((l) => `${l.construtora}|${l.nome}`));
+    for (const [chave, ids] of Object.entries(PLANTAS_POR_STAND)) {
+      expect(stands.has(chave), chave).toBe(true);
+      for (const id of ids) expect(PLANTAS[id], `${chave} → ${id}`).toBeDefined();
+    }
+  });
+
+  it("o standalone público usa os mesmos arquivos, sem imagem embutida", () => {
+    const html = readFileSync(resolve(RAIZ, "public/mapa-lojas.html"), "utf8");
+    expect(html).not.toContain("data:image");
+    for (const p of Object.values(PLANTAS)) expect(html).toContain(urlPlanta(p));
+  });
+
+  it("acha as plantas do stand tolerando acento, caixa e espaço da planilha", () => {
+    const econ = plantasDaLoja({ construtora: "Econ", nome: "Vila Moraes" });
+    expect(econ.map((p) => p.id)).toEqual(PLANTAS_POR_STAND["Econ|Vila Moraes"]);
+    expect(
+      plantasDaLoja({ construtora: "hm  engenharia", nome: "HM Smart Freguesia e Marques" }),
+    ).toHaveLength(2);
+    expect(plantasDaLoja({ construtora: "Cury", nome: "Cambuci" })).toEqual([]);
+  });
+});
+
+describe("metragem do cliente", () => {
+  const vibra = loja({ id: "v", construtora: "Vibra", nome: "Alcântara Machado" });
+  const vilaRomana = loja({ id: "vr", construtora: "Vibra", nome: "Vila Romana" });
+  const soObs = loja({ id: "o", construtora: "Trisul", nome: "X", obs: "Decorado de 44 m²" });
+  const semNada = loja({ id: "n", construtora: "Cury", nome: "Cambuci" });
+
+  it("lê metragens do texto e descarta andar, torre e final de unidade", () => {
+    expect(metragensDoTexto("37 m² (36,67 a 37,38 m²)")).toEqual([37, 36.67, 37.38]);
+    expect(metragensDoTexto("34,97 m² (Torre 01) · 35,08 m² (Torres 02 e 03)")).toEqual([
+      34.97, 35.08,
+    ]);
+    expect(metragensDoTexto(null)).toEqual([]);
+  });
+
+  it("junta as plantas e o decorado citado na observação — observação sem m² não conta", () => {
+    expect(metragensDaLoja(vilaRomana)).toEqual([45, 45.2]);
+    expect(metragensDaLoja(soObs)).toEqual([44]);
+    expect(metragensDaLoja({ ...semNada, obs: "Decorados: Best, Class e Liv" })).toEqual([]);
+  });
+
+  it("filtra pela margem e tira quem não tem metragem conhecida", () => {
+    const todas = [vibra, vilaRomana, soObs, semNada];
+    const r = filtrarLojas(todas, { ...filtrosLojasVazios, m2: 37, tolerancia: 3 });
+    expect(r.map((l) => l.id)).toEqual(["v"]);
+    const largo = filtrarLojas(todas, { ...filtrosLojasVazios, m2: 42, tolerancia: 3 });
+    expect(largo.map((l) => l.id)).toEqual(["v", "vr", "o"]);
+  });
+
+  it("aponta a metragem mais parecida e a distância até ela", () => {
+    expect(metragemMaisProxima(vibra, 40)).toBe(42);
+    expect(distanciaM2(vibra, 40)).toBe(2);
+    expect(distanciaM2(semNada, 40)).toBeNull();
+  });
+
+  it("ordena pela metragem; com Perto de mim ligado, a distância manda", () => {
+    const todas = [soObs, vibra, vilaRomana];
+    expect(ordenarLojas(todas, { origem: null, m2: 45 }).map((l) => l.id)).toEqual([
+      "vr",
+      "o",
+      "v",
+    ]);
+    const origem = { lat: soObs.lat!, lng: soObs.lng! };
+    expect(ordenarLojas(todas, { origem, m2: 45 })).toHaveLength(3);
+    expect(ordenarLojas(todas, { origem: null, m2: null }).map((l) => l.id)).toEqual([
+      "o",
+      "v",
+      "vr",
+    ]);
+  });
+
+  it("põe a planta mais parecida primeiro", () => {
+    const ps = plantasDaLoja(vibra);
+    expect(ordenarPlantas(ps, 41).map((p) => p.id)).toEqual(["vb42", "vb37"]);
+    expect(ordenarPlantas(ps, null).map((p) => p.id)).toEqual(["vb37", "vb42"]);
+  });
+
+  it("monta os chips com os tamanhos arredondados, sem repetição", () => {
+    expect(metragensDisponiveis([vibra, vilaRomana, soObs, semNada])).toEqual([37, 42, 44, 45]);
+  });
+
+  it("formata com vírgula", () => {
+    expect(formatarM2(37.17)).toBe("37,17");
+    expect(formatarM2(37)).toBe("37");
   });
 });

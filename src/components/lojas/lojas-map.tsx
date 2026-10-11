@@ -8,8 +8,8 @@
 //     empreendimentos — o custo do DOM é irrelevante e o pino com a marca é o
 //     que o corretor reconhece de relance ("o laranja é Cury").
 //  2) O popup é feito para o ATENDIMENTO: rota pelo endereço, fotos do Google,
-//     Street View e "Enviar ao cliente". Preço e book não entram — stand não
-//     é produto.
+//     Street View, "Enviar ao cliente" e as plantas que o cliente vai ver no
+//     decorado. Preço e book não entram — stand não é produto.
 //
 // Como na Vitrine: Leaflet entra por `import()` (toca `window` no topo do
 // módulo e quebraria o SSR), e o popup é montado com createElement/textContent,
@@ -24,9 +24,13 @@ import {
   linkComoChegar,
   linkFotosGoogle,
   linkStreetView,
+  metragensDoTexto,
+  ordenarPlantas,
+  plantasDaLoja,
   type Loja,
   type Ponto,
 } from "@/lib/lojas/lojas";
+import { urlPlanta } from "@/lib/lojas/plantas";
 import { logoDaConstrutora, urlLogo } from "@/lib/logos-construtoras";
 import { carregarGeoSP } from "@/lib/mapa-geo-sp";
 import { cn } from "@/lib/utils";
@@ -54,6 +58,11 @@ type Props = {
   onSelecionar: (id: string) => void;
   /** Botão "Enviar ao cliente" do popup. */
   onEnviar: (loja: Loja) => void;
+  /** Miniatura de planta no popup: a página abre a planta ampliada. */
+  onAbrirPlanta: (loja: Loja, plantaId: string) => void;
+  /** Metragem que o cliente procura: ordena as plantas e marca a mais próxima. */
+  m2?: number | null;
+  tolerancia?: number;
   className?: string;
 };
 
@@ -67,6 +76,9 @@ export function LojasMap({
   origem = null,
   onSelecionar,
   onEnviar,
+  onAbrirPlanta,
+  m2 = null,
+  tolerancia = 5,
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,6 +101,11 @@ export function LojasMap({
   selecionarRef.current = onSelecionar;
   const enviarRef = useRef(onEnviar);
   enviarRef.current = onEnviar;
+  const abrirPlantaRef = useRef(onAbrirPlanta);
+  abrirPlantaRef.current = onAbrirPlanta;
+  // Lida na ABERTURA do popup: mudar a metragem não redesenha pino nenhum.
+  const metragemRef = useRef({ alvo: m2, tolerancia });
+  metragemRef.current = { alvo: m2, tolerancia };
 
   const comCoordenada = useMemo(() => lojas.filter((l) => l.lat != null && l.lng != null), [lojas]);
   // Só quando o CONJUNTO muda o mapa se reenquadra. A posição refinada de um
@@ -180,10 +197,21 @@ export function LojasMap({
         alt: `${loja.construtora} · ${loja.nome}`,
         keyboard: true,
       });
-      // O popup é montado na ABERTURA, com o dado mais recente da loja.
+      // O popup é montado na ABERTURA, com o dado mais recente da loja. A
+      // altura máxima faz a lista de plantas rolar dentro do popup em vez de
+      // empurrá-lo para fora da tela (a Econ tem oito decorados).
       marcador.bindPopup(
-        () => popupDaLoja(lojasRef.current.get(id) ?? loja, (l) => enviarRef.current(l)),
-        { maxWidth: 300, minWidth: 240 },
+        () =>
+          popupDaLoja(lojasRef.current.get(id) ?? loja, {
+            enviar: (l) => enviarRef.current(l),
+            abrirPlanta: (l, plantaId) => abrirPlantaRef.current(l, plantaId),
+            ...metragemRef.current,
+          }),
+        {
+          maxWidth: 300,
+          minWidth: 240,
+          maxHeight: Math.max(280, Math.min(480, window.innerHeight - 170)),
+        },
       );
       marcador.on("click", () => selecionarRef.current(id));
       camada.addLayer(marcador);
@@ -294,7 +322,9 @@ export function LojasMap({
   const semCoordenada = lojas.length - comCoordenada.length;
 
   return (
-    <div className={cn("relative overflow-hidden rounded-xl border bg-card", className)}>
+    // `isolate`: os painéis do Leaflet têm z-index 400–1000; sem um contexto de
+    // empilhamento próprio, passariam por cima do Dialog da planta (z-50).
+    <div className={cn("relative isolate overflow-hidden rounded-xl border bg-card", className)}>
       <div ref={containerRef} className="h-full w-full" aria-label="Mapa de lojas" />
 
       {!pronto && !erro && (
@@ -405,7 +435,64 @@ function cabecalho(loja: Loja): HTMLElement {
   return caixa;
 }
 
-function popupDaLoja(loja: Loja, enviar: (loja: Loja) => void): HTMLElement {
+type AcoesPopup = {
+  enviar: (loja: Loja) => void;
+  abrirPlanta: (loja: Loja, plantaId: string) => void;
+  alvo: number | null;
+  tolerancia: number;
+};
+
+/**
+ * "Plantas disponíveis": miniaturas que abrem a planta ampliada. Com metragem
+ * no filtro, a mais parecida vem primeiro e ganha a etiqueta "mais próxima"
+ * (só se cair dentro da margem — fora dela, a etiqueta mentiria).
+ */
+function secaoPlantas(loja: Loja, acoes: AcoesPopup): HTMLElement | null {
+  const plantas = ordenarPlantas(plantasDaLoja(loja), acoes.alvo);
+  if (plantas.length === 0) return null;
+
+  const secao = el("div", "mt-3 border-t border-slate-200 pt-2");
+  secao.appendChild(
+    el("div", "mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500", "Plantas"),
+  );
+  plantas.forEach((planta, i) => {
+    const botao = el(
+      "button",
+      "mb-1.5 flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-[#e3dccb] bg-[#FAF5E9] p-1.5 text-left transition-colors hover:border-[#C8973C]",
+    );
+    botao.type = "button";
+    const img = el("img", "h-14 w-14 shrink-0 rounded-md bg-white object-cover");
+    img.src = urlPlanta(planta);
+    img.alt = planta.tipo;
+    img.loading = "lazy";
+    const texto = el("span", "min-w-0 text-[11.5px] leading-snug text-slate-600");
+    texto.appendChild(el("b", "block text-slate-900", planta.tipo));
+    const alvo = acoes.alvo;
+    if (alvo != null && i === 0) {
+      const desvio = Math.min(
+        Number.POSITIVE_INFINITY,
+        ...metragensDoTexto(planta.area).map((v) => Math.abs(v - alvo)),
+      );
+      if (desvio <= acoes.tolerancia) {
+        texto.appendChild(
+          el(
+            "span",
+            "my-0.5 inline-block rounded-full bg-[#E0A646] px-1.5 text-[10px] font-bold text-[#092A4D]",
+            "mais próxima",
+          ),
+        );
+      }
+    }
+    texto.appendChild(el("span", "block", planta.area));
+    botao.append(img, texto);
+    botao.addEventListener("click", () => acoes.abrirPlanta(loja, planta.id));
+    secao.appendChild(botao);
+  });
+  return secao;
+}
+
+function popupDaLoja(loja: Loja, acoes: AcoesPopup): HTMLElement {
+  const { enviar } = acoes;
   const cor = corDaConstrutora(loja.construtora);
   const box = el("div", "w-[240px] text-[12.5px] text-slate-600");
 
@@ -473,6 +560,11 @@ function popupDaLoja(loja: Loja, enviar: (loja: Loja) => void): HTMLElement {
   enviarBtn.addEventListener("click", () => enviar(loja));
   botoes.appendChild(enviarBtn);
   box.appendChild(botoes);
+
+  // Plantas por último: no atendimento a ação (rota, WhatsApp) vem antes da
+  // consulta — oito miniaturas acima dos botões os jogariam para fora da tela.
+  const plantas = secaoPlantas(loja, acoes);
+  if (plantas) box.appendChild(plantas);
 
   return box;
 }

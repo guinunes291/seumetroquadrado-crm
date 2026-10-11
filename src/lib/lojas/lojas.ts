@@ -14,6 +14,7 @@
 // Google não manda CORS, e o JSONP do mapa standalone não entra no app).
 
 import { LOJAS_SEMENTE } from "@/lib/lojas/lojas-base";
+import { PLANTAS, PLANTAS_POR_STAND, type Planta } from "@/lib/lojas/plantas";
 import { mesmaConstrutora } from "@/lib/construtoras";
 import { linkSeguro } from "@/lib/vitrine/planilha-mercado";
 
@@ -44,8 +45,9 @@ export type LojaSemente = {
   endereco: string;
   bairro: string;
   zona: string;
-  lat: number;
-  lng: number;
+  /** null = o standalone ainda não tinha posição; o navegador acha pelo endereço. */
+  lat: number | null;
+  lng: number | null;
   obs?: string;
 };
 
@@ -56,7 +58,10 @@ export type Ponto = { lat: number; lng: number };
 // ---------------------------------------------------------------------------
 
 function semAcento(s: string): string {
-  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function slug(s: string): string {
@@ -76,7 +81,7 @@ function comIds(lojas: Omit<Loja, "id">[]): Loja[] {
   });
 }
 
-/** Os 45 stands do mapa standalone, com posição estimada. */
+/** Os stands do mapa standalone, com posição estimada (ou nenhuma). */
 export const LOJAS_BASE: readonly Loja[] = comIds(
   LOJAS_SEMENTE.map((s) => ({
     construtora: s.construtora,
@@ -180,16 +185,34 @@ export type FiltrosLojas = {
   construtora: string | null;
   /** null = todas. */
   zona: string | null;
+  /** Metragem que o cliente procura, em m². null = sem filtro. */
+  m2: number | null;
+  /** Margem aceita em torno de `m2`, em m² (ver TOLERANCIAS_M2). */
+  tolerancia: number;
 };
 
-export const filtrosLojasVazios: FiltrosLojas = { q: "", construtora: null, zona: null };
+export const filtrosLojasVazios: FiltrosLojas = {
+  q: "",
+  construtora: null,
+  zona: null,
+  m2: null,
+  tolerancia: 5,
+};
 
-/** A busca ignora acento e caixa: "agua branca" acha "Água Branca". */
+/**
+ * A busca ignora acento e caixa: "agua branca" acha "Água Branca". Com
+ * metragem, fica só o stand que tem planta ou decorado dentro da margem —
+ * stand sem metragem conhecida sai, porque não dá para prometer o tamanho.
+ */
 export function filtrarLojas(lojas: readonly Loja[], f: FiltrosLojas): Loja[] {
   const termo = semAcento(f.q.trim());
   return lojas.filter((l) => {
     if (f.construtora && l.construtora !== f.construtora) return false;
     if (f.zona && l.zona !== f.zona) return false;
+    if (f.m2 != null) {
+      const d = distanciaM2(l, f.m2);
+      if (d == null || d > f.tolerancia) return false;
+    }
     if (!termo) return true;
     return semAcento(`${l.construtora} ${l.nome} ${l.endereco} ${l.bairro} ${l.zona}`).includes(
       termo,
@@ -244,11 +267,108 @@ export function ordenarPorDistancia(lojas: readonly Loja[], origem: Ponto | null
   return [...lojas].sort((a, b) => d(a) - d(b));
 }
 
+/**
+ * A ordem da lista. "Perto de mim" manda quando ligado: a metragem já cortou
+ * quem não serve, e entre os que servem o corretor quer o mais perto. Sem
+ * localização, a metragem ordena (planta mais parecida primeiro, como no
+ * standalone); sem nenhum dos dois, vale a ordem da planilha.
+ */
+export function ordenarLojas(
+  lojas: readonly Loja[],
+  { origem, m2 }: { origem: Ponto | null; m2: number | null },
+): Loja[] {
+  if (origem || m2 == null) return ordenarPorDistancia(lojas, origem);
+  const d = (l: Loja) => distanciaM2(l, m2) ?? Number.POSITIVE_INFINITY;
+  return [...lojas].sort((a, b) => d(a) - d(b));
+}
+
 /** "850 m" até 1 km; "2,3 km" daí em diante; "15 km" acima de 10. */
 export function formatarDistancia(km: number): string {
   if (km < 1) return `${Math.max(10, Math.round((km * 1000) / 10) * 10)} m`;
   if (km < 10) return `${km.toFixed(1).replace(".", ",")} km`;
   return `${Math.round(km)} km`;
+}
+
+// ---------------------------------------------------------------------------
+// Plantas e metragem
+// ---------------------------------------------------------------------------
+// O cliente chega dizendo o tamanho ("quero uns 37 metros"). O filtro casa
+// esse número com as plantas do stand e com o decorado citado na observação
+// ("Decorados de 37 e 42 m²") — é o que o corretor pode prometer que o cliente
+// vai VER no stand.
+
+/** As margens do seletor, em m² (a do meio é a padrão). */
+export const TOLERANCIAS_M2 = [3, 5, 10] as const;
+
+/** Faixa plausível de apartamento: fora dela é andar, torre ou final de unidade. */
+const M2_MIN = 15;
+const M2_MAX = 120;
+
+/** Metragens citadas num texto: "37 m² (36,67 a 37,38 m²)" → [37, 36.67, 37.38]. */
+export function metragensDoTexto(texto: string | null | undefined): number[] {
+  const out: number[] = [];
+  for (const bruto of (texto ?? "").match(/\d+(?:[.,]\d+)?/g) ?? []) {
+    const v = Number.parseFloat(bruto.replace(",", "."));
+    if (v >= M2_MIN && v <= M2_MAX) out.push(v);
+  }
+  return out;
+}
+
+const chaveStand = (construtora: string, nome: string): string =>
+  `${semAcento(construtora).replace(/\s+/g, " ").trim()}|${semAcento(nome).replace(/\s+/g, " ").trim()}`;
+
+/** Índice tolerante a acento, caixa e espaço — a planilha é digitada à mão. */
+const PLANTAS_POR_CHAVE = new Map(
+  Object.entries(PLANTAS_POR_STAND).map(([chave, ids]) => {
+    const [construtora, ...nome] = chave.split("|");
+    return [chaveStand(construtora, nome.join("|")), ids] as const;
+  }),
+);
+
+export function plantasDaLoja(loja: Pick<Loja, "construtora" | "nome">): Planta[] {
+  const ids = PLANTAS_POR_CHAVE.get(chaveStand(loja.construtora, loja.nome)) ?? [];
+  return ids.map((id) => PLANTAS[id]).filter((p): p is Planta => p != null);
+}
+
+/** Metragens do stand: as das plantas e as do decorado citado na observação. */
+export function metragensDaLoja(loja: Loja): number[] {
+  const dasPlantas = plantasDaLoja(loja).flatMap((p) => metragensDoTexto(p.area));
+  const daObs = /m²|m2/i.test(loja.obs ?? "") ? metragensDoTexto(loja.obs) : [];
+  return [...dasPlantas, ...daObs];
+}
+
+/** Quanto a metragem mais parecida do stand se afasta do alvo (null = sem metragem). */
+export function distanciaM2(loja: Loja, alvo: number): number | null {
+  const ms = metragensDaLoja(loja);
+  return ms.length === 0 ? null : Math.min(...ms.map((v) => Math.abs(v - alvo)));
+}
+
+/** A metragem do stand mais parecida com o alvo — o "planta mais próxima: 37 m²". */
+export function metragemMaisProxima(loja: Loja, alvo: number): number | null {
+  let melhor: number | null = null;
+  for (const v of metragensDaLoja(loja)) {
+    if (melhor == null || Math.abs(v - alvo) < Math.abs(melhor - alvo)) melhor = v;
+  }
+  return melhor;
+}
+
+/** Os tamanhos para os chips: arredondados, sem repetição, do menor ao maior. */
+export function metragensDisponiveis(lojas: readonly Loja[]): number[] {
+  const set = new Set(lojas.flatMap((l) => metragensDaLoja(l).map((v) => Math.round(v))));
+  return [...set].sort((a, b) => a - b);
+}
+
+/** Plantas do stand com a mais parecida com o alvo primeiro (sem alvo, a ordem original). */
+export function ordenarPlantas(plantas: readonly Planta[], alvo: number | null): Planta[] {
+  if (alvo == null) return [...plantas];
+  const d = (p: Planta) =>
+    Math.min(Number.POSITIVE_INFINITY, ...metragensDoTexto(p.area).map((v) => Math.abs(v - alvo)));
+  return [...plantas].sort((a, b) => d(a) - d(b));
+}
+
+/** "37.17" → "37,17"; "37" → "37". */
+export function formatarM2(v: number): string {
+  return String(Math.round(v * 100) / 100).replace(".", ",");
 }
 
 // ---------------------------------------------------------------------------
@@ -267,6 +387,10 @@ const CORES_CONSTRUTORA: readonly { nome: string; cor: string }[] = [
   { nome: "Longitude", cor: "#6d4c41" },
   { nome: "Mundo Apto", cor: "#2e86c1" },
   { nome: "Trisul", cor: "#6c3483" },
+  // Chegaram na atualização de 11/10/2026, com a cor que o standalone lhes deu.
+  { nome: "A confirmar", cor: "#117a65" },
+  { nome: "HM Engenharia", cor: "#a04000" },
+  { nome: "Vibra", cor: "#7f8c8d" },
 ];
 
 const CORES_EXTRAS = ["#7f8c8d", "#b8860b", "#117a65", "#a04000", "#5d6d7e", "#1a5276"];

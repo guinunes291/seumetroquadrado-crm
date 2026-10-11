@@ -5,6 +5,10 @@
 // filtra (construtora, zona ou bairro), escolhe o stand e manda o endereço com
 // a rota pelo WhatsApp.
 //
+// Desde 11/10/2026 o filtro também fala a língua do cliente: "quero uns 37
+// metros". A metragem casa com as plantas do stand e com o decorado citado na
+// observação, e a planta abre ampliada para o corretor mostrar ou mandar.
+//
 // A lista abre na hora com a base salva no sistema (lib/lojas/lojas-base) e é
 // trocada pela planilha assim que o proxy responde — a planilha é a fonte viva,
 // a base é o colete salva-vidas. Sem lead em contexto de propósito: é consulta
@@ -15,21 +19,38 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ArrowSquareOut,
   ArrowsOutSimple,
+  Blueprint,
   Copy,
   CornersOut,
   GpsFix,
   LinkSimple,
   MagnifyingGlass,
   NavigationArrow,
+  Ruler,
   Warning,
   WhatsappLogo,
   X,
 } from "@phosphor-icons/react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { LojasMap } from "@/components/lojas/lojas-map";
 import { usePosicoesRefinadas } from "@/components/lojas/use-posicoes-refinadas";
@@ -40,15 +61,22 @@ import {
   filtrarLojas,
   filtrosLojasVazios,
   formatarDistancia,
+  formatarM2,
   linkComoChegar,
   LOJAS_BASE,
-  ordenarPorDistancia,
+  metragemMaisProxima,
+  metragensDisponiveis,
+  ordenarLojas,
+  ordenarPlantas,
+  plantasDaLoja,
+  TOLERANCIAS_M2,
   zonasDasLojas,
   type FiltrosLojas,
   type Loja,
   type Ponto,
 } from "@/lib/lojas/lojas";
 import { buscarPlanilhaLojas } from "@/lib/lojas/lojas-planilha-client";
+import { urlPlanta } from "@/lib/lojas/plantas";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { mensagemLoja } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
@@ -75,6 +103,10 @@ function MapaLojasPage() {
   const [enquadrarEm, setEnquadrarEm] = useState(0);
   const [origem, setOrigem] = useState<Ponto | null>(null);
   const [localizando, setLocalizando] = useState(false);
+  // O campo guarda o texto digitado ("37,5" no meio da digitação não é número
+  // ainda); o filtro guarda o número já interpretado.
+  const [m2Texto, setM2Texto] = useState("");
+  const [plantaAberta, setPlantaAberta] = useState<{ loja: Loja; plantaId: string } | null>(null);
 
   const planilhaQ = useQuery({
     queryKey: ["lojas-planilha"],
@@ -86,12 +118,24 @@ function MapaLojasPage() {
   const lojas = usePosicoesRefinadas(planilhaQ.data ?? LOJAS_BASE);
   const construtoras = useMemo(() => construtorasDasLojas(lojas), [lojas]);
   const zonas = useMemo(() => zonasDasLojas(lojas), [lojas]);
+  const metragens = useMemo(() => metragensDisponiveis(lojas), [lojas]);
   const filtradas = useMemo(
-    () => ordenarPorDistancia(filtrarLojas(lojas, filtros), origem),
+    () => ordenarLojas(filtrarLojas(lojas, filtros), { origem, m2: filtros.m2 }),
     [lojas, filtros, origem],
   );
 
   const set = (patch: Partial<FiltrosLojas>) => setFiltros((f) => ({ ...f, ...patch }));
+
+  const definirM2 = (texto: string) => {
+    setM2Texto(texto);
+    const v = Number.parseFloat(texto.replace(",", "."));
+    set({ m2: Number.isFinite(v) && v > 0 ? v : null });
+  };
+
+  const abrirPlanta = useCallback(
+    (loja: Loja, plantaId: string) => setPlantaAberta({ loja, plantaId }),
+    [],
+  );
 
   const focar = useCallback((id: string) => {
     setSelecionadaId(id);
@@ -198,6 +242,65 @@ function MapaLojasPage() {
           </div>
         </GrupoFiltro>
 
+        <GrupoFiltro label="Metragem do cliente">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-32">
+              <Ruler className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={m2Texto}
+                onChange={(e) => definirM2(e.target.value)}
+                placeholder="Ex.: 37"
+                aria-label="Metragem que o cliente procura, em m²"
+                className="h-8 pl-8 pr-8"
+              />
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                m²
+              </span>
+            </div>
+            <Select
+              value={String(filtros.tolerancia)}
+              onValueChange={(v) => set({ tolerancia: Number(v) })}
+            >
+              <SelectTrigger className="h-8 w-[104px] text-xs" aria-label="Margem da metragem">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TOLERANCIAS_M2.map((t) => (
+                  <SelectItem key={t} value={String(t)}>
+                    ± {t} m²
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {filtros.m2 != null && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={() => definirM2("")}
+              >
+                <X className="mr-1 h-3.5 w-3.5" /> Limpar
+              </Button>
+            )}
+          </div>
+          {metragens.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {metragens.map((v) => (
+                <Chip
+                  key={v}
+                  ativo={filtros.m2 === v}
+                  onClick={() => definirM2(filtros.m2 === v ? "" : String(v))}
+                >
+                  {v} m²
+                </Chip>
+              ))}
+            </div>
+          )}
+        </GrupoFiltro>
+
         {zonas.length > 0 && (
           <GrupoFiltro label="Região">
             <div className="flex flex-wrap gap-1.5">
@@ -275,15 +378,21 @@ function MapaLojasPage() {
           lojas={filtradas}
           total={lojas.length}
           origem={origem}
+          m2={filtros.m2}
+          tolerancia={filtros.tolerancia}
           selecionadaId={selecionadaId}
           carregandoPlanilha={planilhaQ.isFetching && !planilhaQ.data}
           doPlanilha={planilhaQ.data != null}
           onFocar={focar}
           onWhatsApp={enviarWhatsApp}
+          onAbrirPlanta={abrirPlanta}
           onCopiar={(loja) =>
             copiar(mensagemDaLoja(loja), "Endereço copiado — cole na conversa com o cliente.")
           }
-          onLimpar={() => setFiltros(filtrosLojasVazios)}
+          onLimpar={() => {
+            setFiltros(filtrosLojasVazios);
+            setM2Texto("");
+          }}
           className="order-2 lg:order-1"
         />
         <LojasMap
@@ -296,10 +405,99 @@ function MapaLojasPage() {
           origem={origem}
           onSelecionar={setSelecionadaId}
           onEnviar={enviarWhatsApp}
+          onAbrirPlanta={abrirPlanta}
+          m2={filtros.m2}
+          tolerancia={filtros.tolerancia}
           className="order-1 h-[52vh] min-h-[360px] lg:order-2 lg:h-[70vh]"
         />
       </div>
+
+      <VisualizadorPlantas
+        aberta={plantaAberta}
+        m2={filtros.m2}
+        onTrocar={(plantaId) => setPlantaAberta((a) => (a ? { ...a, plantaId } : a))}
+        onFechar={() => setPlantaAberta(null)}
+      />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Planta ampliada
+// ---------------------------------------------------------------------------
+
+/**
+ * A planta em tamanho de leitura, com as outras plantas do mesmo stand numa
+ * faixa abaixo. "Abrir imagem" leva ao arquivo puro — é por ali que o corretor
+ * salva no celular ou copia o link para mandar ao cliente.
+ */
+function VisualizadorPlantas({
+  aberta,
+  m2,
+  onTrocar,
+  onFechar,
+}: {
+  aberta: { loja: Loja; plantaId: string } | null;
+  m2: number | null;
+  onTrocar: (plantaId: string) => void;
+  onFechar: () => void;
+}) {
+  const plantas = aberta ? ordenarPlantas(plantasDaLoja(aberta.loja), m2) : [];
+  const atual = plantas.find((p) => p.id === aberta?.plantaId) ?? plantas[0];
+
+  return (
+    <Dialog open={aberta != null && atual != null} onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent className="max-h-[92vh] max-w-3xl gap-3 overflow-y-auto">
+        {aberta && atual && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{atual.tipo}</DialogTitle>
+              <DialogDescription>
+                {atual.area} · {aberta.loja.construtora} · {aberta.loja.nome}
+              </DialogDescription>
+            </DialogHeader>
+            <img
+              src={urlPlanta(atual)}
+              alt={`${atual.tipo} — ${atual.area}`}
+              className="max-h-[62vh] w-full rounded-lg border bg-white object-contain"
+            />
+            {plantas.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {plantas.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => onTrocar(p.id)}
+                    aria-current={p.id === atual.id || undefined}
+                    title={`${p.tipo} — ${p.area}`}
+                    className={cn(
+                      "shrink-0 overflow-hidden rounded-md border-2 transition-colors",
+                      p.id === atual.id
+                        ? "border-primary"
+                        : "border-transparent hover:border-muted-foreground/40",
+                    )}
+                  >
+                    <img
+                      src={urlPlanta(p)}
+                      alt={p.tipo}
+                      loading="lazy"
+                      className="h-16 w-20 bg-white object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" asChild>
+                <a href={urlPlanta(atual)} target="_blank" rel="noopener noreferrer">
+                  <ArrowSquareOut className="mr-1.5 h-4 w-4" /> Abrir imagem
+                </a>
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -311,11 +509,14 @@ function ListaLojas({
   lojas,
   total,
   origem,
+  m2,
+  tolerancia,
   selecionadaId,
   carregandoPlanilha,
   doPlanilha,
   onFocar,
   onWhatsApp,
+  onAbrirPlanta,
   onCopiar,
   onLimpar,
   className,
@@ -323,11 +524,14 @@ function ListaLojas({
   lojas: Loja[];
   total: number;
   origem: Ponto | null;
+  m2: number | null;
+  tolerancia: number;
   selecionadaId: string | null;
   carregandoPlanilha: boolean;
   doPlanilha: boolean;
   onFocar: (id: string) => void;
   onWhatsApp: (loja: Loja) => void;
+  onAbrirPlanta: (loja: Loja, plantaId: string) => void;
   onCopiar: (loja: Loja) => void;
   onLimpar: () => void;
   className?: string;
@@ -351,7 +555,11 @@ function ListaLojas({
         <span>
           <b className="tabular-nums text-foreground">{lojas.length}</b> de{" "}
           <span className="tabular-nums">{total}</span> stands
-          {origem && " · mais perto primeiro"}
+          {origem
+            ? " · mais perto primeiro"
+            : m2 != null
+              ? " · metragem mais parecida primeiro"
+              : ""}
         </span>
         <span>
           {carregandoPlanilha
@@ -364,7 +572,11 @@ function ListaLojas({
 
       {lojas.length === 0 ? (
         <div className="space-y-3 p-6 text-center text-sm text-muted-foreground">
-          <p>Nenhum stand encontrado com esses filtros.</p>
+          <p>
+            {m2 != null
+              ? `Nenhum stand com planta ou decorado de ${formatarM2(m2)} m² (± ${tolerancia} m²). Aumente a margem ou limpe a metragem.`
+              : "Nenhum stand encontrado com esses filtros."}
+          </p>
           <Button variant="outline" size="sm" onClick={onLimpar}>
             Limpar filtros
           </Button>
@@ -374,6 +586,8 @@ function ListaLojas({
           {lojas.map((loja) => {
             const km = distanciaDaLoja(loja, origem);
             const ativa = loja.id === selecionadaId;
+            const plantas = ordenarPlantas(plantasDaLoja(loja), m2);
+            const maisProxima = m2 != null ? metragemMaisProxima(loja, m2) : null;
             return (
               <li
                 key={loja.id}
@@ -409,6 +623,11 @@ function ListaLojas({
                       {loja.endereco}
                       {loja.bairro ? ` — ${loja.bairro}` : ""}
                     </span>
+                    {maisProxima != null && (
+                      <span className="mt-1 inline-block rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-bold text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
+                        planta mais próxima: {formatarM2(maisProxima)} m²
+                      </span>
+                    )}
                     {loja.obs && (
                       <span className="mt-0.5 block text-xs font-medium text-foreground/80">
                         {loja.obs}
@@ -447,6 +666,18 @@ function ListaLojas({
                   >
                     <Copy className="mr-1 h-3.5 w-3.5" /> Copiar
                   </Button>
+                  {plantas.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onAbrirPlanta(loja, plantas[0].id)}
+                      title="Abre as plantas do stand em tamanho de leitura"
+                    >
+                      <Blueprint className="mr-1 h-3.5 w-3.5" /> Plantas ({plantas.length})
+                    </Button>
+                  )}
                 </div>
               </li>
             );
