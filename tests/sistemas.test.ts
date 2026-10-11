@@ -75,8 +75,21 @@ describe("visibilidade por papel", () => {
       "projetos-foco",
       "vitrine",
       "mapa-lojas",
-      "simulador-amortizacao",
+      "simuladores",
     ]);
+  });
+
+  it("Simuladores tomou a vaga da Planilha de amortização — que segue viva e com porta (2026-10-11)", () => {
+    // Docs & Projetos estava no teto de 6 seções: a planilha virou atalho do
+    // ⌘K (mais o botão no cabeçalho dos Simuladores e o link do dossiê).
+    expect(secoesVisiveis(sistema("docs-projetos"), admin).map((s) => s.id)).toContain(
+      "simuladores",
+    );
+    expect(sistemaAtivo({ pathname: "/simuladores", search: {} })?.id).toBe("docs-projetos");
+    expect(sistemaAtivo({ pathname: "/simulador-amortizacao", search: {} })?.id).toBe(
+      "docs-projetos",
+    );
+    expect(ATALHOS_EXTRAS.some((a) => a.to === "/simulador-amortizacao")).toBe(true);
   });
 
   it("Catálogo completo é só da gestão (admin, gestor, superintendente)", () => {
@@ -321,6 +334,7 @@ describe("sistemaAtivo (pathname + search)", () => {
     expect(em("/projetos/xyz")).toBe("docs-projetos");
     expect(em("/vitrine")).toBe("docs-projetos");
     expect(em("/mapa-lojas")).toBe("docs-projetos");
+    expect(em("/simuladores", { construtora: "mundo-apto" })).toBe("docs-projetos");
     expect(em("/meu-raio-x")).toBe("bi");
     expect(em("/ranking")).toBe("bi");
     expect(em("/painel-gestor", { tab: "time" })).toBe("bi");

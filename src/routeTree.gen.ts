@@ -68,6 +68,7 @@ import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authentic
 import { Route as AuthenticatedReservaRouteImport } from './routes/_authenticated/reserva'
 import { Route as AuthenticatedSdrRouteImport } from './routes/_authenticated/sdr'
 import { Route as AuthenticatedSimuladorAmortizacaoRouteImport } from './routes/_authenticated/simulador-amortizacao'
+import { Route as AuthenticatedSimuladoresRouteImport } from './routes/_authenticated/simuladores'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
@@ -433,6 +434,12 @@ const AuthenticatedSimuladorAmortizacaoRoute =
   AuthenticatedSimuladorAmortizacaoRouteImport.update({
     id: '/simulador-amortizacao',
     path: '/simulador-amortizacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSimuladoresRoute =
+  AuthenticatedSimuladoresRouteImport.update({
+    id: '/simuladores',
+    path: '/simuladores',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
@@ -807,6 +814,7 @@ export interface FileRoutesByFullPath {
   '/reserva': typeof AuthenticatedReservaRoute
   '/sdr': typeof AuthenticatedSdrRoute
   '/simulador-amortizacao': typeof AuthenticatedSimuladorAmortizacaoRoute
+  '/simuladores': typeof AuthenticatedSimuladoresRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
@@ -924,6 +932,7 @@ export interface FileRoutesByTo {
   '/reserva': typeof AuthenticatedReservaRoute
   '/sdr': typeof AuthenticatedSdrRoute
   '/simulador-amortizacao': typeof AuthenticatedSimuladorAmortizacaoRoute
+  '/simuladores': typeof AuthenticatedSimuladoresRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
@@ -1043,6 +1052,7 @@ export interface FileRoutesById {
   '/_authenticated/reserva': typeof AuthenticatedReservaRoute
   '/_authenticated/sdr': typeof AuthenticatedSdrRoute
   '/_authenticated/simulador-amortizacao': typeof AuthenticatedSimuladorAmortizacaoRoute
+  '/_authenticated/simuladores': typeof AuthenticatedSimuladoresRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
@@ -1162,6 +1172,7 @@ export interface FileRouteTypes {
     | '/reserva'
     | '/sdr'
     | '/simulador-amortizacao'
+    | '/simuladores'
     | '/tarefas'
     | '/templates'
     | '/vitrine'
@@ -1279,6 +1290,7 @@ export interface FileRouteTypes {
     | '/reserva'
     | '/sdr'
     | '/simulador-amortizacao'
+    | '/simuladores'
     | '/tarefas'
     | '/templates'
     | '/vitrine'
@@ -1397,6 +1409,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reserva'
     | '/_authenticated/sdr'
     | '/_authenticated/simulador-amortizacao'
+    | '/_authenticated/simuladores'
     | '/_authenticated/tarefas'
     | '/_authenticated/templates'
     | '/_authenticated/vitrine'
@@ -1913,6 +1926,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSimuladorAmortizacaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/simuladores': {
+      id: '/_authenticated/simuladores'
+      path: '/simuladores'
+      fullPath: '/simuladores'
+      preLoaderRoute: typeof AuthenticatedSimuladoresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tarefas': {
       id: '/_authenticated/tarefas'
       path: '/tarefas'
@@ -2367,6 +2387,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReservaRoute: typeof AuthenticatedReservaRoute
   AuthenticatedSdrRoute: typeof AuthenticatedSdrRoute
   AuthenticatedSimuladorAmortizacaoRoute: typeof AuthenticatedSimuladorAmortizacaoRoute
+  AuthenticatedSimuladoresRoute: typeof AuthenticatedSimuladoresRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedVitrineRoute: typeof AuthenticatedVitrineRoute
@@ -2444,6 +2465,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSdrRoute: AuthenticatedSdrRoute,
   AuthenticatedSimuladorAmortizacaoRoute:
     AuthenticatedSimuladorAmortizacaoRoute,
+  AuthenticatedSimuladoresRoute: AuthenticatedSimuladoresRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedVitrineRoute: AuthenticatedVitrineRoute,
