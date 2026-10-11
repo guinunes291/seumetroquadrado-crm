@@ -10,7 +10,10 @@ import { LeadObjecoes } from "@/components/lead-objecoes";
 import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
 import { EmpreendimentoRecomendado } from "@/components/empreendimento-recomendado";
 import type { DossieLead } from "@/features/leads/dossie/types";
-import { parseValorBR } from "@/lib/simulador";
+import {
+  prefillDaAprovacao,
+  useAprovacaoParaPlanilha,
+} from "@/features/simulador-amortizacao/prefill-lead";
 import { PerfilClienteCard } from "@/features/leads/dossie/perfil-cliente-card";
 
 export function QualificacaoTab({ lead }: { lead: DossieLead }) {
@@ -22,23 +25,7 @@ export function QualificacaoTab({ lead }: { lead: DossieLead }) {
         entradaInicial={lead.entrada_disponivel}
         rendaInicial={lead.renda_informada}
       />
-      <Button asChild variant="outline" className="w-full justify-start">
-        <Link
-          to="/simulador-amortizacao"
-          search={{
-            renda:
-              parseValorBR(lead.renda_informada == null ? null : String(lead.renda_informada)) ??
-              undefined,
-            entrada:
-              parseValorBR(
-                lead.entrada_disponivel == null ? null : String(lead.entrada_disponivel),
-              ) ?? undefined,
-          }}
-        >
-          <Calculator className="mr-2 h-4 w-4" />
-          Planilha de amortização (SAC x PRICE)
-        </Link>
-      </Button>
+      <BotaoPlanilhaAmortizacao lead={lead} />
       <Button asChild variant="outline" className="w-full justify-start">
         <Link to="/vitrine" search={{ leadId: lead.id }}>
           <MapTrifold className="mr-2 h-4 w-4" />
@@ -57,5 +44,21 @@ export function QualificacaoTab({ lead }: { lead: DossieLead }) {
         }}
       />
     </>
+  );
+}
+
+/** Abre a planilha de amortização com os dados do contrato (aprovação de crédito). */
+function BotaoPlanilhaAmortizacao({ lead }: { lead: DossieLead }) {
+  const aprovacao = useAprovacaoParaPlanilha(lead.id);
+  const busca = prefillDaAprovacao(aprovacao.data, lead.renda_informada);
+  return (
+    <Button asChild variant="outline" className="w-full justify-start">
+      <Link to="/simulador-amortizacao" search={busca}>
+        <Calculator className="mr-2 h-4 w-4" />
+        {busca.financiamento
+          ? "Planilha de amortização (com a aprovação de crédito)"
+          : "Planilha de amortização (SAC x PRICE)"}
+      </Link>
+    </Button>
   );
 }

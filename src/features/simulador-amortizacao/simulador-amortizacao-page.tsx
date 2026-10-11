@@ -4,9 +4,18 @@
 // planta e amortizações extras com FGTS. Toda a conta mora em lib/amortizacao;
 // esta tela só coleta os dados e formata o resultado.
 
-import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useId, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ArrowsLeftRight, Copy, FileXls, Info, Plus, Trash, Warning } from "@phosphor-icons/react";
+import {
+  ArrowsLeftRight,
+  CaretDown,
+  Copy,
+  FilePdf,
+  Info,
+  Plus,
+  Trash,
+  Warning,
+} from "@phosphor-icons/react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +25,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Select,
@@ -33,18 +49,21 @@ import {
   type ResultadoSimulacao,
   type SistemaAmortizacao,
 } from "@/lib/amortizacao";
-import { exportSheetsXlsx } from "@/lib/spreadsheets";
+import { parseValorBR } from "@/lib/simulador";
 import { cn } from "@/lib/utils";
 import {
   agruparPorAno,
+  avaliacaoEstimada,
+  lerDecimal,
+  resumoAjustes,
   formInicial,
-  linhasParaExcel,
   paramsDoForm,
-  resumoParaExcel,
+  leituraComercial,
   textoResumo,
   valorFinanciadoDe,
   type ExtraForm,
   type FormSimulador,
+  type PrefillSimulador,
   type VisaoSistema,
 } from "./estado";
 
@@ -58,11 +77,7 @@ const pct = (v: number, casas = 2) =>
 
 type Resultados = Partial<Record<SistemaAmortizacao, ResultadoSimulacao>>;
 
-export function SimuladorAmortizacaoPage({
-  prefill,
-}: {
-  prefill?: { renda?: number; valor?: number; entrada?: number };
-}) {
+export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulador }) {
   const [form, setForm] = useState<FormSimulador>(() => formInicial(prefill));
   const set = <K extends keyof FormSimulador>(k: K, v: FormSimulador[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -80,17 +95,14 @@ export function SimuladorAmortizacaoPage({
   const sistemasAtivos = (["SAC", "PRICE"] as const).filter((s) => resultados[s]);
   const avisos = [...new Set(sistemasAtivos.flatMap((s) => resultados[s]!.avisos))];
 
-  async function exportar() {
+  // PDF é o ÚNICO formato de exportação (decisão 2026-10-11). O gerador só
+  // desce no clique (lazy), como os outros PDFs do CRM.
+  async function exportarPdf(completo: boolean) {
     try {
-      await exportSheetsXlsx(`simulacao-amortizacao-${form.inicio}`, [
-        { name: "Resumo", rows: resumoParaExcel(resultados, form) },
-        ...sistemasAtivos.map((s) => ({
-          name: s,
-          rows: linhasParaExcel(resultados[s]!.linhas),
-        })),
-      ]);
+      const { imprimirPlanilha } = await import("./planilha-pdf");
+      await imprimirPlanilha({ form, resultados, completo });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível exportar.");
+      toast.error(e instanceof Error ? e.message : "Não foi possível gerar o PDF.");
     }
   }
 
@@ -114,9 +126,32 @@ export function SimuladorAmortizacaoPage({
             <Button variant="outline" onClick={copiarResumo} disabled={!sistemasAtivos.length}>
               <Copy className="mr-1.5 h-4 w-4" /> Copiar resumo
             </Button>
-            <Button onClick={exportar} disabled={!sistemasAtivos.length}>
-              <FileXls className="mr-1.5 h-4 w-4" /> Exportar Excel
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={!sistemasAtivos.length}>
+                  <FilePdf className="mr-1.5 h-4 w-4" /> Exportar PDF
+                  <CaretDown className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuItem onSelect={() => void exportarPdf(false)}>
+                  <span>
+                    <span className="block font-medium">PDF resumido</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      Comparativo, leitura e evolução ano a ano
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void exportarPdf(true)}>
+                  <span>
+                    <span className="block font-medium">PDF completo</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      Tudo acima + planilha mês a mês
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         }
       />
@@ -139,7 +174,8 @@ export function SimuladorAmortizacaoPage({
           {!sistemasAtivos.length ? (
             <Card>
               <CardContent className="p-6 text-sm text-muted-foreground">
-                Informe o valor do imóvel, a entrada e o prazo para gerar a planilha.
+                Informe o valor do financiamento, a taxa de juros e o prazo do contrato para gerar a
+                planilha.
               </CardContent>
             </Card>
           ) : (
@@ -192,7 +228,7 @@ function Formulario({
   set: <K extends keyof FormSimulador>(k: K, v: FormSimulador[K]) => void;
   setForm: React.Dispatch<React.SetStateAction<FormSimulador>>;
 }) {
-  const financiado = valorFinanciadoDe(form);
+  const [ajustesAbertos, setAjustesAbertos] = useState(false);
   const taxaConvertida =
     form.tipoTaxa === "nominal"
       ? `efetiva ${pct(nominalParaEfetiva(form.taxaAnual || 0))} a.a.`
@@ -206,73 +242,26 @@ function Formulario({
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="border-primary/40">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Contrato</CardTitle>
+          <CardTitle className="text-sm">Dados do financiamento (do contrato)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Campo label="Sistema">
-            <ToggleGroup
-              type="single"
-              value={form.visao}
-              onValueChange={(v) => v && set("visao", v as VisaoSistema)}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="comparar" aria-label="Comparar SAC e PRICE">
-                <ArrowsLeftRight className="mr-1 h-4 w-4" /> Comparar
-              </ToggleGroupItem>
-              <ToggleGroupItem value="SAC">SAC</ToggleGroupItem>
-              <ToggleGroupItem value="PRICE">PRICE</ToggleGroupItem>
-            </ToggleGroup>
-          </Campo>
-          <div className="grid grid-cols-2 gap-3">
-            <Numero
-              label="Valor do imóvel"
-              value={form.valorImovel}
-              onChange={(v) => set("valorImovel", v)}
-            />
-            <Numero
-              label="Entrada total"
-              value={form.entrada}
-              onChange={(v) => set("entrada", v)}
-              hint="Recursos próprios + FGTS + subsídio"
-            />
-          </div>
-          <div className="rounded-md bg-muted/60 px-3 py-2 text-sm">
-            Valor financiado: <span className="font-semibold">{brl(financiado)}</span>
-            {form.valorImovel > 0 && (
-              <span className="text-muted-foreground">
-                {" "}
-                ({pct((financiado / form.valorImovel) * 100, 1)} do imóvel)
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Numero
-              label="Prazo (meses)"
-              value={form.prazoMeses}
-              onChange={(v) => set("prazoMeses", Math.round(v))}
-              hint={
-                form.prazoMeses
-                  ? `${(form.prazoMeses / 12).toFixed(1).replace(".", ",")} anos`
-                  : undefined
-              }
-            />
-            <Campo label="1ª cobrança">
-              <Input
-                type="month"
-                value={form.inicio}
-                onChange={(e) => set("inicio", e.target.value)}
-              />
-            </Campo>
-          </div>
+          <Numero
+            label="Valor do financiamento (R$)"
+            value={form.valorFinanciamento}
+            onChange={(v) => set("valorFinanciamento", v)}
+            placeholder="ex.: 208000"
+            autoFocus={!form.valorFinanciamento}
+          />
           <div className="grid grid-cols-[1fr_auto] items-end gap-3">
             <Numero
-              label="Juros ao ano (%)"
+              label="Taxa de juros a.a. (%)"
               value={form.taxaAnual}
-              step={0.01}
+              decimal
               onChange={(v) => set("taxaAnual", v)}
-              hint={taxaConvertida}
+              placeholder="ex.: 8,16"
+              hint={form.taxaAnual ? taxaConvertida : 'Caixa: use os "Juros Nominais" do contrato'}
             />
             <Campo label="Tipo">
               <Select
@@ -289,270 +278,347 @@ function Formulario({
               </Select>
             </Campo>
           </div>
-          <Campo label="Correção do saldo">
-            <Select
-              value={form.modoCorrecao}
-              onValueChange={(v) => set("modoCorrecao", v as FormSimulador["modoCorrecao"])}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tr">
-                  TR projetada ({pct(TR_MENSAL_REFERENCIA_2026)} a.m.)
-                </SelectItem>
-                <SelectItem value="fixa">Sem correção (taxa fixa)</SelectItem>
-                <SelectItem value="personalizada">Personalizada (TR, IPCA...)</SelectItem>
-              </SelectContent>
-            </Select>
-          </Campo>
-          {form.modoCorrecao === "personalizada" && (
-            <Numero
-              label="Correção (% ao mês)"
-              value={form.correcaoPersonalizada}
-              step={0.01}
-              onChange={(v) => set("correcaoPersonalizada", v)}
-            />
-          )}
           <Numero
-            label="Renda familiar bruta"
-            value={form.renda}
-            onChange={(v) => set("renda", v)}
-            hint="Para medir o comprometimento (limite de 30%)"
+            label="Prazo (meses)"
+            value={form.prazoMeses}
+            onChange={(v) => set("prazoMeses", Math.round(v))}
+            placeholder="ex.: 420"
+            hint={
+              form.prazoMeses
+                ? `${(form.prazoMeses / 12).toFixed(1).replace(".", ",")} anos`
+                : undefined
+            }
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Seguros e taxas</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Campo label="MIP (morte e invalidez)">
+          <Campo label="Sistema de amortização">
             <ToggleGroup
               type="single"
-              value={form.modoSeguro}
-              onValueChange={(v) => v && set("modoSeguro", v as FormSimulador["modoSeguro"])}
+              value={form.visao}
+              onValueChange={(v) => v && set("visao", v as VisaoSistema)}
               className="justify-start"
             >
-              <ToggleGroupItem value="idade">Por idade (estimativa)</ToggleGroupItem>
-              <ToggleGroupItem value="proposta">Taxas da proposta</ToggleGroupItem>
+              <ToggleGroupItem value="comparar" aria-label="Comparar SAC e PRICE">
+                <ArrowsLeftRight className="mr-1 h-4 w-4" /> Comparar
+              </ToggleGroupItem>
+              <ToggleGroupItem value="SAC">SAC</ToggleGroupItem>
+              <ToggleGroupItem value="PRICE">PRICE</ToggleGroupItem>
             </ToggleGroup>
           </Campo>
-          {form.modoSeguro === "idade" ? (
-            <div className="space-y-2">
-              {form.proponentes.map((p, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-                  <Numero
-                    label={`Idade proponente ${idx + 1}`}
-                    value={p.idade}
-                    onChange={(v) =>
-                      setForm((f) => ({
-                        ...f,
-                        proponentes: f.proponentes.map((x, i) =>
-                          i === idx ? { ...x, idade: v } : x,
-                        ),
-                      }))
-                    }
-                  />
-                  <Numero
-                    label="% da cobertura"
-                    value={p.participacao}
-                    onChange={(v) =>
-                      setForm((f) => ({
-                        ...f,
-                        proponentes: f.proponentes.map((x, i) =>
-                          i === idx ? { ...x, participacao: v } : x,
-                        ),
-                      }))
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Remover proponente"
-                    disabled={form.proponentes.length === 1}
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        proponentes: f.proponentes.filter((_, i) => i !== idx),
-                      }))
-                    }
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              {form.proponentes.length < 4 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setForm((f) => {
-                      const n = f.proponentes.length + 1;
-                      const parte = Math.round(100 / n);
-                      return {
-                        ...f,
-                        proponentes: [...f.proponentes, { idade: 30, participacao: parte }].map(
-                          (x, i, arr) => ({
-                            ...x,
-                            participacao:
-                              i === arr.length - 1 ? 100 - parte * (arr.length - 1) : parte,
-                          }),
-                        ),
-                      };
-                    })
-                  }
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Proponente (composição de renda)
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Numero
-              label="MIP (% ao mês sobre o saldo)"
-              value={form.mipPropostaPct}
-              step={0.0001}
-              onChange={(v) => set("mipPropostaPct", v)}
-            />
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <Numero
-              label="DFI (% a.m. sobre o imóvel)"
-              value={form.dfiPct}
-              step={0.0001}
-              onChange={(v) => set("dfiPct", v)}
-            />
-            <Numero
-              label="Taxa adm (R$/mês)"
-              value={form.taxaAdm}
-              onChange={(v) => set("taxaAdm", v)}
-            />
-          </div>
-          <Numero
-            label="Tarifas na contratação (R$)"
-            value={form.despesasIniciais}
-            onChange={(v) => set("despesasIniciais", v)}
-            hint="Avaliação, cadastro... entram só no CET"
-          />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between text-sm">
-            Fase de obra (compra na planta)
-            <Switch checked={form.obraAtiva} onCheckedChange={(v) => set("obraAtiva", v)} />
-          </CardTitle>
-        </CardHeader>
-        {form.obraAtiva && (
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Numero
-                label="Meses de obra"
-                value={form.obraMeses}
-                onChange={(v) => set("obraMeses", Math.round(v))}
-              />
-              <Numero
-                label="% liberado na assinatura"
-                value={form.obraLiberacaoInicial}
-                onChange={(v) => set("obraLiberacaoInicial", Math.min(100, Math.max(0, v)))}
-              />
-            </div>
-            <label className="flex items-center justify-between gap-2 rounded-lg border p-2.5 text-sm">
-              <span>
-                <span className="block font-medium">Cliente paga a correção na obra</span>
-                <span className="block text-[11px] text-muted-foreground">
-                  Desligado: a correção é somada ao saldo
-                </span>
-              </span>
-              <Switch
-                checked={form.obraPagaCorrecao}
-                onCheckedChange={(v) => set("obraPagaCorrecao", v)}
-              />
-            </label>
-            <p className="text-[11px] text-muted-foreground">
-              Na obra o cliente paga só juros sobre o que o banco já liberou para a construtora
-              (liberação linear até 100% no último mês), mais seguros e taxa. A amortização começa
-              depois.
-            </p>
-          </CardContent>
-        )}
-      </Card>
+      {/* Tudo abaixo tem padrão e é calculado sozinho; fica recolhido. */}
+      <Collapsible open={ajustesAbertos} onOpenChange={setAjustesAbertos}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-start justify-between gap-3 rounded-lg border bg-card p-3 text-left text-sm hover:bg-accent/40"
+          >
+            <span className="min-w-0">
+              <span className="block font-medium">Calculado automaticamente</span>
+              <span className="block text-[11px] text-muted-foreground">{resumoAjustes(form)}</span>
+            </span>
+            <CaretDown
+              className={cn(
+                "mt-0.5 h-4 w-4 shrink-0 transition-transform",
+                ajustesAbertos && "rotate-180",
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Correção e renda</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Campo label="Correção do saldo">
+                <Select
+                  value={form.modoCorrecao}
+                  onValueChange={(v) => set("modoCorrecao", v as FormSimulador["modoCorrecao"])}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tr">
+                      TR projetada ({pct(TR_MENSAL_REFERENCIA_2026)} a.m.)
+                    </SelectItem>
+                    <SelectItem value="fixa">Sem correção (taxa fixa)</SelectItem>
+                    <SelectItem value="personalizada">Personalizada (TR, IPCA...)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Campo>
+              {form.modoCorrecao === "personalizada" && (
+                <Numero
+                  label="Correção (% ao mês)"
+                  value={form.correcaoPersonalizada}
+                  decimal
+                  onChange={(v) => set("correcaoPersonalizada", v)}
+                />
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <Numero
+                  label="Renda familiar bruta"
+                  value={form.renda}
+                  onChange={(v) => set("renda", v)}
+                  hint="Mede o comprometimento (30%)"
+                />
+                <Campo label="1ª cobrança">
+                  <Input
+                    type="month"
+                    value={form.inicio}
+                    onChange={(e) => set("inicio", e.target.value)}
+                  />
+                </Campo>
+              </div>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Amortização extra (FGTS, 13º, bônus)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {form.extras.map((e, idx) => (
-            <div key={idx} className="space-y-2 rounded-lg border p-2.5">
-              <div className="grid grid-cols-2 gap-2">
-                <Numero
-                  label="Na parcela nº"
-                  value={e.parcela}
-                  onChange={(v) => setExtra(idx, { parcela: Math.round(v) })}
-                />
-                <Numero
-                  label="Valor (R$)"
-                  value={e.valor}
-                  onChange={(v) => setExtra(idx, { valor: v })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Numero
-                  label="Repetir a cada (parcelas)"
-                  value={e.repetirACada}
-                  onChange={(v) => setExtra(idx, { repetirACada: Math.round(v) })}
-                  hint="0 = uma vez · 24 = FGTS"
-                />
-                <Numero
-                  label="Quantas vezes"
-                  value={e.vezes}
-                  onChange={(v) => setExtra(idx, { vezes: Math.round(v) })}
-                  hint="0 = até quitar"
-                />
-              </div>
-              <div className="flex items-center gap-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Seguros e taxas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Campo label="MIP (morte e invalidez)">
                 <ToggleGroup
                   type="single"
-                  value={e.modo}
-                  onValueChange={(v) => v && setExtra(idx, { modo: v as ExtraForm["modo"] })}
-                  className="flex-1 justify-start"
+                  value={form.modoSeguro}
+                  onValueChange={(v) => v && set("modoSeguro", v as FormSimulador["modoSeguro"])}
+                  className="justify-start"
                 >
-                  <ToggleGroupItem value="reduzir_prazo">Reduzir prazo</ToggleGroupItem>
-                  <ToggleGroupItem value="reduzir_parcela">Reduzir parcela</ToggleGroupItem>
+                  <ToggleGroupItem value="idade">Por idade (estimativa)</ToggleGroupItem>
+                  <ToggleGroupItem value="proposta">Taxas da proposta</ToggleGroupItem>
                 </ToggleGroup>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Remover amortização"
-                  onClick={() =>
-                    setForm((f) => ({ ...f, extras: f.extras.filter((_, i) => i !== idx) }))
-                  }
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
+              </Campo>
+              {form.modoSeguro === "idade" ? (
+                <div className="space-y-2">
+                  {form.proponentes.map((p, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                      <Numero
+                        label={`Idade proponente ${idx + 1}`}
+                        value={p.idade}
+                        onChange={(v) =>
+                          setForm((f) => ({
+                            ...f,
+                            proponentes: f.proponentes.map((x, i) =>
+                              i === idx ? { ...x, idade: v } : x,
+                            ),
+                          }))
+                        }
+                      />
+                      <Numero
+                        label="% da cobertura"
+                        value={p.participacao}
+                        onChange={(v) =>
+                          setForm((f) => ({
+                            ...f,
+                            proponentes: f.proponentes.map((x, i) =>
+                              i === idx ? { ...x, participacao: v } : x,
+                            ),
+                          }))
+                        }
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Remover proponente"
+                        disabled={form.proponentes.length === 1}
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            proponentes: f.proponentes.filter((_, i) => i !== idx),
+                          }))
+                        }
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {form.proponentes.length < 4 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setForm((f) => {
+                          const n = f.proponentes.length + 1;
+                          const parte = Math.round(100 / n);
+                          return {
+                            ...f,
+                            proponentes: [...f.proponentes, { idade: 30, participacao: parte }].map(
+                              (x, i, arr) => ({
+                                ...x,
+                                participacao:
+                                  i === arr.length - 1 ? 100 - parte * (arr.length - 1) : parte,
+                              }),
+                            ),
+                          };
+                        })
+                      }
+                    >
+                      <Plus className="mr-1 h-4 w-4" /> Proponente (composição de renda)
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Numero
+                  label="MIP (% ao mês sobre o saldo)"
+                  value={form.mipPropostaPct}
+                  decimal
+                  onChange={(v) => set("mipPropostaPct", v)}
+                />
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <Numero
+                  label="DFI (% a.m. sobre o imóvel)"
+                  value={form.dfiPct}
+                  decimal
+                  onChange={(v) => set("dfiPct", v)}
+                />
+                <Numero
+                  label="Taxa adm (R$/mês)"
+                  value={form.taxaAdm}
+                  onChange={(v) => set("taxaAdm", v)}
+                />
               </div>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setForm((f) => ({
-                ...f,
-                extras: [
-                  ...f.extras,
-                  { parcela: 24, valor: 10_000, modo: "reduzir_prazo", repetirACada: 24, vezes: 0 },
-                ],
-              }))
-            }
-          >
-            <Plus className="mr-1 h-4 w-4" /> Adicionar amortização
-          </Button>
-        </CardContent>
-      </Card>
+              <Numero
+                label="Valor de avaliação do imóvel (R$)"
+                value={form.valorAvaliacao}
+                onChange={(v) => set("valorAvaliacao", v)}
+                placeholder={`estimado: ${brl(avaliacaoEstimada(form))}`}
+                hint="Base do DFI. Vazio = financiamento ÷ 0,8 (cota de 80%)"
+              />
+              <Numero
+                label="Tarifas na contratação (R$)"
+                value={form.despesasIniciais}
+                onChange={(v) => set("despesasIniciais", v)}
+                hint="Avaliação, cadastro... entram só no CET"
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between text-sm">
+                Fase de obra (compra na planta)
+                <Switch checked={form.obraAtiva} onCheckedChange={(v) => set("obraAtiva", v)} />
+              </CardTitle>
+            </CardHeader>
+            {form.obraAtiva && (
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Numero
+                    label="Meses de obra"
+                    value={form.obraMeses}
+                    onChange={(v) => set("obraMeses", Math.round(v))}
+                  />
+                  <Numero
+                    label="% liberado na assinatura"
+                    value={form.obraLiberacaoInicial}
+                    onChange={(v) => set("obraLiberacaoInicial", Math.min(100, Math.max(0, v)))}
+                  />
+                </div>
+                <label className="flex items-center justify-between gap-2 rounded-lg border p-2.5 text-sm">
+                  <span>
+                    <span className="block font-medium">Cliente paga a correção na obra</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      Desligado: a correção é somada ao saldo
+                    </span>
+                  </span>
+                  <Switch
+                    checked={form.obraPagaCorrecao}
+                    onCheckedChange={(v) => set("obraPagaCorrecao", v)}
+                  />
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Na obra o cliente paga só juros sobre o que o banco já liberou para a construtora
+                  (liberação linear até 100% no último mês), mais seguros e taxa. A amortização
+                  começa depois.
+                </p>
+              </CardContent>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Amortização extra (FGTS, 13º, bônus)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {form.extras.map((e, idx) => (
+                <div key={idx} className="space-y-2 rounded-lg border p-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Numero
+                      label="Na parcela nº"
+                      value={e.parcela}
+                      onChange={(v) => setExtra(idx, { parcela: Math.round(v) })}
+                    />
+                    <Numero
+                      label="Valor (R$)"
+                      value={e.valor}
+                      onChange={(v) => setExtra(idx, { valor: v })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Numero
+                      label="Repetir a cada (parcelas)"
+                      value={e.repetirACada}
+                      onChange={(v) => setExtra(idx, { repetirACada: Math.round(v) })}
+                      hint="0 = uma vez · 24 = FGTS"
+                    />
+                    <Numero
+                      label="Quantas vezes"
+                      value={e.vezes}
+                      onChange={(v) => setExtra(idx, { vezes: Math.round(v) })}
+                      hint="0 = até quitar"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ToggleGroup
+                      type="single"
+                      value={e.modo}
+                      onValueChange={(v) => v && setExtra(idx, { modo: v as ExtraForm["modo"] })}
+                      className="flex-1 justify-start"
+                    >
+                      <ToggleGroupItem value="reduzir_prazo">Reduzir prazo</ToggleGroupItem>
+                      <ToggleGroupItem value="reduzir_parcela">Reduzir parcela</ToggleGroupItem>
+                    </ToggleGroup>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remover amortização"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, extras: f.extras.filter((_, i) => i !== idx) }))
+                      }
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    extras: [
+                      ...f.extras,
+                      {
+                        parcela: 24,
+                        valor: 10_000,
+                        modo: "reduzir_prazo",
+                        repetirACada: 24,
+                        vezes: 0,
+                      },
+                    ],
+                  }))
+                }
+              >
+                <Plus className="mr-1 h-4 w-4" /> Adicionar amortização
+              </Button>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
@@ -655,7 +721,7 @@ function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resulta
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <Kpi
-          titulo="Valor financiado"
+          titulo="Valor do financiamento"
           valor={brl(valorFinanciadoDe(form))}
           sub={`${form.prazoMeses} meses`}
         />
@@ -745,55 +811,17 @@ function paramsCorrecao(form: FormSimulador): number {
   return form.modoCorrecao === "tr" ? TR_MENSAL_REFERENCIA_2026 : form.correcaoPersonalizada || 0;
 }
 
-/** A leitura que o corretor usa na conversa com o cliente. */
+/** A leitura que o corretor usa na conversa com o cliente (mesma do PDF). */
 function LeituraComercial({ sac, price }: { sac: ResultadoSimulacao; price: ResultadoSimulacao }) {
-  const difEntrada = sac.resumo.primeiraParcela - price.resumo.primeiraParcela;
-  const economia = price.resumo.totalPago - sac.resumo.totalPago;
-  // Mês em que a parcela SAC fica menor que a PRICE.
-  const am = (r: ResultadoSimulacao) => r.linhas.filter((l) => l.fase === "amortizacao");
-  const sA = am(sac);
-  const pA = am(price);
-  const cruzamento = sA.findIndex((l, k) => pA[k] && l.encargoTotal <= pA[k]!.encargoTotal);
-  // Com correção, o saldo do PRICE pode SUBIR antes de cair: a amortização do
-  // começo é menor que a correção do mês. Mostra até quando ele fica acima do
-  // valor financiado.
-  const saldoInicialPrice = pA[0]?.saldoInicial ?? 0;
-  const picoPrice = Math.max(...pA.map((l) => l.saldoFinal));
-  const voltaAbaixo = pA.findIndex((l) => l.saldoFinal < saldoInicialPrice);
   return (
     <Card className="border-primary/30 bg-primary/5">
       <CardContent className="space-y-1.5 p-4 text-sm">
         <div className="font-medium">Leitura para o cliente</div>
-        <p>
-          O SAC começa <strong>{brl(difEntrada)}</strong> mais caro por mês e exige renda mínima de{" "}
-          <strong>{brl(sac.resumo.rendaMinima)}</strong> (no PRICE, {brl(price.resumo.rendaMinima)}
-          ).
-        </p>
-        {cruzamento > 0 && (
-          <p>
-            A partir da parcela <strong>{cruzamento + 1}</strong> (cerca de{" "}
-            {Math.ceil((cruzamento + 1) / 12)} anos) a parcela do SAC fica menor que a do PRICE e
-            continua caindo.
+        {leituraComercial(sac, price).map((frase, k) => (
+          <p key={k}>
+            {frase.map((t, n) => (t.forte ? <strong key={n}>{t.texto}</strong> : t.texto))}
           </p>
-        )}
-        {picoPrice > saldoInicialPrice + 1 && voltaAbaixo > 0 && (
-          <p>
-            Atenção ao PRICE: com a correção, o saldo devedor <strong>sobe</strong> até{" "}
-            <strong>{brl(picoPrice)}</strong> e só volta a ficar abaixo do valor financiado na
-            parcela <strong>{voltaAbaixo + 1}</strong> (cerca de {Math.ceil((voltaAbaixo + 1) / 12)}{" "}
-            anos). No SAC ele cai desde o 1º mês.
-          </p>
-        )}
-        <p>
-          No contrato inteiro, o SAC custa <strong>{brl(economia)}</strong> a menos.
-          {price.resumo.ultimaParcela > price.resumo.primeiraParcela * 1.05 && (
-            <>
-              {" "}
-              Com a correção, a parcela do PRICE não fica fixa: sai de{" "}
-              {brl(price.resumo.primeiraParcela)} e termina em {brl(price.resumo.ultimaParcela)}.
-            </>
-          )}
-        </p>
+        ))}
       </CardContent>
     </Card>
   );
@@ -952,37 +980,75 @@ function TabelaAnual({ linhas }: { linhas: LinhaPlanilha[] }) {
 // Peças pequenas
 // ============================================================================
 
-function Campo({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+function Campo({
+  label,
+  children,
+  hint,
+  htmlFor,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+  htmlFor?: string;
+}) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
+      <Label className="text-xs" htmlFor={htmlFor}>
+        {label}
+      </Label>
       {children}
       {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }
 
+/**
+ * Campo numérico em texto livre, do jeito que o corretor digita: dinheiro
+ * aceita "208.000", "208000" e "208.000,50" (parseValorBR); `decimal` (taxas)
+ * trata ponto e vírgula sempre como decimal, porque "0.015" é 0,015% e não 15.
+ * Mantém o texto digitado e só reformata quando o valor muda por fora.
+ */
 function Numero({
   label,
   value,
   onChange,
-  step,
+  decimal = false,
   hint,
+  placeholder,
+  autoFocus,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
-  step?: number;
+  decimal?: boolean;
   hint?: string;
+  placeholder?: string;
+  autoFocus?: boolean;
 }) {
+  const id = useId();
+  const ler = (t: string) => (decimal ? lerDecimal(t) : parseValorBR(t));
+  const formatar = (v: number) =>
+    v ? v.toLocaleString("pt-BR", { maximumFractionDigits: 6, useGrouping: !decimal }) : "";
+  const [texto, setTexto] = useState(() => formatar(value));
+  const lido = ler(texto) ?? 0;
+  if (Math.abs(lido - (value || 0)) > 1e-9 && formatar(value) !== texto) {
+    // Valor trocado por fora (prefill, botão): reflete no campo. Padrão do
+    // React para estado derivado de prop, sem efeito.
+    setTexto(formatar(value));
+  }
   return (
-    <Campo label={label} hint={hint}>
+    <Campo label={label} hint={hint} htmlFor={id}>
       <Input
-        type="number"
+        id={id}
+        type="text"
         inputMode="decimal"
-        step={step ?? "any"}
-        value={Number.isFinite(value) && value !== 0 ? value : value === 0 ? "0" : ""}
-        onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+        value={texto}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        onChange={(e) => {
+          setTexto(e.target.value);
+          onChange(ler(e.target.value) ?? 0);
+        }}
       />
     </Campo>
   );

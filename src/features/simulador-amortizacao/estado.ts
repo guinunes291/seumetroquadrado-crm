@@ -1,6 +1,11 @@
 // Estado do formulário da planilha de amortização e as conversões puras entre
 // o que o corretor digita e o que o motor (lib/amortizacao) recebe. Sem React
 // de propósito: a tela só renderiza; as regras de conversão ficam testáveis.
+//
+// Entrada (decisão do dono, 2026-10-11): o corretor digita SÓ os três dados do
+// contrato — valor do financiamento, taxa de juros a.a. e prazo. Todo o resto
+// tem padrão e é calculado sozinho (TR, seguros, taxa adm, base do DFI); os
+// ajustes ficam recolhidos para quem tiver a proposta do banco em mãos.
 
 import {
   DFI_MENSAL_PADRAO,
@@ -36,9 +41,8 @@ export interface ExtraForm {
 
 export interface FormSimulador {
   visao: VisaoSistema;
-  valorImovel: number;
-  /** Recursos próprios + FGTS + subsídio. */
-  entrada: number;
+  /** Valor do financiamento do contrato (o que o banco empresta). */
+  valorFinanciamento: number;
   prazoMeses: number;
   taxaAnual: number;
   tipoTaxa: TipoTaxa;
@@ -51,6 +55,11 @@ export interface FormSimulador {
   mipPropostaPct: number;
   /** % ao mês sobre o imóvel. */
   dfiPct: number;
+  /**
+   * Valor de avaliação do imóvel (base do DFI). 0 = estimado a partir do
+   * financiamento (ver avaliacaoEstimada).
+   */
+  valorAvaliacao: number;
   taxaAdm: number;
   renda: number;
   despesasIniciais: number;
@@ -69,15 +78,25 @@ export function mesSeguinte(hoje = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export function formInicial(
-  prefill: { renda?: number; valor?: number; entrada?: number } = {},
-): FormSimulador {
+/** O que dá para chegar pronto na URL (dossiê do lead, aprovação de crédito). */
+export interface PrefillSimulador {
+  financiamento?: number;
+  taxa?: number;
+  prazo?: number;
+  sistema?: "SAC" | "PRICE";
+  renda?: number;
+  avaliacao?: number;
+}
+
+export function formInicial(prefill: PrefillSimulador = {}): FormSimulador {
   return {
-    visao: "comparar",
-    valorImovel: prefill.valor ?? 250_000,
-    entrada: prefill.entrada ?? 50_000,
-    prazoMeses: 420,
-    taxaAnual: 8.16,
+    // Com o sistema do contrato informado, abre nele; sem, compara os dois.
+    visao: prefill.sistema ?? "comparar",
+    // Os três dados do contrato começam VAZIOS: são do contrato do cliente,
+    // não um exemplo — número inventado na tela vira número na conversa.
+    valorFinanciamento: prefill.financiamento ?? 0,
+    prazoMeses: prefill.prazo ?? 0,
+    taxaAnual: prefill.taxa ?? 0,
     tipoTaxa: "nominal",
     modoCorrecao: "tr",
     correcaoPersonalizada: TR_MENSAL_REFERENCIA_2026,
@@ -85,6 +104,7 @@ export function formInicial(
     proponentes: [{ idade: 30, participacao: 100 }],
     mipPropostaPct: 0.015,
     dfiPct: +(DFI_MENSAL_PADRAO * 100).toFixed(4),
+    valorAvaliacao: prefill.avaliacao ?? 0,
     taxaAdm: TAXA_ADM_PADRAO,
     renda: prefill.renda ?? 0,
     despesasIniciais: 0,
@@ -97,8 +117,25 @@ export function formInicial(
   };
 }
 
+/** Cota de financiamento usada para estimar o imóvel quando não há avaliação. */
+export const COTA_FINANCIAMENTO_ESTIMADA = 0.8;
+
 export function valorFinanciadoDe(f: FormSimulador): number {
-  return Math.max(0, (f.valorImovel || 0) - (f.entrada || 0));
+  return Math.max(0, f.valorFinanciamento || 0);
+}
+
+/**
+ * Base do DFI quando o corretor não informa a avaliação: financiamento ÷ 0,8
+ * (o banco financia até 80% do imóvel na regra geral). O DFI é pequeno — em
+ * 200 mil financiados, R$ 9,50 por mês — então a estimativa mexe centavos na
+ * parcela, e quem tiver a avaliação da proposta informa nos ajustes.
+ */
+export function avaliacaoEstimada(f: FormSimulador): number {
+  return Math.round(valorFinanciadoDe(f) / COTA_FINANCIAMENTO_ESTIMADA / 100) * 100;
+}
+
+export function baseDfiDe(f: FormSimulador): number {
+  return f.valorAvaliacao > 0 ? f.valorAvaliacao : avaliacaoEstimada(f);
 }
 
 export function correcaoDe(f: FormSimulador): number {
@@ -107,11 +144,34 @@ export function correcaoDe(f: FormSimulador): number {
   return f.correcaoPersonalizada || 0;
 }
 
+/**
+ * Uma linha com o que está sendo calculado sozinho — fica no cabeçalho dos
+ * ajustes recolhidos, para o corretor saber o que entrou na conta sem abrir.
+ */
+export function resumoAjustes(f: FormSimulador): string {
+  const num = (v: number, casas = 2) =>
+    v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+  const correcao =
+    f.modoCorrecao === "fixa"
+      ? "sem correção"
+      : f.modoCorrecao === "tr"
+        ? `TR ${num(TR_MENSAL_REFERENCIA_2026)}% a.m.`
+        : `correção ${num(f.correcaoPersonalizada)}% a.m.`;
+  const mip =
+    f.modoSeguro === "proposta"
+      ? "seguros da proposta"
+      : `seguros estimados (${f.proponentes.map((p) => `${p.idade} anos`).join(" + ")})`;
+  const partes = [correcao, mip, `taxa adm R$ ${num(f.taxaAdm, 0)}`];
+  if (f.obraAtiva) partes.push(`obra ${f.obraMeses} meses`);
+  if (f.extras.length) partes.push(`${f.extras.length} amortização extra`);
+  return partes.join(" · ");
+}
+
 /** Converte o formulário nos parâmetros do motor (sem o sistema). */
 export function paramsDoForm(f: FormSimulador): Omit<ParametrosFinanciamento, "sistema"> {
   return {
     valorFinanciado: valorFinanciadoDe(f),
-    valorImovel: f.valorImovel || 0,
+    valorImovel: baseDfiDe(f),
     prazoMeses: f.prazoMeses || 0,
     taxaJurosAnual: f.taxaAnual || 0,
     tipoTaxa: f.tipoTaxa,
@@ -179,7 +239,7 @@ export function agruparPorAno(linhas: LinhaPlanilha[]): LinhaAnual[] {
       ano,
       rotulo:
         primeiro?.competencia && ultimo?.competencia
-          ? `${primeiro.competencia} – ${ultimo.competencia}`
+          ? `${primeiro.competencia} a ${ultimo.competencia}`
           : `Ano ${ano}`,
       meses: bloco.length,
       encargoMedio: total / bloco.length,
@@ -196,72 +256,132 @@ export function agruparPorAno(linhas: LinhaPlanilha[]): LinhaAnual[] {
   return out;
 }
 
-/** Linhas da planilha prontas para o Excel (cabeçalhos em português). */
-export function linhasParaExcel(linhas: LinhaPlanilha[]): Record<string, string | number>[] {
-  return linhas.map((l) => ({
-    Mês: l.mes,
-    Competência: l.competencia ?? "",
-    Fase: l.fase === "obra" ? "Obra" : "Amortização",
-    Parcela: l.parcela ?? "",
-    "Saldo inicial": l.saldoInicial,
-    "Liberado (%)": l.liberado == null ? "" : +(l.liberado * 100).toFixed(2),
-    Correção: l.correcao,
-    "Saldo corrigido": l.saldoCorrigido,
-    Juros: l.juros,
-    Amortização: l.amortizacao,
-    "Prestação (A+J)": l.prestacao,
-    MIP: l.mip,
-    DFI: l.dfi,
-    "Taxa adm": l.taxaAdm,
-    "Encargo total": l.encargoTotal,
-    "Amortização extra": l.amortizacaoExtra,
-    "Saldo final": l.saldoFinal,
-  }));
+/** Um trecho de frase; `forte` sai em negrito (tela e PDF). */
+export type Trecho = { texto: string; forte?: boolean };
+
+const brlT = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const pctT = (v: number, casas = 2) =>
+  `${v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
+
+/**
+ * A leitura que o corretor usa com o cliente quando compara SAC e PRICE. Pura
+ * para a tela e o PDF dizerem exatamente a mesma coisa.
+ */
+export function leituraComercial(sac: ResultadoSimulacao, price: ResultadoSimulacao): Trecho[][] {
+  const difEntrada = sac.resumo.primeiraParcela - price.resumo.primeiraParcela;
+  const economia = price.resumo.totalPago - sac.resumo.totalPago;
+  const am = (r: ResultadoSimulacao) => r.linhas.filter((l) => l.fase === "amortizacao");
+  const sA = am(sac);
+  const pA = am(price);
+  // Parcela em que o SAC fica menor que o PRICE.
+  const cruzamento = sA.findIndex((l, k) => pA[k] && l.encargoTotal <= pA[k]!.encargoTotal);
+  // Com correção, o saldo do PRICE pode SUBIR antes de cair: a amortização do
+  // começo é menor que a correção do mês.
+  const saldoInicialPrice = pA[0]?.saldoInicial ?? 0;
+  const picoPrice = pA.length ? Math.max(...pA.map((l) => l.saldoFinal)) : 0;
+  const voltaAbaixo = pA.findIndex((l) => l.saldoFinal < saldoInicialPrice);
+  const anos = (parcela: number) => Math.ceil(parcela / 12);
+
+  const out: Trecho[][] = [
+    [
+      { texto: "O SAC começa " },
+      { texto: brlT(difEntrada), forte: true },
+      { texto: " mais caro por mês e exige renda mínima de " },
+      { texto: brlT(sac.resumo.rendaMinima), forte: true },
+      { texto: ` (no PRICE, ${brlT(price.resumo.rendaMinima)}).` },
+    ],
+  ];
+  if (cruzamento > 0) {
+    out.push([
+      { texto: "A partir da parcela " },
+      { texto: String(cruzamento + 1), forte: true },
+      {
+        texto: ` (cerca de ${anos(cruzamento + 1)} anos) a parcela do SAC fica menor que a do PRICE e continua caindo.`,
+      },
+    ]);
+  }
+  if (picoPrice > saldoInicialPrice + 1 && voltaAbaixo > 0) {
+    out.push([
+      { texto: "Atenção ao PRICE: com a correção, o saldo devedor " },
+      { texto: "sobe", forte: true },
+      { texto: " até " },
+      { texto: brlT(picoPrice), forte: true },
+      { texto: " e só volta a ficar abaixo do valor financiado na parcela " },
+      { texto: String(voltaAbaixo + 1), forte: true },
+      { texto: ` (cerca de ${anos(voltaAbaixo + 1)} anos). No SAC ele cai desde o 1º mês.` },
+    ]);
+  }
+  const final: Trecho[] = [
+    { texto: "No contrato inteiro, o SAC custa " },
+    { texto: brlT(economia), forte: true },
+    { texto: " a menos." },
+  ];
+  if (price.resumo.ultimaParcela > price.resumo.primeiraParcela * 1.05) {
+    final.push({
+      texto: ` Com a correção, a parcela do PRICE não fica fixa: sai de ${brlT(price.resumo.primeiraParcela)} e termina em ${brlT(price.resumo.ultimaParcela)}.`,
+    });
+  }
+  out.push(final);
+  return out;
 }
 
-export function resumoParaExcel(
+/** Linha do comparativo já formatada (Item | SAC | PRICE) — usada no PDF. */
+export type LinhaComparativo = { item: string; SAC: string; PRICE: string };
+
+export function linhasComparativo(
   resultados: Partial<Record<"SAC" | "PRICE", ResultadoSimulacao>>,
   f: FormSimulador,
-): Record<string, string | number>[] {
-  const linhas: [string, (r: ResultadoSimulacao) => string | number][] = [
-    ["1ª parcela (encargo total)", (r) => r.resumo.primeiraParcela],
-    ["Última parcela", (r) => r.resumo.ultimaParcela],
-    ["Maior parcela", (r) => r.resumo.maiorParcela],
-    ["Parcelas pagas", (r) => r.resumo.parcelasPagas],
-    ["Maior encargo na obra", (r) => r.resumo.maiorEncargoObra],
-    ["Total de encargos na obra", (r) => r.resumo.totalEncargosObra],
-    ["Total pago", (r) => r.resumo.totalPago],
-    ["Total de juros", (r) => r.resumo.totalJuros],
-    ["Total de correção (TR/índice)", (r) => r.resumo.totalCorrecao],
-    ["Total de MIP", (r) => r.resumo.totalMip],
-    ["Total de DFI", (r) => r.resumo.totalDfi],
-    ["Total de taxa adm", (r) => r.resumo.totalTaxaAdm],
-    ["Amortização extra", (r) => r.resumo.totalAmortizacaoExtra],
+): LinhaComparativo[] {
+  const algum = resultados.SAC ?? resultados.PRICE;
+  const temObra = (algum?.resumo.mesesObra ?? 0) > 0;
+  const temExtra = (algum?.resumo.totalAmortizacaoExtra ?? 0) > 0;
+  const itens: [string, (r: ResultadoSimulacao) => string][] = [
+    ...(temObra
+      ? ([
+          [
+            `Maior encargo na obra (${algum!.resumo.mesesObra} meses)`,
+            (r) => brlT(r.resumo.maiorEncargoObra),
+          ],
+        ] as [string, (r: ResultadoSimulacao) => string][])
+      : []),
+    ["1ª parcela", (r) => brlT(r.resumo.primeiraParcela)],
+    ["Última parcela", (r) => brlT(r.resumo.ultimaParcela)],
+    ["Maior parcela", (r) => brlT(r.resumo.maiorParcela)],
     [
-      "CET estimado (% a.a.)",
-      (r) => (r.resumo.cetAnual == null ? "" : +r.resumo.cetAnual.toFixed(2)),
+      "Parcelas pagas",
+      (r) =>
+        r.resumo.parcelasPagas === r.resumo.prazoContratado
+          ? String(r.resumo.parcelasPagas)
+          : `${r.resumo.parcelasPagas} de ${r.resumo.prazoContratado}`,
     ],
-    ["Renda mínima (30%)", (r) => r.resumo.rendaMinima],
+    ["Renda mínima (30%)", (r) => brlT(r.resumo.rendaMinima)],
+    ...(f.renda > 0
+      ? ([["Comprometimento da renda", (r) => pctT((r.resumo.comprometimento ?? 0) * 100, 1)]] as [
+          string,
+          (r: ResultadoSimulacao) => string,
+        ][])
+      : []),
+    ["Total de juros", (r) => brlT(r.resumo.totalJuros)],
+    ["Total de correção (TR)", (r) => brlT(r.resumo.totalCorrecao)],
+    ["Total de seguros (MIP + DFI)", (r) => brlT(r.resumo.totalMip + r.resumo.totalDfi)],
+    ["Total de taxa adm", (r) => brlT(r.resumo.totalTaxaAdm)],
+    ...(temExtra
+      ? ([["Amortização extra", (r) => brlT(r.resumo.totalAmortizacaoExtra)]] as [
+          string,
+          (r: ResultadoSimulacao) => string,
+        ][])
+      : []),
+    ["Total pago", (r) => brlT(r.resumo.totalPago)],
+    [
+      "CET estimado",
+      (r) => (r.resumo.cetAnual == null ? "n/d" : `${pctT(r.resumo.cetAnual)} a.a.`),
+    ],
   ];
-  const cab: Record<string, string | number>[] = [
-    { Item: "Valor do imóvel", SAC: f.valorImovel, PRICE: f.valorImovel },
-    { Item: "Valor financiado", SAC: valorFinanciadoDe(f), PRICE: valorFinanciadoDe(f) },
-    { Item: "Prazo (meses)", SAC: f.prazoMeses, PRICE: f.prazoMeses },
-    {
-      Item: `Taxa de juros (% a.a. ${f.tipoTaxa})`,
-      SAC: f.taxaAnual,
-      PRICE: f.taxaAnual,
-    },
-    { Item: "Correção (% a.m.)", SAC: correcaoDe(f), PRICE: correcaoDe(f) },
-  ];
-  return [
-    ...cab,
-    ...linhas.map(([item, fn]) => ({
-      Item: item,
-      SAC: resultados.SAC ? fn(resultados.SAC) : "",
-      PRICE: resultados.PRICE ? fn(resultados.PRICE) : "",
-    })),
-  ];
+  return itens.map(([item, fn]) => ({
+    item,
+    SAC: resultados.SAC ? fn(resultados.SAC) : "",
+    PRICE: resultados.PRICE ? fn(resultados.PRICE) : "",
+  }));
 }
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -276,8 +396,7 @@ export function textoResumo(
   const r10 = (v: number) => brl(Math.round(v / 10) * 10).replace(",00", "");
   const linhas = [
     `Simulação de financiamento`,
-    `Imóvel: ${brl(form.valorImovel).replace(",00", "")}`,
-    `Financiado: ${brl(valorFinanciadoDe(form)).replace(",00", "")} em ${form.prazoMeses} meses`,
+    `Financiamento: ${brl(valorFinanciadoDe(form)).replace(",00", "")} em ${form.prazoMeses} meses`,
     `Juros: ${pct(form.taxaAnual)} ao ano (${form.tipoTaxa})`,
     "",
   ];
@@ -297,4 +416,12 @@ export function textoResumo(
     "Valores estimados, incluem seguros e taxa de administração. Sujeito à análise do banco.",
   );
   return linhas.join("\n");
+}
+
+/** Lê decimal digitado com vírgula OU ponto ("8,16", "8.16", "0,0038"). */
+export function lerDecimal(t: string): number | null {
+  const limpo = t.replace(/[^\d.,-]/g, "").replace(",", ".");
+  if (!limpo || limpo === "." || limpo === "-") return null;
+  const n = Number(limpo);
+  return Number.isFinite(n) ? n : null;
 }
