@@ -15,6 +15,8 @@ import {
   filaEmLinha,
   foraEmLinha,
   ordenarFilas,
+  agruparFora,
+  filasEmLinha,
   ordenarMinhas,
   textoMinhaPosicao,
   zonaInicial,
@@ -166,6 +168,55 @@ describe("o que a fila diz (puro)", () => {
     expect(semZona.checkin).toBe(false);
   });
 
+  it("fora da fila: uma linha por motivo, sem repetir a roleta de cada zona", () => {
+    // Visto em produção (11/10): quem atende 3 zonas e não fez check-in tinha
+    // 30+ linhas "fora da fila" — a mesma roleta, uma vez por zona.
+    const linha = (
+      slug: string,
+      nome: string,
+      papel: MinhaPosicao["papel"],
+      zona: string,
+      motivo: string,
+    ): MinhaPosicao => ({
+      slug,
+      nome,
+      papel,
+      zona,
+      mecanica: "rodizio",
+      posicao: null,
+      total: 0,
+      apto: false,
+      motivos: [motivo],
+    });
+    const xs: MinhaPosicao[] = [
+      ...["Leste", "Oeste", "Sul"].flatMap((z) => [
+        linha("marquinhos", "Roleta Marquinhos", "marquinhos", z, "ausente_hoje"),
+        linha("cury", "Cury Leopoldina", "campanha", z, "ausente_hoje"),
+        linha("jardim", "Jardim BF", "campanha", z, "ausente_hoje"),
+      ]),
+      linha("zona-leste", "Roleta Zona Leste", "zona", "Leste", "ausente_hoje"),
+      linha("zona-norte", "Roleta Zona Norte", "zona", "Norte", "fora_da_regiao"),
+      {
+        ...linha("agendados-sdr", "Agendados do SDR", "sdr", "Leste", "x"),
+        apto: true,
+        posicao: 2,
+        total: 3,
+        motivos: [],
+      },
+    ];
+    const g = agruparFora(xs);
+    expect(g.map((x) => x.motivo)).toEqual(["ausente_hoje", "fora_da_regiao"]);
+    expect(g[0].filas).toEqual(["Marquinhos", "Cury Leopoldina", "Jardim BF", "Roleta Zona Leste"]);
+    expect(g[0].checkin).toBe(true);
+    expect(g[1]).toMatchObject({
+      rotulo: "Não atende esta zona",
+      filas: ["Roleta Zona Norte"],
+      checkin: false,
+    });
+    expect(filasEmLinha(g[0].filas)).toBe("Marquinhos, Cury Leopoldina, Jardim BF e mais 1");
+    expect(filasEmLinha(["A", "B"])).toBe("A, B");
+  });
+
   it("na Central, primeiro onde ele está na fila, pela posição", () => {
     const xs: MinhaPosicao[] = [
       {
@@ -291,12 +342,13 @@ describe("MinhasPosicoesRoletas (Central de Comando do corretor)", () => {
     ] satisfies MinhaPosicao[]);
     montar(<MinhasPosicoesRoletas />);
     const card = screen.getByRole("region", { name: "Sua vez nas roletas" });
-    await waitFor(() => expect(within(card).getAllByTestId("minha-posicao")).toHaveLength(2));
-    const linhas = within(card).getAllByTestId("minha-posicao");
-    expect(linhas[0].textContent).toContain("Agendados do SDR · Leste");
-    expect(linhas[0].textContent).toContain("2º de 6");
-    expect(linhas[1].textContent).toContain("fora da fila agora");
-    expect(linhas[1].textContent).toContain("Sem check-in");
+    await waitFor(() => expect(within(card).getAllByTestId("minha-posicao")).toHaveLength(1));
+    const linha = within(card).getByTestId("minha-posicao");
+    expect(linha.textContent).toContain("Agendados do SDR · Leste");
+    expect(linha.textContent).toContain("2º de 6");
+    const fora = within(card).getByTestId("fora-grupo");
+    expect(fora.textContent).toContain("Sem check-in");
+    expect(fora.textContent).toContain("Roleta Zona Leste");
     expect(within(card).getByText("Fazer o check-in de hoje").getAttribute("href")).toBe(
       "/presenca",
     );

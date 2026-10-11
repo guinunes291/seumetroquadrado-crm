@@ -18,10 +18,10 @@ anônimos). Isso saiu.
 
 ## 2. O que cada um vê
 
-| Quem                          | Onde                                         | O quê                                                                                                                                                                                        |
-| ----------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SDR, admin, gestor, superint. | Pré-venda → Painel, cartão **Roleta**        | Escolhe a zona (ou "Sem zona"). A fila do SDR em destaque, na roda de iniciais com o 1º na seta; embaixo, a roleta da zona, o Marquinhos e as campanhas de equipe fixa, "1º Lara · 2º Leo…". |
-| Corretor (na própria fila)    | Central de Comando → **Sua vez nas roletas** | Uma linha por roleta e zona: "Agendados do SDR · Leste — 2º de 6", ou "fora da fila agora" com o motivo, e o atalho do check-in quando o motivo é esse. Nenhum nome de colega.               |
+| Quem                          | Onde                                         | O quê                                                                                                                                                                                                                                                           |
+| ----------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SDR, admin, gestor, superint. | Pré-venda → Painel, cartão **Roleta**        | Escolhe a zona (ou "Sem zona"). A fila do SDR em destaque, na roda de iniciais com o 1º na seta; embaixo, a roleta da zona, o Marquinhos e as campanhas de equipe fixa, "1º Lara · 2º Leo…".                                                                    |
+| Corretor (na própria fila)    | Central de Comando → **Sua vez nas roletas** | Em cima, onde ele está na fila: "Agendados do SDR · Leste — 2º de 6". Embaixo, onde está fora, agrupado pelo motivo ("Sem check-in…: Marquinhos, Cury Leopoldina, Jardim BF e mais 8"), com o atalho do check-in quando o motivo é esse. Nenhum nome de colega. |
 
 A zona escolhida pelo SDR fica lembrada no navegador dele (`localStorage`); é
 só conveniência.
@@ -84,16 +84,28 @@ zona no perfil"; a gestão define a região na Central de Distribuição.
 - `tests/roletas-fila-zona.test.tsx` (12 testes): textos, troca de zona,
   reserva e o painel do corretor com o atalho do check-in.
 
-## 7. Ligar em produção
+## 7. Em produção (11/10/2026)
 
-Só funções novas, de leitura. No banco da Lovable:
+Só funções novas, de leitura. Entrou no banco da Lovable em 11/10, às 20:30
+UTC, depois do merge do #275:
 
-1. aplicar `drizzle/migrations/0076_roletas_fila_por_zona.sql`;
-2. registrar em `drizzle.__drizzle_migrations` com o sha256 do arquivo e
-   `created_at = 1792076400000` (o `when` do journal), como em
-   `docs/ops/em-atendimento-teto-65.md` §5.3;
-3. conferir: `SELECT public.roletas_filas_zona_v1('Leste')` como SDR devolve
-   as filas, e o corretor vê "Sua vez nas roletas" na Central.
+1. Os 13 motores e réguas que a previsão imita (`_distribuir_lead_v3`,
+   `_distribuir_lead_sdr`, `distribuir_lead_ponderado`, as elegibilidades,
+   `corretor_atende_zona` e os pesos da semana) foram comparados com o
+   repositório antes: md5 de `pg_get_functiondef` igual em 12; em
+   `_elegibilidade_roleta_sdr` só os comentários diferem (o corpo, sem
+   comentários e espaços, é idêntico).
+2. `drizzle/migrations/0076_roletas_fila_por_zona.sql` em 4 blocos; as 6
+   funções novas com md5 igual ao do harness e as permissões conferidas (anon
+   nada; logado só as duas portas).
+3. Registrada em `drizzle.__drizzle_migrations` (id 79, `created_at =
+1792076400000`).
+4. Conferido com usuários reais: a tela do SDR na Zona Leste respondeu em
+   175 ms; a posição de uma corretora que atende 3 zonas, em 400 ms (34 filas).
 
-Sem a migration, o cartão da Roleta e o painel do corretor mostram o erro de
-leitura; o resto da Pré-venda e da Central segue igual.
+**O que o primeiro uso mostrou.** Num domingo à noite, sem check-in, a
+corretora que atende 3 zonas aparecia fora de 30+ filas, uma linha por
+roleta e zona. O painel passou a agrupar quem está fora pelo motivo. Também
+apareceu participação em roleta de zona que o perfil não atende (Zona Norte
+para quem atende Leste, Oeste e Sul): o motor já a ignora, e o painel diz
+"Não atende esta zona" — é ajuste de cadastro na Central de Distribuição.
