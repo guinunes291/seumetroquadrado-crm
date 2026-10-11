@@ -11,7 +11,7 @@
 //  - completo: o mesmo + a planilha mês a mês de cada sistema (paisagem).
 
 import { escHtml, imprimirHtml } from "@/lib/pdf-print";
-import type { LinhaPlanilha, ResultadoSimulacao } from "@/lib/amortizacao";
+import type { AnaliseAmortizacoes, LinhaPlanilha, ResultadoSimulacao } from "@/lib/amortizacao";
 import {
   agruparPorAno,
   baseDfiDe,
@@ -19,6 +19,7 @@ import {
   leituraComercial,
   linhasComparativo,
   valorFinanciadoDe,
+  type AnalisesPorSistema,
   type FormSimulador,
   type Trecho,
 } from "@/features/simulador-amortizacao/estado";
@@ -52,15 +53,17 @@ function tabela(
   colunas: string[],
   linhas: { celulas: (string | number)[]; classe?: string }[],
   direitaDesde = 1,
+  esquerda: number[] = [],
 ): string {
+  const num = (i: number) => i >= direitaDesde && !esquerda.includes(i);
   const th = colunas
-    .map((c, i) => `<th class="${i >= direitaDesde ? "num" : ""}">${escHtml(c)}</th>`)
+    .map((c, i) => `<th class="${num(i) ? "num" : ""}">${escHtml(c)}</th>`)
     .join("");
   const trs = linhas
     .map(
       (l) =>
         `<tr class="${l.classe ?? ""}">${l.celulas
-          .map((v, i) => `<td class="${i >= direitaDesde ? "num" : ""}">${escHtml(v)}</td>`)
+          .map((v, i) => `<td class="${num(i) ? "num" : ""}">${escHtml(v)}</td>`)
           .join("")}</tr>`,
     )
     .join("");
@@ -141,13 +144,63 @@ export function tituloPdf(f: FormSimulador): string {
   return `Simulação de financiamento R$ ${mil} mil em ${f.prazoMeses} meses`;
 }
 
+/** Tabela de quanto cada amortização tira do contrato e economiza. */
+function tabelaEfeito(a: AnaliseAmortizacoes): string {
+  const t = a.total;
+  return tabela(
+    [
+      "Parcela",
+      "Mês",
+      "Valor",
+      "Modo",
+      "Parcelas tiradas",
+      "Prazo restante",
+      "Parcela seguinte",
+      "Juros economizados",
+    ],
+    [
+      ...a.eventos.map((e) => ({
+        celulas: [
+          String(e.parcela),
+          e.competencia ?? "",
+          brl(e.valor),
+          e.modo === "reduzir_prazo" ? "Reduzir prazo" : "Reduzir parcela",
+          String(e.parcelasTiradas),
+          `${e.prazoRestanteAntes} → ${e.prazoRestanteDepois}`,
+          e.proximaParcelaAntes != null && e.proximaParcelaDepois != null
+            ? `${brl(e.proximaParcelaAntes)} → ${brl(e.proximaParcelaDepois)}`
+            : "quitado",
+          brl(e.jurosEconomizados),
+        ],
+      })),
+      {
+        classe: "total",
+        celulas: [
+          "Total",
+          "",
+          brl(t.valorAmortizado),
+          "",
+          String(t.parcelasTiradas),
+          `${t.prazoOriginal} → ${t.novoPrazo}`,
+          "",
+          brl(t.jurosEconomizados),
+        ],
+      },
+    ],
+    2,
+    [3],
+  );
+}
+
 export function montarHtmlPlanilha(args: {
   form: FormSimulador;
   resultados: Resultados;
+  analises?: AnalisesPorSistema;
   completo: boolean;
   geradoEm?: Date;
 }): string {
   const { form: f, resultados, completo } = args;
+  const analises = args.analises ?? {};
   const sistemas = (["SAC", "PRICE"] as const).filter((s) => resultados[s]);
   const r0 = resultados[sistemas[0]!]!.resumo;
   const geradoEm = (args.geradoEm ?? new Date()).toLocaleString("pt-BR", {
@@ -187,7 +240,7 @@ export function montarHtmlPlanilha(args: {
 
   const comparativo = tabela(
     ["Item", ...sistemas],
-    linhasComparativo(resultados, f).map((l) => ({
+    linhasComparativo(resultados, f, analises).map((l) => ({
       celulas: [l.item, ...sistemas.map((s) => l[s])],
     })),
   );
@@ -214,6 +267,23 @@ export function montarHtmlPlanilha(args: {
     `Taxa de administração: ${brl(f.taxaAdm)} por mês`,
     ...(f.renda > 0 ? [`Renda familiar considerada: ${brl(f.renda)}`] : []),
   ];
+
+  const efeito = sistemas
+    .filter((s) => analises[s])
+    .map((s) => {
+      const t = analises[s]!.total;
+      return `<section class="efeito">
+        <h2>Efeito das amortizações · ${s}</h2>
+        <p>Amortizando <strong>${escHtml(brl(t.valorAmortizado))}</strong>, o cliente deixa de pagar
+        <strong>${t.parcelasTiradas} parcelas</strong> (o prazo vai de ${t.prazoOriginal} para
+        <strong>${t.novoPrazo} parcelas</strong>${
+          t.novoTermino ? `, terminando em ${escHtml(t.novoTermino)}` : ""
+        }) e economiza <strong>${escHtml(brl(t.jurosEconomizados))}</strong> de juros
+        (${escHtml(brl(t.economiaTotal))} somando correção, seguros e taxa).</p>
+        ${tabelaEfeito(analises[s]!)}
+      </section>`;
+    })
+    .join("");
 
   const porSistema = sistemas
     .map((s) => {
@@ -263,6 +333,9 @@ export function montarHtmlPlanilha(args: {
   .tabela tbody tr:nth-child(even) td { background: ${C.fundo}; }
   .tabela tr.obra td { background: ${C.obra}; }
   .tabela tr.extra td { background: ${C.extra}; }
+  .tabela tr.total td { font-weight: 700; border-top: 1.5px solid ${C.navy}; background: #fff; }
+  .efeito { break-inside: avoid; }
+  .efeito p { margin: 0 0 6px; }
   .num { text-align: right !important; font-variant-numeric: tabular-nums; }
   .leitura { border-left: 3px solid ${C.gold}; background: ${C.fundo}; padding: 8px 12px; break-inside: avoid; }
   .leitura p { margin: 3px 0; }
@@ -276,6 +349,7 @@ export function montarHtmlPlanilha(args: {
 </header>
 <div class="kpis">${kpis}</div>
 <section><h2>Resumo</h2>${comparativo}</section>
+${efeito}
 ${leitura}
 <section><h2>Premissas</h2><ul class="premissas">${premissas
     .map((p) => `<li>${escHtml(p)}</li>`)
@@ -291,6 +365,7 @@ ${porSistema}
 export function imprimirPlanilha(args: {
   form: FormSimulador;
   resultados: Resultados;
+  analises?: AnalisesPorSistema;
   completo: boolean;
 }): Promise<void> {
   return imprimirHtml(montarHtmlPlanilha(args), { tituloIframe: "Planilha de amortização" });

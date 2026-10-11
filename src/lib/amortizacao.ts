@@ -173,7 +173,11 @@ export interface LinhaPlanilha {
   /** O que o cliente paga no mês: prestação + MIP + DFI + taxa adm. */
   encargoTotal: number;
   amortizacaoExtra: number;
+  /** Modo da amortização extra do mês (null quando não houve). */
+  modoExtra: ModoAmortizacaoExtra | null;
   saldoFinal: number;
+  /** Prazo restante que haveria sem a amortização extra deste mês. */
+  prazoAntesExtra: number;
   /** Prazo restante depois deste mês (em parcelas). */
   prazoRestante: number;
 }
@@ -453,7 +457,9 @@ export function simularFinanciamento(p: ParametrosFinanciamento): ResultadoSimul
         taxaAdm,
         encargoTotal: centavos(prestacao + mipV + dfiV + taxaAdm),
         amortizacaoExtra: 0,
+        modoExtra: null,
         saldoFinal: pagaCorrecao ? liberado : saldoCorrigido,
+        prazoAntesExtra: prazo,
         prazoRestante: prazo,
       });
     }
@@ -495,6 +501,8 @@ export function simularFinanciamento(p: ParametrosFinanciamento): ResultadoSimul
 
     let saldoFinal = centavos(saldoCorrigido - amortizacao);
     let novoPrazo = prazoRestante - 1;
+    const prazoAntesExtra = novoPrazo;
+    let modoExtra: ModoAmortizacaoExtra | null = null;
 
     // Amortização extraordinária, depois da parcela paga.
     let extraTotal = 0;
@@ -502,6 +510,7 @@ export function simularFinanciamento(p: ParametrosFinanciamento): ResultadoSimul
       if (saldoFinal <= 0) break;
       const valor = centavos(Math.min(ev.valor, saldoFinal));
       extraTotal = centavos(extraTotal + valor);
+      modoExtra = ev.modo;
       saldoFinal = centavos(saldoFinal - valor);
       if (saldoFinal <= 0) {
         novoPrazo = 0;
@@ -536,7 +545,9 @@ export function simularFinanciamento(p: ParametrosFinanciamento): ResultadoSimul
       taxaAdm: taxaAdmBase,
       encargoTotal,
       amortizacaoExtra: extraTotal,
+      modoExtra,
       saldoFinal,
+      prazoAntesExtra,
       prazoRestante: novoPrazo,
     });
 
@@ -653,4 +664,120 @@ export function valorMaximoFinanciavel(
     else hi = mid;
   }
   return Math.floor(lo / 100) * 100;
+}
+
+// ----------------------------------------------------------------------------
+// Efeito das amortizações extraordinárias
+// ----------------------------------------------------------------------------
+
+export interface EfeitoAmortizacao {
+  /** Nº da parcela em que o valor foi abatido. */
+  parcela: number;
+  competencia: string | null;
+  valor: number;
+  modo: ModoAmortizacaoExtra;
+  saldoAntes: number;
+  saldoDepois: number;
+  /** Parcelas que faltavam (sem esta amortização) e que passam a faltar. */
+  prazoRestanteAntes: number;
+  prazoRestanteDepois: number;
+  /** Quantas parcelas esta amortização "tira" do contrato. */
+  parcelasTiradas: number;
+  /** Encargo total da parcela seguinte sem e com esta amortização. */
+  proximaParcelaAntes: number | null;
+  proximaParcelaDepois: number | null;
+  /** Juros que deixam de ser pagos por causa DESTA amortização. */
+  jurosEconomizados: number;
+  /** Tudo o que deixa de ser pago (juros + correção + seguros + taxa adm). */
+  economiaTotal: number;
+}
+
+export interface AnaliseAmortizacoes {
+  eventos: EfeitoAmortizacao[];
+  total: {
+    valorAmortizado: number;
+    parcelasTiradas: number;
+    prazoOriginal: number;
+    novoPrazo: number;
+    /** Competência da última parcela sem e com as amortizações. */
+    terminoOriginal: string | null;
+    novoTermino: string | null;
+    jurosSemAmortizacao: number;
+    jurosComAmortizacao: number;
+    jurosEconomizados: number;
+    /** Juros + correção + seguros + taxa adm que deixam de ser pagos. */
+    economiaTotal: number;
+  };
+}
+
+/** Custo do contrato além do principal: juros + correção + seguros + taxa adm. */
+function custoDoContrato(r: ResultadoSimulacao): number {
+  const s = r.resumo;
+  return s.totalJuros + s.totalCorrecao + s.totalMip + s.totalDfi + s.totalTaxaAdm;
+}
+
+/**
+ * Quanto cada amortização extraordinária rende para o cliente. Compara o
+ * contrato sem amortização com o contrato com as amortizações acumuladas até
+ * cada uma (1ª; 1ª + 2ª; ...): a economia de cada evento é o que ele
+ * acrescenta sobre os anteriores, e a soma dos eventos fecha com o total.
+ * Por que acumulado: o efeito de uma amortização depende das anteriores (o
+ * saldo já é menor), então medir cada uma isolada contaria economia em dobro.
+ */
+export function analisarAmortizacoes(p: ParametrosFinanciamento): AnaliseAmortizacoes | null {
+  const com = simularFinanciamento(p);
+  const executadas = com.linhas.filter((l) => l.amortizacaoExtra > 0 && l.parcela != null);
+  if (executadas.length === 0) return null;
+
+  const sem = simularFinanciamento({ ...p, amortizacoesExtras: [] });
+  const ultimaParcela = (r: ResultadoSimulacao) =>
+    r.linhas.filter((l) => l.fase === "amortizacao").at(-1) ?? null;
+  const parcelaN = (r: ResultadoSimulacao, n: number) =>
+    r.linhas.find((l) => l.parcela === n) ?? null;
+
+  const eventos: EfeitoAmortizacao[] = [];
+  let anterior = sem;
+  executadas.forEach((linha, k) => {
+    const acumulado = simularFinanciamento({
+      ...p,
+      amortizacoesExtras: executadas.slice(0, k + 1).map((l) => ({
+        parcela: l.parcela!,
+        valor: l.amortizacaoExtra,
+        modo: l.modoExtra ?? "reduzir_prazo",
+      })),
+    });
+    const n = linha.parcela!;
+    eventos.push({
+      parcela: n,
+      competencia: linha.competencia,
+      valor: linha.amortizacaoExtra,
+      modo: linha.modoExtra ?? "reduzir_prazo",
+      saldoAntes: centavos(linha.saldoFinal + linha.amortizacaoExtra),
+      saldoDepois: linha.saldoFinal,
+      prazoRestanteAntes: linha.prazoAntesExtra,
+      prazoRestanteDepois: linha.prazoRestante,
+      parcelasTiradas: Math.max(0, linha.prazoAntesExtra - linha.prazoRestante),
+      proximaParcelaAntes: parcelaN(anterior, n + 1)?.encargoTotal ?? null,
+      proximaParcelaDepois: parcelaN(acumulado, n + 1)?.encargoTotal ?? null,
+      jurosEconomizados: centavos(anterior.resumo.totalJuros - acumulado.resumo.totalJuros),
+      economiaTotal: centavos(custoDoContrato(anterior) - custoDoContrato(acumulado)),
+    });
+    anterior = acumulado;
+  });
+
+  return {
+    eventos,
+    total: {
+      valorAmortizado: com.resumo.totalAmortizacaoExtra,
+      parcelasTiradas: Math.max(0, sem.resumo.parcelasPagas - com.resumo.parcelasPagas),
+      prazoOriginal: sem.resumo.parcelasPagas,
+      novoPrazo: com.resumo.parcelasPagas,
+      terminoOriginal: ultimaParcela(sem)?.competencia ?? null,
+      novoTermino: ultimaParcela(com)?.competencia ?? null,
+      jurosSemAmortizacao: sem.resumo.totalJuros,
+      jurosComAmortizacao: com.resumo.totalJuros,
+      jurosEconomizados: centavos(sem.resumo.totalJuros - com.resumo.totalJuros),
+      economiaTotal: centavos(custoDoContrato(sem) - custoDoContrato(com)),
+    },
+  };
 }

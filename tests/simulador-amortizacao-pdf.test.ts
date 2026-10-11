@@ -1,6 +1,6 @@
 // PDF da planilha de amortização (único formato de exportação, 2026-10-11).
 import { describe, expect, it } from "vitest";
-import { simularFinanciamento } from "@/lib/amortizacao";
+import { analisarAmortizacoes, simularFinanciamento } from "@/lib/amortizacao";
 import { formInicial, paramsDoForm } from "@/features/simulador-amortizacao/estado";
 import { montarHtmlPlanilha, tituloPdf } from "@/features/simulador-amortizacao/planilha-pdf";
 
@@ -54,5 +54,36 @@ describe("PDF da planilha de amortização", () => {
   it("escapa texto (nada vira HTML)", () => {
     const html = montarHtmlPlanilha({ form, resultados, completo: false, geradoEm: quando });
     expect(html).not.toMatch(/<script/i);
+  });
+
+  it("com amortização extra: seção de efeito com parcelas tiradas e juros economizados", () => {
+    const comExtra = {
+      ...form,
+      extras: [
+        { parcela: 24, valor: 10_000, modo: "reduzir_prazo" as const, repetirACada: 24, vezes: 3 },
+      ],
+    };
+    const p = paramsDoForm(comExtra);
+    const res = {
+      SAC: simularFinanciamento({ ...p, sistema: "SAC" }),
+      PRICE: simularFinanciamento({ ...p, sistema: "PRICE" }),
+    };
+    const analises = {
+      SAC: analisarAmortizacoes({ ...p, sistema: "SAC" })!,
+      PRICE: analisarAmortizacoes({ ...p, sistema: "PRICE" })!,
+    };
+    const html = montarHtmlPlanilha({
+      form: comExtra,
+      resultados: res,
+      analises,
+      completo: false,
+      geradoEm: quando,
+    });
+    expect(html).toContain("Efeito das amortizações · SAC");
+    expect(html).toContain("Efeito das amortizações · PRICE");
+    expect(html).toContain("Parcelas tiradas pela amortização");
+    expect(html).toContain("Juros economizados");
+    expect(html).toContain(`${analises.PRICE.total.parcelasTiradas} parcelas</strong>`);
+    expect(html).not.toContain("—");
   });
 });

@@ -287,3 +287,74 @@ describe("arredondamento", () => {
     expect(centavos(8333.334)).toBe(8333.33);
   });
 });
+
+describe("efeito das amortizações (parcelas tiradas, juros economizados, novo prazo)", () => {
+  it("R$ 20 mil na parcela 24 (PRICE, reduzir prazo): tira 127 parcelas e economiza R$ 163.813,09", async () => {
+    // Conferido com implementação independente em Python/Decimal.
+    const { analisarAmortizacoes } = await import("@/lib/amortizacao");
+    const a = analisarAmortizacoes(
+      caixa({ amortizacoesExtras: [{ parcela: 24, valor: 20_000, modo: "reduzir_prazo" }] }),
+    )!;
+    expect(a.eventos).toHaveLength(1);
+    expect(a.eventos[0]!.prazoRestanteAntes).toBe(396);
+    expect(a.eventos[0]!.prazoRestanteDepois).toBe(269);
+    expect(a.eventos[0]!.parcelasTiradas).toBe(127);
+    expect(a.total.prazoOriginal).toBe(420);
+    expect(a.total.novoPrazo).toBe(293);
+    expect(a.total.jurosEconomizados).toBe(163_813.09);
+    expect(a.total.jurosSemAmortizacao).toBe(406_406.33);
+  });
+
+  it("sem amortização extra não há análise", async () => {
+    const { analisarAmortizacoes } = await import("@/lib/amortizacao");
+    expect(analisarAmortizacoes(caixa())).toBeNull();
+  });
+
+  it("FGTS a cada 24 parcelas: a soma de cada evento fecha com o total", async () => {
+    const { analisarAmortizacoes } = await import("@/lib/amortizacao");
+    for (const sistema of ["SAC", "PRICE"] as const) {
+      const a = analisarAmortizacoes(
+        caixa({
+          sistema,
+          correcaoMensal: 0.17,
+          mip: { modo: "taxa", taxaMensal: 0.0002 },
+          taxaAdministracao: 25,
+          amortizacoesExtras: [
+            { parcela: 24, valor: 10_000, modo: "reduzir_prazo", repetirACada: 24 },
+          ],
+        }),
+      )!;
+      const soma = (k: "parcelasTiradas" | "jurosEconomizados" | "economiaTotal") =>
+        a.eventos.reduce((s, e) => s + e[k], 0);
+      expect(soma("parcelasTiradas")).toBe(a.total.parcelasTiradas);
+      expect(soma("jurosEconomizados")).toBeCloseTo(a.total.jurosEconomizados, 1);
+      expect(soma("economiaTotal")).toBeCloseTo(a.total.economiaTotal, 1);
+      expect(a.total.novoPrazo).toBe(a.total.prazoOriginal - a.total.parcelasTiradas);
+      // cada FGTS tira parcelas e economiza juros
+      expect(a.eventos.every((e) => e.parcelasTiradas > 0 && e.jurosEconomizados > 0)).toBe(true);
+      expect(a.total.economiaTotal).toBeGreaterThan(a.total.jurosEconomizados); // + TR, seguros, taxa
+    }
+  });
+
+  it("reduzir parcela: não tira parcelas, mas a parcela seguinte cai e economiza juros", async () => {
+    const { analisarAmortizacoes } = await import("@/lib/amortizacao");
+    const a = analisarAmortizacoes(
+      caixa({ amortizacoesExtras: [{ parcela: 24, valor: 20_000, modo: "reduzir_parcela" }] }),
+    )!;
+    const e = a.eventos[0]!;
+    expect(e.parcelasTiradas).toBe(0);
+    expect(a.total.novoPrazo).toBe(420);
+    expect(e.proximaParcelaDepois!).toBeLessThan(e.proximaParcelaAntes! - 100);
+    expect(a.total.jurosEconomizados).toBeGreaterThan(0);
+  });
+
+  it("amortização que quita: tira todas as parcelas restantes", async () => {
+    const { analisarAmortizacoes } = await import("@/lib/amortizacao");
+    const a = analisarAmortizacoes(
+      limpo({ amortizacoesExtras: [{ parcela: 3, valor: 999_999, modo: "reduzir_prazo" }] }),
+    )!;
+    expect(a.total.novoPrazo).toBe(3);
+    expect(a.total.parcelasTiradas).toBe(9);
+    expect(a.eventos[0]!.proximaParcelaDepois).toBeNull();
+  });
+});

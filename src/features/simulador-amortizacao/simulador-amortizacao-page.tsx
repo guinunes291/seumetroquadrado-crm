@@ -41,10 +41,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  analisarAmortizacoes,
   efetivaParaNominal,
   nominalParaEfetiva,
   simularFinanciamento,
   TR_MENSAL_REFERENCIA_2026,
+  type AnaliseAmortizacoes,
   type LinhaPlanilha,
   type ResultadoSimulacao,
   type SistemaAmortizacao,
@@ -76,6 +78,7 @@ const pct = (v: number, casas = 2) =>
   `${v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
 
 type Resultados = Partial<Record<SistemaAmortizacao, ResultadoSimulacao>>;
+type Analises = Partial<Record<SistemaAmortizacao, AnaliseAmortizacoes>>;
 
 export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulador }) {
   const [form, setForm] = useState<FormSimulador>(() => formInicial(prefill));
@@ -92,6 +95,18 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
     return out;
   }, [form]);
 
+  // Efeito de cada amortização extra (parcelas tiradas, juros economizados,
+  // novo prazo). Só existe quando o corretor lança alguma amortização.
+  const analises = useMemo<Analises>(() => {
+    const base = paramsDoForm(form);
+    const out: Analises = {};
+    if (!base.amortizacoesExtras?.length) return out;
+    for (const s of ["SAC", "PRICE"] as const) {
+      if (resultados[s]) out[s] = analisarAmortizacoes({ ...base, sistema: s }) ?? undefined;
+    }
+    return out;
+  }, [form, resultados]);
+
   const sistemasAtivos = (["SAC", "PRICE"] as const).filter((s) => resultados[s]);
   const avisos = [...new Set(sistemasAtivos.flatMap((s) => resultados[s]!.avisos))];
 
@@ -100,14 +115,14 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
   async function exportarPdf(completo: boolean) {
     try {
       const { imprimirPlanilha } = await import("./planilha-pdf");
-      await imprimirPlanilha({ form, resultados, completo });
+      await imprimirPlanilha({ form, resultados, analises, completo });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível gerar o PDF.");
     }
   }
 
   async function copiarResumo() {
-    const texto = textoResumo(form, resultados);
+    const texto = textoResumo(form, resultados, analises);
     try {
       await navigator.clipboard.writeText(texto);
       toast.success("Resumo copiado. É só colar no WhatsApp.");
@@ -186,7 +201,7 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
                 <TabsTrigger value="graficos">Gráficos</TabsTrigger>
               </TabsList>
               <TabsContent value="resumo" className="mt-4">
-                <Resumo form={form} resultados={resultados} />
+                <Resumo form={form} resultados={resultados} analises={analises} />
               </TabsContent>
               <TabsContent value="planilha" className="mt-4">
                 <Planilha resultados={resultados} />
@@ -627,7 +642,15 @@ function Formulario({
 // Resumo
 // ============================================================================
 
-function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resultados }) {
+function Resumo({
+  form,
+  resultados,
+  analises,
+}: {
+  form: FormSimulador;
+  resultados: Resultados;
+  analises: Analises;
+}) {
   const sistemas = (["SAC", "PRICE"] as const).filter((s) => resultados[s]);
   const r0 = resultados[sistemas[0]!]!.resumo;
   const temObra = r0.mesesObra > 0;
@@ -635,7 +658,7 @@ function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resulta
 
   const linhas: {
     rotulo: string;
-    valor: (r: ResultadoSimulacao) => ReactNode;
+    valor: (r: ResultadoSimulacao, s: SistemaAmortizacao) => ReactNode;
     dica?: string;
     melhor?: "min" | "max";
   }[] = [
@@ -696,6 +719,26 @@ function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resulta
           {
             rotulo: "Amortização extra",
             valor: (r: ResultadoSimulacao) => brl(r.resumo.totalAmortizacaoExtra),
+          },
+          {
+            rotulo: "Parcelas tiradas pela amortização",
+            valor: (_r: ResultadoSimulacao, s: SistemaAmortizacao) =>
+              analises[s] ? String(analises[s]!.total.parcelasTiradas) : "0",
+            dica: "Quantas parcelas o cliente deixa de pagar com todas as amortizações.",
+          },
+          {
+            rotulo: "Novo prazo do contrato",
+            valor: (_r: ResultadoSimulacao, s: SistemaAmortizacao) =>
+              analises[s] ? textoNovoPrazo(analises[s]!) : "",
+          },
+          {
+            rotulo: "Juros economizados",
+            valor: (_r: ResultadoSimulacao, s: SistemaAmortizacao) => (
+              <span className="font-semibold text-exito-700">
+                {brl(analises[s]?.total.jurosEconomizados ?? 0)}
+              </span>
+            ),
+            dica: "Juros do contrato sem amortização menos juros com as amortizações.",
           },
         ]
       : []),
@@ -789,7 +832,7 @@ function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resulta
                           melhorSistema === s && "font-semibold text-exito-700",
                         )}
                       >
-                        {l.valor(resultados[s]!)}
+                        {l.valor(resultados[s]!, s)}
                       </td>
                     ))}
                   </tr>
@@ -799,6 +842,8 @@ function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resulta
           </table>
         </CardContent>
       </Card>
+
+      {Object.keys(analises).length > 0 && <EfeitoAmortizacoes analises={analises} />}
 
       {sistemas.length === 2 && (
         <LeituraComercial sac={resultados.SAC!} price={resultados.PRICE!} />
@@ -822,6 +867,137 @@ function LeituraComercial({ sac, price }: { sac: ResultadoSimulacao; price: Resu
             {frase.map((t, n) => (t.forte ? <strong key={n}>{t.texto}</strong> : t.texto))}
           </p>
         ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** "293 parcelas (termina em ago/2051)". */
+function textoNovoPrazo(a: AnaliseAmortizacoes): string {
+  return `${a.total.novoPrazo} parcelas${a.total.novoTermino ? ` (termina em ${a.total.novoTermino})` : ""}`;
+}
+
+/**
+ * Quanto cada amortização rende: parcelas que ela tira, prazo antes e depois,
+ * parcela seguinte e juros que deixam de ser pagos. É o argumento de venda do
+ * FGTS: "esses R$ 10 mil tiram 4 anos do seu contrato".
+ */
+function EfeitoAmortizacoes({ analises }: { analises: Analises }) {
+  const sistemas = (["SAC", "PRICE"] as const).filter((s) => analises[s]);
+  const [sistema, setSistema] = useState<SistemaAmortizacao>(sistemas[0]!);
+  const a = analises[sistema] ?? analises[sistemas[0]!]!;
+  const t = a.total;
+  const anos = (meses: number) =>
+    meses >= 12
+      ? `${Math.floor(meses / 12)} ano${meses >= 24 ? "s" : ""}${meses % 12 ? ` e ${meses % 12} meses` : ""}`
+      : `${meses} meses`;
+  return (
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
+        <CardTitle className="text-sm">Efeito das amortizações</CardTitle>
+        {sistemas.length > 1 && (
+          <ToggleGroup
+            type="single"
+            value={sistema}
+            onValueChange={(v) => v && setSistema(v as SistemaAmortizacao)}
+          >
+            {sistemas.map((s) => (
+              <ToggleGroupItem key={s} value={s}>
+                {s}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Kpi
+            titulo="Parcelas tiradas"
+            valor={`${t.parcelasTiradas} parcelas`}
+            sub={t.parcelasTiradas ? `${anos(t.parcelasTiradas)} a menos` : "prazo mantido"}
+          />
+          <Kpi
+            titulo="Novo prazo"
+            valor={`${t.novoPrazo} parcelas`}
+            sub={`antes: ${t.prazoOriginal}${
+              t.novoTermino && t.terminoOriginal
+                ? ` · termina em ${t.novoTermino} (era ${t.terminoOriginal})`
+                : ""
+            }`}
+          />
+          <Kpi
+            titulo="Juros economizados"
+            valor={brl(t.jurosEconomizados)}
+            sub={`de ${brl(t.jurosSemAmortizacao)} para ${brl(t.jurosComAmortizacao)}`}
+          />
+          <Kpi
+            titulo="Economia total"
+            valor={brl(t.economiaTotal)}
+            sub={`com ${brl(t.valorAmortizado)} amortizados (juros + TR + seguros + taxa)`}
+          />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="px-2 py-2 font-medium">Parcela</th>
+                <th className="px-2 py-2 font-medium">Mês</th>
+                <th className="px-2 py-2 text-right font-medium">Valor</th>
+                <th className="px-2 py-2 font-medium">Modo</th>
+                <th className="px-2 py-2 text-right font-medium">Parcelas tiradas</th>
+                <th className="px-2 py-2 text-right font-medium">Prazo restante</th>
+                <th className="px-2 py-2 text-right font-medium">Parcela seguinte</th>
+                <th className="px-2 py-2 text-right font-medium">Juros economizados</th>
+              </tr>
+            </thead>
+            <tbody>
+              {a.eventos.map((e) => (
+                <tr key={e.parcela} className="border-b last:border-0">
+                  <td className="px-2 py-1.5 tabular-nums">{e.parcela}</td>
+                  <td className="px-2 py-1.5">{e.competencia ?? ""}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{brl(e.valor)}</td>
+                  <td className="px-2 py-1.5 whitespace-nowrap">
+                    {e.modo === "reduzir_prazo" ? "Reduzir prazo" : "Reduzir parcela"}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-semibold tabular-nums">
+                    {e.parcelasTiradas}
+                  </td>
+                  <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">
+                    {e.prazoRestanteAntes} → {e.prazoRestanteDepois}
+                  </td>
+                  <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">
+                    {e.proximaParcelaAntes != null && e.proximaParcelaDepois != null
+                      ? `${brl(e.proximaParcelaAntes)} → ${brl(e.proximaParcelaDepois)}`
+                      : "quitado"}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-exito-700">
+                    {brl(e.jurosEconomizados)}
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t-2 font-semibold">
+                <td className="px-2 py-1.5" colSpan={2}>
+                  Total
+                </td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{brl(t.valorAmortizado)}</td>
+                <td />
+                <td className="px-2 py-1.5 text-right tabular-nums">{t.parcelasTiradas}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">
+                  {t.prazoOriginal} → {t.novoPrazo}
+                </td>
+                <td />
+                <td className="px-2 py-1.5 text-right tabular-nums text-exito-700">
+                  {brl(t.jurosEconomizados)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Cada linha mostra o que aquela amortização acrescenta sobre as anteriores; a soma fecha
+          com o total. "Prazo restante" é quantas parcelas faltavam sem a amortização e quantas
+          passam a faltar.
+        </p>
       </CardContent>
     </Card>
   );
