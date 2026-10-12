@@ -83,6 +83,15 @@ const naoAtendeu = (emHoras: number): OpcaoDesfecho => ({
   proximo: passo("Nova tentativa de contato", { emHoras }, { tipo: "ligacao" }),
 });
 
+const mandeiMensagem = (): OpcaoDesfecho => ({
+  id: "mandei_mensagem",
+  rotulo: "Mandei mensagem · aguardando retorno",
+  resultado: "nao_atendeu",
+  titulo: "WhatsApp — mensagem enviada, aguardando retorno",
+  canal: "whatsapp",
+  proximo: passo("Cobrar o retorno da mensagem", amanha, { tipo: "whatsapp", prioridade: "media" }),
+});
+
 const perdeu = (rotulo = "Perdeu (motivo)"): OpcaoDesfecho => ({
   id: "perdeu",
   rotulo,
@@ -138,6 +147,7 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
           canal: "ligacao",
           proximo: passo("Nova análise ou perda", amanha),
         },
+        mandeiMensagem(),
         naoAtendeu(3),
         comEtapa(perdeu(), status, { kind: "perdido" }, gestao),
       ],
@@ -202,6 +212,7 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
           proximo: passo("Responder a objeção", { emDias: 1, as: 10 }),
           pedeTexto: "objecao",
         },
+        mandeiMensagem(),
         naoAtendeu(3),
         comEtapa(perdeu(), status, { kind: "perdido" }, gestao),
       ],
@@ -288,6 +299,7 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
           canal: "whatsapp",
           proximo: passo("Anexar e conferir a pasta", { emHoras: 2 }, { tipo: "documentacao" }),
         },
+        mandeiMensagem(),
         naoAtendeu(3),
         comEtapa(perdeu("Desistiu (motivo)"), status, { kind: "perdido" }, gestao),
       ],
@@ -327,6 +339,7 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
         proximo: passo("Responder a objeção", { emDias: 1, as: 10 }),
         pedeTexto: "objecao",
       },
+      mandeiMensagem(),
       naoAtendeu(3),
       comEtapa(perdeu(), status, { kind: "perdido" }, gestao),
     ],

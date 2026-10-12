@@ -113,7 +113,7 @@ describe("FilaCard + FilaDesfecho", () => {
     fireEvent.click(screen.getByRole("button", { name: /Registrar/ }));
     const painel = screen.getByTestId("desfecho-painel");
     expect(within(painel).getByText("O que aconteceu com Josivana?")).toBeInTheDocument();
-    expect(within(painel).getAllByRole("radio")).toHaveLength(5);
+    expect(within(painel).getAllByRole("radio")).toHaveLength(6);
     expect(screen.getByTestId("desfecho-proximo")).toHaveTextContent("escolha um resultado");
     const confirmar = within(painel).getByRole("button", { name: /Confirmar/ });
     expect(confirmar).toBeDisabled();
