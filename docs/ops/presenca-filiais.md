@@ -38,12 +38,12 @@ Em 09/10 às ~18h, 24 corretores estavam "presentes" — todos pelo auto check-i
 O corretor faz o check-in em **/presenca** escolhendo **Barra Funda**,
 **Liberdade**, **Belém** ou **Em casa**:
 
-| Check-in                                             | Recebe das filas em que está?           |
-| ---------------------------------------------------- | --------------------------------------- |
-| Numa filial (plantão) — qualquer uma das três        | Sim                                     |
-| Em casa, com **3+ vendas** aprovadas no mês anterior | Sim                                     |
-| Em casa, com **menos de 3** vendas no mês anterior   | **Não** (fica registrado, com o motivo) |
-| Sem check-in                                         | Não                                     |
+| Check-in                                             | Recebe das filas em que está?             |
+| ---------------------------------------------------- | ----------------------------------------- |
+| Numa filial (plantão) — qualquer uma das três        | Sim — desde 12/10, com o GPS na loja (§3) |
+| Em casa, com **3+ vendas** aprovadas no mês anterior | Sim                                       |
+| Em casa, com **menos de 3** vendas no mês anterior   | **Não** (fica registrado, com o motivo)   |
+| Sem check-in                                         | Não                                       |
 
 **"Vendas no mês anterior"** = vendas com `status_venda = 'aprovada'`, sem
 distrato, com `data_assinatura` no mês-calendário anterior (BRT). Em outubro,
@@ -70,6 +70,24 @@ Exemplos (em outubro):
   outubro: 1 aprovada → conta **2** (a de outubro só vale em novembro). Em
   casa, fora das filas. Se a gestão aprovar a venda pendente de setembro, ele
   clica "Em casa" de novo e entra.
+
+### Check-in obrigatório para usar o CRM (decisão do dono, 12/10/2026)
+
+_"checkin obrigatório"_: o corretor faz o check-in — **Barra Funda**,
+**Liberdade**, **Belém** ou **Em casa** — para usar o CRM, não só para
+receber leads. No banco nada muda: sem check-in ele já não recebia de fila
+nenhuma (decisão 2), e o que libera ou não a roleta continua decidido no
+próprio check-in (a regra das vendas acima e a da localização, §3). A
+obrigatoriedade é da tela.
+
+<!-- TELA -->
+
+_(A completar pela frente da tela: o que o corretor vê ao abrir o CRM sem
+check-in, quem não passa pela trava, o que a tela diz quando o check-in é
+registrado mas não libera — vendas abaixo do mínimo, fora da filial, sem
+localização — e como ele sai dali.)_
+
+<!-- /TELA -->
 
 ### Onde a regra mora
 
@@ -141,14 +159,46 @@ nunca é pedida.**
 | `filial_sem_coordenadas` | a filial ainda não tem coordenadas cadastradas                  |
 | `confirmada_gestao`      | a gestão fez o check-in pelo corretor                           |
 
-Por padrão a localização **só informa** (a gestão vê no quadro: "Na filial (80
-m)", "A 4,2 km da filial"). Para **exigir**: Central de Distribuição →
-Configurações → _"Check-in na filial exige a localização do celular"_. Ligado,
-fora do raio ou sem localização o check-in fica registrado mas não libera.
+De 09/10 a 12/10 a localização **só informou** (a gestão via no quadro: "Na
+filial (80 m)", "A 4,2 km da filial"), como recomendado na entrega.
 
-**Recomendação:** rode as primeiras 1–2 semanas só informando, olhe no quadro quantos check-ins legítimos aparecem como "fora do
-raio" (computador de mesa na loja, sem Wi-Fi, costuma ter localização ruim) e
-só então ligue a exigência.
+### Exigência LIGADA desde 12/10/2026, 14:19 BRT
+
+Decisão do dono: _"localização deve barrar caso não esteja na filial"_. A
+chave `presenca_loja_exige_localizacao` foi ligada em produção às 14:19 BRT
+(com linha em `audit_log` dizendo a origem) e a migration `20261019120000`
+(drizzle `0080`) registra o valor no repositório — ambiente novo já nasce
+exigindo. A recomendação de rodar 1–2 semanas só informando ficou para trás
+por decisão do dono.
+
+O que muda para o corretor, no check-in **na filial**:
+
+| Localização do check-in                                 | Até 12/10 14:19     | Desde 12/10 14:19                         |
+| ------------------------------------------------------- | ------------------- | ----------------------------------------- |
+| Dentro do raio (`confirmada`)                           | libera              | libera                                    |
+| Longe da loja (`fora_do_raio`)                          | libera (só o aviso) | **não libera** — motivo `fora_da_filial`  |
+| Sem localização (negou, aparelho sem GPS, demorou 10 s) | libera              | **não libera** — motivo `sem_localizacao` |
+| Filial sem coordenadas (`filial_sem_coordenadas`)       | libera              | libera (não há como conferir)             |
+| Feito pela gestão (`confirmada_gestao`)                 | libera              | libera                                    |
+
+- O check-in barrado fica registrado, com a distância e o motivo; o corretor
+  fica sem presença e fora das filas — e, desde a `0080`, **fora também do
+  fallback por velocidade naquele dia** (§8c): quem disse estar na loja e
+  não estava não recebe o lead que a exigência segurou.
+- **Em casa** continua sem pedir localização (e com a regra das vendas).
+- A regra vale **no momento do check-in**: quem fez o check-in na filial
+  antes das 14:19 de 12/10 seguiu liberado até o fim do dia (havia um, sem
+  localização, das 14:05).
+- **Como a gestão destrava:** /presenca → Presença de hoje → menu ⋮ do
+  corretor → **Confirmar no plantão** (admin ou gestor). É o check-in feito
+  pela gestão numa filial: localização `confirmada_gestao`, libera a roleta
+  e tira o corretor da exclusão do fallback. Serve para quem está na loja e o
+  celular não ajuda (GPS ruim dentro do prédio, computador de mesa, celular
+  sem bateria). O próprio corretor também destrava refazendo o check-in com a
+  localização do celular ligada, de dentro da loja.
+- **Voltar a só informar** (sem deploy): Central de Distribuição →
+  Configurações → desligar _"Check-in na filial exige a localização do
+  celular"_ — ou `presenca_loja_exige_localizacao = false`.
 
 ## 4. O que a gestão vê e faz
 
@@ -164,10 +214,13 @@ só então ligue a exigência.
 
 ## 5. Configurações (Central de Distribuição → Configurações, admin)
 
-| Chave                                   | Padrão  | Efeito                                                                                        |
-| --------------------------------------- | ------- | --------------------------------------------------------------------------------------------- |
-| `presenca_casa_min_vendas_mes_anterior` | `3`     | Mínimo de vendas no mês anterior para o check-in em casa liberar. `0` = em casa sempre libera |
-| `presenca_loja_exige_localizacao`       | `false` | Check-in na filial só libera dentro do raio                                                   |
+| Chave                                   | Valor                                           | Efeito                                                                                        |
+| --------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `presenca_casa_min_vendas_mes_anterior` | `3` (em 12/10, `0` só no dia — §8c)             | Mínimo de vendas no mês anterior para o check-in em casa liberar. `0` = em casa sempre libera |
+| `presenca_loja_exige_localizacao`       | **`true`** desde 12/10/2026 14:19 (era `false`) | Check-in na filial só libera dentro do raio (§3)                                              |
+| `fallback_velocidade_ativo`             | `true` (12/10/2026)                             | Roleta sem ninguém apto → o lead vai ao mais rápido ativo no CRM (§8c). `false` = desligado   |
+| `fallback_velocidade_atividade_min`     | `30`                                            | Minutos desde a última ação no CRM para contar como ativo no fallback                         |
+| `velocidade_janela_dias`                | `14`                                            | Janela da métrica de velocidade de primeiro contato                                           |
 
 **Rollback da regra, sem deploy:**
 
@@ -266,6 +319,38 @@ presente); o check-in deles em `/presenca` registra onde estão.
     $$ SELECT public.auto_checkout_presenca(); $$);
   ```
 
+### Estado em produção (12/10/2026, tarde)
+
+| O quê                                              | Em produção                                            | No repositório               |
+| -------------------------------------------------- | ------------------------------------------------------ | ---------------------------- |
+| Fallback por velocidade (tabela, 3 funções, cron)  | desde 12/10, por SQL direto (§8c)                      | `0080` (esta leva)           |
+| `processar_distribuicao_automatica` reescrita      | desde 12/10, por SQL direto                            | `0080`, verbatim             |
+| Exclusão de quem a localização barrou, no fallback | **ainda não** — entra com a `0080`                     | `0080`                       |
+| `presenca_loja_exige_localizacao = true`           | desde 12/10 14:19 (com `audit_log`)                    | `0080`                       |
+| `presenca_casa_min_vendas_mes_anterior = 0`        | só 12/10; o cron one-shot devolve 3 em 13/10 06:00 BRT | não (fica `3`, de propósito) |
+
+A `0080` chega pelo migrador do Lovable no merge (`when` 1792422000000, maior
+que o da `0079`, último registro: id 82). Em produção ela só muda duas
+coisas: a exclusão no ranking e o `REVOKE` de anon/authenticated em
+`corretor_velocidade`; o resto já está lá e vira no-op (as três funções
+verbatim têm o mesmo md5 de `pg_get_functiondef` no harness e em produção).
+Conferência depois do deploy:
+
+```sql
+SELECT p.proname, md5(pg_get_functiondef(p.oid))
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public'
+   AND p.proname IN ('processar_distribuicao_automatica', '_fallback_velocidade',
+                     'recalcular_velocidade_contato', 'fallback_velocidade_ranking')
+ ORDER BY 1;
+-- _fallback_velocidade              58db3519e5451af71dad1f8a268ba73a (igual a antes)
+-- fallback_velocidade_ranking       38f50f89ace01cb35e4d4ab2ed8ecbaf (era 4822cc4b…: + exclusão)
+-- processar_distribuicao_automatica 700bd6b2163aae1649901b4ba0d5ec82 (igual a antes)
+-- recalcular_velocidade_contato     7f00c496551ff1d3fbd5b7a57c90ff83 (igual a antes)
+SELECT has_table_privilege('authenticated', 'public.corretor_velocidade', 'SELECT');  -- false
+SELECT jobname, schedule FROM cron.job WHERE jobname = 'recalcular-velocidade-contato';  -- 7 * * * *
+```
+
 ## 7. Conferências do dia a dia
 
 ```sql
@@ -321,6 +406,144 @@ e Grande SP), e as campanhas passam a ter uma filial dona. O que **não**
 mudou deste doc: o check-in continua valendo em qualquer filial (ou em casa
 com a meta) e libera todas as filas em que o corretor está. Ver
 [`roletas-por-filial.md`](./roletas-por-filial.md).
+
+## 8c. Fallback por velocidade (12/10/2026)
+
+Migration `supabase/migrations/20261019120000_presenca_exigida_fallback_velocidade.sql`
+(espelho `drizzle/migrations/0080_presenca_exigida_fallback_velocidade.sql`).
+Testes: `tests/db/fallback-velocidade.test.ts`.
+
+### O que faz
+
+Com a presença obrigatória, a roleta da filial pode ficar sem ninguém apto
+(ninguém fez o check-in, ou fez e foi recusado). Antes, o lead **esperava**.
+Desde 12/10, o cron da distribuição (`processar_distribuicao_automatica`, a
+cada 5 min) tenta um **fallback**: se a triagem falhou por falta de apto
+(`sem_corretor_na_zona`, `sem_corretor_elegivel`, `sem_corretor_ativo` ou
+`zona_sem_time`), o lead vai para o corretor **mais rápido** entre os que
+estão **usando o CRM agora**. Ninguém nessas condições: o lead fica com o
+Marquinhos, como antes. Fora do horário da roleta (`fora_do_horario`) não
+entra: é espera de propósito.
+
+A entrega passa pelo motor de sempre (`_distribuir_lead_v3`, atribuição
+direta, com a exceção de zona escrita: _"Fallback por velocidade: ninguém apto
+na roleta"_ — o mais rápido pode não atender a zona do lead) e fica no
+`distribution_log` com `regra_aplicada = 'fallback_velocidade'` e o motivo
+_"…foi para o mais rápido ativo no CRM (Nome, X% contatados em até 15 min,
+última ação há Y min)"_. A exceção aberta pela triagem fica resolvida.
+
+Junto veio uma mudança no próprio cron: ele só reprocessa lead **criado nos
+últimos 7 dias**, o mais novo primeiro. Lead mais antigo sem corretor (base,
+importação) fica com o Marquinhos pelo escalonado da base. Antes, o cron
+retentava os mesmos leads velhos a cada 5 minutos — em 12/10 eram ~2.400
+linhas `sem_corretor` por hora no `distribution_log` até as 11h; depois das
+12h, de 14 a 31.
+
+### Quem o fallback escolhe
+
+`fallback_velocidade_ranking(lead)` — entra quem cumpre **tudo**:
+
+- é corretor ativo;
+- **agiu no CRM** nos últimos `fallback_velocidade_atividade_min` minutos
+  (30): uma alteração auditada (`audit_log`) ou uma interação registrada;
+- participa (ativo) de alguma roleta ativa que não seja `base` nem
+  `agendados-sdr`, e o **único** motivo de não estar apto nela é a ausência
+  (`ausente_hoje`) — pausado, cota do dia, regra dos 65, sem telefone
+  continuam barrando;
+- ainda não teve este lead (`corretores_que_tentaram`);
+- **não foi barrado pela localização hoje** (abaixo).
+
+Ordem: o **score de velocidade** (`corretor_velocidade.score`), depois quem
+está há mais tempo sem receber. O score é a taxa de leads contatados em até
+**15 minutos úteis** (08:00–19:00 BRT) por WhatsApp ou ligação **do próprio
+corretor**, nos últimos `velocidade_janela_dias` (14) — sem as 2 últimas
+horas —, suavizada para a média do time (`k = 10`) para quem tem pouca
+amostra não disparar no topo nem no fim:
+`score = 100 × (contatados em 15 min + 10 × média do time) / (recebidos + 10)`.
+Lead nunca contatado conta como falha.
+
+### Barrado pela localização fica fora
+
+Decisão do dono (12/10/2026), sobre o fallback: _"Barrado pela localização
+fica fora"_.
+
+- Quem **escolheu uma filial** hoje e o GPS barrou (`fora_da_filial` ou
+  `sem_localizacao`, com a exigência ligada — §3) **não recebe nem pelo
+  fallback** naquele dia.
+- Quem marcou **Em casa** com sinceridade — mesmo recusado pelas vendas
+  (`casa_abaixo_minimo_vendas`) — **continua** podendo receber pelo fallback
+  quando a roleta está vazia.
+
+**Por quê.** O fallback nasceu aceitando "ausente": é para a roleta vazia por
+falta de check-in. Com a localização exigindo, quem disse estar na loja e não
+estava aparece como ausente — e o fallback entregaria a ele justamente o lead
+que a exigência quis segurar. Quem foi honesto e disse "em casa" não é
+punido pela regra que pega quem não foi.
+
+**Quando volta no mesmo dia.** Só com um check-in **posterior** que liberou a
+roleta: chegou na loja e o GPS confirmou, ou a gestão usou **Confirmar no
+plantão** (§3). Aí ele deixou de ser "barrado" — e já está apto nas filas
+dele de qualquer forma. Trocar para "Em casa" depois de barrado, sem a meta,
+**não** destrava (senão bastaria trocar de opção). No dia seguinte, começa do
+zero.
+
+### Chaves e como desligar
+
+| Chave                               | Valor  | Para quê                                                         |
+| ----------------------------------- | ------ | ---------------------------------------------------------------- |
+| `fallback_velocidade_ativo`         | `true` | `false` desliga: roleta vazia volta a significar "o lead espera" |
+| `fallback_velocidade_atividade_min` | `30`   | Janela de "ativo no CRM", em minutos                             |
+| `velocidade_janela_dias`            | `14`   | Janela da métrica de velocidade                                  |
+
+```sql
+-- Desligar o fallback (sem deploy; o cron segue, só sem o fallback):
+UPDATE public.distribuicao_settings SET valor = 'false'::jsonb, updated_at = now()
+ WHERE chave = 'fallback_velocidade_ativo';
+```
+
+### O cron horário
+
+`recalcular-velocidade-contato` (`7 * * * *`, de hora em hora no minuto 7)
+roda `recalcular_velocidade_contato()`, que refaz a foto inteira de
+`corretor_velocidade` (recebidos, contatados, contatados em 15 min, %, score).
+Tabela com RLS ligado e sem policy, sem grant para anon/authenticated: pela
+API ninguém lê nem escreve; as três funções são internas (só o pg_cron e o
+`service_role`).
+
+```sql
+-- O ranking de agora, para um lead (como service_role / no SQL editor):
+SELECT * FROM public.fallback_velocidade_ranking('<lead_id>');
+-- O que o fallback entregou hoje:
+SELECT dl.created_at AT TIME ZONE 'America/Sao_Paulo' AS hora, p.nome, dl.motivo
+  FROM public.distribution_log dl JOIN public.profiles p ON p.id = dl.corretor_id
+ WHERE dl.regra_aplicada = 'fallback_velocidade'
+   AND dl.created_at >= date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')
+                        AT TIME ZONE 'America/Sao_Paulo'
+ ORDER BY 1;
+```
+
+### Registro: o que entrou direto em produção em 12/10/2026
+
+Feito por outra conversa do dono, pela ferramenta de banco, entre 11:20 e
+12:18 BRT (e às 14:19). O dono confirmou que **fica** (_"sim"_); a
+`0080` traz para o repositório o que é estrutura e configuração. Horários de
+Brasília, pelos registros do banco (`updated_at` das chaves, `audit_log`,
+`distribution_log`, `cron.job`):
+
+| Hora        | Evento                                                                                                                                                                                                    |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 11:20       | `presenca_casa_min_vendas_mes_anterior` 3 → **0**, só por hoje (em casa libera para todos). Cron one-shot `restaurar-presenca-casa-1310` (`0 9 13 10 *` UTC = 13/10 06:00 BRT) volta a 3 e se desagenda   |
+| 11:23       | O check-in "Em casa" da Priscila (das 10:27) reescrito por SQL para liberado                                                                                                                              |
+| 11:27       | A presença dela ligada por SQL; handoff manual de um lead ao Andrew                                                                                                                                       |
+| 11:20–12:18 | Tabela `corretor_velocidade`, `recalcular_velocidade_contato`, `fallback_velocidade_ranking`, `_fallback_velocidade`, `processar_distribuicao_automatica` reescrita, cron `recalcular-velocidade-contato` |
+| 12:17       | As chaves `fallback_velocidade_ativo` (true), `fallback_velocidade_atividade_min` (30) e `velocidade_janela_dias` (14)                                                                                    |
+| 13h         | Primeira entrega pelo fallback (`regra_aplicada = 'fallback_velocidade'`)                                                                                                                                 |
+| 14:19       | `presenca_loja_exige_localizacao` → **true** (com linha em `audit_log`) — §3                                                                                                                              |
+
+O que a `0080` **não** registra, de propósito: o mínimo em 0 (é só de 12/10;
+o cron one-shot cuida da volta a 3 — registrar 0 reabriria a casa em
+qualquer ambiente novo) e as correções pontuais de dados (o check-in, a
+presença e o handoff), que são operação daquele dia, não regra.
 
 ## 9. O que fica de fora (decisões do dono, 09/10/2026)
 

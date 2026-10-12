@@ -68,7 +68,7 @@ export function MinhaElegibilidadeCard() {
                   {r.motivos.includes("pct_trabalhado_abaixo_minimo") &&
                     " — atenda os leads em “Aguardando atendimento” para voltar à roleta."}
                   {r.motivos.includes("ausente_hoje") &&
-                    " — faça o check-in numa filial (em casa, só com a meta de vendas do mês anterior) para receber leads."}
+                    " — esteja numa filial e faça o check-in de lá (em casa, só com a meta de vendas do mês anterior) para receber leads."}
                 </p>
               )}
             </div>

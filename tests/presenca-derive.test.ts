@@ -11,10 +11,13 @@ import {
 import { presencaObrigatoria } from "@/lib/distribuicao";
 import {
   agruparQuadro,
+  avisoLocalizacao,
+  barradoPelaLocalizacao,
   coordenadasTexto,
   distanciaLabel,
   enderecoCurto,
   localizacaoLabel,
+  mensagemSemLocalizacao,
   motivoPresencaLabel,
   nomeDoMes,
   parseCoordenadas,
@@ -23,6 +26,7 @@ import {
   resumoQuadro,
   rotuloLocal,
   situacaoHoje,
+  statusRoletaLinha,
   type MinhaPresenca,
   type PresencaHojeRow,
 } from "@/features/presenca/presenca-derive";
@@ -127,7 +131,7 @@ describe("o que o corretor lê no card", () => {
     });
   });
 
-  it("em outubro, em casa com 2 de 3 vendas em setembro: fora da roleta, com a conta e o caminho (filial)", () => {
+  it("em outubro, em casa com 2 de 3 vendas em setembro: fora da roleta, com a conta e o caminho (estar na filial)", () => {
     const s = situacaoHoje(
       presenca({
         checkin: checkin({
@@ -143,8 +147,10 @@ describe("o que o corretor lê no card", () => {
     expect(s.titulo).toBe("Em casa — fora da roleta");
     expect(s.detalhe).toBe(
       "Em casa, a roleta só libera com 3 vendas aprovadas em setembro — você teve 2. " +
-        "Para receber leads hoje, faça o check-in numa filial.",
+        "Para receber leads da roleta hoje, é preciso estar numa filial: vá até a loja e faça o check-in de lá.",
     );
+    // Não empurra quem está em casa a "escolher" uma filial: tem de ESTAR nela.
+    expect(s.detalhe).not.toContain("faça o check-in numa filial");
   });
 
   it("em casa com a meta batida: na roleta, dizendo por quê", () => {
@@ -215,6 +221,81 @@ describe("evidência de localização", () => {
   });
 });
 
+describe("check-in na filial barrado pela localização: o que o corretor lê", () => {
+  it("fora da filial: a distância que o banco calculou, que só vale de dentro da loja e o caminho do gestor", () => {
+    const s = situacaoHoje(
+      presenca({
+        exige_localizacao: true,
+        checkin: checkin({
+          apto_roleta: false,
+          motivo: "fora_da_filial",
+          localizacao: "fora_do_raio",
+          distancia_m: 5830,
+        }),
+      }),
+    );
+    expect(s.estado).toBe("fora_da_roleta");
+    expect(s.titulo).toBe("Barra Funda — fora da roleta");
+    expect(s.detalhe).toBe(
+      "Você está a 5,8 km da filial Barra Funda. O check-in na filial só vale de dentro da loja. " +
+        "Se você está na loja, peça ao gestor para confirmar no plantão.",
+    );
+    // Sem a distância (dado antigo), não inventa número.
+    expect(
+      motivoPresencaLabel("fora_da_filial", {
+        vendas_mes_anterior: 0,
+        vendas_minimas: 3,
+        filial_nome: "Liberdade",
+      }),
+    ).toMatch(
+      /^Você está longe da filial Liberdade\. O check-in na filial só vale de dentro da loja\./,
+    );
+  });
+
+  it("sem localização: o que fazer depende de por que o celular não deu a posição", () => {
+    const sem = (falha?: Parameters<typeof mensagemSemLocalizacao>[0]) =>
+      motivoPresencaLabel("sem_localizacao", {
+        vendas_mes_anterior: 0,
+        vendas_minimas: 3,
+        falha_localizacao: falha,
+      });
+    // Permissão negada: como liberar no navegador do celular.
+    expect(sem("negada")).toContain("cadeado");
+    expect(sem("negada")).toContain("Localização → Permitir");
+    expect(sem("negada")).toContain("tente de novo");
+    // GPS indisponível ou demorou: ligar a localização, perto de uma janela.
+    for (const f of ["indisponivel", "tempo"] as const) {
+      expect(sem(f)).toBe(
+        "O celular não conseguiu informar a localização. Ligue a localização do celular e " +
+          "tente de novo, de preferência perto de uma janela.",
+      );
+    }
+    expect(sem("sem_suporte")).toContain("Este navegador não informa a localização");
+    // Sem saber o porquê (o card relido depois): a orientação geral.
+    expect(sem()).toContain("Ligue a localização");
+    expect(sem()).toContain("de dentro da loja");
+    // O card de /presenca usa o porquê do último check-in feito nele.
+    const s = situacaoHoje(
+      presenca({
+        checkin: checkin({
+          apto_roleta: false,
+          motivo: "sem_localizacao",
+          localizacao: "sem_localizacao",
+        }),
+      }),
+      { falhaLocalizacao: "negada" },
+    );
+    expect(s.detalhe).toBe(mensagemSemLocalizacao("negada"));
+  });
+
+  it("aviso sob as opções: com a exigência ligada, diz que a localização é conferida", () => {
+    expect(avisoLocalizacao(true)).toContain("a localização do celular é conferida");
+    expect(avisoLocalizacao(true)).toContain("só vale de dentro da loja");
+    expect(avisoLocalizacao(false)).not.toContain("conferida");
+    expect(avisoLocalizacao(false)).toContain("Em casa, a localização nunca é pedida.");
+  });
+});
+
 describe("quadro da gestão", () => {
   const rows = [
     linha({
@@ -280,13 +361,52 @@ describe("quadro da gestão", () => {
     ]);
   });
 
-  it("resumo: na roleta, no plantão, em casa fora da roleta, sem check-in", () => {
+  it("resumo: na roleta, no plantão (sem os barrados pela localização), em casa fora da roleta, sem check-in", () => {
     expect(resumoQuadro(rows)).toEqual({
       naRoleta: 4,
-      naFilial: 3,
+      // Ana (Barra Funda) e Hugo (filial desativada); Bia foi barrada pela localização.
+      naFilial: 2,
+      barradosLocalizacao: 1,
       emCasaForaDaRoleta: 1,
       semCheckin: 2,
     });
+  });
+
+  it("selo da linha: barrado pela localização aparece como barrado (com a distância), nunca como 'Na roleta'", () => {
+    const bia = rows.find((r) => r.nome === "Bia")!;
+    expect(barradoPelaLocalizacao(bia)).toBe(true);
+    expect(statusRoletaLinha({ ...bia, distancia_m: 5830 })).toEqual({
+      texto: "Barrado: a 5,8 km da filial",
+      intent: "danger",
+    });
+    expect(statusRoletaLinha(bia)).toEqual({ texto: "Barrado: longe da filial", intent: "danger" });
+    // Mesmo que o perfil ainda diga "presente" (dado atrasado), o barrado não vira "Na roleta".
+    expect(statusRoletaLinha({ ...bia, presente: true })?.texto).toMatch(/^Barrado/);
+    const semGps = linha({
+      nome: "Iara",
+      modo: "loja",
+      filial_slug: "liberdade",
+      filial_nome: "Liberdade",
+      apto_roleta: false,
+      motivo: "sem_localizacao",
+      localizacao: "sem_localizacao",
+    });
+    expect(statusRoletaLinha(semGps)).toEqual({
+      texto: "Barrado: sem localização",
+      intent: "danger",
+    });
+    expect(resumoQuadro([semGps])).toMatchObject({ naFilial: 0, barradosLocalizacao: 1 });
+
+    const ana = rows.find((r) => r.nome === "Ana")!;
+    expect(statusRoletaLinha(ana)).toEqual({ texto: "Na roleta", intent: "success" });
+    const caio = rows.find((r) => r.nome === "Caio")!;
+    // Em casa abaixo do mínimo: fora da roleta, mas não "barrado" (disse a verdade).
+    expect(barradoPelaLocalizacao(caio)).toBe(false);
+    expect(statusRoletaLinha(caio)).toEqual({ texto: "Fora da roleta", intent: "warning" });
+    // Barrado que encerrou a presença: sem selo (a linha diz a hora da saída).
+    expect(statusRoletaLinha({ ...bia, encerrado_em: "2026-10-13T20:00:00Z" })).toBeNull();
+    expect(barradoPelaLocalizacao({ ...bia, encerrado_em: "2026-10-13T20:00:00Z" })).toBe(false);
+    expect(statusRoletaLinha(rows.find((r) => r.nome === "Fábio")!)).toBeNull();
   });
 });
 

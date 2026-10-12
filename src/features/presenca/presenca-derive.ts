@@ -10,6 +10,14 @@ import type { Intent } from "@/lib/status-tones";
 
 export type ModoPresenca = "loja" | "casa" | "liberado_gestao";
 export type MotivoPresenca = "casa_abaixo_minimo_vendas" | "fora_da_filial" | "sem_localizacao";
+/**
+ * Por que o celular não deu a localização no check-in na filial (só a tela
+ * sabe: para o banco é tudo "sem coordenada" → `sem_localizacao`).
+ * negada = code 1 (o corretor ou o navegador bloqueou), indisponivel = code 2,
+ * tempo = code 3 (ou o aparelho não respondeu), sem_suporte = navegador sem
+ * geolocalização.
+ */
+export type FalhaLocalizacao = "negada" | "indisponivel" | "tempo" | "sem_suporte";
 export type LocalizacaoCheckin =
   | "confirmada"
   | "fora_do_raio"
@@ -164,10 +172,52 @@ export function localizacaoLabel(
   }
 }
 
+/** "da filial Barra Funda" · "da filial" (sem nome). */
+const daFilial = (nome: string | null | undefined) => (nome ? `da filial ${nome}` : "da filial");
+
+/**
+ * O que fazer quando o celular não deu a localização, pelo tipo de falha.
+ * Sem o tipo (o card relido depois, outro aparelho), a orientação geral.
+ */
+export function mensagemSemLocalizacao(falha: FalhaLocalizacao | null | undefined): string {
+  switch (falha) {
+    case "negada":
+      return (
+        "O navegador está bloqueando a localização para o CRM. Para liberar: toque no cadeado " +
+        "(ou no ícone) ao lado do endereço do site → Localização → Permitir. Depois, tente de novo."
+      );
+    case "indisponivel":
+    case "tempo":
+      return (
+        "O celular não conseguiu informar a localização. Ligue a localização do celular e " +
+        "tente de novo, de preferência perto de uma janela."
+      );
+    case "sem_suporte":
+      return (
+        "Este navegador não informa a localização. Abra o CRM no navegador do celular " +
+        "(Chrome ou Safari) e tente de novo."
+      );
+    default:
+      return (
+        "Sem a localização do celular não dá para confirmar que você está na filial. " +
+        "Ligue a localização, permita o acesso para o CRM no navegador e tente de novo de dentro da loja."
+      );
+  }
+}
+
 /** Por que o check-in não liberou a roleta, em linguagem de corretor. */
 export function motivoPresencaLabel(
   motivo: MotivoPresenca | null,
-  ctx: { vendas_mes_anterior: number; vendas_minimas: number; mes?: string },
+  ctx: {
+    vendas_mes_anterior: number;
+    vendas_minimas: number;
+    mes?: string;
+    /** Check-in na filial: qual filial e a distância que o banco calculou. */
+    filial_nome?: string | null;
+    distancia_m?: number | null;
+    /** Só a tela do check-in sabe por que a localização faltou. */
+    falha_localizacao?: FalhaLocalizacao | null;
+  },
 ): string | null {
   switch (motivo) {
     case "casa_abaixo_minimo_vendas": {
@@ -175,13 +225,21 @@ export function motivoPresencaLabel(
       return (
         `Em casa, a roleta só libera com ${ctx.vendas_minimas} venda${ctx.vendas_minimas === 1 ? "" : "s"} ` +
         `aprovada${ctx.vendas_minimas === 1 ? "" : "s"}${mes} — você teve ${ctx.vendas_mes_anterior}. ` +
-        "Para receber leads hoje, faça o check-in numa filial."
+        "Para receber leads da roleta hoje, é preciso estar numa filial: vá até a loja e faça o check-in de lá."
       );
     }
-    case "fora_da_filial":
-      return "A localização do celular ficou fora do raio da filial. Tente de novo já dentro da loja ou peça para a gestão confirmar.";
+    case "fora_da_filial": {
+      const onde =
+        ctx.distancia_m == null
+          ? `Você está longe ${daFilial(ctx.filial_nome)}.`
+          : `Você está a ${distanciaLabel(ctx.distancia_m)} ${daFilial(ctx.filial_nome)}.`;
+      return (
+        `${onde} O check-in na filial só vale de dentro da loja. ` +
+        "Se você está na loja, peça ao gestor para confirmar no plantão."
+      );
+    }
     case "sem_localizacao":
-      return "Sem a localização do celular não dá para confirmar o plantão. Libere a localização no navegador e tente de novo.";
+      return mensagemSemLocalizacao(ctx.falha_localizacao);
     default:
       return null;
   }
@@ -194,8 +252,15 @@ export type SituacaoHoje = {
   intent: Intent;
 };
 
-/** O cabeçalho do card de check-in: onde estou e se recebo lead. */
-export function situacaoHoje(p: MinhaPresenca): SituacaoHoje {
+/**
+ * O cabeçalho do card de check-in: onde estou e se recebo lead. `falhaLocalizacao`:
+ * por que o celular não deu a localização no último check-in feito NESTA tela
+ * (o banco não sabe; sem ela, a orientação geral).
+ */
+export function situacaoHoje(
+  p: MinhaPresenca,
+  opts: { falhaLocalizacao?: FalhaLocalizacao | null } = {},
+): SituacaoHoje {
   const c = p.checkin;
   const mes = nomeDoMes(p.mes_referencia);
   if (!c) {
@@ -229,9 +294,22 @@ export function situacaoHoje(p: MinhaPresenca): SituacaoHoje {
   return {
     estado: "fora_da_roleta",
     titulo: `${local} — fora da roleta`,
-    detalhe: motivoPresencaLabel(c.motivo, { ...p, mes }),
+    detalhe: motivoPresencaLabel(c.motivo, {
+      ...p,
+      mes,
+      filial_nome: c.filial_nome,
+      distancia_m: c.distancia_m,
+      falha_localizacao: opts.falhaLocalizacao,
+    }),
     intent: "warning",
   };
+}
+
+/** O aviso de localização sob as opções do check-in (card e diálogo obrigatório). */
+export function avisoLocalizacao(exige: boolean): string {
+  return exige
+    ? "Na filial, a localização do celular é conferida no momento do check-in: o check-in só vale de dentro da loja. Em casa, a localização nunca é pedida."
+    : "Na filial, o celular informa a localização só no momento do check-in, para confirmar o plantão. Em casa, a localização nunca é pedida.";
 }
 
 /** Faixa no topo do CRM: só para corretor sem check-in aberto hoje. */
@@ -307,9 +385,56 @@ export function agruparQuadro(
   return colunas;
 }
 
+/**
+ * Check-in na filial que a localização barrou (exigência ligada): fora do
+ * raio ou sem localização. Fica fora da roleta — e, por decisão do dono
+ * (12/10/2026), também fora do reforço quando a roleta esvazia.
+ */
+export function barradoPelaLocalizacao(
+  r: Pick<PresencaHojeRow, "modo" | "encerrado_em" | "apto_roleta" | "motivo">,
+): boolean {
+  return (
+    r.modo === "loja" &&
+    r.encerrado_em === null &&
+    r.apto_roleta === false &&
+    (r.motivo === "fora_da_filial" || r.motivo === "sem_localizacao")
+  );
+}
+
+/**
+ * O selo da linha do corretor no quadro: "Na roleta", "Fora da roleta" ou,
+ * para quem a localização barrou, o porquê ("Barrado: a 5,8 km da filial").
+ * null = sem check-in aberto (a linha diz a hora da saída, se houver).
+ */
+export function statusRoletaLinha(
+  r: Pick<
+    PresencaHojeRow,
+    "modo" | "encerrado_em" | "apto_roleta" | "motivo" | "presente" | "distancia_m"
+  >,
+): { texto: string; intent: Intent } | null {
+  if (r.modo === null || r.encerrado_em !== null) return null;
+  if (barradoPelaLocalizacao(r)) {
+    if (r.motivo === "sem_localizacao")
+      return { texto: "Barrado: sem localização", intent: "danger" };
+    return {
+      texto:
+        r.distancia_m == null
+          ? "Barrado: longe da filial"
+          : `Barrado: a ${distanciaLabel(r.distancia_m)} da filial`,
+      intent: "danger",
+    };
+  }
+  return r.presente
+    ? { texto: "Na roleta", intent: "success" }
+    : { texto: "Fora da roleta", intent: "warning" };
+}
+
 export type ResumoQuadro = {
   naRoleta: number;
+  /** Check-in aberto numa filial que vale (sem os barrados pela localização). */
   naFilial: number;
+  /** Escolheram uma filial e a localização barrou (fora da conta do plantão). */
+  barradosLocalizacao: number;
   emCasaForaDaRoleta: number;
   semCheckin: number;
 };
@@ -318,7 +443,9 @@ export function resumoQuadro(rows: PresencaHojeRow[]): ResumoQuadro {
   const ativo = (r: PresencaHojeRow) => r.modo !== null && r.encerrado_em === null;
   return {
     naRoleta: rows.filter((r) => r.presente).length,
-    naFilial: rows.filter((r) => ativo(r) && r.modo === "loja").length,
+    naFilial: rows.filter((r) => ativo(r) && r.modo === "loja" && !barradoPelaLocalizacao(r))
+      .length,
+    barradosLocalizacao: rows.filter(barradoPelaLocalizacao).length,
     emCasaForaDaRoleta: rows.filter((r) => ativo(r) && r.modo === "casa" && !r.apto_roleta).length,
     semCheckin: rows.filter((r) => !ativo(r)).length,
   };

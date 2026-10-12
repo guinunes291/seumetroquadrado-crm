@@ -12,6 +12,7 @@ import {
   nomeDoMes,
   parseMinhaPresenca,
   rotuloLocal,
+  type FalhaLocalizacao,
   type MinhaPresenca,
   type PresencaHojeRow,
 } from "./presenca-derive";
@@ -37,24 +38,54 @@ export function useMinhaPresenca(enabled = true) {
 
 export type Localizacao = { lat: number; lng: number; precisao: number | null };
 
+/** O que o celular respondeu: a posição, ou por que não veio. */
+export type LeituraLocalizacao =
+  ({ ok: true } & Localizacao) | { ok: false; falha: FalhaLocalizacao };
+
+/** GeolocationPositionError.code → o que dizer ao corretor. */
+export function falhaDoCodigo(code: number | undefined): FalhaLocalizacao {
+  if (code === 1) return "negada";
+  if (code === 2) return "indisponivel";
+  return "tempo";
+}
+
 /**
- * Localização do celular para o check-in NA FILIAL (nunca em casa). Melhor
- * esforço: negou, não tem GPS ou demorou → null, e o banco registra "sem
- * localização" (só bloqueia se a gestão ligar a exigência).
+ * Localização do celular para o check-in NA FILIAL (nunca em casa). Nunca
+ * rejeita: sem posição, devolve o tipo de falha (permissão negada, GPS
+ * indisponível, tempo esgotado, navegador sem suporte) só para a tela
+ * explicar o que fazer. Para o banco não muda nada: sem coordenada, ele
+ * registra "sem localização" (e barra, com a exigência ligada).
  */
-export function obterLocalizacao(timeoutMs = 10_000): Promise<Localizacao | null> {
-  if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(null);
+export function obterLocalizacao(timeoutMs = 10_000): Promise<LeituraLocalizacao> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    return Promise.resolve({ ok: false, falha: "sem_suporte" });
+  }
   return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        resolve({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          precisao: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
-        }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60_000 },
-    );
+    let respondeu = false;
+    const responder = (r: LeituraLocalizacao) => {
+      if (respondeu) return;
+      respondeu = true;
+      clearTimeout(guarda);
+      resolve(r);
+    };
+    // Alguns navegadores nunca chamam de volta (pedido de permissão esquecido
+    // na tela): sem esta guarda, o botão ficaria girando para sempre.
+    const guarda = setTimeout(() => responder({ ok: false, falha: "tempo" }), timeoutMs + 20_000);
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          responder({
+            ok: true,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            precisao: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
+          }),
+        (err) => responder({ ok: false, falha: falhaDoCodigo(err?.code) }),
+        { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60_000 },
+      );
+    } catch {
+      responder({ ok: false, falha: "sem_suporte" });
+    }
   });
 }
 
@@ -68,28 +99,56 @@ function useInvalidarPresenca() {
   };
 }
 
-function toastDoCheckin(p: MinhaPresenca) {
+/** O check-in gravado e, se faltou a localização, por quê (só a tela sabe). */
+export type ResultadoCheckin = {
+  presenca: MinhaPresenca;
+  falhaLocalizacao: FalhaLocalizacao | null;
+};
+
+/** O texto que explica por que o check-in não liberou a roleta (null = liberou). */
+export function motivoDoResultado(r: ResultadoCheckin): string | null {
+  const p = r.presenca;
   const c = p.checkin;
+  if (!c || c.apto_roleta) return null;
+  return motivoPresencaLabel(c.motivo, {
+    ...p,
+    mes: nomeDoMes(p.mes_referencia),
+    filial_nome: c.filial_nome,
+    distancia_m: c.distancia_m,
+    falha_localizacao: r.falhaLocalizacao,
+  });
+}
+
+function toastDoCheckin(r: ResultadoCheckin, avisarRecusa: boolean) {
+  const c = r.presenca.checkin;
   if (!c) return;
   const local = rotuloLocal(c.modo, c.filial_nome);
+  // O verde "na roleta" só quando o banco liberou de verdade.
   if (c.apto_roleta) {
     toast.success(`Check-in feito: ${local}. Você está na roleta hoje.`);
-  } else {
+  } else if (avisarRecusa) {
     toast.warning(`Check-in registrado: ${local}. Você está fora da roleta.`, {
-      description:
-        motivoPresencaLabel(c.motivo, { ...p, mes: nomeDoMes(p.mes_referencia) }) ?? undefined,
+      description: motivoDoResultado(r) ?? undefined,
       duration: 10_000,
     });
   }
 }
 
-export function useCheckin() {
+/**
+ * O check-in do próprio corretor. `avisarRecusa: false` para quem mostra o
+ * motivo na própria tela (o diálogo obrigatório): o toast fica só para o verde.
+ */
+export function useCheckin({ avisarRecusa = true }: { avisarRecusa?: boolean } = {}) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const invalidar = useInvalidarPresenca();
   return useMutation({
-    mutationFn: async (args: { modo: "loja" | "casa"; filial?: string }) => {
-      const geo = args.modo === "loja" ? await obterLocalizacao() : null;
+    mutationFn: async (args: {
+      modo: "loja" | "casa";
+      filial?: string;
+    }): Promise<ResultadoCheckin> => {
+      const leitura = args.modo === "loja" ? await obterLocalizacao() : null;
+      const geo = leitura?.ok ? leitura : null;
       const { data, error } = await supabasePendente.rpc("presenca_checkin", {
         _modo: args.modo,
         _filial: args.filial,
@@ -98,16 +157,19 @@ export function useCheckin() {
         _precisao_m: geo?.precisao ?? undefined,
       });
       if (error) throw error;
-      return parseMinhaPresenca(data);
+      return {
+        presenca: parseMinhaPresenca(data),
+        falhaLocalizacao: leitura && !leitura.ok ? leitura.falha : null,
+      };
     },
-    onSuccess: (status) => {
+    onSuccess: (r) => {
       // A RPC não devolve as filiais — preserva as que já estavam no cache.
       qc.setQueryData<MinhaPresenca>([...PRESENCA_KEY, "minha", user?.id], (antes) => ({
-        ...status,
-        filiais: antes?.filiais ?? status.filiais,
+        ...r.presenca,
+        filiais: antes?.filiais ?? r.presenca.filiais,
       }));
       invalidar();
-      toastDoCheckin(status);
+      toastDoCheckin(r, avisarRecusa);
     },
     onError: (e: Error) => toast.error(`Não foi possível fazer o check-in: ${e.message}`),
   });

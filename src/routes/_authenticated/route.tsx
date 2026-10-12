@@ -63,7 +63,15 @@ const OnboardingGlobal = lazy(() =>
   })),
 );
 
-// Estudo do Meu Funil: obrigatório para o corretor às quintas, entre o onboarding
+// Check-in obrigatório: o corretor diz onde está hoje (filial ou em casa) antes
+// de usar o CRM — depois do onboarding, antes do estudo do funil e das metas.
+const CheckinObrigatorioGlobal = lazy(() =>
+  import("@/features/presenca/checkin-obrigatorio-global").then(({ CheckinObrigatorioGlobal }) => ({
+    default: CheckinObrigatorioGlobal,
+  })),
+);
+
+// Estudo do Meu Funil: obrigatório para o corretor às quintas, entre o check-in
 // e as metas do dia.
 const MeuFunilGlobal = lazy(() =>
   import("@/features/meu-funil/meu-funil-global").then(({ MeuFunilGlobal }) => ({
@@ -83,7 +91,10 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   // Sessão e conta ativa vivem no guard compartilhado com o hub /inicio
   // (src/lib/auth-guard.ts) — uma única fonte de verdade. A presença virou
-  // check-in por filial (/presenca), cobrado pela CheckinPendenteBanner.
+  // check-in por filial (/presenca): obrigatório ao abrir o CRM
+  // (CheckinObrigatorioGlobal, aqui embaixo, e não no beforeLoad: erro na
+  // leitura não pode barrar a navegação) e cobrado pela CheckinPendenteBanner
+  // depois de "Encerrar presença".
   beforeLoad: ({ location }) => guardarRotaAutenticada(location.href),
   component: AuthenticatedLayout,
 });
@@ -157,6 +168,7 @@ function AuthenticatedLayout() {
           <KeyboardShortcutsHelp />
           <ChamadaAtivaHost />
           <OnboardingGlobal />
+          <CheckinObrigatorioGlobal />
           <MeuFunilGlobal />
           <MetasDiaGlobal />
         </Suspense>

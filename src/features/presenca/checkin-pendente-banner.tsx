@@ -1,16 +1,17 @@
 // Faixa "faça seu check-in" no topo do CRM — substitui o auto check-in do
 // login (auth-guard), que marcava presença sozinho e sem dizer onde. Só para
 // corretor, só enquanto não houver check-in aberto hoje, e fora das telas que
-// já mostram o card de check-in.
+// já mostram o card de check-in. O PRIMEIRO check-in do dia é cobrado pelo
+// diálogo obrigatório (checkin-obrigatorio-global.tsx); a faixa fica para
+// quem encerrou a presença e para as telas em que o diálogo não abre.
 
 import { Link, useLocation } from "@tanstack/react-router";
 import { Storefront } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useUserRoles } from "@/hooks/use-auth";
+import { TELAS_COM_CARD_CHECKIN } from "./checkin-obrigatorio";
 import { useMinhaPresenca } from "./presenca-client";
 import { precisaCheckin } from "./presenca-derive";
-
-const TELAS_COM_CARD = ["/presenca", "/meu-perfil"];
 
 export function CheckinPendenteBanner() {
   const { isCorretor, loading } = useUserRoles();
@@ -18,7 +19,7 @@ export function CheckinPendenteBanner() {
   const q = useMinhaPresenca(isCorretor);
 
   if (loading || !isCorretor || !precisaCheckin(q.data)) return null;
-  if (TELAS_COM_CARD.some((t) => location.pathname.startsWith(t))) return null;
+  if (TELAS_COM_CARD_CHECKIN.some((t) => location.pathname.startsWith(t))) return null;
 
   const encerrado = !!q.data?.checkin?.encerrado_em;
   return (

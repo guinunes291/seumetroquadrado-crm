@@ -30,6 +30,8 @@ import { MetasDiaDialog } from "@/features/metas-dia/metas-dia-dialog";
 import { MetasDiaCard } from "@/features/metas-dia/metas-dia-card";
 import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
 import { useEstudoFunilPendente } from "@/features/meu-funil/use-estudo-pendente";
+import { ROTAS_TELA_CHEIA } from "@/features/presenca/checkin-obrigatorio";
+import { useCheckinObrigatorioPendente } from "@/features/presenca/use-checkin-obrigatorio";
 
 // Placar da roleta do SDR dentro do card: lazy, porque só aparece com a regra
 // semanal ligada e não deve pesar no chunk do shell.
@@ -105,8 +107,9 @@ function useDiaOperacao(): string {
   return dia;
 }
 
-// Telas em que o card atrapalha (tela cheia de campo).
-const ROTAS_SEM_CARD = ["/modo-visita"];
+// Telas em que o card atrapalha (tela cheia de campo) — as mesmas em que o
+// check-in obrigatório não abre.
+const ROTAS_SEM_CARD = ROTAS_TELA_CHEIA;
 
 /**
  * Host global das metas do dia — montado uma vez no shell /_authenticated
@@ -154,9 +157,15 @@ export function MetasDiaGlobal() {
   // custa 1 venda declara a meta sabendo o esforço. `null` = ainda lendo.
   const estudoFunilPendente = useEstudoFunilPendente();
 
+  // O check-in do dia vem antes de tudo isso (depois do onboarding): a meta
+  // é de quem já disse onde está trabalhando hoje. `null` = ainda lendo;
+  // leitura com erro = `false` (não trava as metas).
+  const checkinPendente = useCheckinObrigatorioPendente();
+
   const primeira =
     habilitado &&
     !onboardingPendente &&
+    checkinPendente === false &&
     estudoFunilPendente === false &&
     !hojeQ.isPending &&
     !hojeQ.isError &&
@@ -231,14 +240,21 @@ export function MetasDiaGlobal() {
   if (!habilitado) return null;
 
   // O aviso da roleta do SDR nunca abre por cima de outro pop-up (onboarding,
-  // estudo do funil, metas do dia) nem na tela cheia de campo. Fica sempre
-  // como 1º filho do fragmento para não remontar quando as metas carregam.
+  // check-in, estudo do funil, metas do dia) nem na tela cheia de campo. Fica
+  // sempre como 1º filho do fragmento para não remontar quando as metas
+  // carregam.
   const rotaSemCard = ROTAS_SEM_CARD.some((r) => pathname.startsWith(r));
   const avisoRoletaSdr = (outroPopup: boolean) => (
     <Suspense fallback={null}>
       <AvisoRoletaSdrHost
         uid={uid}
-        bloqueado={outroPopup || onboardingPendente || estudoFunilPendente !== false || rotaSemCard}
+        bloqueado={
+          outroPopup ||
+          onboardingPendente ||
+          checkinPendente !== false ||
+          estudoFunilPendente !== false ||
+          rotaSemCard
+        }
       />
     </Suspense>
   );

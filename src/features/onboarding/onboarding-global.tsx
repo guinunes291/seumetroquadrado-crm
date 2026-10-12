@@ -17,6 +17,7 @@ import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
 import { PREF_ONBOARDING_PRATICO, praticoConcluido } from "@/features/onboarding/pratico";
 import { OnboardingPratico } from "@/features/onboarding/onboarding-pratico";
 import { useConcluirOnboarding, useOnboardingStatus } from "@/features/onboarding/use-onboarding";
+import { publicarEstadoTreino } from "@/features/onboarding/treino-estado";
 
 export function OnboardingGlobal() {
   const { user } = useAuth();
@@ -42,10 +43,18 @@ export function OnboardingGlobal() {
     return () => window.removeEventListener(EVENTO_ABRIR_ONBOARDING, abrir);
   }, []);
 
-  if (!user) return null;
-
   const obrigatorio =
-    !papeisCarregando && isCorretor && prefs.isFetched && !praticoConcluido(conclusao);
+    !!user && !papeisCarregando && isCorretor && prefs.isFetched && !praticoConcluido(conclusao);
+  // O check-in do dia espera o treino: publica se ele já está decidido e se
+  // está na tela (obrigatório ou reaberto pelo menu).
+  const decidido = !!user && !papeisCarregando && (!isCorretor || prefs.isFetched);
+  const treinoAberto = obrigatorio || reaberto;
+  useEffect(() => {
+    publicarEstadoTreino({ decidido, aberto: treinoAberto });
+  }, [decidido, treinoAberto]);
+  useEffect(() => () => publicarEstadoTreino({ decidido: false, aberto: false }), []);
+
+  if (!user) return null;
 
   return (
     <OnboardingPratico

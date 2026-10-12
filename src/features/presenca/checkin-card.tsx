@@ -1,10 +1,13 @@
 // Card de check-in do corretor: "onde estou hoje?" em um toque.
 //
-// Filial = plantão, sempre libera a roleta. Em casa = libera só com o mínimo
-// de vendas aprovadas no mês anterior (regra no banco, presenca_checkin). O
-// card mostra
-// a regra ANTES do clique — o corretor com 2 de 3 vendas em setembro vê, em
-// outubro, que "Em casa" não libera, e por quê, antes de escolher.
+// Filial = plantão: libera a roleta (com a exigência de localização ligada,
+// só de dentro da loja). Em casa = libera só com o mínimo de vendas aprovadas
+// no mês anterior (regra no banco, presenca_checkin). O card mostra a regra
+// ANTES do clique — o corretor com 2 de 3 vendas em setembro vê, em outubro,
+// que "Em casa" não libera, e por quê, antes de escolher.
+//
+// As opções (OpcoesCheckin) e a régua das vendas (RegraDasVendas) também
+// formam o diálogo do check-in obrigatório (checkin-obrigatorio-global.tsx).
 
 import { useState } from "react";
 import { CircleNotch, House, SignOut, Storefront } from "@phosphor-icons/react";
@@ -18,10 +21,12 @@ import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { cn } from "@/lib/utils";
 import { useCheckin, useEncerrarPresenca, useMinhaPresenca } from "./presenca-client";
 import {
+  avisoLocalizacao,
   enderecoCurto,
   localizacaoLabel,
   nomeDoMes,
   situacaoHoje,
+  type FalhaLocalizacao,
   type FilialOpcao,
   type MinhaPresenca,
 } from "./presenca-derive";
@@ -32,6 +37,8 @@ export function CheckinCard({ className }: { className?: string }) {
   const encerrar = useEncerrarPresenca();
   // Qual opção foi clicada (o GPS pode levar alguns segundos).
   const [escolha, setEscolha] = useState<string | null>(null);
+  // Por que o celular não deu a localização no último check-in daqui.
+  const [falha, setFalha] = useState<FalhaLocalizacao | null>(null);
 
   if (q.isLoading) return <Skeleton className={cn("h-72 w-full", className)} />;
   if (q.isError || !q.data) {
@@ -46,7 +53,7 @@ export function CheckinCard({ className }: { className?: string }) {
   }
 
   const p = q.data;
-  const sit = situacaoHoje(p);
+  const sit = situacaoHoje(p, { falhaLocalizacao: falha });
   const aberto = p.checkin && !p.checkin.encerrado_em ? p.checkin : null;
   const ocupado = checkin.isPending || encerrar.isPending;
   const evidencia =
@@ -54,7 +61,13 @@ export function CheckinCard({ className }: { className?: string }) {
 
   const escolher = (modo: "loja" | "casa", filial?: string) => {
     setEscolha(filial ?? modo);
-    checkin.mutate({ modo, filial }, { onSettled: () => setEscolha(null) });
+    checkin.mutate(
+      { modo, filial },
+      {
+        onSuccess: (r) => setFalha(r.falhaLocalizacao),
+        onSettled: () => setEscolha(null),
+      },
+    );
   };
 
   return (
@@ -80,34 +93,19 @@ export function CheckinCard({ className }: { className?: string }) {
 
         <div>
           <p className="mb-2 text-sm font-medium">Onde você está trabalhando hoje?</p>
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            {p.filiais.map((f) => (
-              <OpcaoFilial
-                key={f.slug}
-                filial={f}
-                selecionada={aberto?.modo === "loja" && aberto.filial_slug === f.slug}
-                carregando={escolha === f.slug}
-                disabled={ocupado}
-                onClick={() => escolher("loja", f.slug)}
-              />
-            ))}
-            <OpcaoCasa
-              p={p}
-              selecionada={aberto?.modo === "casa"}
-              carregando={escolha === "casa"}
-              disabled={ocupado}
-              onClick={() => escolher("casa")}
-            />
-          </div>
+          <OpcoesCheckin
+            p={p}
+            escolha={escolha}
+            disabled={ocupado}
+            onEscolher={escolher}
+            className="lg:grid-cols-4"
+          />
         </div>
 
         <RegraDasVendas p={p} />
 
         <div className="flex flex-col gap-2 border-t pt-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            Na filial, o celular informa a localização só no momento do check-in, para confirmar o
-            plantão. Em casa, a localização nunca é pedida.
-          </p>
+          <p>{avisoLocalizacao(p.exige_localizacao)}</p>
           {aberto && (
             <Button
               variant="ghost"
@@ -122,6 +120,47 @@ export function CheckinCard({ className }: { className?: string }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * As filiais ativas e "Em casa", um toque cada. A opção do check-in aberto de
+ * hoje fica marcada; `escolha` = a que está confirmando (o GPS leva segundos).
+ */
+export function OpcoesCheckin({
+  p,
+  escolha,
+  disabled,
+  onEscolher,
+  className,
+}: {
+  p: MinhaPresenca;
+  escolha: string | null;
+  disabled: boolean;
+  onEscolher: (modo: "loja" | "casa", filial?: string) => void;
+  className?: string;
+}) {
+  const aberto = p.checkin && !p.checkin.encerrado_em ? p.checkin : null;
+  return (
+    <div className={cn("grid grid-cols-2 gap-2", className)}>
+      {p.filiais.map((f) => (
+        <OpcaoFilial
+          key={f.slug}
+          filial={f}
+          selecionada={aberto?.modo === "loja" && aberto.filial_slug === f.slug}
+          carregando={escolha === f.slug}
+          disabled={disabled}
+          onClick={() => onEscolher("loja", f.slug)}
+        />
+      ))}
+      <OpcaoCasa
+        p={p}
+        selecionada={aberto?.modo === "casa"}
+        carregando={escolha === "casa"}
+        disabled={disabled}
+        onClick={() => onEscolher("casa")}
+      />
+    </div>
   );
 }
 
@@ -221,7 +260,7 @@ function OpcaoCasa(props: {
  * "2 de 3 vendas aprovadas em setembro" — a régua do trabalho em casa. Conta o
  * MÊS ANTERIOR: vale o mês inteiro e não zera no dia 1º.
  */
-function RegraDasVendas({ p }: { p: MinhaPresenca }) {
+export function RegraDasVendas({ p }: { p: MinhaPresenca }) {
   if (p.vendas_minimas <= 0) return null;
   const mes = nomeDoMes(p.mes_referencia);
   const pct = Math.min(100, Math.round((100 * p.vendas_mes_anterior) / p.vendas_minimas));

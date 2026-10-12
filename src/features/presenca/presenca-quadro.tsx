@@ -28,8 +28,10 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useCheckinPelaGestao, useFiliais, usePresencaHoje } from "./presenca-client";
 import {
   agruparQuadro,
+  barradoPelaLocalizacao,
   localizacaoLabel,
   resumoQuadro,
+  statusRoletaLinha,
   type ColunaQuadro,
   type PresencaHojeRow,
 } from "./presenca-derive";
@@ -88,6 +90,11 @@ export function PresencaQuadro({ podeOperar }: { podeOperar: boolean }) {
           value={resumo.naFilial}
           icon={Storefront}
           intent="info"
+          hint={
+            resumo.barradosLocalizacao > 0
+              ? `Fora da conta: ${resumo.barradosLocalizacao} barrado${resumo.barradosLocalizacao === 1 ? "" : "s"} pela localização`
+              : undefined
+          }
         />
         <StatTile
           title="Em casa, fora da roleta"
@@ -166,7 +173,12 @@ function LinhaCorretor({
 }) {
   const checkin = useCheckinPelaGestao();
   const aberto = r.modo !== null && r.encerrado_em === null;
-  const evidencia = r.modo === "loja" ? localizacaoLabel(r.localizacao, r.distancia_m) : null;
+  // Barrado pela localização: o selo já diz a distância (ou "sem localização").
+  const status = statusRoletaLinha(r);
+  const evidencia =
+    r.modo === "loja" && !barradoPelaLocalizacao(r)
+      ? localizacaoLabel(r.localizacao, r.distancia_m)
+      : null;
   const casaBloqueada = aberto && r.modo === "casa" && !r.apto_roleta;
 
   return (
@@ -178,12 +190,8 @@ function LinhaCorretor({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{r.nome}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
-          {aberto ? (
-            r.presente ? (
-              <StatusBadge intent="success">Na roleta</StatusBadge>
-            ) : (
-              <StatusBadge intent="warning">Fora da roleta</StatusBadge>
-            )
+          {status ? (
+            <StatusBadge intent={status.intent}>{status.texto}</StatusBadge>
           ) : r.encerrado_em ? (
             <span>Saiu às {hora(r.encerrado_em)}</span>
           ) : null}
