@@ -3,19 +3,27 @@
  * (motores + guarda). Decisão do dono (03/10/2026): "um corretor deve receber
  * leads de qualquer origem apenas da sua região de atuação".
  *
+ * Desde as roletas por filial (20261018120000, decisões do dono de
+ * 12/10/2026) a região é por FILIAL inteira: Barra Funda = Oeste, Norte e
+ * Sul; Liberdade = Centro e Leste; Belém = Leste e Grande SP. "Nunca sai da
+ * zona" passa a ser "nunca vai para uma filial que não atende a zona".
+ *
  * Elenco (todos com telefone, todos corretores, menos o admin):
- *   Lia   — região Leste            (definida pela aba Corretores)
- *   Saulo — região Sul, no Plantão  (definida pela aba Corretores)
- *   Nina  — região Norte            (definida pela roleta da zona, aba Filas)
+ *   Lia   — Liberdade e Belém (Leste, Centro, Grande SP), pela aba Corretores
+ *           — como quem atendia a Leste ficou depois da migração
+ *   Saulo — Barra Funda (Norte, Sul, Oeste), no Plantão, pela aba Corretores
+ *   Nina  — Barra Funda (Norte, Sul, Oeste), pela roleta da filial (aba Filas)
  *   Sem   — sem região, no Plantão  (só pode receber lead SEM zona)
  *
  * O que cada bloco prova:
  *   1. a zona do lead é UMA regra (a da vitrine: ABC = Sul, Grande SP);
- *   2. a região do corretor é UMA (participação nas roletas de zona, com
- *      profiles.zonas como espelho que ninguém edita por fora);
+ *   2. a região do corretor é UMA (participação nas roletas de filial, com
+ *      profiles.zonas como espelho que ninguém edita por fora), escolhida por
+ *      filial inteira;
  *   3. o motor nunca tira o lead da zona — sem time apto, o lead espera, e a
  *      espera destrava quando alguém da zona chega;
- *   4. campanha de equipe fixa sorteia só quem da equipe atende a zona;
+ *   4. campanha de equipe fixa: a equipe recebe, de qualquer zona (decisão
+ *      de 12/10/2026); sem ninguém da equipe apto, a filial da zona;
  *   5. a guarda do banco barra qualquer escrita fora da região, com as
  *      isenções de propósito (sem zona, captação própria, não-corretor);
  *   6. transferência manual e exceção manual exigem motivo para furar a zona;
@@ -128,6 +136,33 @@ async function regiao(u: UsuarioTeste, zonas: string[]) {
   await comoSuperuser(c);
 }
 
+/**
+ * Roda `fn` com a roleta da filial sem ninguém ativo (a "zona sem time"): o
+ * elenco cobre as três filiais, então a zona sem time é montada no teste e
+ * desfeita no fim.
+ */
+async function semTime<T>(slug: string, fn: () => Promise<T>): Promise<T> {
+  await comoSuperuser(c);
+  const ids = (
+    await c.query(
+      `UPDATE public.roleta_participantes rp SET ativo = false
+         FROM public.roletas r
+        WHERE r.id = rp.roleta_id AND r.slug = $1 AND rp.ativo
+        RETURNING rp.id`,
+      [slug],
+    )
+  ).rows.map((r) => r.id as string);
+  try {
+    return await fn();
+  } finally {
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.roleta_participantes SET ativo = true WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+  }
+}
+
 async function ultimoLog(leadId: string) {
   await comoSuperuser(c);
   const r = await c.query(
@@ -182,13 +217,16 @@ beforeAll(async () => {
     ]);
   }
 
-  // Lia e Saulo pela aba Corretores; Nina pela roleta da zona (aba Filas).
-  await regiao(lia, ["Leste"]);
-  await regiao(saulo, ["Sul"]);
+  // Lia e Saulo pela aba Corretores (filial inteira); Nina pela roleta da
+  // filial (aba Filas). O rodízio entre as filiais da Leste começa zerado
+  // (limparDados).
+  await regiao(lia, ["Centro", "Leste", "Grande SP"]);
+  await regiao(saulo, ["Oeste", "Norte", "Sul"]);
   await comoUsuario(c, admin.id);
-  await c.query(`SELECT public.gerenciar_participante_roleta('zona-norte', $1::uuid, 'incluir')`, [
-    nina.id,
-  ]);
+  await c.query(
+    `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`,
+    [nina.id],
+  );
   for (const u of [saulo, sem]) {
     await c.query(`SELECT public.gerenciar_participante_roleta('plantao', $1::uuid, 'incluir')`, [
       u.id,
@@ -271,18 +309,17 @@ describe("1. a zona do lead é UMA regra (a da vitrine)", () => {
 });
 
 // ---------------------------------------------------------------------------
-describe("2. a região do corretor é UMA (roletas de zona, espelhada em profiles.zonas)", () => {
-  it("aba Corretores grava participação; o espelho acompanha; aba Filas também vale", async () => {
-    expect(await zonasDe(lia)).toEqual(["Leste"]);
-    expect(await zonasDe(saulo)).toEqual(["Sul"]);
-    expect(await zonasDe(nina)).toEqual(["Norte"]); // veio da roleta zona-norte
+describe("2. a região do corretor é UMA (roletas de filial, espelhada em profiles.zonas)", () => {
+  it("aba Corretores grava participação por filial; o espelho acompanha; aba Filas também vale", async () => {
+    expect(await zonasDe(lia)).toEqual(["Leste", "Centro", "Grande SP"]); // ordem dos chips
+    expect(await zonasDe(saulo)).toEqual(["Norte", "Sul", "Oeste"]);
+    expect(await zonasDe(nina)).toEqual(["Norte", "Sul", "Oeste"]); // veio da filial-barra-funda
     expect(await zonasDe(sem)).toEqual([]);
 
+    // A região é por filial (decisão de 12/10/2026): sai da Liberdade e fica
+    // só com a Belém; "só a Leste" (zona solta) não existe.
     await regiao(lia, ["Grande SP", "Leste"]);
-    expect(await zonasDe(lia)).toEqual(["Leste", "Grande SP"]); // ordem dos chips
-    await regiao(lia, ["Leste"]);
-    expect(await zonasDe(lia)).toEqual(["Leste"]);
-
+    expect(await zonasDe(lia)).toEqual(["Leste", "Grande SP"]);
     await comoSuperuser(c);
     const p = await c.query(
       `SELECT r.slug, rp.ativo FROM public.roleta_participantes rp
@@ -291,19 +328,30 @@ describe("2. a região do corretor é UMA (roletas de zona, espelhada em profile
       [lia.id],
     );
     expect(p.rows).toEqual([
-      { slug: "zona-grande-sp", ativo: false },
-      { slug: "zona-leste", ativo: true },
+      { slug: "filial-belem", ativo: true },
+      { slug: "filial-liberdade", ativo: false },
     ]);
+    await comoUsuario(c, admin.id);
+    const solta = await erro(
+      c.query(`SELECT public.atualizar_corretor_distribuicao($1::uuid, '{Leste}'::text[])`, [
+        lia.id,
+      ]),
+    );
+    expect(solta.message).toMatch(/a região é por filial/);
+    expect(await zonasDe(lia)).toEqual(["Leste", "Grande SP"]); // nada mudou
+
+    await regiao(lia, ["Centro", "Leste", "Grande SP"]);
+    expect(await zonasDe(lia)).toEqual(["Leste", "Centro", "Grande SP"]);
   });
 
   it("ninguém edita profiles.zonas por fora — nem a gestão por SQL, nem o próprio corretor", async () => {
     await comoSuperuser(c);
     await c.query(`UPDATE public.profiles SET zonas = '{Sul,Leste}' WHERE id = $1`, [nina.id]);
-    expect(await zonasDe(nina)).toEqual(["Norte"]);
+    expect(await zonasDe(nina)).toEqual(["Norte", "Sul", "Oeste"]);
 
     await comoUsuario(c, nina.id);
     await c.query(`UPDATE public.profiles SET zonas = '{Sul}' WHERE id = $1`, [nina.id]);
-    expect(await zonasDe(nina)).toEqual(["Norte"]);
+    expect(await zonasDe(nina)).toEqual(["Norte", "Sul", "Oeste"]);
   });
 
   it("zona inválida é recusada; todas as seis zonas têm roleta", async () => {
@@ -315,7 +363,8 @@ describe("2. a região do corretor é UMA (roletas de zona, espelhada em profile
     );
     expect(e.message).toMatch(/zona invalida/);
     await comoSuperuser(c);
-    const r = await c.query(`SELECT zona FROM public.zonas_roletas ORDER BY zona`);
+    // A Leste está em duas roletas (Liberdade e Belém): uma linha por par.
+    const r = await c.query(`SELECT DISTINCT zona FROM public.zonas_roletas ORDER BY zona`);
     expect(r.rows.map((x) => x.zona)).toEqual([
       "Centro",
       "Grande SP",
@@ -329,10 +378,10 @@ describe("2. a região do corretor é UMA (roletas de zona, espelhada em profile
 
 // ---------------------------------------------------------------------------
 describe("3. motor: lead com zona nunca sai da zona", () => {
-  it("lead da Leste vai para a Lia (time da zona)", async () => {
+  it("lead da Leste vai para a Lia (time da zona; a Liberdade é a da vez no empate)", async () => {
     const l = await leadComZona({ nome: "Leste 1", zona: "Leste" });
     const res = await triar(l);
-    expect(res).toMatchObject({ ok: true, corretor_id: lia.id, roleta: "zona-leste" });
+    expect(res).toMatchObject({ ok: true, corretor_id: lia.id, roleta: "filial-liberdade" });
     expect(await dono(l)).toBe(lia.id);
   });
 
@@ -340,7 +389,13 @@ describe("3. motor: lead com zona nunca sai da zona", () => {
     await presenca(lia, false);
     const l = await leadComZona({ nome: "Leste esperando", zona: "Leste" });
     const res = await triar(l);
-    expect(res).toMatchObject({ ok: false, motivo: "sem_corretor_na_zona", roleta: "zona-leste" });
+    // Nenhuma filial da Leste pronta: espera na primeira do rodízio (a Belém,
+    // que ainda não recebeu Leste).
+    expect(res).toMatchObject({
+      ok: false,
+      motivo: "sem_corretor_na_zona",
+      roleta: "filial-belem",
+    });
     expect(await dono(l)).toBeNull();
 
     await comoSuperuser(c);
@@ -364,22 +419,27 @@ describe("3. motor: lead com zona nunca sai da zona", () => {
   });
 
   it("zona sem time (Centro) espera com motivo próprio — nunca cai no Plantão", async () => {
-    const l = await leadComZona({ nome: "Da Liberdade", bairro: "Liberdade" });
-    const res = await triar(l);
-    expect(res).toMatchObject({ ok: false, motivo: "zona_sem_time", roleta: "zona-centro" });
-    expect(await dono(l)).toBeNull();
+    // A Liberdade (só filial do Centro) sem ninguém neste teste.
+    await semTime("filial-liberdade", async () => {
+      const l = await leadComZona({ nome: "Da Liberdade", bairro: "Liberdade" });
+      const res = await triar(l);
+      expect(res).toMatchObject({ ok: false, motivo: "zona_sem_time", roleta: "filial-liberdade" });
+      expect(await dono(l)).toBeNull();
+    });
   });
 
-  it("slug explícito de OUTRA zona (token zona-norte) não tira o lead da zona dele", async () => {
-    const l = await leadComZona({ nome: "Sul pelo token Norte", zona: "Sul" });
+  it("slug explícito de uma filial que não atende a zona (token filial-belem) não tira o lead da zona dele", async () => {
+    const l = await leadComZona({ nome: "Sul pelo token Belém", zona: "Sul" });
     await comoSuperuser(c);
     const r = await c.query(
-      `SELECT public.distribuir_lead_v3($1::uuid, 'automatica', 'zona-norte', NULL, 'webhook') AS res`,
+      `SELECT public.distribuir_lead_v3($1::uuid, 'automatica', 'filial-belem', NULL, 'webhook') AS res`,
       [l],
     );
-    expect(r.rows[0].res).toMatchObject({ ok: true, corretor_id: saulo.id, roleta: "zona-sul" });
+    const res = r.rows[0].res as Record<string, unknown>;
+    expect(res).toMatchObject({ ok: true, roleta: "filial-barra-funda" });
+    expect([saulo.id, nina.id]).toContain(res.corretor_id);
     const log = await ultimoLog(l);
-    expect(log.contexto.roleta_pedida).toBe("zona-norte");
+    expect(log.contexto.roleta_pedida).toBe("filial-belem");
   });
 
   it("lead SEM zona segue o fluxo por origem (Plantão)", async () => {
@@ -404,7 +464,7 @@ describe("3. motor: lead com zona nunca sai da zona", () => {
 });
 
 // ---------------------------------------------------------------------------
-describe("4. campanha de EQUIPE FIXA sorteia só quem da equipe atende a zona", () => {
+describe("4. campanha de EQUIPE FIXA: a equipe recebe, de qualquer zona", () => {
   beforeAll(async () => {
     await comoUsuario(c, admin.id);
     for (const u of [saulo, nina]) {
@@ -425,20 +485,48 @@ describe("4. campanha de EQUIPE FIXA sorteia só quem da equipe atende a zona", 
     return r.rows[0].res as Record<string, unknown>;
   }
 
-  it("lead do Sul fica na equipe, com o Saulo", async () => {
+  it("lead do Sul fica na equipe", async () => {
     const l = await leadComZona({ nome: "Sul da equipe", zona: "Sul" });
-    expect(await campanha(l)).toMatchObject({ ok: true, corretor_id: saulo.id });
+    const res = await campanha(l);
+    expect(res.ok).toBe(true);
+    expect([saulo.id, nina.id]).toContain(res.corretor_id);
   });
 
-  it("lead da Leste (ninguém da equipe atende) vai para o time da Leste — não para Saulo/Nina", async () => {
+  it("lead da Leste (ninguém da equipe atende a Leste) fica na equipe — a campanha manda", async () => {
+    // Decisão do dono (12/10/2026): a campanha de equipe fixa é a válvula para
+    // receber lead de outras zonas — acabou o corte por zona de 03/10.
     const l = await leadComZona({ nome: "Leste da equipe", zona: "Leste" });
     const res = await campanha(l);
-    expect(res).toMatchObject({ ok: true, corretor_id: lia.id, roleta: "zona-leste" });
-    const log = await ultimoLog(l);
-    expect(log.contexto).toMatchObject({
-      campanha: "equipe-guilherme",
-      equipe_sem_apto_na_zona: true,
+    expect(res.ok).toBe(true);
+    expect([saulo.id, nina.id]).toContain(res.corretor_id);
+    await comoSuperuser(c);
+    const lead = (
+      await c.query(`SELECT corretor_id, roleta_slug, zona FROM public.leads WHERE id = $1`, [l])
+    ).rows[0];
+    expect(lead).toEqual({
+      corretor_id: res.corretor_id,
+      roleta_slug: "equipe-guilherme",
+      zona: "Leste",
     });
+  });
+
+  it("ninguém da equipe apto: o lead da Leste vai para a filial da zona — não espera a equipe", async () => {
+    await presenca(saulo, false);
+    await presenca(nina, false);
+    try {
+      const l = await leadComZona({ nome: "Leste sem equipe", zona: "Leste" });
+      const res = await campanha(l);
+      expect(res).toMatchObject({ ok: true, corretor_id: lia.id });
+      expect(["filial-liberdade", "filial-belem"]).toContain(res.roleta);
+      const log = await ultimoLog(l);
+      expect(log.contexto).toMatchObject({
+        campanha: "equipe-guilherme",
+        equipe_sem_apto_na_zona: true,
+      });
+    } finally {
+      await presenca(saulo, true);
+      await presenca(nina, true);
+    }
   });
 
   it("lead sem zona segue o sorteio da equipe", async () => {
@@ -556,7 +644,7 @@ describe("6. furo manual só como exceção da gestão, com motivo", () => {
 
   it("fila de exceções: atribuir manual fora da região exige exceção + motivo", async () => {
     const l = await leadComZona({ nome: "Centro p/ exceção", bairro: "Sé" });
-    await triar(l); // zona_sem_time → exceção
+    await semTime("filial-liberdade", () => triar(l)); // zona_sem_time → exceção
     await comoSuperuser(c);
     const ex = await c.query(`SELECT id FROM public.distribuicao_excecoes WHERE lead_id = $1`, [l]);
     const excecaoId = ex.rows[0].id as string;
@@ -616,18 +704,21 @@ describe("7. os outros caminhos de entrega respeitam a região", () => {
        ON CONFLICT (roleta_id, corretor_id) DO UPDATE SET ativo = true`,
       [lia.id],
     );
-    // Dono antigo (Nina, Norte) continua no lead, como num reaquecimento.
+    // Dono antigo (Lia, Liberdade e Belém: não atende o Sul) continua no
+    // lead, como num reaquecimento. (A Nina, que fazia esse papel, agora é da
+    // Barra Funda e atende o Sul.)
     await c.query(`SET session_replication_role = replica`);
-    await c.query(`UPDATE public.leads SET corretor_id = $2 WHERE id = $1`, [l, nina.id]);
+    await c.query(`UPDATE public.leads SET corretor_id = $2 WHERE id = $1`, [l, lia.id]);
     await c.query(`SET session_replication_role = DEFAULT`);
 
     const r = await c.query(`SELECT public._distribuir_lead_sdr($1, 'Visita marcada') AS res`, [l]);
-    expect(r.rows[0].res).toMatchObject({
+    const res = r.rows[0].res as Record<string, unknown>;
+    expect(res).toMatchObject({
       ok: true,
-      corretor_id: saulo.id,
       regra: "roleta_sdr_zona",
-      roleta: "zona-sul",
+      roleta: "filial-barra-funda",
     });
+    expect([saulo.id, nina.id]).toContain(res.corretor_id);
     const log = await ultimoLog(l);
     expect(log.contexto.prioridade_recusa).toBe("fora_da_regiao");
   });
@@ -680,7 +771,8 @@ describe("7. os outros caminhos de entrega respeitam a região", () => {
     const ids = r.rows.map((x) => x.lead_id as string);
     expect(ids).toContain(sul);
     expect(ids).not.toContain(leste);
-    for (const x of r.rows) expect([null, "Sul"]).toContain(x.zona);
+    // A região do Saulo é a Barra Funda inteira.
+    for (const x of r.rows) expect([null, "Norte", "Sul", "Oeste"]).toContain(x.zona);
 
     const a = await c.query(`SELECT public.discador_bolsao_assumir_v1($1, $2, NULL) AS res`, [
       leste,
@@ -700,7 +792,7 @@ describe("7. os outros caminhos de entrega respeitam a região", () => {
 
     await comoUsuario(c, saulo.id);
     const st2 = await c.query(`SELECT public.prospeccao_lote_status_v1() AS s`);
-    expect(st2.rows[0].s.regiao).toEqual(["Sul"]);
+    expect(st2.rows[0].s.regiao).toEqual(["Norte", "Sul", "Oeste"]);
     const r = await c.query(`SELECT public.prospeccao_pedir_lote('Leste') AS r`);
     expect(r.rows[0].r).toMatchObject({ ok: false, motivo: "zona_fora_da_regiao", zona: "Leste" });
 

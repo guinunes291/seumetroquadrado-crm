@@ -183,6 +183,11 @@ describe("UI: rota com compatibilidade de links antigos", () => {
       expect(rota).toContain(`${JSON.stringify(legado)}`);
     }
     expect(rota).toContain('{ tab: "filas", fila:');
+    // Roletas por filial (12/10/2026): o link da roleta de zona antiga abre a
+    // roleta da filial que herdou a zona.
+    expect(rota).toContain('"zona-norte": "filial-barra-funda"');
+    expect(rota).toContain('"zona-leste": "filial-liberdade"');
+    expect(rota).toContain('"zona-grande-sp": "filial-belem"');
   });
 });
 
@@ -191,7 +196,10 @@ describe("vocabulário (unit real)", () => {
     expect(roletaLabel("base")).toBe("Roleta Base");
     expect(roletaLabel("qualquer-slug", "Nome do Banco")).toBe("Nome do Banco");
     expect(roletaLabel("qualquer-slug")).toBe("qualquer-slug");
-    expect(roletaLabel("zona-norte")).toBe("Roleta Zona Norte");
+    // Roletas por filial (12/10/2026): a roleta de zona antiga é histórico, e
+    // a de filial tem rótulo mesmo sem a linha do banco.
+    expect(roletaLabel("zona-norte")).toBe("Roleta Zona Norte (antiga)");
+    expect(roletaLabel("filial-belem")).toBe("Roleta Belém");
   });
 
   it("motivos do v2 são legíveis, inclusive o disjuntor dinâmico; desconhecido segue cru", () => {

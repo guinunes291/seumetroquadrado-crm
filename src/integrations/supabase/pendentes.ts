@@ -23,6 +23,13 @@
 // 0074 rodar em produção e o Lovable regenerar types.ts com eles, apague o
 // bloco de presença daqui e troque `supabasePendente` por `supabase` em
 // src/features/presenca/presenca-client.ts.
+//
+// Roletas por filial (migration 20261018120000_roletas_por_filial.sql, a
+// 0079; decisão do dono, 12/10/2026): `roletas.filial_id` e os parâmetros
+// `_filial_slug`/`_limpar_filial` de `criar_roleta_campanha` e
+// `atualizar_roleta`. Quando a 0079 rodar em produção e types.ts for
+// regenerado, apague o bloco de roletas daqui e troque `supabasePendente` por
+// `supabase` em src/features/distribuicao/queries.ts.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
@@ -139,6 +146,32 @@ type ColunasNovasProjetos = {
 
 type ColunasNovasFoco = { arte_url: string | null };
 
+/** A filial dona da roleta (0079): a de filial (tipo zona) sempre tem; a
+ *  campanha pode ter (rótulo e agrupamento); as de sistema não têm. */
+type ColunasNovasRoletas = { filial_id: string | null };
+
+type ArgsAtualizarRoletaPendente = {
+  _slug: string;
+  _ativo?: boolean;
+  _exigir_presenca?: boolean;
+  _horario_inicio?: string | null;
+  _horario_fim?: string | null;
+  _permitir_fora_horario?: boolean;
+  _equipe_fixa?: boolean;
+  _projeto_id?: string;
+  _limpar_projeto?: boolean;
+  _filial_slug?: string;
+  _limpar_filial?: boolean;
+};
+
+type ArgsCriarRoletaCampanhaPendente = {
+  _nome: string;
+  _slug?: string;
+  _projeto_id?: string;
+  _equipe_fixa?: boolean;
+  _filial_slug?: string;
+};
+
 /** Acrescenta colunas a uma tabela gerada, preservando Relationships. */
 type Estende<T extends { Row: object; Insert: object; Update: object }, C extends object> = Omit<
   T,
@@ -151,9 +184,10 @@ type Estende<T extends { Row: object; Insert: object; Update: object }, C extend
 
 export type DatabasePendente = Omit<Database, "public"> & {
   public: Omit<Pub, "Tables" | "Functions"> & {
-    Tables: Omit<Tabelas, "projetos" | "projeto_foco"> & {
+    Tables: Omit<Tabelas, "projetos" | "projeto_foco" | "roletas"> & {
       projetos: Estende<Tabelas["projetos"], ColunasNovasProjetos>;
       projeto_foco: Estende<Tabelas["projeto_foco"], ColunasNovasFoco>;
+      roletas: Estende<Tabelas["roletas"], ColunasNovasRoletas>;
       construtoras_parceiras: {
         Row: ConstrutoraParceiraRow;
         Insert: ConstrutoraParceiraInsert;
@@ -173,7 +207,9 @@ export type DatabasePendente = Omit<Database, "public"> & {
         Relationships: [];
       };
     };
-    Functions: Pub["Functions"] & {
+    Functions: Omit<Pub["Functions"], "atualizar_roleta" | "criar_roleta_campanha"> & {
+      atualizar_roleta: { Args: ArgsAtualizarRoletaPendente; Returns: Json };
+      criar_roleta_campanha: { Args: ArgsCriarRoletaCampanhaPendente; Returns: Json };
       projetos_demanda_v1: { Args: never; Returns: DemandaRow[] };
       presenca_checkin: {
         Args: {

@@ -7,7 +7,8 @@
  *  - os helpers da exceção da gestão mandam NADA a mais quando não há
  *    exceção (chamada idêntica à antiga — banco sem a migration aguenta);
  *  - o lote só oferece as zonas da região do corretor;
- *  - as seis zonas e as seis roletas de zona são as mesmas no front e no banco;
+ *  - as seis zonas são as mesmas no front e no banco; a roleta da zona é a
+ *    filial (12/10/2026) e vem do banco, não de constante;
  *  - as migrations não podem perder as peças que fecham os vazamentos.
  */
 import { readFileSync, readdirSync } from "node:fs";
@@ -21,7 +22,7 @@ import {
   excecaoZonaValida,
   paramsExcecaoAtribuicao,
 } from "@/lib/zona-estrita";
-import { ZONA_ROLETAS, motivoExcecaoLabel } from "@/lib/distribuicao";
+import { ROLETA_LABEL, motivoExcecaoLabel } from "@/lib/distribuicao";
 import { ZONAS_REGIAO } from "@/lib/zonas";
 import { motivoBloqueio, parseStatusLote, zonasDoLote } from "@/features/prospeccao/lote-client";
 import { MOTIVO_ASSUMIR } from "@/features/telefonia/discador-atendidos-client";
@@ -79,20 +80,21 @@ describe("exceção da gestão (helpers da tela)", () => {
 });
 
 describe("as seis zonas, iguais no front e no banco", () => {
-  it("região e lead usam as seis zonas; cada uma tem roleta", () => {
+  it("região e lead usam as seis zonas; a roleta da zona é a filial, lida do banco", () => {
     expect(ZONAS_REGIAO).toEqual(["Norte", "Sul", "Leste", "Oeste", "Centro", "Grande SP"]);
     expect(regiao).toContain(
       "SELECT ARRAY['Norte','Sul','Leste','Oeste','Centro','Grande SP']::text[];",
     );
-    expect(ZONA_ROLETAS).toEqual([
-      "zona-norte",
-      "zona-sul",
-      "zona-leste",
-      "zona-oeste",
-      "zona-centro",
-      "zona-grande-sp",
-    ]);
+    // 03/10: uma roleta por zona (seis). 12/10 (roletas por filial): as seis
+    // ficaram inativas e viraram só rótulo de histórico; o mapa zona → roleta
+    // de filial vem de zonas_roletas, nunca de uma lista no front.
     expect(regiao).toMatch(/\('Centro', 'zona-centro'\),\s*\('Grande SP', 'zona-grande-sp'\)/);
+    for (const antiga of ["zona-norte", "zona-sul", "zona-leste", "zona-oeste"]) {
+      expect(ROLETA_LABEL[antiga as keyof typeof ROLETA_LABEL]).toMatch(/\(antiga\)$/);
+    }
+    expect(readFileSync(join(process.cwd(), "src/lib/distribuicao.ts"), "utf8")).not.toContain(
+      "ZONA_ROLETAS",
+    );
   });
 
   it("os motivos novos da fila de exceções têm rótulo", () => {

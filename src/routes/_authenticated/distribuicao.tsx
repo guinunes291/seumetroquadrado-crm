@@ -13,6 +13,11 @@ import {
 // Compatibilidade de links antigos: as abas "zonas" e "origem" viraram a aba
 // "filas", e os alertas do banco linkam `?tab=<slug da roleta>` (padrão de
 // 20260709120400) — ambos os formatos caem em Filas com a fila selecionada.
+//
+// Roletas por filial (12/10/2026): as seis roletas zona-* ficaram inativas e
+// o link antigo abre a roleta da filial que herdou a zona (Oeste, Norte e Sul
+// → Barra Funda; Centro e Leste → Liberdade; Grande SP → Belém). A Leste é
+// atendida por duas lojas; o link cai na Liberdade, a primeira da ordem.
 const TAB_LEGADO: Record<string, string | undefined> = {
   zonas: undefined,
   origem: undefined,
@@ -20,12 +25,15 @@ const TAB_LEGADO: Record<string, string | undefined> = {
   marquinhos: "marquinhos",
   landing: "landing",
   base: "base",
-  "zona-norte": "zona-norte",
-  "zona-sul": "zona-sul",
-  "zona-leste": "zona-leste",
-  "zona-oeste": "zona-oeste",
-  "zona-centro": "zona-centro",
-  "zona-grande-sp": "zona-grande-sp",
+  "zona-norte": "filial-barra-funda",
+  "zona-sul": "filial-barra-funda",
+  "zona-oeste": "filial-barra-funda",
+  "zona-centro": "filial-liberdade",
+  "zona-leste": "filial-liberdade",
+  "zona-grande-sp": "filial-belem",
+  "filial-barra-funda": "filial-barra-funda",
+  "filial-liberdade": "filial-liberdade",
+  "filial-belem": "filial-belem",
 };
 
 export const Route = createFileRoute("/_authenticated/distribuicao")({

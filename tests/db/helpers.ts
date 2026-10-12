@@ -89,6 +89,11 @@ export const TODAS_AS_ZONAS = ["Norte", "Sul", "Leste", "Oeste", "Centro", "Gran
  * ativa nas roletas de zona — o banco espelha em profiles.zonas. Com a zona
  * estrita, corretor sem região só recebe/disca/pede lead SEM zona; testes de
  * outros recursos que usam leads com zona declaram a região aqui.
+ *
+ * Desde as roletas por filial (20261018120000) a roleta é a da FILIAL que
+ * atende a zona: dar "Leste" põe o corretor na Liberdade e na Belém, e a
+ * região vira a união das zonas delas (Centro, Leste, Grande SP). DISTINCT
+ * porque duas zonas pedidas podem cair na mesma filial.
  */
 export async function darRegiao(
   c: Client,
@@ -98,7 +103,7 @@ export async function darRegiao(
   await comoSuperuser(c);
   await c.query(
     `INSERT INTO public.roleta_participantes (roleta_id, corretor_id, ativo)
-     SELECT r.id, $1::uuid, true
+     SELECT DISTINCT r.id, $1::uuid, true
        FROM public.zonas_roletas zr
        JOIN public.roletas r ON r.slug = zr.roleta_slug
       WHERE zr.zona = ANY($2::text[])
@@ -200,6 +205,10 @@ export async function limparDados(c: Client): Promise<void> {
       RESTART IDENTITY CASCADE
   `);
   await c.query(`DELETE FROM auth.users`);
+  // O cursor do rodízio entre as filiais da mesma zona (roletas por filial,
+  // 20261018120000) é estado de distribuição, não seed: sem zerar, a filial da
+  // vez da Leste num arquivo dependeria dos leads entregues pelos anteriores.
+  await c.query(`UPDATE public.zonas_roletas SET ultimo_lead_em = NULL`);
 }
 
 /**

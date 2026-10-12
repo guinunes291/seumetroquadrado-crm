@@ -12,11 +12,18 @@
  * zona vai para quem da Roleta Marquinhos atende a zona dele; sem ninguém
  * apto ali, vai para o time da zona — nunca sai da zona, nunca espera o bot.
  *
+ * Desde as roletas por filial (20261018120000, decisões do dono de
+ * 12/10/2026) o "time da zona" é a filial que atende a zona: Barra Funda =
+ * Oeste, Norte e Sul; Liberdade = Centro e Leste; Belém = Leste e Grande SP —
+ * a Leste tem duas filiais e o lead da Leste alterna entre elas.
+ *
  * Elenco (todos corretores com telefone, presentes):
- *   Mara  — Leste, na Roleta Marquinhos
- *   Lia   — Leste, fora da Marquinhos (só o time da zona)
- *   Otto  — Oeste, na Roleta Marquinhos
- *   Nina  — Norte, fora da Marquinhos
+ *   Mara  — Belém (Leste e Grande SP), na Roleta Marquinhos
+ *   Lia   — Liberdade (Centro e Leste), fora da Marquinhos (só a filial)
+ *   Otto  — Barra Funda (Oeste, Norte e Sul), na Roleta Marquinhos
+ * Ninguém da Marquinhos atende o Centro: é a zona "sem Marquinhos", com a
+ * Lia como time. (Até 12/10 esse papel era da Nina, Norte; com a Barra Funda
+ * inteira na região do Otto, o Norte passou a ter Marquinhos.)
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -36,7 +43,6 @@ let admin: UsuarioTeste;
 let mara: UsuarioTeste;
 let lia: UsuarioTeste;
 let otto: UsuarioTeste;
-let nina: UsuarioTeste;
 const settingsAntes = new Map<string, unknown>();
 
 async function setSetting(chave: string, valor: unknown) {
@@ -131,22 +137,21 @@ beforeAll(async () => {
   mara = await criarUsuario(c, { nome: "Mara Marquinhos Leste", papel: "corretor" });
   lia = await criarUsuario(c, { nome: "Lia Leste", papel: "corretor" });
   otto = await criarUsuario(c, { nome: "Otto Marquinhos Oeste", papel: "corretor" });
-  nina = await criarUsuario(c, { nome: "Nina Norte", papel: "corretor" });
 
   await comoSuperuser(c);
-  for (const [i, u] of [admin, mara, lia, otto, nina].entries()) {
+  for (const [i, u] of [admin, mara, lia, otto].entries()) {
     await c.query(`UPDATE public.profiles SET telefone = $2 WHERE id = $1`, [
       u.id,
       `119777700${String(i).padStart(2, "0")}`,
     ]);
   }
 
+  // A região é por filial inteira (aba Corretores).
   await comoUsuario(c, admin.id);
   const regioes: [UsuarioTeste, string[]][] = [
-    [mara, ["Leste"]],
-    [lia, ["Leste"]],
-    [otto, ["Oeste"]],
-    [nina, ["Norte"]],
+    [mara, ["Leste", "Grande SP"]], // Belém
+    [lia, ["Centro", "Leste"]], // Liberdade
+    [otto, ["Oeste", "Norte", "Sul"]], // Barra Funda
   ];
   for (const [u, zonas] of regioes) {
     await c.query(`SELECT public.atualizar_corretor_distribuicao($1::uuid, $2::text[])`, [
@@ -160,16 +165,10 @@ beforeAll(async () => {
       [u.id],
     );
   }
-  // Lia é a "próxima da vez" na zona Leste: sem a regra, o lead do bot iria
-  // para ela (rodízio de quem está há mais tempo sem receber).
-  await comoSuperuser(c);
-  await c.query(
-    `UPDATE public.roleta_participantes rp SET ultimo_lead_em = now() - interval '1 day'
-       FROM public.roletas r
-      WHERE r.id = rp.roleta_id AND r.slug = 'zona-leste' AND rp.corretor_id = $1`,
-    [mara.id],
-  );
-  for (const u of [mara, lia, otto, nina]) await presenca(u, true);
+  // A Liberdade (Lia) é a filial da vez na Leste: o rodízio entre as
+  // filiais começa zerado (limparDados) e o empate vai pela ordem das
+  // filiais. Sem a regra, o lead do bot iria para a Lia.
+  for (const u of [mara, lia, otto]) await presenca(u, true);
 });
 
 afterAll(async () => {
@@ -232,10 +231,10 @@ describe("1. lead do Marquinhos com zona vai para a Roleta Marquinhos, filtrada 
 
 // ---------------------------------------------------------------------------
 describe("2. ninguém da Marquinhos apto na zona → time da zona (nunca espera, nunca sai da zona)", () => {
-  it("zona sem ninguém da Marquinhos (Norte) vai para a Nina, com o desvio auditado", async () => {
-    const l = await leadDoBot({ nome: "Bot Norte", zona: "Norte" });
+  it("zona sem ninguém da Marquinhos (Centro) vai para a Lia, com o desvio auditado", async () => {
+    const l = await leadDoBot({ nome: "Bot Centro", zona: "Centro" });
     const res = await triar(l);
-    expect(res).toMatchObject({ ok: true, corretor_id: nina.id, roleta: "zona-norte" });
+    expect(res).toMatchObject({ ok: true, corretor_id: lia.id, roleta: "filial-liberdade" });
     const log = await ultimoLog(l);
     expect(log.motivo).toMatch(/Marquinhos/);
     expect(log.contexto).toMatchObject({
@@ -245,11 +244,15 @@ describe("2. ninguém da Marquinhos apto na zona → time da zona (nunca espera,
     expect(await excecoesAbertas(l)).toBe(0);
   });
 
-  it("Mara ausente: lead do bot da Leste vai para a Lia pela zona", async () => {
+  it("Mara ausente: lead do bot da Leste vai para a Lia pela zona (a Belém, sem ninguém apto, é pulada)", async () => {
     await presenca(mara, false);
     try {
       const l = await leadDoBot({ nome: "Bot Leste sem Mara", zona: "Leste" });
-      expect(await triar(l)).toMatchObject({ ok: true, corretor_id: lia.id, roleta: "zona-leste" });
+      expect(await triar(l)).toMatchObject({
+        ok: true,
+        corretor_id: lia.id,
+        roleta: "filial-liberdade",
+      });
       expect(await excecoesAbertas(l)).toBe(0);
     } finally {
       await presenca(mara, true);
@@ -259,6 +262,13 @@ describe("2. ninguém da Marquinhos apto na zona → time da zona (nunca espera,
   it("repasse: quem já teve o lead não recebe de novo; sem outro da Marquinhos na zona, vai para a zona", async () => {
     const l = await leadDoBot({ nome: "Bot repasse", zona: "Leste" });
     expect(await triar(l)).toMatchObject({ corretor_id: mara.id });
+    // A Belém é a filial da vez da Leste (a Liberdade acabou de receber), mas
+    // lá só a Mara está apta — e ela já teve o lead: a Leste vai para a
+    // filial que pode recebê-lo (a Liberdade), não espera na Belém.
+    await comoSuperuser(c);
+    expect((await c.query(`SELECT public.roleta_da_zona('Leste') AS s`)).rows[0].s).toBe(
+      "filial-belem",
+    );
     await comoSuperuser(c);
     await c.query(
       `UPDATE public.leads
@@ -270,22 +280,26 @@ describe("2. ninguém da Marquinhos apto na zona → time da zona (nunca espera,
       `SELECT public._distribuir_lead_v3($1::uuid, 'redistribuicao', NULL, NULL, NULL, 'sla_webhook') AS res`,
       [l],
     );
-    expect(r.rows[0].res).toMatchObject({ ok: true, corretor_id: lia.id, roleta: "zona-leste" });
+    expect(r.rows[0].res).toMatchObject({
+      ok: true,
+      corretor_id: lia.id,
+      roleta: "filial-liberdade",
+    });
   });
 
   it("time da zona também sem ninguém apto: o lead espera a ZONA (exceção da zona, sem loop)", async () => {
-    await presenca(nina, false);
+    await presenca(lia, false);
     try {
-      const l = await leadDoBot({ nome: "Bot Norte vazio", zona: "Norte" });
+      const l = await leadDoBot({ nome: "Bot Centro vazio", zona: "Centro" });
       const res = await triar(l);
       expect(res).toMatchObject({
         ok: false,
         motivo: "sem_corretor_na_zona",
-        roleta: "zona-norte",
+        roleta: "filial-liberdade",
       });
       expect(await excecoesAbertas(l)).toBe(1);
     } finally {
-      await presenca(nina, true);
+      await presenca(lia, true);
     }
   });
 });
@@ -299,8 +313,11 @@ describe("3. o que NÃO muda", () => {
       origem: "facebook",
       canal: null,
     });
+    await comoSuperuser(c);
+    const daVez = (await c.query(`SELECT public.roleta_da_zona('Leste') AS s`)).rows[0].s;
+    expect(["filial-liberdade", "filial-belem"]).toContain(daVez);
     const res = await triar(l);
-    expect(res).toMatchObject({ ok: true, roleta: "zona-leste" });
+    expect(res).toMatchObject({ ok: true, roleta: daVez });
   });
 
   it("lead do bot SEM zona continua na Roleta Marquinhos (qualquer um do time)", async () => {
@@ -326,7 +343,7 @@ describe("3. o que NÃO muda", () => {
     try {
       const l = await leadDoBot({ nome: "Bot Oeste desativada", zona: "Oeste" });
       const res = await triar(l);
-      expect(res).toMatchObject({ ok: true, corretor_id: otto.id, roleta: "zona-oeste" });
+      expect(res).toMatchObject({ ok: true, corretor_id: otto.id, roleta: "filial-barra-funda" });
       expect((await ultimoLog(l)).contexto.marquinhos_sem_apto_na_zona).toBeUndefined();
     } finally {
       await c.query(`UPDATE public.roletas SET ativo = true WHERE slug = 'marquinhos'`);
@@ -340,7 +357,7 @@ describe("3. o que NÃO muda", () => {
     );
     try {
       const l = await leadDoBot({ nome: "Bot mesclado", zona: "Oeste" });
-      expect(await triar(l)).toMatchObject({ ok: true, roleta: "zona-oeste" });
+      expect(await triar(l)).toMatchObject({ ok: true, roleta: "filial-barra-funda" });
     } finally {
       await c.query(
         `UPDATE public.distribuicao_config SET roleta_slug = 'marquinhos' WHERE origem = 'chatbot'`,
@@ -352,7 +369,7 @@ describe("3. o que NÃO muda", () => {
     await setSetting("marquinhos_antes_da_zona", false);
     try {
       const l = await leadDoBot({ nome: "Bot interruptor", zona: "Oeste" });
-      expect(await triar(l)).toMatchObject({ ok: true, roleta: "zona-oeste" });
+      expect(await triar(l)).toMatchObject({ ok: true, roleta: "filial-barra-funda" });
     } finally {
       await setSetting("marquinhos_antes_da_zona", true);
     }

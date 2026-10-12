@@ -310,6 +310,18 @@ SELECT p.nome, public._corretor_vendas_mes_anterior(p.id) AS vendas_mes_anterior
   caminho de quem está de fato na loja; o registro (com distância e hora) fica
   para auditoria.
 
+## 8b. Revisto em 12/10/2026: roletas por filial
+
+A decisão 1 acima ("não há roleta por filial") foi **invertida** pelo dono em
+11/10 à noite: _"vamos montar roletas por filial, fica mais simples de
+distribuir em apenas 3 roletas"_. Desde a migration `20261018120000` o time
+que recebe os leads de uma zona é a **roleta da filial** que atende a zona
+(Barra Funda = Oeste, Norte e Sul; Liberdade = Centro e Leste; Belém = Leste
+e Grande SP), e as campanhas passam a ter uma filial dona. O que **não**
+mudou deste doc: o check-in continua valendo em qualquer filial (ou em casa
+com a meta) e libera todas as filas em que o corretor está. Ver
+[`roletas-por-filial.md`](./roletas-por-filial.md).
+
 ## 9. O que fica de fora (decisões do dono, 09/10/2026)
 
 1. **Fila Agendados do SDR não exige presença.** Continua entregando a visita

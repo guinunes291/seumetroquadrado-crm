@@ -302,8 +302,9 @@ export function ConteudoOperacao() {
           <p>
             Existem as roletas <strong>Plantão</strong>, <strong>Marquinhos</strong> (bot),{" "}
             <strong>Landing Page</strong>, <strong>Base</strong>, <strong>Agendados do SDR</strong>{" "}
-            e as roletas por <strong>zona</strong> (Norte, Sul, Leste, Oeste). A origem do cliente
-            define a roleta; dentro dela, recebe quem está apto e há mais tempo sem receber.
+            e as roletas por <strong>filial</strong> (Barra Funda, Liberdade, Belém). O cliente com
+            zona vai para a filial que atende a zona dele; sem zona, a origem define a roleta.
+            Dentro dela, recebe quem está apto e há mais tempo sem receber.
           </p>
         </Bloco>
 
@@ -317,9 +318,18 @@ export function ConteudoOperacao() {
             SDR · Leste — 2º de 6”.
           </p>
           <p>
-            <strong>A vez é uma só.</strong> Quem atende duas zonas não fica em 1º nas duas ao mesmo
-            tempo: fica com a zona mais movimentada e, na outra, aparece como “vez no Sul” até
-            receber. Vale para os Agendados do SDR e para as roletas de zona; a chave está na
+            <strong>Roletas por filial.</strong> São três lojas, três times fixos montados pela
+            gestão: Barra Funda (Oeste, Norte e Sul), Liberdade (Centro e Leste) e Belém (Leste e
+            Grande SP). O cliente da Leste alterna entre Liberdade e Belém — vai para a que está há
+            mais tempo sem receber da zona. A região do corretor é escolhida por filial (quem está
+            na Belém atende Leste e Grande SP), e um corretor pode estar em duas lojas. A campanha
+            de equipe fixa manda: quem está na equipe recebe, de qualquer zona.
+          </p>
+          <p>
+            <strong>A vez é uma só.</strong> Quem está em duas filiais não fica em 1º nas duas ao
+            mesmo tempo (e, nos Agendados do SDR, em duas zonas): fica com a mais movimentada e, na
+            outra, aparece como “vez na Belém” ou “vez no Sul” até receber. As duas contas são
+            separadas — dá para ser o 1º no SDR e numa filial ao mesmo tempo. A chave está na
             Central de Distribuição, em Configurações.
           </p>
           <Aviso>

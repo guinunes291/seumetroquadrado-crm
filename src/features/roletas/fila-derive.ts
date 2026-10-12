@@ -1,7 +1,13 @@
 // O que as telas dizem sobre a fila de cada roleta (puro, testável). A regra
-// mora no banco (20261015120000); aqui é só o texto e a ordem de exibição.
+// mora no banco (20261015120000; por filial na 20261018120000); aqui é só o
+// texto e a ordem de exibição.
 
-import { motivoInaptidaoLabel } from "@/lib/distribuicao";
+import {
+  femininoNaFrase,
+  listarNomes,
+  motivoInaptidaoLabel,
+  ordenarZonas,
+} from "@/lib/distribuicao";
 import type { FilaRoleta, MecanicaRoleta, MinhaPosicao, PapelRoleta } from "./fila-client";
 
 export const ordinal = (n: number) => `${n}º`;
@@ -69,9 +75,11 @@ export function nomesCurtos(nomes: string[]): string[] {
   });
 }
 
-/** "no Sul", "na Grande SP" — a zona dentro da frase. */
-export function emZona(zona: string): string {
-  return zona === "Grande SP" ? "na Grande SP" : `no ${zona}`;
+/** "no Sul", "na Grande SP", "na Belém" — a zona ou a filial dentro da frase.
+ *  Desde as roletas por filial (12/10/2026) `vez_em` traz o nome da filial
+ *  nas roletas de filial; a lista do que é feminino é explícita. */
+export function emZona(zonaOuFilial: string): string {
+  return femininoNaFrase(zonaOuFilial) ? `na ${zonaOuFilial}` : `no ${zonaOuFilial}`;
 }
 
 /** Quem está fora da fila agora e por quê (um motivo, o primeiro). */
@@ -79,19 +87,33 @@ export function foraEmLinha(r: FilaRoleta, max = 4): string {
   const curtos = nomesCurtos(r.fora.map((p) => p.nome));
   const xs = r.fora.slice(0, max).map((p, i) => {
     const m = p.motivos?.[0];
-    // A vez é uma só: ele é o 1º de outra zona — diz qual.
+    // A vez é uma só: ele é o 1º de outra zona ou filial — diz qual.
     if (m === "vez_em_outra_zona" && p.vez_em) return `${curtos[i]} (vez ${emZona(p.vez_em)})`;
     return m ? `${curtos[i]} (${motivoInaptidaoLabel(m).toLowerCase()})` : p.nome;
   });
   return r.fora.length > max ? `${xs.join(", ")} e mais ${r.fora.length - max}` : xs.join(", ");
 }
 
-/** Ordem do painel do SDR: a fila dele primeiro, depois zona, Marquinhos, campanhas. */
+/** Ordem do painel do SDR: a fila dele primeiro, depois as roletas de filial
+ *  NA ORDEM RECEBIDA (o banco manda a da vez primeiro — é o rodízio da
+ *  Leste), Marquinhos, campanhas. */
 const ORDEM_PAPEL: Record<PapelRoleta, number> = { sdr: 0, zona: 1, marquinhos: 2, campanha: 3 };
 export function ordenarFilas(rs: FilaRoleta[]): FilaRoleta[] {
-  return [...rs].sort(
-    (a, b) => ORDEM_PAPEL[a.papel] - ORDEM_PAPEL[b.papel] || a.nome.localeCompare(b.nome, "pt-BR"),
-  );
+  return rs
+    .map((r, i) => ({ r, i }))
+    .sort(
+      (a, b) =>
+        ORDEM_PAPEL[a.r.papel] - ORDEM_PAPEL[b.r.papel] ||
+        (a.r.papel === "zona" ? a.i - b.i : a.r.nome.localeCompare(b.r.nome, "pt-BR")),
+    )
+    .map((x) => x.r);
+}
+
+/** "A Leste alterna entre Liberdade e Belém" — quando a zona tem mais de uma
+ *  roleta de filial; null com uma só. */
+export function fraseAlternancia(zona: string, rs: FilaRoleta[]): string | null {
+  const filiais = rs.filter((r) => r.papel === "zona").map((r) => r.filial?.nome ?? r.nome);
+  return filiais.length > 1 ? `A ${zona} alterna entre ${listarNomes(filiais)}` : null;
 }
 
 /** A zona que abre: a última que a pessoa olhou, se ainda existe; senão a primeira. */
@@ -109,20 +131,24 @@ export type TextoPosicao = {
   apto: boolean;
 };
 
-/** "Agendados do SDR · Leste", "Roleta Zona Leste", "Cury · lead sem zona". */
+/** "Agendados do SDR · Leste", "Roleta Belém · Leste, Grande SP", "Cury Leopoldina". */
 export function nomeDaFilaComZona(p: MinhaPosicao): string {
   const base = nomeDaFila(p);
-  // A roleta de zona já é a zona; a do SDR sem zona é "fora" (toda visita tem
-  // zona); nas outras, sem zona é a fila dos leads que chegam sem zona.
-  return p.papel === "zona" || (p.papel === "sdr" && !p.zona)
-    ? base
-    : `${base} · ${p.zona ?? "lead sem zona"}`;
+  // A roleta de filial é UMA fila para as zonas dela (o sufixo diz quais); a
+  // campanha manda, de qualquer zona (12/10/2026) — sem sufixo; a do SDR sem
+  // zona é "fora" (toda visita tem zona); no Marquinhos, sem zona é a fila
+  // dos leads que chegam sem zona.
+  if (p.papel === "zona") {
+    return p.zonas?.length ? `${base} · ${ordenarZonas(p.zonas).join(", ")}` : base;
+  }
+  if (p.papel === "campanha" || (p.papel === "sdr" && !p.zona)) return base;
+  return `${base} · ${p.zona ?? "lead sem zona"}`;
 }
 
 /** A linha do corretor: "Zona Leste — 2º de 6" ou "fora agora — sem check-in". */
 export function textoMinhaPosicao(p: MinhaPosicao): TextoPosicao {
   const fila = nomeDaFilaComZona(p);
-  // A vez é uma só: ele é o 1º de outra zona; aqui a vez passa ao próximo.
+  // A vez é uma só: ele é o 1º de outra zona ou filial; aqui a vez passa ao próximo.
   if (p.motivos.includes("vez_em_outra_zona") && p.vez_em) {
     return {
       fila,
@@ -151,7 +177,7 @@ export function textoMinhaPosicao(p: MinhaPosicao): TextoPosicao {
 }
 
 export type GrupoFora = {
-  /** Única na lista (motivo, ou motivo + zona da vez): a chave do React. */
+  /** Única na lista (motivo, ou motivo + zona/filial da vez): a chave do React. */
   chave: string;
   motivo: string;
   rotulo: string;
@@ -170,8 +196,8 @@ export function agruparFora(ps: MinhaPosicao[]): GrupoFora[] {
   for (const p of ps) {
     if (p.apto && p.posicao != null) continue;
     const motivo = p.motivos[0] ?? "sem_motivo";
-    // A vez é uma só: um grupo por zona onde a vez dele está ("Sua vez agora
-    // é no Sul"), com a fila E a zona de onde ele saiu.
+    // A vez é uma só: um grupo por zona ou filial onde a vez dele está ("Sua
+    // vez agora é no Sul", "… é na Belém"), com a fila E a zona de onde saiu.
     const vez = motivo === "vez_em_outra_zona" && p.vez_em ? p.vez_em : null;
     const chave = vez ? `${motivo}:${vez}` : motivo;
     const g = grupos.get(chave) ?? {

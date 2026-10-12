@@ -1,46 +1,64 @@
-// Aba Visão Geral — saúde das roletas por zona e de origem + últimas
+// Aba Visão Geral — saúde das roletas por filial e de origem + últimas
 // decisões do motor.
 
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Compass, Fire, Globe, Robot, Tray, UsersThree } from "@phosphor-icons/react";
+import {
+  ArrowRight,
+  Fire,
+  Globe,
+  Robot,
+  Storefront,
+  Tray,
+  UsersThree,
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { proximoDaVez, roletaLabel, RESULTADO_LABEL, ZONA_ROLETAS } from "@/lib/distribuicao";
-import type { RoletaSlug } from "@/lib/distribuicao";
-import { useElegibilidadeRoleta, useHistoricoDistribuicao, useNomesPerfis } from "./queries";
+import { proximoDaVez, roletaLabel, RESULTADO_LABEL } from "@/lib/distribuicao";
+import {
+  useElegibilidadeRoleta,
+  useHistoricoDistribuicao,
+  useNomesPerfis,
+  useRoletas,
+} from "./queries";
 
-const ROLETA_ICON = {
+const ROLETA_ICON: Record<string, typeof UsersThree> = {
   plantao: UsersThree,
   marquinhos: Robot,
   landing: Globe,
   base: Tray,
   "agendados-sdr": Fire,
-  "zona-norte": Compass,
-  "zona-sul": Compass,
-  "zona-leste": Compass,
-  "zona-oeste": Compass,
-  "zona-centro": Compass,
-  "zona-grande-sp": Compass,
-} as const;
+};
 
-function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
+/** O cartão de saúde de uma roleta. O ícone e a frase do "sem apto" vêm do
+ *  tipo: a roleta de filial (tipo zona) segura o lead na filial — ele nunca
+ *  vai para outra zona —, as de origem mandam para a exceção. */
+function RoletaSaudeCard({
+  slug,
+  nome,
+  tipo,
+}: {
+  slug: string;
+  nome?: string | null;
+  tipo?: string | null;
+}) {
   const q = useElegibilidadeRoleta(slug);
   const linhas = q.data ?? [];
   const ativos = linhas.filter((l) => l.participante_ativo && !l.pausado);
   const aptos = linhas.filter((l) => l.apto);
   const proximo = proximoDaVez(aptos);
-  const Icon = ROLETA_ICON[slug];
+  const ehFilial = tipo === "zona";
+  const Icon = ehFilial ? Storefront : (ROLETA_ICON[slug] ?? UsersThree);
 
   return (
-    <Card>
+    <Card data-testid={`saude-${slug}`}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-1.5 text-sm">
-          <Icon className="h-4 w-4 text-primary" /> {roletaLabel(slug)}
+          <Icon className="h-4 w-4 text-primary" /> {roletaLabel(slug, nome)}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -58,8 +76,8 @@ function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
             </div>
             {aptos.length === 0 ? (
               <StatusBadge intent="danger">
-                {slug.startsWith("zona-")
-                  ? "Sem corretor apto — leads da zona esperam (não vão para outra zona)"
+                {ehFilial
+                  ? "Sem corretor apto — lead da Leste vai para a outra filial; das outras zonas, espera aqui (nunca vai para outra zona)"
                   : "Sem corretor apto — leads irão para exceção"}
               </StatusBadge>
             ) : (
@@ -83,17 +101,22 @@ function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
 export function TabVisaoGeral({ onVerExcecoes }: { onVerExcecoes: () => void }) {
   const logQ = useHistoricoDistribuicao({ dias: 1, limite: 20 });
   const nomesQ = useNomesPerfis();
+  const roletasQ = useRoletas();
   const nomes = nomesQ.data;
   const decisoes = (logQ.data ?? []).slice(0, 12);
+  // Um cartão por filial: as roletas de tipo 'zona' ativas, do banco (a 0079
+  // deixou as seis zona-* inativas). A ordem de slug já põe Barra Funda,
+  // Belém, Liberdade; a aba Filas é que ordena por filiais.ordem.
+  const filiais = (roletasQ.data ?? []).filter((r) => r.tipo === "zona" && r.ativo);
 
   return (
     <div className="space-y-4">
-      {/* Roletas por zona primeiro — todo lead com zona vai para a roleta da
-          zona dele e só para ela (zona estrita); as de origem atendem só o
-          lead SEM zona. */}
+      {/* Roletas por filial primeiro — todo lead com zona vai para a filial
+          que atende a zona dele e só para ela (zona estrita); as de origem
+          atendem só o lead SEM zona. */}
       <div className="grid gap-4 md:grid-cols-3">
-        {ZONA_ROLETAS.map((slug) => (
-          <RoletaSaudeCard key={slug} slug={slug} />
+        {filiais.map((r) => (
+          <RoletaSaudeCard key={r.slug} slug={r.slug} nome={r.nome} tipo={r.tipo} />
         ))}
       </div>
       <div className="grid gap-4 md:grid-cols-3">

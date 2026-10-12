@@ -1,9 +1,14 @@
-// Fronteira das filas por zona (migration 20261015120000). As RPCs não estão
-// nos types gerados: passam pela fronteira `rpc` de features/dashboard/queries
-// e a resposta é validada aqui (fail-closed), sem escape de tipo.
+// Fronteira das filas por zona (migration 20261015120000; roletas por filial
+// na 20261018120000). As RPCs não estão nos types gerados: passam pela
+// fronteira `rpc` de features/dashboard/queries e a resposta é validada aqui
+// (fail-closed), sem escape de tipo.
 //
 // roletas_filas_zona_v1: SDR e gestão — todas as roletas da zona, com nomes.
-// minhas_posicoes_roletas_v1: o corretor — só a própria posição.
+//   Numa zona vêm TODAS as roletas de filial que a atendem (Leste → duas), a
+//   da vez primeiro, cada uma com `da_vez`, `filial` e `zonas`.
+// minhas_posicoes_roletas_v1: o corretor — só a própria posição; a roleta de
+//   filial é UMA fila (zona null, `filial` e `zonas` no objeto) e a campanha
+//   também (a campanha manda, de qualquer zona).
 
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -34,8 +39,14 @@ const filaRoletaSchema = z.object({
   exige_presenca: z.boolean().catch(false),
   fora_do_horario: z.boolean().catch(false),
   segue_zona: z.boolean().catch(false),
-  /** A regra "a vez é uma só" vale nesta fila (Agendados do SDR e roleta de zona). */
+  /** A regra "a vez é uma só" vale nesta fila (Agendados do SDR e roleta de filial). */
   vez_unica: z.boolean().catch(false),
+  /** Roleta de filial: é a que recebe o próximo lead desta zona (rodízio da Leste). */
+  da_vez: z.boolean().optional().catch(undefined),
+  /** A filial dona (roleta de filial sempre; campanha quando a gestão definiu). */
+  filial: z.object({ slug: z.string(), nome: z.string() }).optional().catch(undefined),
+  /** Roleta de filial: as zonas que ela atende. */
+  zonas: z.array(z.string()).optional().catch(undefined),
   fila: z.array(pessoaSchema),
   fora: z.array(pessoaSchema).catch([]),
   reserva: z
@@ -64,7 +75,12 @@ const minhaPosicaoSchema = z.object({
   total: z.number().int().catch(0),
   apto: z.boolean(),
   motivos: z.array(z.string()).catch([]),
+  /** Onde a vez dele está: a zona (SDR, "Sul") ou o NOME da filial ("Belém"). */
   vez_em: z.string().nullable().catch(null),
+  /** Roleta de filial: o nome da filial ("Belém"). */
+  filial: z.string().optional().catch(undefined),
+  /** Roleta de filial: as zonas que ela atende. */
+  zonas: z.array(z.string()).optional().catch(undefined),
 });
 export type MinhaPosicao = z.infer<typeof minhaPosicaoSchema>;
 

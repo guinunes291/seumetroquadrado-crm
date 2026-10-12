@@ -1,11 +1,17 @@
 // Aba Corretores — os dados de DISTRIBUIÇÃO de cada corretor num lugar só:
-// presença de hoje, zonas atendidas, vínculo (fixo/autônomo), onboarding,
-// filas em que participa e carteira (WIP) contra o disjuntor. A edição de
-// zonas saiu da página de Pessoas (lá virou leitura) e presença deixou de
-// ser exclusividade da aba Plantão. Escrita SEMPRE por RPC auditada:
-// marcar_presenca_admin e atualizar_corretor_distribuicao.
+// presença de hoje, região de atuação (por filial), vínculo (fixo/autônomo),
+// onboarding, filas em que participa e carteira (WIP) contra o disjuntor. A
+// edição de zonas saiu da página de Pessoas (lá virou leitura) e presença
+// deixou de ser exclusividade da aba Plantão. Escrita SEMPRE por RPC
+// auditada: marcar_presenca_admin e atualizar_corretor_distribuicao.
+//
+// Roletas por filial (decisão do dono, 12/10/2026): a região passa a ser
+// escolhida por FILIAL — três caixas "Belém — Leste, Grande SP" —, porque o
+// time é da filial inteira (acabou a "região só Oeste"). Por baixo é a mesma
+// RPC recebendo a UNIÃO das zonas das filiais marcadas; mandar só parte das
+// zonas de uma filial o banco recusa ("a região é por filial").
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, UserMinus } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,13 +38,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ZONAS_REGIAO, type ZonaProjeto } from "@/lib/zonas";
+import {
+  agruparFiliais,
+  filiaisDaRegiao,
+  rotuloFilial,
+  uniaoDasZonas,
+  zonasSoltas,
+  type FilialRoleta,
+} from "@/lib/distribuicao";
 import {
   useAtualizarCorretorDistribuicao,
   useCorretoresDistribuicao,
   useMarcarPresencaAdmin,
   useRoletasPorCorretor,
   useWipCorretores,
+  useZonasRoletas,
   type CorretorDistribuicao,
 } from "./queries";
 
@@ -48,10 +62,12 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
   const corretoresQ = useCorretoresDistribuicao();
   const roletasQ = useRoletasPorCorretor();
   const wipQ = useWipCorretores();
+  const mapaQ = useZonasRoletas();
   const presenca = useMarcarPresencaAdmin();
   const atualizar = useAtualizarCorretorDistribuicao();
 
   const linhas = corretoresQ.data ?? [];
+  const filiais = useMemo(() => agruparFiliais(mapaQ.data ?? []), [mapaQ.data]);
   const temWip = wipQ.data !== null && wipQ.data !== undefined;
   const temV2 = linhas.some((c) => c.v2 !== null);
 
@@ -69,10 +85,10 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
     <TooltipProvider delayDuration={150}>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Elegibilidade do corretor para TODAS as filas: presença do dia, região de atuação (só
-          recebe lead dessas zonas, de qualquer origem), vínculo e onboarding (exigidos pelo motor
-          v2) e carteira contra o teto. O cadastro geral (telefone, equipe, papel) continua em
-          Configurações → Pessoas.
+          Elegibilidade do corretor para TODAS as filas: presença do dia, região de atuação (as
+          filiais em que ele está — só recebe lead das zonas delas, de qualquer origem), vínculo e
+          onboarding (exigidos pelo motor v2) e carteira contra o teto. O cadastro geral (telefone,
+          equipe, papel) continua em Configurações → Pessoas.
         </p>
 
         <Card>
@@ -130,10 +146,11 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
                         </TableCell>
                         <TableCell>
                           {somenteLeitura ? (
-                            <ZonasBadges zonas={c.zonas} />
+                            <FiliaisBadges zonas={c.zonas} filiais={filiais} />
                           ) : (
-                            <ZonasEditor
+                            <FiliaisEditor
                               corretor={c}
+                              filiais={filiais}
                               onSalvar={(zonas) => atualizar.mutate({ corretorId: c.id, zonas })}
                               pending={atualizar.isPending}
                             />
@@ -257,14 +274,23 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
   );
 }
 
-/** Região de atuação: as roletas de zona em que o corretor participa (o banco
- *  espelha em profiles.zonas). Sem região = só recebe lead sem zona. */
-function ZonasBadges({ zonas }: { zonas: string[] }) {
+/** Região de atuação: as FILIAIS em que o corretor está inteiro (todas as
+ *  zonas da filial na região — o banco espelha as roletas em profiles.zonas).
+ *  Zona solta sem filial completa não deve acontecer; se vier, aparece a
+ *  zona. Sem região = só recebe lead sem zona. */
+function FiliaisBadges({ zonas, filiais }: { zonas: string[]; filiais: FilialRoleta[] }) {
   if (zonas.length === 0) return <StatusBadge intent="warning">Sem região</StatusBadge>;
+  const minhas = filiaisDaRegiao(filiais, zonas);
+  const soltas = zonasSoltas(filiais, zonas);
   return (
     <div className="flex flex-wrap gap-1">
-      {zonas.map((z) => (
-        <Badge key={z} variant="secondary">
+      {minhas.map((f) => (
+        <Badge key={f.slug} variant="secondary">
+          {rotuloFilial(f, " · ")}
+        </Badge>
+      ))}
+      {soltas.map((z) => (
+        <Badge key={z} variant="outline">
           {z}
         </Badge>
       ))}
@@ -272,56 +298,86 @@ function ZonasBadges({ zonas }: { zonas: string[] }) {
   );
 }
 
-/** Região de atuação — rascunho + Salvar (padrão da casa), gravando pela RPC
- *  auditada, que inclui/remove o corretor das roletas de zona (a região é uma
- *  só: a aba Filas mostra o mesmo time). Nenhuma marcada = só lead sem zona;
- *  quem atende tudo é marcado nas seis zonas, explicitamente. */
-function ZonasEditor({
+/** Região de atuação por filial — rascunho + Salvar (padrão da casa),
+ *  gravando pela RPC auditada, que inclui/remove o corretor da roleta da
+ *  filial inteira (a região é uma só: a aba Filas mostra o mesmo time). A
+ *  caixa vem marcada quando todas as zonas da filial estão na região; salvar
+ *  manda a UNIÃO das zonas das filiais marcadas. Nenhuma marcada = só lead
+ *  sem zona. Quem atende a Leste pode estar em duas (Liberdade e Belém). */
+function FiliaisEditor({
   corretor,
+  filiais,
   onSalvar,
   pending,
 }: {
   corretor: CorretorDistribuicao;
+  filiais: FilialRoleta[];
   onSalvar: (zonas: string[]) => void;
   pending: boolean;
 }) {
   const [rascunho, setRascunho] = useState<Set<string> | null>(null);
-  const atual = new Set(corretor.zonas);
+  const atual = new Set(filiaisDaRegiao(filiais, corretor.zonas).map((f) => f.slug));
   const marcadas = rascunho ?? atual;
   const mudou =
-    rascunho !== null && (rascunho.size !== atual.size || [...rascunho].some((z) => !atual.has(z)));
+    rascunho !== null && (rascunho.size !== atual.size || [...rascunho].some((f) => !atual.has(f)));
+  const soltas = zonasSoltas(filiais, corretor.zonas);
 
-  const toggle = (z: ZonaProjeto) => {
+  const toggle = (slug: string) => {
     const next = new Set(marcadas);
-    if (next.has(z)) next.delete(z);
-    else next.add(z);
+    if (next.has(slug)) next.delete(slug);
+    else next.add(slug);
     setRascunho(next);
   };
+
+  const resumo = [...filiais.filter((f) => atual.has(f.slug)).map((f) => f.nome), ...soltas].join(
+    ", ",
+  );
 
   return (
     <Popover onOpenChange={(o) => !o && setRascunho(null)}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 min-w-[120px] justify-start gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 min-w-[120px] justify-start gap-1"
+          aria-label={`Região de ${corretor.nome}`}
+        >
           {corretor.zonas.length === 0 ? (
             <span className="text-warning">Sem região</span>
           ) : (
-            <span className="truncate">{corretor.zonas.join(", ")}</span>
+            <span className="truncate">{resumo || corretor.zonas.join(", ")}</span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-52 p-2">
+      <PopoverContent align="start" className="w-64 p-2">
         <p className="px-1 pb-2 text-xs text-muted-foreground">
-          Recebe lead só destas zonas, de qualquer origem. Sem marcação, só lead sem zona.
+          Entra no time da filial e recebe lead das zonas dela, de qualquer origem. Sem marcação, só
+          lead sem zona.
         </p>
-        {ZONAS_REGIAO.map((z) => (
+        {filiais.length === 0 && (
+          <p className="px-1 py-1.5 text-xs text-muted-foreground">
+            Nenhuma roleta de filial ativa.
+          </p>
+        )}
+        {filiais.map((f) => (
           <label
-            key={z}
+            key={f.slug}
             className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm hover:bg-muted"
           >
-            <Checkbox checked={marcadas.has(z)} onCheckedChange={() => toggle(z)} />
-            {z}
+            <Checkbox
+              checked={marcadas.has(f.slug)}
+              onCheckedChange={() => toggle(f.slug)}
+              aria-label={rotuloFilial(f)}
+            />
+            {rotuloFilial(f)}
           </label>
         ))}
+        {soltas.length > 0 && (
+          <p className="px-1 pt-1 text-xs text-warning">
+            Zona sem filial completa: {soltas.join(", ")}. Salvar refaz a região pelas filiais
+            marcadas.
+          </p>
+        )}
         {mudou && (
           <div className="pt-2">
             <Button
@@ -329,7 +385,7 @@ function ZonasEditor({
               className="w-full"
               disabled={pending}
               onClick={() => {
-                onSalvar(ZONAS_REGIAO.filter((z) => marcadas.has(z)));
+                onSalvar(uniaoDasZonas(filiais, marcadas));
                 setRascunho(null);
               }}
             >

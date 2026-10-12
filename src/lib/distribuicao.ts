@@ -8,40 +8,46 @@
 // de verdade para atribuir lead.
 
 import type { Database } from "@/integrations/supabase/types";
+import { ZONAS_REGIAO } from "@/lib/zonas";
 
 export type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
 
-// Roletas de ZONA (decisão 2026-08-16): a roleta É a zona — o gestor define
-// os corretores de cada uma. ZONA ESTRITA (2026-10-03): a participação nelas
-// é a REGIÃO DE ATUAÇÃO do corretor, e lead com zona só vai para quem atende
-// a zona (sem desvio para outra zona). Centro e Grande SP ganharam roleta.
-export type ZonaRoletaSlug =
+// Roletas de FILIAL (decisão do dono, 12/10/2026: "vamos montar roletas por
+// filial, fica mais simples de distribuir em apenas 3 roletas"). A roleta de
+// tipo 'zona' é o time fixo de uma filial e recebe os leads das zonas que ela
+// atende (mapa em zonas_roletas: Oeste, Norte e Sul → Barra Funda; Centro e
+// Leste → Liberdade; Leste e Grande SP → Belém — a Leste alterna entre as
+// duas). A zona continua no lead; o time passou a ser a filial. A lista das
+// roletas de filial NUNCA é uma constante aqui: vem de `roletas` (tipo 'zona',
+// ativa) na ordem de `filiais.ordem`, para a gestão poder abrir uma loja nova
+// sem deploy.
+export type RoletaSlug = "plantao" | "marquinhos" | "landing" | "base" | "agendados-sdr";
+
+/** As três roletas de filial da 0079 — o nome vem de roletas.nome; aqui é só
+ *  o fallback de rótulo quando a tela tem o slug e não a linha. */
+export type RoletaFilialSlug = "filial-barra-funda" | "filial-liberdade" | "filial-belem";
+
+/** As seis roletas de zona (16/08 e 03/10) ficaram INATIVAS em 12/10/2026,
+ *  nunca apagadas: histórico, tokens de webhook antigos e rollback. Os slugs
+ *  seguem aqui só para o histórico e os filtros lerem "(antiga)". */
+export type RoletaZonaLegadaSlug =
   "zona-norte" | "zona-sul" | "zona-leste" | "zona-oeste" | "zona-centro" | "zona-grande-sp";
 
-export const ZONA_ROLETAS: readonly ZonaRoletaSlug[] = [
-  "zona-norte",
-  "zona-sul",
-  "zona-leste",
-  "zona-oeste",
-  "zona-centro",
-  "zona-grande-sp",
-] as const;
-
-export type RoletaSlug =
-  "plantao" | "marquinhos" | "landing" | "base" | "agendados-sdr" | ZonaRoletaSlug;
-
-export const ROLETA_LABEL: Record<RoletaSlug, string> = {
+export const ROLETA_LABEL: Record<RoletaSlug | RoletaFilialSlug | RoletaZonaLegadaSlug, string> = {
   plantao: "Roleta Plantão",
   marquinhos: "Roleta Marquinhos",
   landing: "Roleta Landing Page",
   base: "Roleta Base",
   "agendados-sdr": "Agendados do SDR",
-  "zona-norte": "Roleta Zona Norte",
-  "zona-sul": "Roleta Zona Sul",
-  "zona-leste": "Roleta Zona Leste",
-  "zona-oeste": "Roleta Zona Oeste",
-  "zona-centro": "Roleta Centro",
-  "zona-grande-sp": "Roleta Grande SP",
+  "filial-barra-funda": "Roleta Barra Funda",
+  "filial-liberdade": "Roleta Liberdade",
+  "filial-belem": "Roleta Belém",
+  "zona-norte": "Roleta Zona Norte (antiga)",
+  "zona-sul": "Roleta Zona Sul (antiga)",
+  "zona-leste": "Roleta Zona Leste (antiga)",
+  "zona-oeste": "Roleta Zona Oeste (antiga)",
+  "zona-centro": "Roleta Centro (antiga)",
+  "zona-grande-sp": "Roleta Grande SP (antiga)",
 };
 
 /** Nome vindo do banco (roletas.nome) vence o mapa fixo — campanha e roleta
@@ -49,7 +55,165 @@ export const ROLETA_LABEL: Record<RoletaSlug, string> = {
 export function roletaLabel(slug: string | null | undefined, nome?: string | null): string {
   if (nome && nome.trim() !== "") return nome;
   if (!slug) return "—";
-  return ROLETA_LABEL[slug as RoletaSlug] ?? slug;
+  return ROLETA_LABEL[slug as keyof typeof ROLETA_LABEL] ?? slug;
+}
+
+// ---------------------------------------------------------------------------
+// O mapa das filiais (zonas_roletas + roletas + filiais), puro e testável. A
+// verdade mora no banco; aqui é a mesma leitura para a aba Corretores (editor
+// por filial), a aba Filas (ordem das filiais) e as descrições.
+// ---------------------------------------------------------------------------
+
+/** Uma linha de zonas_roletas já com o nome da roleta e a filial dela. */
+export interface ZonaRoletaLinha {
+  zona: string;
+  roleta_slug: string;
+  roleta_nome: string;
+  roleta_ativa: boolean;
+  filial_slug: string | null;
+  filial_nome: string | null;
+  filial_ordem: number | null;
+}
+
+/** Uma filial com a roleta dela e as zonas que atende. */
+export interface FilialRoleta {
+  /** Slug da FILIAL (filiais.slug), não da roleta. */
+  slug: string;
+  nome: string;
+  ordem: number;
+  roletaSlug: string;
+  roletaNome: string;
+  /** Na ordem dos chips (ZONAS_REGIAO), não na alfabética do banco. */
+  zonas: string[];
+}
+
+/** Zonas na ordem dos chips; o que não é zona conhecida vai para o fim. */
+export function ordenarZonas(zonas: readonly string[]): string[] {
+  const pos = (z: string) => {
+    const i = ZONAS_REGIAO.indexOf(z as (typeof ZONAS_REGIAO)[number]);
+    return i === -1 ? 99 : i;
+  };
+  return [...new Set(zonas)].sort((a, b) => pos(a) - pos(b) || a.localeCompare(b, "pt-BR"));
+}
+
+/** As filiais com roleta ATIVA, na ordem de filiais.ordem (empate pelo nome). */
+export function agruparFiliais(linhas: readonly ZonaRoletaLinha[]): FilialRoleta[] {
+  const porRoleta = new Map<string, FilialRoleta>();
+  for (const l of linhas) {
+    if (!l.filial_slug || !l.roleta_ativa) continue;
+    const f = porRoleta.get(l.roleta_slug) ?? {
+      slug: l.filial_slug,
+      nome: l.filial_nome ?? l.filial_slug,
+      ordem: l.filial_ordem ?? 99,
+      roletaSlug: l.roleta_slug,
+      roletaNome: l.roleta_nome,
+      zonas: [],
+    };
+    f.zonas.push(l.zona);
+    porRoleta.set(l.roleta_slug, f);
+  }
+  return [...porRoleta.values()]
+    .map((f) => ({ ...f, zonas: ordenarZonas(f.zonas) }))
+    .sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+/** A filial está inteira na região do corretor: todas as zonas dela ⊆ região.
+ *  (A região é o espelho das roletas de filial em que ele está, então é
+ *  tudo ou nada por filial.) */
+export function filiaisDaRegiao(filiais: readonly FilialRoleta[], zonas: readonly string[]) {
+  const regiao = new Set(zonas);
+  return filiais.filter((f) => f.zonas.length > 0 && f.zonas.every((z) => regiao.has(z)));
+}
+
+/** Zonas da região que nenhuma filial inteira cobre — não deve acontecer
+ *  (a RPC recusa região que não é por filial); a tela mostra a zona solta. */
+export function zonasSoltas(filiais: readonly FilialRoleta[], zonas: readonly string[]): string[] {
+  const cobertas = new Set(filiaisDaRegiao(filiais, zonas).flatMap((f) => f.zonas));
+  return ordenarZonas(zonas.filter((z) => !cobertas.has(z)));
+}
+
+/** A união das zonas das filiais marcadas — o que atualizar_corretor_distribuicao
+ *  espera (mandar só parte das zonas de uma filial dá "a região é por filial"). */
+export function uniaoDasZonas(
+  filiais: readonly FilialRoleta[],
+  marcadas: ReadonlySet<string>,
+): string[] {
+  return ordenarZonas(filiais.filter((f) => marcadas.has(f.slug)).flatMap((f) => f.zonas));
+}
+
+/** "Belém — Leste, Grande SP" (separador configurável: "·" nos badges). */
+export function rotuloFilial(f: FilialRoleta, separador = " — "): string {
+  return `${f.nome}${separador}${f.zonas.join(", ")}`;
+}
+
+/** Nomes que levam artigo feminino na frase ("na Belém", "a Liberdade");
+ *  o resto é masculino ("no Sul", "o Centro"). Lista explícita de propósito:
+ *  a tela não adivinha gênero de nome de loja. */
+const NOMES_FEMININOS = new Set(["Grande SP", "Barra Funda", "Liberdade", "Belém"]);
+export function femininoNaFrase(nome: string): boolean {
+  return NOMES_FEMININOS.has(nome);
+}
+
+/** "Liberdade e Belém", "Norte, Sul e Oeste". */
+export function listarNomes(nomes: readonly string[]): string {
+  if (nomes.length <= 1) return nomes[0] ?? "";
+  return `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+}
+
+/** As outras filiais que atendem a mesma zona ("A Leste alterna com a Belém"). */
+export function filiaisQueAlternam(f: FilialRoleta, todas: readonly FilialRoleta[]) {
+  return f.zonas
+    .map((zona) => ({
+      zona,
+      com: todas.filter((o) => o.slug !== f.slug && o.zonas.includes(zona)).map((o) => o.nome),
+    }))
+    .filter((x) => x.com.length > 0);
+}
+
+/** "A Leste alterna entre Liberdade e Belém." — uma frase por zona que mais de
+ *  uma filial atende (o rodízio entre as roletas da mesma zona). */
+export function frasesAlternancia(filiais: readonly FilialRoleta[]): string[] {
+  const porZona = new Map<string, string[]>();
+  for (const f of filiais) {
+    for (const z of f.zonas) porZona.set(z, [...(porZona.get(z) ?? []), f.nome]);
+  }
+  return ordenarZonas([...porZona.keys()]).flatMap((z) => {
+    const nomes = porZona.get(z) ?? [];
+    return nomes.length > 1 ? [`A ${z} alterna entre ${listarNomes(nomes)}.`] : [];
+  });
+}
+
+/** As campanhas em seções por filial dona (ordem das filiais); as sem filial
+ *  — ou com filial desconhecida — no fim ("Campanhas · sem filial"). */
+export function secoesDeCampanhas<T extends { filial_id: string | null }>(
+  campanhas: readonly T[],
+  filiais: readonly { id: string; nome: string; ordem: number }[],
+): Array<{ chave: string; titulo: string; filas: T[] }> {
+  const secoes: Array<{ chave: string; titulo: string; filas: T[] }> = [];
+  for (const f of [...filiais].sort((a, b) => a.ordem - b.ordem)) {
+    const filas = campanhas.filter((c) => c.filial_id === f.id);
+    if (filas.length > 0) secoes.push({ chave: f.id, titulo: `Campanhas · ${f.nome}`, filas });
+  }
+  const ids = new Set(filiais.map((f) => f.id));
+  const soltas = campanhas.filter((c) => !c.filial_id || !ids.has(c.filial_id));
+  if (soltas.length > 0) {
+    secoes.push({ chave: "sem-filial", titulo: "Campanhas · sem filial", filas: soltas });
+  }
+  return secoes;
+}
+
+/** A descrição da roleta de filial na Central: as zonas e quem alterna. */
+export function descricaoRoletaFilial(f: FilialRoleta, todas: readonly FilialRoleta[]): string {
+  const zonas =
+    f.zonas.length === 1 ? `da zona ${f.zonas[0]}` : `das zonas ${listarNomes(f.zonas)}`;
+  const base = `Time fixo da ${f.nome}: recebe os leads ${zonas}.`;
+  const alterna = filiaisQueAlternam(f, todas).map(
+    (x) =>
+      `A ${x.zona} alterna com ${listarNomes(
+        x.com.map((n) => `${femininoNaFrase(n) ? "a" : "o"} ${n}`),
+      )}.`,
+  );
+  return [base, ...alterna].join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -93,9 +257,10 @@ export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   roleta_desativada: "Roleta desligada",
   // Fila por zona (2026-10-15): a roleta só sorteia quem atende a zona.
   fora_da_regiao: "Não atende esta zona",
-  sem_zona_no_perfil: "Sem zona no perfil (a gestão define)",
-  // A vez é uma só (2026-10-17): é o 1º da fila de outra zona.
-  vez_em_outra_zona: "A vez agora é em outra zona",
+  sem_zona_no_perfil: "Sem zona no perfil (a gestão define a filial)",
+  // A vez é uma só (2026-10-17): é o 1º da fila de outra zona — ou, desde as
+  // roletas por filial (12/10), de outra filial.
+  vez_em_outra_zona: "A vez agora é em outra zona ou filial",
 };
 
 export function motivoInaptidaoLabel(motivo: string): string {
@@ -130,9 +295,10 @@ export const MOTIVO_EXCECAO_LABEL: Record<MotivoExcecao, string> = {
   falha_tecnica: "Falha técnica na distribuição",
   corretor_anterior_inativo: "Corretor anterior inativo",
   dados_incompletos: "Lead sem dados mínimos",
-  sem_corretor_na_zona: "Esperando o time da zona (ninguém da zona apto agora)",
-  zona_sem_time: "Zona sem time montado",
-  zona_sem_roleta: "Zona sem roleta vinculada",
+  // Roletas por filial (12/10/2026): o time da zona é a(s) filial(is) que a atendem.
+  sem_corretor_na_zona: "Esperando a filial da zona (ninguém da filial apto agora)",
+  zona_sem_time: "Zona sem time na filial",
+  zona_sem_roleta: "Zona sem roleta de filial",
 };
 
 export function motivoExcecaoLabel(motivo: string): string {
@@ -169,7 +335,7 @@ export const RESULTADO_LABEL: Record<string, string> = {
 
 export const GATILHO_LABEL: Record<string, string> = {
   webhook: "Webhook (chatbot)",
-  campanha_zona: "Campanha → roleta da zona",
+  campanha_zona: "Campanha → roleta da filial da zona",
   webhook_landing: "Webhook (landing page)",
   edge_facebook: "Facebook Ads",
   cron: "Rotina automática",

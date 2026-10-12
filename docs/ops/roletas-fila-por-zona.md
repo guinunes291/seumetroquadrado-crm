@@ -125,6 +125,13 @@ para quem atende Leste, Oeste e Sul): o motor já a ignora, e o painel diz
 
 ## 8. A vez é uma só (0078)
 
+> **Desde a 0079 (roletas por filial):** a unidade da regra é a **zona** nos
+> Agendados do SDR e a **roleta de filial** nas roletas de filial (a fila da
+> filial é uma só para todas as zonas dela). Na tela: "vez no Sul" e "vez na
+> Belém". As funções `_vez_unica_zonas_ordem`/`_vez_unica_cabecas(_familia,
+_ate_zona)` viraram `_vez_unica_unidades(_familia)`/`_vez_unica_cabecas
+(_familia, _ate_unidade)`. Ver `docs/ops/roletas-por-filial.md` §4.
+
 **O pedido.** Em 11/10, olhando "A vez por zona", o dono viu Igor Nigro em 1º
 no Sul e no Leste: "o mesmo corretor não pode ficar em primeiro em mais de
 uma Zona". Decisão: **a vez é uma só**, para os Agendados do SDR e para as

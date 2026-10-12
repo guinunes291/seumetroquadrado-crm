@@ -7,6 +7,10 @@
 // agrupado pelo motivo: sem check-in ele fica fora de todas as filas que
 // exigem presença, e uma linha por roleta e zona passava de 30 para quem
 // atende três zonas (visto em produção, 11/10).
+//
+// Roletas por filial (12/10/2026): a roleta de filial é UMA fila ("Roleta
+// Belém · Leste, Grande SP — 2º de 7") e a campanha também ("Cury Leopoldina
+// — 2º de 6"); fora pela vez única: "Sua vez agora é na Belém".
 
 import { Link } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";

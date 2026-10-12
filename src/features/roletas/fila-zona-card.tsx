@@ -7,6 +7,11 @@
 // A ordem vem do banco (roletas_filas_zona_v1), que lê o estado de cada motor
 // sem mudar nada. O que só o lead decide fica dito embaixo da fila: quem tem
 // visita no horário é pulado e o corretor de origem fura a fila.
+//
+// Roletas por filial (decisão do dono, 12/10/2026): os chips continuam sendo
+// as zonas (a visita tem zona), e embaixo da fila do SDR aparecem a(s)
+// roleta(s) de filial que atendem a zona — a Leste tem duas, e a que recebe o
+// próximo lead leva o badge "da vez".
 
 import { useState } from "react";
 import { WarningCircle } from "@phosphor-icons/react";
@@ -21,6 +26,7 @@ import {
   comoAndaAVez,
   filaEmLinha,
   foraEmLinha,
+  fraseAlternancia,
   nomeDaFila,
   ordenarFilas,
   ordinal,
@@ -133,6 +139,12 @@ function OutraFila({ r }: { r: FilaRoleta }) {
     <li className="space-y-0.5 py-2" data-testid={`fila-${r.slug}`}>
       <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
         {nomeDaFila(r)}
+        {/* A roleta de filial que recebe o próximo lead desta zona (rodízio). */}
+        {r.papel === "zona" && r.da_vez && (
+          <Badge className="h-5 bg-gold-400 text-[10px] font-semibold text-navy-900 hover:bg-gold-400">
+            da vez
+          </Badge>
+        )}
         {r.exige_presenca && (
           <Badge variant="outline" className="h-5 text-[10px] font-normal">
             check-in
@@ -141,6 +153,12 @@ function OutraFila({ r }: { r: FilaRoleta }) {
         {r.papel === "campanha" && r.equipe_fixa && (
           <Badge variant="outline" className="h-5 text-[10px] font-normal">
             equipe fixa
+          </Badge>
+        )}
+        {/* A filial dona da campanha: rótulo (a equipe recebe de qualquer zona). */}
+        {r.papel === "campanha" && r.filial && (
+          <Badge variant="outline" className="h-5 text-[10px] font-normal">
+            {r.filial.nome}
           </Badge>
         )}
       </p>
@@ -174,6 +192,12 @@ export function FilaZonaCard({
   // Em destaque, a fila do SDR; sem ela (lead sem zona), a primeira da lista.
   const destaque = doSdr ?? filas[0] ?? null;
   const outras = filas.filter((r) => r !== destaque);
+  // A Leste tem duas roletas de filial: diz que alterna.
+  const alterna = zona === SEM_ZONA ? null : fraseAlternancia(zona, filas);
+  // A reserva do SDR é a roleta de filial da vez: diz qual pelo nome.
+  const reservaNome = destaque?.reserva
+    ? (filas.find((r) => r.slug === destaque.reserva?.slug)?.nome ?? "a filial da vez")
+    : null;
 
   return (
     <section
@@ -235,13 +259,14 @@ export function FilaZonaCard({
                   <>
                     <p className="flex items-start gap-1 text-xs text-warning">
                       <WarningCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" weight="fill" />
-                      Ninguém do time do SDR atende a {zona}: a visita vai para o time da zona.
+                      Ninguém do time do SDR atende esta zona: a visita vai para a filial da vez (
+                      {reservaNome}).
                     </p>
                     {destaque.reserva.fila.length > 0 ? (
                       <ListaDaVez fila={destaque.reserva.fila} />
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        O time da zona também está vazio: a gestão entrega.
+                        A filial também está vazia: a gestão entrega.
                       </p>
                     )}
                   </>
@@ -252,7 +277,8 @@ export function FilaZonaCard({
                   {comoAndaAVez(destaque.mecanica)}
                   {destaque.papel === "sdr" &&
                     " Quem tem visita no horário é pulado, e o corretor que falou com o cliente nos últimos 7 dias fura a fila."}
-                  {destaque.vez_unica && " A vez é uma só: quem é o 1º de outra zona espera lá."}
+                  {destaque.vez_unica &&
+                    " A vez é uma só: quem é o 1º de outra zona ou filial espera lá."}
                 </p>
                 {foraEmLinha(destaque) && (
                   <p className="text-xs text-muted-foreground">
@@ -266,8 +292,13 @@ export function FilaZonaCard({
           {outras.length > 0 && (
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {zona === SEM_ZONA ? "Roletas para lead sem zona" : `Outras roletas da ${zona}`}
+                {zona === SEM_ZONA ? "Roletas para lead sem zona" : `Outras roletas · ${zona}`}
               </h3>
+              {alterna && (
+                <p className="text-xs text-muted-foreground" data-testid="fila-alternancia">
+                  {alterna}: o lead vai para a que está há mais tempo sem receber da zona.
+                </p>
+              )}
               <ul className="divide-y divide-border-subtle">
                 {outras.map((r) => (
                   <OutraFila key={r.slug} r={r} />
