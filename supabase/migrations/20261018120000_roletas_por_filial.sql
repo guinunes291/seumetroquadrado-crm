@@ -150,6 +150,22 @@ $$;
 -- o motor escolhe a filial por esta, senão o repasse por SLA esperava na
 -- filial em que só o dono que estourou está apto, com a outra filial da zona
 -- pronta (o pino e a da vez são tentados primeiro, depois as outras).
+-- A roleta tem time montado (alguém ativo nela)? Onde o lead espera quando
+-- nenhuma filial da zona está pronta: na que tem time, para a exceção dizer
+-- "ninguém apto agora" e não "sem time montado" (visto no harness, 12/10).
+CREATE OR REPLACE FUNCTION public._roleta_tem_time(_slug text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.roletas r
+      JOIN public.roleta_participantes rp ON rp.roleta_id = r.id
+     WHERE r.slug = _slug AND r.ativo AND rp.ativo)
+$$;
+
 CREATE OR REPLACE FUNCTION public._roleta_pronta_para_lead(_slug text, _tentaram uuid[])
 RETURNS boolean
 LANGUAGE sql
@@ -889,19 +905,31 @@ BEGIN
     -- filiais da zona (_roletas_da_zona) com alguém apto que ainda não teve
     -- o lead (_roleta_pronta_para_lead); nenhuma → o pino, ou a da vez, ou a
     -- primeira da ordem (o lead espera lá, nunca troca de zona).
+    -- Serializa a escolha da filial entre leads da MESMA zona, só onde a
+    -- zona tem mais de uma roleta: sem isto, dois leads da Leste ao mesmo
+    -- tempo leem o mesmo cursor e vão para a mesma filial (visto no harness,
+    -- 12/10). O segundo espera o COMMIT do primeiro e vê o cursor andado.
+    IF (SELECT count(*) FROM public.zonas_roletas zr WHERE zr.zona = _zona) > 1 THEN
+      PERFORM pg_advisory_xact_lock(hashtext('zona_filial:' || _zona));
+    END IF;
     SELECT x.roleta_slug INTO _zslug_pronta
       FROM public._roletas_da_zona(_zona) x
      WHERE x.pronta AND public._roleta_pronta_para_lead(x.roleta_slug, _tentaram)
      ORDER BY x.ordem
      LIMIT 1;
     IF _roleta_slug IS NOT NULL AND public._roleta_atende_zona(_roleta_slug, _zona)
-       AND (public._roleta_pronta_para_lead(_roleta_slug, _tentaram) OR _zslug_pronta IS NULL) THEN
+       AND (public._roleta_pronta_para_lead(_roleta_slug, _tentaram)
+            OR (_zslug_pronta IS NULL AND public._roleta_tem_time(_roleta_slug))) THEN
       _zslug_lead := _roleta_slug;
     ELSE
+      -- Nenhuma pronta: espera na primeira da ordem que tem time montado
+      -- (a exceção diz "ninguém apto agora"); sem time em nenhuma, na
+      -- primeira da ordem ("sem time montado").
       _zslug_lead := COALESCE(
         _zslug_pronta,
         public.roleta_da_zona(_zona),
-        (SELECT x.roleta_slug FROM public._roletas_da_zona(_zona) x ORDER BY x.ordem LIMIT 1));
+        (SELECT x.roleta_slug FROM public._roletas_da_zona(_zona) x
+          ORDER BY (NOT public._roleta_tem_time(x.roleta_slug)), x.ordem LIMIT 1));
     END IF;
   END IF;
 
@@ -1840,7 +1868,11 @@ BEGIN
       RAISE EXCEPTION 'Zona desconhecida: %', _zona USING ERRCODE = '22023';
     END IF;
     -- Nenhuma pronta: a primeira da ordem é onde o lead espera.
-    _zvez := coalesce(_zvez, _zslugs[1]);
+    _zvez := coalesce(
+      _zvez,
+      (SELECT x.roleta_slug FROM public._roletas_da_zona(_zona) x
+        ORDER BY (NOT public._roleta_tem_time(x.roleta_slug)), x.ordem LIMIT 1),
+      _zslugs[1]);
   END IF;
 
   -- [VEZ ÚNICA] As cabeças de cada família, uma vez só.
@@ -2079,7 +2111,7 @@ AS $$
     SELECT 1
       FROM public.roletas r
       JOIN public.roleta_participantes rp ON rp.roleta_id = r.id
-     WHERE r.slug = _roleta_slug AND r.tipo = 'campanha' AND r.ativo
+     WHERE r.slug = _roleta_slug AND r.tipo = 'campanha' AND r.ativo AND r.equipe_fixa
        AND rp.corretor_id = _corretor AND rp.ativo)
 $$;
 
@@ -2890,6 +2922,8 @@ REVOKE ALL ON FUNCTION public._roletas_da_zona(text) FROM PUBLIC, anon, authenti
 GRANT EXECUTE ON FUNCTION public._roletas_da_zona(text) TO service_role;
 REVOKE ALL ON FUNCTION public._roleta_atende_zona(text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public._roleta_atende_zona(text, text) TO service_role;
+REVOKE ALL ON FUNCTION public._roleta_tem_time(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._roleta_tem_time(text) TO service_role;
 REVOKE ALL ON FUNCTION public._roleta_pronta_para_lead(text, uuid[]) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public._roleta_pronta_para_lead(text, uuid[]) TO service_role;
 REVOKE ALL ON FUNCTION public._filial_unir_participantes(text, text[], text) FROM PUBLIC, anon, authenticated;
@@ -2960,7 +2994,8 @@ BEGIN
      OR to_regprocedure('public._vez_unica_zonas_ordem()') IS NOT NULL
      OR to_regprocedure('public._vez_unica_unidades(text)') IS NULL
      OR to_regprocedure('public._roletas_da_zona(text)') IS NULL
-     OR to_regprocedure('public._roleta_pronta_para_lead(text, uuid[])') IS NULL THEN
+     OR to_regprocedure('public._roleta_pronta_para_lead(text, uuid[])') IS NULL
+     OR to_regprocedure('public._roleta_tem_time(text)') IS NULL THEN
     RAISE EXCEPTION 'roletas por filial: função ausente ou assinatura antiga ainda no lugar';
   END IF;
   IF to_regprocedure('public.criar_roleta_campanha(text, text, uuid, boolean)') IS NOT NULL
@@ -2985,6 +3020,7 @@ BEGIN
      WHERE n.nspname = 'public' AND p.proname = '_distribuir_lead_v3'
        AND p.prosrc LIKE '%_roleta_atende_zona(%' AND p.prosrc LIKE '%zonas_roletas SET ultimo_lead_em%'
        AND p.prosrc LIKE '%_roleta_pronta_para_lead(%'
+       AND p.prosrc LIKE '%zona_filial:%'
   ) OR NOT EXISTS (
     SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = '_distribuir_lead_sdr'

@@ -76,11 +76,17 @@ No motor da roleta (`_distribuir_lead_v3`), lead com zona e zona estrita:
    (`_roleta_pronta_para_lead`). No repasse por SLA, se na filial do pino só
    o dono que estourou está apto, o lead vai para a outra filial da zona em
    vez de esperar.
-3. Nenhuma pronta: vai para a primeira da ordem e **espera lá** (exceção
-   `sem_corretor_na_zona` / `zona_sem_time`, como hoje), nunca para outra
-   zona.
+3. Nenhuma pronta: **espera** na primeira da ordem que tem time montado
+   (`_roleta_tem_time`), para a exceção dizer "ninguém apto agora"
+   (`sem_corretor_na_zona`) e não "sem time montado"; só sem time em
+   nenhuma filial a exceção é `zona_sem_time`. Nunca vai para outra zona.
 4. Ao entregar, o motor grava `zonas_roletas.ultimo_lead_em` do par
    (zona, roleta): é isso que faz a Leste alternar.
+5. Leads da mesma zona com mais de uma filial são **serializados** na escolha
+   (trava por zona, `zona_filial:<zona>`): dois leads da Leste no mesmo
+   segundo não leem o mesmo cursor — o segundo espera o primeiro gravar e vai
+   para a outra filial. Visto no harness em 12/10, antes da trava: os dois
+   iam para a mesma loja.
 
 Exemplo: dois leads da Leste chegam às 9h00 e 9h05. Liberdade e Belém
 prontas, nenhuma recebeu Leste hoje → o 1º vai para a Liberdade (ordem das
@@ -107,10 +113,10 @@ campanha dele.
 - Campanha **comum** (sem equipe fixa) continua: lead com zona vai para a
   filial da zona; a campanha fica como rótulo.
 - A guarda de região (`tg_leads_guarda_zona`) e a transferência da gestão
-  (`transferir_leads`) liberam quando o lead é de uma campanha ativa e o
-  corretor de destino é participante ativo dela
-  (`_lead_liberado_por_campanha`). Para quem não está na campanha, a guarda
-  continua.
+  (`transferir_leads`) liberam quando o lead é de uma campanha **de equipe
+  fixa** ativa e o corretor de destino é participante ativo dela
+  (`_lead_liberado_por_campanha`). Campanha comum não libera (o lead dela é
+  da filial da zona). Para quem não está na campanha, a guarda continua.
 - `criar_roleta_campanha` e `atualizar_roleta` ganham `_filial_slug`
   (assinaturas novas; as antigas saem para a chamada por nome não ficar
   ambígua). As campanhas de hoje nascem sem filial; a gestão define na Central.
@@ -125,6 +131,12 @@ para um deles mesmo sendo da Leste; se o corretor estourar o SLA, o repasse
 fica entre os 6; a gestão pode transferir o lead para outro dos 6 sem a
 exceção de região. Um lead da Leste que chegou pelo site (sem campanha)
 continua indo para a Liberdade ou a Belém.
+
+**Limite conhecido.** "Pronta" (`_roleta_pronta`, `_roleta_pronta_para_lead`)
+usa a régua da roleta (`_elegibilidade_roleta`) e não a régua extra do modelo
+v2 (`_apto_extra_v2`: onboarding, vínculo, disjuntor). Com o v2 desligado,
+como hoje, não muda nada; se o v2 for ligado, uma filial cujos aptos o v2
+corta todos ainda conta como pronta e o lead espera nela.
 
 ## 4. A vez é uma só, por filial
 
@@ -193,6 +205,7 @@ participação antigas continuam lá, intactas.
 | `_roletas_da_zona(zona)`                                                  | As roletas da zona na ordem do rodízio, com `pronta` e `da_vez`.                                             |
 | `roleta_da_zona(zona)`                                                    | Mesma assinatura de antes: a roleta da vez (pronta), ou NULL.                                                |
 | `_distribuir_lead_v3`, `_distribuir_lead_sdr`                             | Pino válido → da vez → próxima pronta; grava o cursor do par ao entregar.                                    |
+| `_roleta_tem_time(slug)`                                                  | Alguém ativo na roleta: onde o lead espera quando nenhuma filial está pronta.                                |
 | `_roleta_pronta_para_lead(slug, tentaram)`                                | Pronta para este lead: alguém apto que ainda não o teve (a escolha da filial no motor).                      |
 | `atualizar_corretor_distribuicao`                                         | Inclui/remove por roleta inteira (zonas desejadas = união de filiais).                                       |
 | `_vez_unica_unidades(familia)` e as peças da vez única                    | Unidade = zona (SDR) ou roleta (filiais).                                                                    |

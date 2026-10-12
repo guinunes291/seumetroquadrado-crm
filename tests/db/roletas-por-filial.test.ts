@@ -803,3 +803,112 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
     await comoSuperuser(c);
   });
 });
+
+describe("correções da revisão (12/10)", () => {
+  it("dois leads da Leste ao mesmo tempo alternam: o segundo espera o primeiro e vê o cursor andado", async () => {
+    await zerarCursores();
+    await presente(leo, false);
+    const l1 = await criarLead(c, { telefone: novoTelefone() });
+    const l2 = await criarLead(c, { telefone: novoTelefone() });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET zona = 'Leste' WHERE id = ANY($1::uuid[])`, [[l1, l2]]);
+    const a = novoClient();
+    const b = novoClient();
+    await a.connect();
+    await b.connect();
+    try {
+      await a.query("BEGIN");
+      await a.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste')`, [l1]);
+      const pb = b.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste')`, [l2]);
+      const antes = await Promise.race([
+        pb.then(() => "terminou"),
+        new Promise<string>((r) => setTimeout(() => r("esperando"), 400)),
+      ]);
+      expect(antes).toBe("esperando");
+      await a.query("COMMIT");
+      await pb;
+    } finally {
+      await a.end();
+      await b.end();
+    }
+    await comoSuperuser(c);
+    const rs = (
+      await c.query(
+        `SELECT id, roleta_slug, corretor_id FROM public.leads WHERE id = ANY($1::uuid[])`,
+        [[l1, l2]],
+      )
+    ).rows as { id: string; roleta_slug: string; corretor_id: string }[];
+    const r1 = rs.find((x) => x.id === l1)!;
+    const r2 = rs.find((x) => x.id === l2)!;
+    expect([r1.roleta_slug, r2.roleta_slug].sort()).toEqual(["filial-belem", "filial-liberdade"]);
+    expect([r1.corretor_id, r2.corretor_id].sort()).toEqual([lia.id, bela.id].sort());
+    await presente(leo, true);
+  });
+
+  it("nenhuma filial pronta: o lead espera na que tem time montado, não na vazia", async () => {
+    await zerarCursores();
+    await comoSuperuser(c);
+    // Liberdade (a primeira da ordem) sem time; Belém com time, todos ausentes.
+    await c.query(
+      `UPDATE public.roleta_participantes rp SET ativo = false
+         FROM public.roletas r WHERE r.id = rp.roleta_id AND r.slug = 'filial-liberdade'`,
+    );
+    for (const u of [bela, leo]) await presente(u, false);
+    try {
+      const r = await leadDaZona("Leste");
+      expect(r.corretor_id).toBeNull();
+      await comoSuperuser(c);
+      const exc = (
+        await c.query(
+          `SELECT motivo FROM public.distribuicao_excecoes WHERE lead_id = $1 AND status = 'pendente'`,
+          [r.lead_id],
+        )
+      ).rows[0];
+      expect(exc?.motivo).toBe("sem_corretor_na_zona");
+      const log = (
+        await c.query(
+          `SELECT roleta_slug FROM public.distribution_log WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 1`,
+          [r.lead_id],
+        )
+      ).rows[0];
+      expect(log?.roleta_slug).toBe("filial-belem");
+    } finally {
+      await comoSuperuser(c);
+      await c.query(
+        `UPDATE public.roleta_participantes rp SET ativo = true
+           FROM public.roletas r
+          WHERE r.id = rp.roleta_id AND r.slug = 'filial-liberdade'
+            AND rp.corretor_id = ANY($1::uuid[])`,
+        [[lia.id, leo.id]],
+      );
+      for (const u of [bela, leo]) await presente(u, true);
+    }
+  });
+
+  it("só campanha de EQUIPE FIXA libera a região; participante de campanha comum não", async () => {
+    await comoUsuario(c, admin.id);
+    const comum = (
+      await c.query(
+        `SELECT public.criar_roleta_campanha('Teste Comum Filial', NULL, NULL, false, 'barra-funda') AS r`,
+      )
+    ).rows[0].r as { roleta: { slug: string } };
+    roletasCriadas.push(comum.roleta.slug);
+    await c.query(`SELECT public.gerenciar_participante_roleta($1, $2, 'incluir', 'teste')`, [
+      comum.roleta.slug,
+      bia.id,
+    ]);
+    await comoSuperuser(c);
+    const id = await criarLead(c, { telefone: novoTelefone() });
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.leads SET zona = 'Leste', roleta_slug = $2, corretor_id = $3 WHERE id = $1`,
+      [id, comum.roleta.slug, lia.id],
+    );
+    // Bia (Barra Funda) não atende a Leste; estar na campanha comum não libera.
+    await comoUsuario(c, admin.id);
+    expect(
+      await errCode(c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, bia.id])),
+    ).toBe("SMQZ1");
+    await comoSuperuser(c);
+  });
+});
