@@ -269,5 +269,11 @@ Por fila de zona."** Valem todas as roletas: a da zona, a fila do SDR
   para os Agendados do SDR e para as roletas de zona (a reserva do passo 3
   fica fora). Chave `vez_unica_por_zona` em Configurações.
 
+- **Roletas por filial** (12/10, migration `20261018120000`): o time da zona
+  passou a ser a roleta da filial que atende a zona (a Leste tem duas:
+  Liberdade e Belém, alternando). A fila dos Agendados do SDR continua por
+  zona; a reserva (passo 3) tenta as filiais da zona na ordem do rodízio. Ver
+  [`docs/ops/roletas-por-filial.md`](./ops/roletas-por-filial.md).
+
 Detalhes por motor, limites e testes em
 [`docs/ops/roletas-fila-por-zona.md`](./ops/roletas-fila-por-zona.md).
