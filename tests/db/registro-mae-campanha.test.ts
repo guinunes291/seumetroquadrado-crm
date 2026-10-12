@@ -474,6 +474,67 @@ describe("negociação avançada segura a pessoa", () => {
     expect(await leadsDoTelefone()).toHaveLength(1);
   });
 
+  // Caso real (12/10/2026): a Lucimar, em análise de crédito com a Amanda,
+  // voltou pelo Marquinhos e o dossiê foi para a Amanda, bloqueada desde 08/10.
+  async function bloquearAna<T>(fn: () => Promise<T>): Promise<T> {
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.profiles SET ativo = false, status_conta = 'bloqueada' WHERE id = $1`,
+      [ana.id],
+    );
+    try {
+      return await fn();
+    } finally {
+      await comoSuperuser(c);
+      await c.query(
+        `UPDATE public.profiles SET ativo = true, status_conta = 'ativa' WHERE id = $1`,
+        [ana.id],
+      );
+    }
+  }
+
+  it("dono bloqueado: a negociação vai para quem está apto na região, nunca para ele", async () => {
+    const daAna = await carlaComAna();
+    await mover(daAna, "visita_realizada");
+    await bloquearAna(async () => {
+      const r = await voltar();
+      expect(r.acao).toBe("negociacao_avancada");
+      expect(r.lead_id).toBe(daAna);
+      expect(r.corretor_id).toBe(bia.id);
+      const depois = await lead(daAna);
+      expect(depois.corretor_id).toBe(bia.id);
+      expect(depois.corretor_anterior_id).toBe(ana.id);
+      // A negociação continua sendo uma só.
+      expect(await leadsDoTelefone()).toHaveLength(1);
+    });
+  });
+
+  it("dono bloqueado e ninguém apto nem ativo: a volta sai sem corretor (fica com o Marquinhos)", async () => {
+    const daAna = await carlaComAna();
+    await mover(daAna, "visita_realizada");
+    await comoUsuario(c, bia.id);
+    await c.query(`SELECT public.marcar_presenca(false)`);
+    try {
+      await bloquearAna(async () => {
+        const r = await voltar();
+        expect(r.acao).toBe("negociacao_avancada");
+        expect(r.corretor_id).toBeNull();
+      });
+    } finally {
+      await comoUsuario(c, bia.id);
+      await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
+      await comoSuperuser(c);
+    }
+  });
+
+  it("dono ativo: nada muda, a negociação segue com ele", async () => {
+    const daAna = await carlaComAna();
+    await mover(daAna, "visita_realizada");
+    const r = await voltar();
+    expect(r.corretor_id).toBe(ana.id);
+    expect((await lead(daAna)).corretor_id).toBe(ana.id);
+  });
+
   it("a mesma fonte decide o Buscar oportunidade, o filho do corretor e a campanha", async () => {
     await comoSuperuser(c);
     const r = await c.query(`
