@@ -36,9 +36,10 @@ import {
   motivoBloqueio,
   pedirLote,
   resumoDoLote,
+  LOTE_STATUS_KEY,
 } from "@/features/prospeccao/lote-client";
 
-export const LOTE_STATUS_KEY = "prospeccao:lote-status";
+export { LOTE_STATUS_KEY };
 
 export function LoteProspeccaoCard() {
   const { user } = useAuth();

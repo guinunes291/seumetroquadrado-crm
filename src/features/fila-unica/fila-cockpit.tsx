@@ -9,129 +9,12 @@
 //
 // O anel usa a cor do módulo Central de Comando (dourado do tema).
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Timer } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { CartaoPrincipal } from "@/components/ui/cartao-principal";
+import { AnelNdeM, Notas, Numero } from "@/components/ui/placar";
 import { LIMITE_FILA, type FilaUnica } from "@/features/fila-unica/derive";
-
-/** Anel "N de 65": desenha do zero até o valor no primeiro paint (draw-in do
- *  SMQ Motion); com motion-reduce o valor aparece direto. */
-function AnelDoDia({
-  valor,
-  teto,
-  tamanho = 72,
-  traco = 6,
-  cartao = false,
-}: {
-  valor: number;
-  teto: number;
-  tamanho?: number;
-  traco?: number;
-  /** O anel do card do desktop: número grande e "de 65" embaixo. */
-  cartao?: boolean;
-}) {
-  const [desenhado, setDesenhado] = useState(false);
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => setDesenhado(true));
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  const r = (tamanho - traco) / 2;
-  const c = 2 * Math.PI * r;
-  const fracao = teto > 0 ? Math.min(1, valor / teto) : 0;
-  const cheio = (desenhado ? fracao : 0) * c;
-  return (
-    <span
-      role="img"
-      aria-label={`${valor} de ${teto} leads no dia`}
-      className="relative inline-flex shrink-0 text-modulo-central"
-      style={{ width: tamanho, height: tamanho }}
-    >
-      <svg
-        width={tamanho}
-        height={tamanho}
-        viewBox={`0 0 ${tamanho} ${tamanho}`}
-        className="-rotate-90"
-      >
-        <circle
-          cx={tamanho / 2}
-          cy={tamanho / 2}
-          r={r}
-          fill="none"
-          strokeWidth={traco}
-          className="stroke-muted"
-        />
-        <circle
-          cx={tamanho / 2}
-          cy={tamanho / 2}
-          r={r}
-          fill="none"
-          strokeWidth={traco}
-          strokeLinecap="round"
-          strokeDasharray={`${cheio} ${c - cheio}`}
-          className={cn(
-            "stroke-current transition-[stroke-dasharray] duration-1000 ease-out motion-reduce:transition-none",
-            !cartao && "drop-shadow-[0_0_8px_var(--color-modulo-central)]",
-          )}
-        />
-      </svg>
-      <span className="absolute inset-0 flex flex-col items-center justify-center leading-none text-foreground">
-        {cartao ? (
-          <>
-            <span className="font-display text-5xl font-bold tracking-tight tabular-nums">
-              {valor}
-            </span>
-            <span className="mt-1.5 text-sm text-muted-foreground">de {teto}</span>
-          </>
-        ) : (
-          <>
-            <span className="font-display text-lg font-semibold tabular-nums">{valor}</span>
-            <span className="mt-0.5 text-[9.5px] font-medium text-muted-foreground">de {teto}</span>
-          </>
-        )}
-      </span>
-    </span>
-  );
-}
-
-function Numero({
-  valor,
-  rotulo,
-  cor,
-  cartao = false,
-}: {
-  valor: number;
-  rotulo: string;
-  /** Cor do número quando há o que cobrar; zerado ele fica neutro. */
-  cor: string;
-  cartao?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-lg border border-border-subtle",
-        cartao ? "min-h-[92px] bg-card px-3 py-3" : "bg-muted/40 px-2 py-1.5",
-      )}
-    >
-      <div
-        className={cn(
-          "font-display font-semibold leading-none tabular-nums",
-          cartao ? "text-[28px] font-bold tracking-tight" : "text-lg",
-          valor > 0 ? cor : "text-foreground",
-        )}
-      >
-        {valor}
-      </div>
-      <div
-        className={cn(
-          "mt-1 leading-tight text-muted-foreground",
-          cartao ? "mt-2 text-xs" : "text-[10px]",
-        )}
-      >
-        {rotulo}
-      </div>
-    </div>
-  );
-}
 
 /** A carteira ativa medida no banco (carteira_ativa_v1 + config). Quando
  *  presente, o anel para de contar candidatos recebidos e passa a mostrar a
@@ -158,7 +41,7 @@ function ocupacao(fila: FilaUnica, carteira: CarteiraNoCockpit | null | undefine
 }
 
 /** SLA correndo, excedente acima do teto e o que ficou nas filas de Atender. */
-function Notas({
+function NotasDaFila({
   fila,
   carteira,
   excedente,
@@ -174,12 +57,7 @@ function Notas({
   const r = fila.resumo;
   if (r.slaCorrendo <= 0 && excedente <= 0 && r.ocultosInbox <= 0) return null;
   return (
-    <div
-      className={cn(
-        "flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground",
-        className,
-      )}
-    >
+    <Notas className={className}>
       {r.slaCorrendo > 0 && (
         <span className="inline-flex items-center gap-1">
           <Timer className="h-3.5 w-3.5 text-warning" />
@@ -204,7 +82,7 @@ function Notas({
           <span>+{excedente} entram conforme estes saem</span>
         ))}
       {r.ocultosInbox > 0 && <span>+{r.ocultosInbox} nas filas de Atender</span>}
-    </div>
+    </Notas>
   );
 }
 
@@ -229,14 +107,14 @@ export function FilaCockpit({
       )}
     >
       <div className="grid grid-cols-[72px_1fr] items-center gap-3">
-        <AnelDoDia valor={noDia} teto={teto} />
+        <AnelNdeM valor={noDia} teto={teto} />
         <div className="grid grid-cols-3 gap-1.5">
           <Numero valor={r.vencidos} rotulo="vencidos" cor="text-destructive" />
           <Numero valor={r.hoje} rotulo="vencem hoje" cor="text-warning" />
           <Numero valor={r.semProximoPasso} rotulo="sem próximo passo" cor="text-destructive" />
         </div>
       </div>
-      <Notas
+      <NotasDaFila
         fila={fila}
         carteira={carteira}
         excedente={excedente}
@@ -269,38 +147,37 @@ export function FilaCartao({
   const r = fila.resumo;
   const { teto, noDia, excedente } = ocupacao(fila, carteira);
   return (
-    <section
+    <CartaoPrincipal
       aria-label="Fila Única — placar do dia"
-      className={cn(
-        "flex flex-col rounded-2xl border border-border-subtle bg-card p-5 text-card-foreground",
-        className,
-      )}
-    >
-      <header>
-        <h2 className="font-display text-lg font-bold">Fila Única</h2>
-        <p className="text-xs text-muted-foreground">
-          {dia} · {carteira?.rotulo ?? "sua carteira ativa"}
-        </p>
-      </header>
-      <div className="flex flex-1 items-center justify-center py-6">
-        <AnelDoDia valor={noDia} teto={teto} tamanho={172} traco={12} cartao />
-      </div>
-      {/* Os três números do vídeo: vencidos em vermelho, os de hoje em âmbar,
-          sem próximo passo em navy — a cor só acende quando há o que cobrar. */}
-      <div className="grid grid-cols-3 gap-2">
-        <Numero valor={r.vencidos} rotulo="vencidos" cor="text-destructive" cartao />
-        <Numero valor={r.hoje} rotulo="vencem hoje" cor="text-warning" cartao />
-        <Numero valor={r.semProximoPasso} rotulo="sem próximo passo" cor="text-foreground" cartao />
-      </div>
-      <Notas
-        fila={fila}
-        carteira={carteira}
-        excedente={excedente}
-        teto={teto}
-        className="mt-3 text-xs"
-      />
-      <div className="mt-4">{acao}</div>
-      {rodape}
-    </section>
+      titulo="Fila Única"
+      subtitulo={`${dia} · ${carteira?.rotulo ?? "sua carteira ativa"}`}
+      destaque={<AnelNdeM valor={noDia} teto={teto} tamanho={172} traco={12} cartao />}
+      numeros={
+        // Os três números do vídeo: vencidos em vermelho, os de hoje em âmbar,
+        // sem próximo passo em navy — a cor só acende quando há o que cobrar.
+        <div className="grid grid-cols-3 gap-2">
+          <Numero valor={r.vencidos} rotulo="vencidos" cor="text-destructive" cartao />
+          <Numero valor={r.hoje} rotulo="vencem hoje" cor="text-warning" cartao />
+          <Numero
+            valor={r.semProximoPasso}
+            rotulo="sem próximo passo"
+            cor="text-foreground"
+            cartao
+          />
+        </div>
+      }
+      notas={
+        <NotasDaFila
+          fila={fila}
+          carteira={carteira}
+          excedente={excedente}
+          teto={teto}
+          className="mt-3 text-xs"
+        />
+      }
+      acao={acao}
+      rodape={rodape}
+      className={className}
+    />
   );
 }

@@ -19,6 +19,10 @@ import { MOTIVO_LOTE_REGIAO } from "@/lib/zona-estrita";
 
 export const TAMANHO_LOTE = 30;
 
+/** Chave do status do lote no cache — a Prospecção e a Minha base leem o
+ *  mesmo status (uma chamada só). */
+export const LOTE_STATUS_KEY = "prospeccao:lote-status";
+
 /** As cinco zonas da capital e a Grande SP (migration 20261007120000), na
  *  ordem dos chips da vitrine. A zona de cada cliente segue a mesma regra da
  *  vitrine (`zonaDoProjeto`) — o teste de paridade no banco garante. */
@@ -106,6 +110,17 @@ export function zonasDoLote(s: Pick<StatusLote, "regiao"> | undefined): readonly
   const regiao = s?.regiao;
   if (!regiao) return ZONAS_LOTE;
   return ZONAS_LOTE.filter((z) => regiao.includes(z));
+}
+
+/**
+ * As portas antigas de base nova (resgate da Minha base, "assumir" pelo
+ * Discador) estão fechadas para o corretor? Desde 28/09 o banco recusa com
+ * `porta_fechada_use_lote` enquanto `portas_legadas_bolsao` é false. Só diz
+ * "fechada" quando o banco DISSE (banco antigo não manda a chave): sem a
+ * informação, a tela mantém o botão e o banco responde no clique.
+ */
+export function portasLegadasFechadas(s: Pick<StatusLote, "portas_legadas"> | undefined): boolean {
+  return s?.portas_legadas === false;
 }
 
 /** Por que o botão está travado — texto para o corretor, ou null se pode pedir. */

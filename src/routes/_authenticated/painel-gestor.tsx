@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
+import { SeloAoVivo } from "@/components/ui/selo-ao-vivo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
@@ -225,16 +226,7 @@ function PainelGestorPage() {
         {/* Só a aba Dia se atualiza sozinha (exceções a cada 2 min, números
             a cada 1) — o selo não aparece onde o dado é de consulta. */}
         {activeTab === "dia" && (
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive"
-            title="Atualiza sozinho: exceções a cada 2 minutos, números do mês a cada minuto."
-          >
-            <span
-              aria-hidden="true"
-              className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive motion-reduce:animate-none"
-            />
-            ao vivo
-          </span>
+          <SeloAoVivo title="Atualiza sozinho: exceções a cada 2 minutos, números do mês a cada minuto." />
         )}
       </div>
 
