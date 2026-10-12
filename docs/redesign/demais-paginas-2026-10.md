@@ -5,6 +5,10 @@
 > páginas que ficaram fora da Central de Comando para o mesmo desenho, em
 > fases. O desenho de cada página (hoje → depois → por quê → o que não muda)
 > foi aprovado pelo dono no canvas de 12/10/2026 antes de qualquer código.
+>
+> A auditoria das 62 rotas e o plano das 6 fases estão em
+> `plano-paginas-padrao-lancamento.md`; este arquivo registra o que cada fase
+> entregou.
 
 ## As regras desta rodada
 
