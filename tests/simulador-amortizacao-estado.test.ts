@@ -1,7 +1,7 @@
 // Conversões da tela da planilha de amortização (features/simulador-amortizacao).
 // Entrada da tela (2026-10-11): só valor do financiamento, taxa a.a. e prazo.
 import { describe, expect, it } from "vitest";
-import { simularFinanciamento } from "@/lib/amortizacao";
+import { analisarAmortizacoes, simularFinanciamento } from "@/lib/amortizacao";
 import {
   agruparPorAno,
   avaliacaoEstimada,
@@ -185,5 +185,36 @@ describe("prefill pelo dossiê (aprovação de crédito)", () => {
     expect(p.taxa).toBeUndefined();
     expect(p.sistema).toBeUndefined();
     expect(p.renda).toBe(4800);
+  });
+});
+
+describe("amortização no comparativo e no WhatsApp", () => {
+  const f = {
+    ...formInicial({ financiamento: 200_000, taxa: 8.16, prazo: 420 }),
+    modoCorrecao: "fixa" as const,
+    modoSeguro: "proposta" as const,
+    mipPropostaPct: 0,
+    dfiPct: 0,
+    taxaAdm: 0,
+    extras: [
+      { parcela: 24, valor: 20_000, modo: "reduzir_prazo" as const, repetirACada: 0, vezes: 0 },
+    ],
+  };
+  const p = paramsDoForm(f);
+  const r = simularFinanciamento({ ...p, sistema: "PRICE" });
+  const a = analisarAmortizacoes({ ...p, sistema: "PRICE" })!;
+
+  it("linhas novas: parcelas tiradas, novo prazo e juros economizados", () => {
+    const linhas = linhasComparativo({ PRICE: r }, f, { PRICE: a });
+    const por = Object.fromEntries(linhas.map((l) => [l.item, l.PRICE]));
+    expect(por["Parcelas tiradas pela amortização"]).toBe("127");
+    expect(por["Novo prazo do contrato"]).toMatch(/^293 parcelas \(até /);
+    expect(por["Juros economizados"]).toMatch(/^R\$\s163\.813,09$/);
+  });
+
+  it("texto do WhatsApp conta o efeito da amortização", () => {
+    const texto = textoResumo(f, { PRICE: r }, { PRICE: a });
+    expect(texto).toMatch(/127 parcelas a menos \(prazo de 420 para 293\)/);
+    expect(texto).toMatch(/de juros economizados/);
   });
 });

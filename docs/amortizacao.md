@@ -75,6 +75,14 @@ Abatida depois da parcela paga, no nº de parcela informado. Pode repetir (FGTS:
 - Reduzir prazo: mantém o tamanho da parcela e recalcula quantos meses faltam (SAC: saldo / amortização atual; PRICE: nper com a prestação atual). Economiza mais juros.
 - Reduzir parcela: mantém o prazo; a próxima parcela é recalculada sobre o saldo menor.
 
+### Efeito de cada amortização (`analisarAmortizacoes`)
+
+Para cada amortização extra executada, a planilha mostra: parcelas tiradas (prazo restante sem ela menos prazo restante com ela), prazo restante antes e depois, parcela seguinte antes e depois e juros economizados. No total: parcelas tiradas, novo prazo (com o mês em que o contrato termina), juros economizados e economia total (juros + correção + seguros + taxa adm).
+
+A economia de cada evento é medida de forma acumulada: contrato com as amortizações até a anterior contra contrato com as amortizações até esta. Assim a soma dos eventos fecha com o total. Medir cada uma isolada contaria economia em dobro, porque o efeito de uma depende do saldo que as anteriores já reduziram.
+
+Exemplo conferido: R$ 200 mil, 8,16%, 420 meses, PRICE sem TR, R$ 20 mil na parcela 24 com reduzir prazo: o prazo restante cai de 396 para 269 (127 parcelas tiradas), o contrato termina em 293 parcelas e os juros caem de R$ 406.406,33 para R$ 242.593,24 (R$ 163.813,09 economizados).
+
 ## 8. Renda e CET
 
 - Comprometimento = encargo total da 1ª parcela / renda bruta. Limite padrão 30%. No SAC a 1ª parcela é a maior, por isso o SAC exige mais renda.
@@ -90,6 +98,14 @@ Abatida depois da parcela paga, no nº de parcela informado. Pode repetir (FGTS:
 | `TABELA_MIP_ESTIMADA`       | estimativa   | tiver tabela da seguradora |
 | `DFI_MENSAL_PADRAO`         | 0,0038% a.m. | idem                       |
 | `TAXA_ADM_PADRAO`           | R$ 25        | o banco mudar              |
+
+## PDF (único formato de exportação)
+
+Gerador: `src/features/simulador-amortizacao/planilha-pdf.ts`, carregado só no clique. Visual desenhado no Claude Design (artifact "PDF Simulação de Financiamento SMQ") na identidade da SMQ: Azul Marinho #0F1E3A, Dourado Aurum #B89968, Creme #F5F1EA, Montserrat nos títulos e Inter no texto (fontes self-hosted em `public/fonts/aurum`), logo redesenhado em vetor.
+
+Páginas: capa e resumo (dados do contrato, 1ª parcela de cada sistema, comparativo) · efeito das amortizações (se houver) · leitura para o cliente, premissas, glossário e próximo passo com o consultor · evolução ano a ano por sistema · (PDF completo) mês a mês por sistema em paisagem. Rodapé com "página X de Y" nas margens da folha (`@page` margin boxes, Chrome 131+).
+
+A capa leva o nome do cliente (campo na tela, preenchido pelo dossiê) e o consultor (nome, telefone e CRECI do perfil do corretor logado).
 
 ## Dívidas conhecidas
 

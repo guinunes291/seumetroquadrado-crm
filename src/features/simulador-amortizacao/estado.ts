@@ -13,6 +13,7 @@ import {
   TAXA_ADM_PADRAO,
   TR_MENSAL_REFERENCIA_2026,
   type LinhaPlanilha,
+  type AnaliseAmortizacoes,
   type ModoAmortizacaoExtra,
   type ParametrosFinanciamento,
   type ResultadoSimulacao,
@@ -62,6 +63,8 @@ export interface FormSimulador {
   valorAvaliacao: number;
   taxaAdm: number;
   renda: number;
+  /** Nome do cliente para a capa do PDF (opcional). */
+  cliente: string;
   despesasIniciais: number;
   obraAtiva: boolean;
   obraMeses: number;
@@ -86,6 +89,7 @@ export interface PrefillSimulador {
   sistema?: "SAC" | "PRICE";
   renda?: number;
   avaliacao?: number;
+  cliente?: string;
 }
 
 export function formInicial(prefill: PrefillSimulador = {}): FormSimulador {
@@ -107,6 +111,7 @@ export function formInicial(prefill: PrefillSimulador = {}): FormSimulador {
     valorAvaliacao: prefill.avaliacao ?? 0,
     taxaAdm: TAXA_ADM_PADRAO,
     renda: prefill.renda ?? 0,
+    cliente: prefill.cliente ?? "",
     despesasIniciais: 0,
     obraAtiva: false,
     obraMeses: 24,
@@ -328,13 +333,17 @@ export function leituraComercial(sac: ResultadoSimulacao, price: ResultadoSimula
 /** Linha do comparativo já formatada (Item | SAC | PRICE) — usada no PDF. */
 export type LinhaComparativo = { item: string; SAC: string; PRICE: string };
 
+export type AnalisesPorSistema = Partial<Record<"SAC" | "PRICE", AnaliseAmortizacoes>>;
+
 export function linhasComparativo(
   resultados: Partial<Record<"SAC" | "PRICE", ResultadoSimulacao>>,
   f: FormSimulador,
+  analises: AnalisesPorSistema = {},
 ): LinhaComparativo[] {
   const algum = resultados.SAC ?? resultados.PRICE;
   const temObra = (algum?.resumo.mesesObra ?? 0) > 0;
   const temExtra = (algum?.resumo.totalAmortizacaoExtra ?? 0) > 0;
+  const analiseDe = (r: ResultadoSimulacao) => analises[r.resumo.sistema];
   const itens: [string, (r: ResultadoSimulacao) => string][] = [
     ...(temObra
       ? ([
@@ -371,6 +380,23 @@ export function linhasComparativo(
           (r: ResultadoSimulacao) => string,
         ][])
       : []),
+    ...(temExtra
+      ? ([
+          [
+            "Parcelas tiradas pela amortização",
+            (r) => String(analiseDe(r)?.total.parcelasTiradas ?? 0),
+          ],
+          [
+            "Novo prazo do contrato",
+            (r) => {
+              const a = analiseDe(r);
+              if (!a) return "";
+              return `${a.total.novoPrazo} parcelas${a.total.novoTermino ? ` (até ${a.total.novoTermino})` : ""}`;
+            },
+          ],
+          ["Juros economizados", (r) => brlT(analiseDe(r)?.total.jurosEconomizados ?? 0)],
+        ] as [string, (r: ResultadoSimulacao) => string][])
+      : []),
     ["Total pago", (r) => brlT(r.resumo.totalPago)],
     [
       "CET estimado",
@@ -392,6 +418,7 @@ const pct = (v: number) =>
 export function textoResumo(
   form: FormSimulador,
   resultados: Partial<Record<"SAC" | "PRICE", ResultadoSimulacao>>,
+  analises: AnalisesPorSistema = {},
 ): string {
   const r10 = (v: number) => brl(Math.round(v / 10) * 10).replace(",00", "");
   const linhas = [
@@ -410,6 +437,12 @@ export function textoResumo(
     linhas.push(`1ª parcela: ${r10(r.resumo.primeiraParcela)}`);
     linhas.push(`Última parcela: ${r10(r.resumo.ultimaParcela)}`);
     linhas.push(`Renda mínima: ${r10(r.resumo.rendaMinima)}`);
+    const a = analises[s];
+    if (a) {
+      linhas.push(
+        `Amortizando ${r10(a.total.valorAmortizado)}: ${a.total.parcelasTiradas} parcelas a menos (prazo de ${a.total.prazoOriginal} para ${a.total.novoPrazo}) e ${r10(a.total.jurosEconomizados)} de juros economizados`,
+      );
+    }
     linhas.push("");
   }
   linhas.push(

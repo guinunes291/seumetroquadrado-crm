@@ -5,7 +5,7 @@ import type { PrefillSimulador } from "@/features/simulador-amortizacao/estado";
 // Planilha de amortização (SAC x PRICE mês a mês). Consulta de apoio à venda,
 // como a Vitrine e o Mapa de Lojas: mora em Docs & Projetos. O dossiê do lead
 // abre esta tela já preenchida com os dados do contrato (aprovação de crédito):
-// ?financiamento=&taxa=&prazo=&sistema=&renda=&avaliacao=
+// ?financiamento=&taxa=&prazo=&sistema=&renda=&avaliacao=&cliente=
 const numeroOuNada = (v: unknown): number | undefined => {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
   return Number.isFinite(n) && n > 0 ? n : undefined;
@@ -22,6 +22,10 @@ export const Route = createFileRoute("/_authenticated/simulador-amortizacao")({
       sistema: sistema === "SAC" || sistema === "PRICE" ? sistema : undefined,
       renda: numeroOuNada(search.renda),
       avaliacao: numeroOuNada(search.avaliacao),
+      cliente:
+        typeof search.cliente === "string" && search.cliente.trim()
+          ? search.cliente.trim().slice(0, 80)
+          : undefined,
     };
   },
   component: Pagina,
