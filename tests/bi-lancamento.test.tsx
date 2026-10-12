@@ -135,8 +135,11 @@ describe("painel da gestão", () => {
 
   it("mostra o título do módulo e o selo 'ao vivo' só na aba Dia", () => {
     expect(painel).toContain('title="BI · Relatórios"');
-    const selo = painel.indexOf("ao vivo\n");
+    // O selo virou peça (components/ui/selo-ao-vivo.tsx); a regra continua:
+    // ele só monta dentro do ramo da aba Dia.
+    const selo = painel.indexOf("<SeloAoVivo");
     expect(selo).toBeGreaterThan(-1);
+    expect(painel.indexOf("<SeloAoVivo", selo + 1)).toBe(-1);
     expect(painel.lastIndexOf('activeTab === "dia" && (', selo)).toBeGreaterThan(-1);
   });
 });

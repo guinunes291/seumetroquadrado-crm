@@ -6,6 +6,7 @@
 
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
+import { Painel } from "@/components/ui/painel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { INTENT_BADGE } from "@/lib/status-tones";
 import { cn } from "@/lib/utils";
@@ -39,34 +40,6 @@ function EstadoDaVisita({ item, agora }: { item: ItemAgendaDia; agora: Date }) {
   if (item.status === "confirmado")
     return <Badge className={INTENT_BADGE.success}>confirmada</Badge>;
   return <Badge className={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>;
-}
-
-function Painel({
-  titulo,
-  sub,
-  children,
-  className,
-}: {
-  titulo: string;
-  sub?: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      aria-label={titulo}
-      className={cn(
-        "rounded-2xl border border-border-subtle bg-card p-4 text-card-foreground shadow-elev-1",
-        className,
-      )}
-    >
-      <h3 className="mb-2 flex items-baseline justify-between gap-2 text-[13.5px] font-semibold">
-        {titulo}
-        {sub && <span className="text-xs font-medium text-muted-foreground">{sub}</span>}
-      </h3>
-      {children}
-    </section>
-  );
 }
 
 export function AgendaDeHoje() {

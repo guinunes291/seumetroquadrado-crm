@@ -17,6 +17,7 @@ import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { PageHeader } from "@/components/page-header";
+import { VendoDeOutro } from "@/components/vendo-de-outro";
 import { AvisoViradaRegra65 } from "@/features/em-atendimento/aviso-virada";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -327,17 +328,12 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
     <div className="space-y-3 md:space-y-4">
       <AvisoViradaRegra65 />
       {outro && (
-        <p
-          className="flex flex-wrap items-center gap-2 text-xs md:text-sm"
+        <VendoDeOutro
+          oQue="a fila"
+          nome={nomeDoAlvo ?? "outro corretor"}
+          voltarPara="/fila"
           data-testid="fila-de-outro"
-        >
-          <span>
-            Vendo a fila de <b>{nomeDoAlvo}</b>
-          </span>
-          <Link to="/fila" className="text-primary hover:underline">
-            voltar para a minha
-          </Link>
-        </p>
+        />
       )}
       {/* Topo da Central de Comando como no vídeo de lançamento (identidade
           Lançamento): o módulo no título; embaixo, o card "Fila Única" (o
