@@ -148,8 +148,7 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
           proximo: passo("Nova análise ou perda", amanha),
         },
         mandeiMensagem(),
-        mandeiMensagem(),
-      naoAtendeu(3),
+        naoAtendeu(3),
         comEtapa(perdeu(), status, { kind: "perdido" }, gestao),
       ],
     };
@@ -214,8 +213,7 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
           pedeTexto: "objecao",
         },
         mandeiMensagem(),
-        mandeiMensagem(),
-      naoAtendeu(3),
+        naoAtendeu(3),
         comEtapa(perdeu(), status, { kind: "perdido" }, gestao),
       ],
     };
@@ -302,8 +300,7 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
           proximo: passo("Anexar e conferir a pasta", { emHoras: 2 }, { tipo: "documentacao" }),
         },
         mandeiMensagem(),
-        mandeiMensagem(),
-      naoAtendeu(3),
+        naoAtendeu(3),
         comEtapa(perdeu("Desistiu (motivo)"), status, { kind: "perdido" }, gestao),
       ],
     };
