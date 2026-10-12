@@ -65,7 +65,7 @@ describe("desfechoPara — a matriz do mockup", () => {
       "perdeu",
     ]);
     expect(d.opcoes[0].proximo?.titulo).toBe("Agendar assinatura");
-    expect(d.opcoes[4].etapa).toEqual({ kind: "perdido" });
+    expect(d.opcoes[5].etapa).toEqual({ kind: "perdido" });
     expect(d.opcoes[4].largo).toBe(true);
   });
 
