@@ -34,8 +34,6 @@ import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { syncMetricWebhookTokenFn } from "@/lib/metric-webhook.functions";
 import { DISTRIBUICAO_KEYS, useDistribuicaoResumo, useRodarDistribuicao } from "./queries";
 import { TabVisaoGeral } from "./tab-visao-geral";
-import { TabFilas } from "./tab-filas";
-import { TabCorretores } from "./tab-corretores";
 import { TabExcecoes } from "./tab-excecoes";
 import { TabHistorico } from "./tab-historico";
 import { TabPolitica } from "./tab-politica";
@@ -46,6 +44,13 @@ import { TabAuditoria } from "./tab-auditoria";
 // já faz parte do chunk principal: importá-lo direto estourou o orçamento de
 // 250 KB gzip (CI do #277). Sob demanda, como o placar do SDR na aba Filas.
 const TabVez = lazy(() => import("./tab-vez").then(({ TabVez }) => ({ default: TabVez })));
+// Roletas por filial (12/10/2026): a aba Filas (campanhas por filial, filial
+// na criação) e a aba Corretores (região por filial) cresceram e o chunk
+// principal passou de 250 KB gzip. As duas só existem aqui: sob demanda.
+const TabFilas = lazy(() => import("./tab-filas").then(({ TabFilas }) => ({ default: TabFilas })));
+const TabCorretores = lazy(() =>
+  import("./tab-corretores").then(({ TabCorretores }) => ({ default: TabCorretores })),
+);
 
 export type DistribuicaoTab =
   | "visao"
@@ -242,14 +247,18 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           <TabVisaoGeral onVerExcecoes={() => setTab("excecoes")} />
         </TabsContent>
         <TabsContent value="filas">
-          <TabFilas
-            somenteLeitura={somenteLeitura}
-            filaInicial={fila}
-            escopoEquipe={escopoEquipe}
-          />
+          <Suspense fallback={<Skeleton className="h-72 w-full rounded-2xl" />}>
+            <TabFilas
+              somenteLeitura={somenteLeitura}
+              filaInicial={fila}
+              escopoEquipe={escopoEquipe}
+            />
+          </Suspense>
         </TabsContent>
         <TabsContent value="corretores">
-          <TabCorretores somenteLeitura={somenteLeitura} />
+          <Suspense fallback={<Skeleton className="h-72 w-full rounded-2xl" />}>
+            <TabCorretores somenteLeitura={somenteLeitura} />
+          </Suspense>
         </TabsContent>
         <TabsContent value="vez">
           <Suspense fallback={<Skeleton className="h-72 w-full rounded-2xl" />}>

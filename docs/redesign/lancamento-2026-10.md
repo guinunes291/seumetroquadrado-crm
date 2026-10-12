@@ -362,7 +362,11 @@ agendado. A tela segue o vídeo na forma e o SDR real no conteúdo
   corretor vê a própria posição na Central de Comando. Nasceu como "roleta em
   número, pontos anônimos" e mudou no mesmo fim de semana; ver
   `docs/ops/roletas-fila-por-zona.md`. No mesmo dia, "a vez é uma só": o
-  mesmo corretor não é o 1º em mais de uma zona (§8 do mesmo doc).
+  mesmo corretor não é o 1º em mais de uma zona (§8 do mesmo doc). No dia
+  seguinte (12/10) o dono simplificou o time: **roletas por filial** (Barra
+  Funda, Liberdade, Belém) no lugar das seis por zona, com as campanhas como
+  válvula para receber lead de outras zonas; ver
+  `docs/ops/roletas-por-filial.md`.
 - **"Lead entregue"** (navy, como no vídeo): quem recebeu o último cliente
   passado e o que recebeu (renda, tipo, FGTS, CPF, visita).
 - **Confirmações** com resultado (Confirmou / Remarcar / Não atendeu), e as

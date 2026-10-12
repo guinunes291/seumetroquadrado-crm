@@ -6,6 +6,10 @@
 //   - zona sem ninguém do time do SDR mostra para onde a visita vai;
 //   - o corretor vê só a própria posição, e o atalho do check-in quando é ele
 //     que falta.
+// Roletas por filial (12/10/2026): numa zona vêm as roletas de filial que a
+// atendem (a Leste tem duas), a da vez com badge; a roleta de filial é uma
+// fila só ("Roleta Belém · Leste, Grande SP"), a campanha também ("Cury
+// Leopoldina", sem zona — a campanha manda) e a vez única diz "vez na Belém".
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -15,6 +19,7 @@ import {
   emZona,
   filaEmLinha,
   foraEmLinha,
+  fraseAlternancia,
   nomesCurtos,
   ordenarFilas,
   agruparFora,
@@ -72,12 +77,25 @@ const LESTE: FilasZona = {
   zona_estrita: true,
   zonas: ["Centro", "Leste"],
   roletas: [
+    // A Leste tem duas roletas de filial; o banco manda a da vez primeiro.
     roleta({
-      slug: "zona-leste",
-      nome: "Roleta Zona Leste",
+      slug: "filial-liberdade",
+      nome: "Roleta Liberdade",
       papel: "zona",
+      da_vez: true,
+      filial: { slug: "liberdade", nome: "Liberdade" },
+      zonas: ["Centro", "Leste"],
       fila: [p(1, "Lara Lima"), p(2, "Leo Reis")],
       fora: [{ corretor_id: "id-luca", nome: "Luca Dias", motivos: ["ausente_hoje"] }],
+    }),
+    roleta({
+      slug: "filial-belem",
+      nome: "Roleta Belém",
+      papel: "zona",
+      da_vez: false,
+      filial: { slug: "belem", nome: "Belém" },
+      zonas: ["Grande SP", "Leste"],
+      fila: [p(1, "Bia Reis")],
     }),
     roleta({
       slug: "agendados-sdr",
@@ -93,6 +111,7 @@ const LESTE: FilasZona = {
       papel: "campanha",
       mecanica: "ponderado_faixa",
       equipe_fixa: true,
+      filial: { slug: "barra-funda", nome: "Barra Funda" },
       fila: [p(1, "Pitter Reis")],
     }),
   ],
@@ -136,6 +155,10 @@ describe("o que a fila diz (puro)", () => {
     });
     expect(foraEmLinha(r)).toBe("Igor (vez no Sul), Gil (vez na Grande SP)");
     expect(emZona("Centro")).toBe("no Centro");
+    // Nas roletas de filial a vez é por filial: vez_em traz o nome da loja.
+    expect(emZona("Belém")).toBe("na Belém");
+    expect(emZona("Liberdade")).toBe("na Liberdade");
+    expect(emZona("Barra Funda")).toBe("na Barra Funda");
   });
 
   it("nome repetido na fila ganha a inicial do sobrenome", () => {
@@ -168,8 +191,25 @@ describe("o que a fila diz (puro)", () => {
     expect(nomesCurtos(["Ana", "Ana Silva", "Bruno de Paula"])).toEqual(["Ana", "Ana S.", "Bruno"]);
   });
 
-  it("a ordem do painel: a fila do SDR primeiro", () => {
-    expect(ordenarFilas(LESTE.roletas).map((r) => r.papel)).toEqual(["sdr", "zona", "campanha"]);
+  it("a ordem do painel: a fila do SDR primeiro, as filiais na ordem recebida (da vez primeiro)", () => {
+    expect(ordenarFilas(LESTE.roletas).map((r) => r.slug)).toEqual([
+      "agendados-sdr",
+      "filial-liberdade",
+      "filial-belem",
+      "cury",
+    ]);
+    // A ordem das filiais é a do rodízio (vem do banco), não a alfabética.
+    const [lib, bel, sdr, cury] = LESTE.roletas;
+    expect(ordenarFilas([cury, bel, sdr, lib]).map((r) => r.slug)).toEqual([
+      "agendados-sdr",
+      "filial-belem",
+      "filial-liberdade",
+      "cury",
+    ]);
+    expect(fraseAlternancia("Leste", LESTE.roletas)).toBe(
+      "A Leste alterna entre Liberdade e Belém",
+    );
+    expect(fraseAlternancia("Sul", [sdr, lib])).toBeNull();
   });
 
   it("como a vez anda em cada mecânica", () => {
@@ -201,13 +241,30 @@ describe("o que a fila diz (puro)", () => {
       valor: "1º de 6",
       detalhe: "Você é o próximo.",
     });
+    // A roleta de filial é uma fila só, com as zonas dela (na ordem dos chips).
     expect(
-      textoMinhaPosicao({ ...base, slug: "zona-leste", nome: "Roleta Zona Leste", papel: "zona" })
+      textoMinhaPosicao({
+        ...base,
+        slug: "filial-belem",
+        nome: "Roleta Belém",
+        papel: "zona",
+        zona: null,
+        filial: "Belém",
+        zonas: ["Grande SP", "Leste"],
+      }).fila,
+    ).toBe("Roleta Belém · Leste, Grande SP");
+    expect(
+      textoMinhaPosicao({ ...base, slug: "filial-belem", nome: "Roleta Belém", papel: "zona" })
         .fila,
-    ).toBe("Roleta Zona Leste");
+    ).toBe("Roleta Belém");
+    // A campanha manda (12/10): uma fila só, sem zona — antes dizia "· lead sem zona".
     expect(
       textoMinhaPosicao({ ...base, papel: "campanha", nome: "Cury", zona: null, posicao: 3 }),
-    ).toMatchObject({ fila: "Cury · lead sem zona", valor: "3º de 6", detalhe: null });
+    ).toMatchObject({ fila: "Cury", valor: "3º de 6", detalhe: null });
+    expect(
+      textoMinhaPosicao({ ...base, papel: "marquinhos", nome: "Roleta Marquinhos", zona: null })
+        .fila,
+    ).toBe("Marquinhos · lead sem zona");
     const fora = textoMinhaPosicao({
       ...base,
       apto: false,
@@ -240,10 +297,36 @@ describe("o que a fila diz (puro)", () => {
       apto: false,
     });
     expect(vez.detalhe).toContain("Você é o próximo no Sul");
+    // Vez única por filial: ele é o 1º na Belém, então na Liberdade a vez passa.
+    const vezFilial = textoMinhaPosicao({
+      ...base,
+      slug: "filial-liberdade",
+      nome: "Roleta Liberdade",
+      papel: "zona",
+      zona: null,
+      filial: "Liberdade",
+      zonas: ["Centro", "Leste"],
+      apto: false,
+      posicao: null,
+      motivos: ["vez_em_outra_zona"],
+      vez_em: "Belém",
+    });
+    expect(vezFilial).toMatchObject({
+      fila: "Roleta Liberdade · Leste, Centro",
+      valor: "vez na Belém",
+      apto: false,
+    });
+    expect(vezFilial.detalhe).toContain("Você é o próximo na Belém");
   });
 
-  it("fora pela vez única: um grupo por zona da vez, com a fila e a zona de onde saiu", () => {
-    const linha = (slug: string, nome: string, papel: MinhaPosicao["papel"], zona: string) =>
+  it("fora pela vez única: um grupo por zona ou filial da vez, com a fila de onde saiu", () => {
+    const linha = (
+      slug: string,
+      nome: string,
+      papel: MinhaPosicao["papel"],
+      zona: string | null,
+      vez_em: string,
+    ) =>
       ({
         slug,
         nome,
@@ -254,18 +337,30 @@ describe("o que a fila diz (puro)", () => {
         total: 2,
         apto: false,
         motivos: ["vez_em_outra_zona"],
-        vez_em: "Sul",
+        vez_em,
       }) satisfies MinhaPosicao;
     const g = agruparFora([
-      linha("agendados-sdr", "Agendados do SDR", "sdr", "Leste"),
-      linha("zona-leste", "Roleta Zona Leste", "zona", "Leste"),
+      linha("agendados-sdr", "Agendados do SDR", "sdr", "Leste", "Sul"),
+      linha("agendados-sdr", "Agendados do SDR", "sdr", "Centro", "Sul"),
+      {
+        ...linha("filial-liberdade", "Roleta Liberdade", "zona", null, "Belém"),
+        filial: "Liberdade",
+        zonas: ["Centro", "Leste"],
+      },
     ]);
     expect(g).toEqual([
       {
         chave: "vez_em_outra_zona:Sul",
         motivo: "vez_em_outra_zona",
         rotulo: "Sua vez agora é no Sul",
-        filas: ["Agendados do SDR · Leste", "Roleta Zona Leste"],
+        filas: ["Agendados do SDR · Leste", "Agendados do SDR · Centro"],
+        checkin: false,
+      },
+      {
+        chave: "vez_em_outra_zona:Belém",
+        motivo: "vez_em_outra_zona",
+        rotulo: "Sua vez agora é na Belém",
+        filas: ["Roleta Liberdade · Leste, Centro"],
         checkin: false,
       },
     ]);
@@ -297,8 +392,8 @@ describe("o que a fila diz (puro)", () => {
         linha("cury", "Cury Leopoldina", "campanha", z, "ausente_hoje"),
         linha("jardim", "Jardim BF", "campanha", z, "ausente_hoje"),
       ]),
-      linha("zona-leste", "Roleta Zona Leste", "zona", "Leste", "ausente_hoje"),
-      linha("zona-norte", "Roleta Zona Norte", "zona", "Norte", "fora_da_regiao"),
+      linha("filial-belem", "Roleta Belém", "zona", "Leste", "ausente_hoje"),
+      linha("filial-barra-funda", "Roleta Barra Funda", "zona", "Norte", "fora_da_regiao"),
       {
         ...linha("agendados-sdr", "Agendados do SDR", "sdr", "Leste", "x"),
         apto: true,
@@ -309,11 +404,11 @@ describe("o que a fila diz (puro)", () => {
     ];
     const g = agruparFora(xs);
     expect(g.map((x) => x.motivo)).toEqual(["ausente_hoje", "fora_da_regiao"]);
-    expect(g[0].filas).toEqual(["Marquinhos", "Cury Leopoldina", "Jardim BF", "Roleta Zona Leste"]);
+    expect(g[0].filas).toEqual(["Marquinhos", "Cury Leopoldina", "Jardim BF", "Roleta Belém"]);
     expect(g[0].checkin).toBe(true);
     expect(g[1]).toMatchObject({
       rotulo: "Não atende esta zona",
-      filas: ["Roleta Zona Norte"],
+      filas: ["Roleta Barra Funda"],
       checkin: false,
     });
     expect(filasEmLinha(g[0].filas)).toBe("Marquinhos, Cury Leopoldina, Jardim BF e mais 1");
@@ -377,9 +472,21 @@ describe("FilaZonaCard (SDR e gestão)", () => {
     ]);
     expect(fila[0].textContent).toContain("próximo");
     expect(card.textContent).toContain("fura a fila");
-    expect(within(card).getByTestId("fila-zona-leste").textContent).toContain("1º Lara · 2º Leo");
-    expect(within(card).getByTestId("fila-zona-leste").textContent).toContain("Luca");
+    // As duas roletas de filial da Leste: a da vez com o badge, a outra sem.
+    const liberdade = within(card).getByTestId("fila-filial-liberdade");
+    expect(liberdade.textContent).toContain("Roleta Liberdade");
+    expect(liberdade.textContent).toContain("da vez");
+    expect(liberdade.textContent).toContain("1º Lara · 2º Leo");
+    expect(liberdade.textContent).toContain("Luca");
+    const belem = within(card).getByTestId("fila-filial-belem");
+    expect(belem.textContent).toContain("1º Bia");
+    expect(belem.textContent).not.toContain("da vez");
+    expect(within(card).getByTestId("fila-alternancia").textContent).toContain(
+      "A Leste alterna entre Liberdade e Belém",
+    );
+    // A campanha: equipe fixa e a filial dona como rótulo.
     expect(within(card).getByTestId("fila-cury").textContent).toContain("equipe fixa");
+    expect(within(card).getByTestId("fila-cury").textContent).toContain("Barra Funda");
   });
 
   it("trocar de zona lê a fila da outra e lembra a escolha", async () => {
@@ -419,11 +526,12 @@ describe("FilaZonaCard (SDR e gestão)", () => {
     montar(<FilaZonaCard />);
     const card = screen.getByRole("region", { name: "Roleta" });
     await waitFor(() => expect(within(card).getAllByTestId("fila-pessoa")).toHaveLength(1));
-    expect(card.textContent).toContain("A vez é uma só");
+    expect(card.textContent).toContain("A vez é uma só: quem é o 1º de outra zona ou filial");
     expect(card.textContent).toContain("Fora agora: Igor (vez no Sul).");
+    expect(within(card).queryByTestId("fila-alternancia")).toBeNull();
   });
 
-  it("zona sem ninguém do time do SDR: diz que a visita vai para o time da zona", async () => {
+  it("zona sem ninguém do time do SDR: diz que a visita vai para a filial da vez", async () => {
     window.localStorage.setItem("smq:roleta-zona", "Grande SP");
     estado.filas.mockResolvedValue({
       ...LESTE,
@@ -434,15 +542,25 @@ describe("FilaZonaCard (SDR e gestão)", () => {
           nome: "Agendados do SDR",
           papel: "sdr",
           fila: [],
-          reserva: { slug: "zona-grande-sp", fila: [p(1, "Gil Prado")] },
+          reserva: { slug: "filial-belem", fila: [p(1, "Gil Prado")] },
+        }),
+        roleta({
+          slug: "filial-belem",
+          nome: "Roleta Belém",
+          papel: "zona",
+          da_vez: true,
+          filial: { slug: "belem", nome: "Belém" },
+          zonas: ["Grande SP", "Leste"],
+          fila: [p(1, "Gil Prado")],
         }),
       ],
     });
     montar(<FilaZonaCard />);
     const card = screen.getByRole("region", { name: "Roleta" });
     await waitFor(() =>
-      expect(card.textContent).toContain("Ninguém do time do SDR atende a Grande SP"),
+      expect(card.textContent).toContain("Ninguém do time do SDR atende esta zona"),
     );
+    expect(card.textContent).toContain("a visita vai para a filial da vez (Roleta Belém)");
     expect(within(card).getAllByTestId("fila-pessoa")[0].textContent).toContain("Gil Prado");
   });
 });
@@ -451,10 +569,12 @@ describe("MinhasPosicoesRoletas (Central de Comando do corretor)", () => {
   it("a posição em cada fila e o atalho do check-in quando é ele que falta", async () => {
     estado.minhas.mockResolvedValue([
       {
-        slug: "zona-leste",
-        nome: "Roleta Zona Leste",
+        slug: "filial-belem",
+        nome: "Roleta Belém",
         papel: "zona",
-        zona: "Leste",
+        zona: null,
+        filial: "Belém",
+        zonas: ["Grande SP", "Leste"],
         mecanica: "rodizio",
         posicao: null,
         total: 4,
@@ -481,7 +601,7 @@ describe("MinhasPosicoesRoletas (Central de Comando do corretor)", () => {
     expect(linha.textContent).toContain("2º de 6");
     const fora = within(card).getByTestId("fora-grupo");
     expect(fora.textContent).toContain("Sem check-in");
-    expect(fora.textContent).toContain("Roleta Zona Leste");
+    expect(fora.textContent).toContain("Roleta Belém");
     expect(within(card).getByText("Fazer o check-in de hoje").getAttribute("href")).toBe(
       "/presenca",
     );
@@ -516,9 +636,9 @@ describe("MinhasPosicoesRoletas (Central de Comando do corretor)", () => {
     expect(within(card).queryByText("Fazer o check-in de hoje")).toBeNull();
   });
 
-  it("a vez em duas zonas diferentes: dois grupos, cada um com a própria chave", async () => {
+  it("a vez em duas unidades diferentes (zona e filial): dois grupos, cada um com a própria chave", async () => {
     // key={g.motivo} repetia "vez_em_outra_zona" nos dois grupos (aviso do
-    // React e risco de misturar as linhas): a chave é motivo + zona da vez.
+    // React e risco de misturar as linhas): a chave é motivo + zona/filial da vez.
     estado.minhas.mockResolvedValue([
       {
         slug: "agendados-sdr",
@@ -533,16 +653,18 @@ describe("MinhasPosicoesRoletas (Central de Comando do corretor)", () => {
         vez_em: "Sul",
       },
       {
-        slug: "zona-oeste",
-        nome: "Roleta Zona Oeste",
+        slug: "filial-liberdade",
+        nome: "Roleta Liberdade",
         papel: "zona",
-        zona: "Oeste",
+        zona: null,
+        filial: "Liberdade",
+        zonas: ["Centro", "Leste"],
         mecanica: "rodizio",
         posicao: null,
         total: 2,
         apto: false,
         motivos: ["vez_em_outra_zona"],
-        vez_em: "Leste",
+        vez_em: "Belém",
       },
     ] satisfies MinhaPosicao[]);
     const erro = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -555,8 +677,8 @@ describe("MinhasPosicoesRoletas (Central de Comando do corretor)", () => {
         .map((g) => g.textContent);
       expect(grupos[0]).toContain("Sua vez agora é no Sul");
       expect(grupos[0]).toContain("Agendados do SDR · Leste");
-      expect(grupos[1]).toContain("Sua vez agora é no Leste");
-      expect(grupos[1]).toContain("Roleta Zona Oeste");
+      expect(grupos[1]).toContain("Sua vez agora é na Belém");
+      expect(grupos[1]).toContain("Roleta Liberdade · Leste, Centro");
       expect(erro.mock.calls.flat().map(String).join(" ")).not.toMatch(/same key/);
     } finally {
       erro.mockRestore();

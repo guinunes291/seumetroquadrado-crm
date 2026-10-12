@@ -1,6 +1,8 @@
 // Propriedades da fila selecionada na aba Filas — TODAS as escritas via RPC
 // auditada (atualizar_roleta / criar projeto+vincular). Nas campanhas, cobre
 // o que antes vivia no painel de Campanhas: equipe fixa, projeto vinculado,
+// filial dona (decisão do dono, 12/10/2026: a campanha pertence a uma filial;
+// é rótulo e agrupamento, e a equipe pode ter corretor de qualquer loja),
 // token de webhook (gerado no servidor, exibido aqui) e recálculo de tiers.
 
 import { useState } from "react";
@@ -28,12 +30,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useFiliais } from "@/features/presenca/presenca-client";
 import { PRESENCA_OBRIGATORIA_HINT, presencaObrigatoria } from "@/lib/distribuicao";
 import { useAtualizarRoleta, useProjetosMini, useRecalcularTiers, type RoletaRow } from "./queries";
 import { HorarioRoletaCell } from "./setting-fields";
 
 const SEM_PROJETO = "__none__";
 const NOVO_PROJETO = "__new__";
+const SEM_FILIAL = "__sem_filial__";
 
 export function FilaPropriedades({
   roleta,
@@ -45,6 +49,7 @@ export function FilaPropriedades({
   const atualizar = useAtualizarRoleta();
   const recalcular = useRecalcularTiers();
   const projetosQ = useProjetosMini(roleta.tipo === "campanha");
+  const filiaisQ = useFiliais(roleta.tipo === "campanha");
   const [tokenVisivel, setTokenVisivel] = useState(false);
   const [criarProjetoAberto, setCriarProjetoAberto] = useState(false);
 
@@ -119,10 +124,42 @@ export function FilaPropriedades({
                 <span>
                   Equipe fixa
                   <span className="ml-1 text-xs text-muted-foreground">
-                    {roleta.equipe_fixa ? "(sempre neste time)" : "(respeita zonas)"}
+                    {roleta.equipe_fixa
+                      ? "(a campanha manda: a equipe recebe, de qualquer zona)"
+                      : "(lead com zona vai para a filial da zona)"}
                   </span>
                 </span>
               </label>
+
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Filial:</span>
+                <Select
+                  value={
+                    (filiaisQ.data ?? []).find((f) => f.id === roleta.filial_id)?.slug ?? SEM_FILIAL
+                  }
+                  disabled={somenteLeitura || atualizar.isPending}
+                  onValueChange={(v) =>
+                    atualizar.mutate({
+                      slug: roleta.slug,
+                      filialSlug: v === SEM_FILIAL ? null : v,
+                    })
+                  }
+                >
+                  <SelectTrigger className="h-8 w-44" aria-label="Filial da campanha">
+                    <SelectValue placeholder="Sem filial" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SEM_FILIAL}>Nenhuma</SelectItem>
+                    {(filiaisQ.data ?? [])
+                      .filter((f) => f.ativa || f.id === roleta.filial_id)
+                      .map((f) => (
+                        <SelectItem key={f.id} value={f.slug}>
+                          {f.nome}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Projeto:</span>

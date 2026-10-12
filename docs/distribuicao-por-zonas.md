@@ -1,5 +1,13 @@
 # Distribuição por Zonas — modelo e runbook de virada
 
+> **12/10/2026 — roletas por filial.** Este documento descreve o modelo de
+> 03/10 (um time por zona, seis roletas `zona-*`). Desde a migration
+> `20261018120000` o time é a **roleta da filial** que atende a zona (três
+> roletas; a Leste alterna entre Liberdade e Belém) e as campanhas de equipe
+> fixa entregam sem corte por zona. A zona do lead, a zona estrita e a guarda
+> de região continuam como aqui. O que mudou está em
+> [`ops/roletas-por-filial.md`](./ops/roletas-por-filial.md).
+
 ## ZONA ESTRITA (2026-10-03) — o modelo vigente
 
 > Decisão do dono: **"um corretor deve receber leads de qualquer origem apenas

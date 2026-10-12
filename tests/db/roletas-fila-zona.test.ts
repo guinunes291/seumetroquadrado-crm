@@ -9,18 +9,24 @@
  * A previsão não decide nada: lê o estado de cada motor. Então a prova é
  * sempre a mesma — a fila prevista ANTES bate com a ordem em que o motor real
  * entrega os leads DEPOIS:
- *   1. roleta de zona (rodízio "há mais tempo sem receber"), só com presença;
+ *   1. roleta de filial (rodízio "há mais tempo sem receber"), só com
+ *      presença — desde as roletas por filial (20261018120000), a roleta da
+ *      zona é a da filial que a atende;
  *   2. Agendados do SDR com a regra semanal (ponderado pelo peso da semana);
- *   3. campanha de equipe fixa (ponderado por faixa A/B/C), só quem atende a
- *      zona; campanha comum manda o lead com zona para a roleta da zona;
+ *   3. campanha de equipe fixa (ponderado por faixa A/B/C), a equipe inteira,
+ *      de qualquer zona (decisão do dono, 12/10/2026); campanha comum manda o
+ *      lead com zona para a filial da zona;
  *   4. Marquinhos filtrado pela zona; zona sem ninguém do time do SDR mostra a
- *      reserva (time da zona pela régua do SDR, sem presença);
+ *      reserva (time da filial da vez pela régua do SDR, sem presença);
  *   5. acesso: SDR e gestão veem nomes; corretor só a própria posição; ler a
  *      fila não mexe em cursor nenhum.
  *
  * Elenco (corretores com telefone):
- *   Lara, Leo, Lia — Leste, presentes;   Luca — Leste, ausente
- *   Otto — Oeste, presente;              Gil — Grande SP, ausente
+ *   Lara, Leo, Lia — Liberdade (Centro e Leste), presentes;
+ *   Luca — Liberdade, ausente
+ *   Otto — Barra Funda (Oeste, Norte e Sul), presente
+ *   Gil — Belém (Leste e Grande SP), ausente: a Belém não tem ninguém apto,
+ *         então o lead da Leste vai sempre para a Liberdade
  *   Sem — sem região
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -42,6 +48,7 @@ type FilaRoleta = {
   nome: string;
   papel: "sdr" | "zona" | "marquinhos" | "campanha";
   mecanica: string;
+  da_vez?: boolean;
   segue_zona: boolean;
   fila: Pessoa[];
   fora: Pessoa[];
@@ -225,7 +232,9 @@ beforeAll(async () => {
       `119555500${String(i).padStart(2, "0")}`,
     ]);
   }
-  for (const u of [lara, leo, lia, luca]) await darRegiao(c, u.id, ["Leste"]);
+  // darRegiao(["Leste"]) poria nas duas filiais da Leste; aqui o time da
+  // Leste que importa é o da Liberdade.
+  for (const u of [lara, leo, lia, luca]) await darRegiao(c, u.id, ["Centro"]);
   await darRegiao(c, otto.id, ["Oeste"]);
   await darRegiao(c, gil.id, ["Grande SP"]);
   for (const u of [lara, leo, lia, otto]) await checkin(u);
@@ -251,23 +260,29 @@ afterAll(async () => {
   await c.end();
 });
 
-describe("roleta de zona (rodízio, com presença)", () => {
+describe("roleta de filial (rodízio, com presença)", () => {
   it("a fila prevista é a ordem em que o motor entrega", async () => {
     // Leo nunca recebeu (vai primeiro), Lia há 5h, Lara há 3h.
-    await participar("zona-leste", leo, { ultimoHaHoras: null });
-    await participar("zona-leste", lia, { ultimoHaHoras: 5 });
-    await participar("zona-leste", lara, { ultimoHaHoras: 3 });
+    await participar("filial-liberdade", leo, { ultimoHaHoras: null });
+    await participar("filial-liberdade", lia, { ultimoHaHoras: 5 });
+    await participar("filial-liberdade", lara, { ultimoHaHoras: 3 });
 
     const f = await filas(sdr, "Leste");
-    const zona = roleta(f, "zona-leste");
+    const zona = roleta(f, "filial-liberdade");
     expect(zona.papel).toBe("zona");
     expect(zona.mecanica).toBe("rodizio");
+    expect(zona.da_vez).toBe(true);
     expect(ids(zona.fila)).toEqual([leo.id, lia.id, lara.id]);
     expect(zona.fila.map((p) => p.posicao)).toEqual([1, 2, 3]);
     // Luca não fez check-in: fora da fila, com o motivo.
     expect(zona.fora).toEqual([
       expect.objectContaining({ corretor_id: luca.id, motivos: ["ausente_hoje"] }),
     ]);
+    // A outra filial da Leste: só o Gil, ausente — não é a da vez.
+    const belem = roleta(f, "filial-belem");
+    expect(belem.da_vez).toBe(false);
+    expect(belem.fila).toEqual([]);
+    expect(ids(belem.fora)).toEqual([gil.id]);
 
     const vencedores = [];
     for (let i = 0; i < 3; i++) {
@@ -279,7 +294,7 @@ describe("roleta de zona (rodízio, com presença)", () => {
     expect(vencedores).toEqual([leo.id, lia.id, lara.id]);
 
     // Depois das entregas, a fila gira: Leo recebeu primeiro, volta primeiro.
-    expect(ids(roleta(await filas(sdr, "Leste"), "zona-leste").fila)).toEqual([
+    expect(ids(roleta(await filas(sdr, "Leste"), "filial-liberdade").fila)).toEqual([
       leo.id,
       lia.id,
       lara.id,
@@ -354,13 +369,15 @@ describe("Agendados do SDR (regra semanal, ponderado)", () => {
     const fila = roleta(f, "agendados-sdr");
     expect(fila.fila).toEqual([]);
     // Gil não fez check-in e está na reserva: a visita do SDR não pede presença.
-    expect(fila.reserva?.slug).toBe("zona-grande-sp");
+    expect(fila.reserva?.slug).toBe("filial-belem");
     expect(ids(fila.reserva?.fila ?? [])).toEqual([gil.id]);
   });
 });
 
 describe("campanhas (Facebook Ads)", () => {
-  it("equipe fixa: ponderado por faixa entre quem da equipe atende a zona", async () => {
+  // Decisão do dono (12/10/2026): a campanha de equipe fixa manda — a equipe
+  // inteira recebe, de qualquer zona (acabou o corte por zona de 03/10).
+  it("equipe fixa: ponderado por faixa entre toda a equipe, mesmo quem não atende a zona", async () => {
     await criarRoleta("teste-fila-equipe", "Teste Equipe Fixa", { equipeFixa: true });
     await participar("teste-fila-equipe", lara, { tier: "C" });
     await participar("teste-fila-equipe", leo, { tier: "A" });
@@ -371,10 +388,11 @@ describe("campanhas (Facebook Ads)", () => {
     const camp = roleta(f, "teste-fila-equipe");
     expect(camp.papel).toBe("campanha");
     expect(camp.mecanica).toBe("ponderado_faixa");
-    expect(ids(camp.fila)).not.toContain(otto.id);
+    // Otto é da Barra Funda e está na fila do lead da Leste.
+    expect(ids(camp.fila).sort()).toEqual([lara.id, leo.id, lia.id, otto.id].sort());
     const prevista = ids(camp.fila);
-    // Faixa A (peso 3) é a primeira da vez.
-    expect(prevista[0]).toBe(leo.id);
+    // Faixa A (peso 3) é a primeira da vez (Leo e Otto: desempate pelo id).
+    expect([leo.id, otto.id]).toContain(prevista[0]);
 
     const vencedores: (string | null)[] = [];
     for (let i = 0; i < 6; i++) {
@@ -389,7 +407,7 @@ describe("campanhas (Facebook Ads)", () => {
       vencedores.push(r.corretor_id);
     }
     expect(primeiraVez(vencedores)).toEqual(prevista);
-    expect(vencedores).not.toContain(otto.id);
+    expect(vencedores).toContain(otto.id);
   });
 
   it("campanha comum: lead com zona segue a roleta da zona; a fila dela é só a de lead sem zona", async () => {
@@ -435,8 +453,14 @@ describe("acesso e leitura", () => {
     const f = await filas(sdr, "Leste");
     const minhasLia = await minhas(lia);
 
-    for (const slug of ["zona-leste", "agendados-sdr", "teste-fila-equipe"]) {
-      const linha = minhasLia.find((m) => m.slug === slug && m.zona === "Leste");
+    // A roleta de filial e a campanha são uma fila só para o corretor (zona
+    // null); a do SDR, uma por zona que ele atende.
+    for (const [slug, zona] of [
+      ["filial-liberdade", null],
+      ["agendados-sdr", "Leste"],
+      ["teste-fila-equipe", null],
+    ] as const) {
+      const linha = minhasLia.find((m) => m.slug === slug && m.zona === zona);
       const r = roleta(f, slug);
       const esperada = r.fila.find((p) => p.corretor_id === lia.id)?.posicao ?? null;
       expect(linha).toMatchObject({ apto: true, posicao: esperada, total: r.fila.length });
@@ -450,7 +474,7 @@ describe("acesso e leitura", () => {
 
   it("fora da fila: diz o motivo em vez da posição", async () => {
     const minhasLuca = await minhas(luca);
-    expect(minhasLuca.find((m) => m.slug === "zona-leste")).toMatchObject({
+    expect(minhasLuca.find((m) => m.slug === "filial-liberdade")).toMatchObject({
       posicao: null,
       apto: false,
       motivos: ["ausente_hoje"],
@@ -469,17 +493,17 @@ describe("acesso e leitura", () => {
   it("roleta de onde a gestão removeu o corretor não aparece em Sua vez (0077)", async () => {
     // Visto em produção (11/10): a remoção da Zona Norte aparecia como "Não
     // atende esta zona", como se faltasse cadastro. Removido não é "fora".
-    expect((await minhas(luca)).some((m) => m.slug === "zona-leste")).toBe(true);
+    expect((await minhas(luca)).some((m) => m.slug === "filial-liberdade")).toBe(true);
     await comoUsuario(c, admin.id);
     await c.query(
-      `SELECT public.gerenciar_participante_roleta('zona-leste', $1, 'remover', 'teste 0077')`,
+      `SELECT public.gerenciar_participante_roleta('filial-liberdade', $1, 'remover', 'teste 0077')`,
       [luca.id],
     );
     await comoSuperuser(c);
-    expect((await minhas(luca)).some((m) => m.slug === "zona-leste")).toBe(false);
-    // Removido da roleta da zona, deixa de atender o Leste (a roleta É a
+    expect((await minhas(luca)).some((m) => m.slug === "filial-liberdade")).toBe(false);
+    // Removido da roleta da filial, deixa de atender o Leste (a roleta É a
     // região): some da lista da zona também para o SDR, nem como "fora".
-    const zona = roleta(await filas(sdr, "Leste"), "zona-leste");
+    const zona = roleta(await filas(sdr, "Leste"), "filial-liberdade");
     expect(ids(zona.fila)).not.toContain(luca.id);
     expect(ids(zona.fora)).not.toContain(luca.id);
   });

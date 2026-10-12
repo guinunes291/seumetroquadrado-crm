@@ -6,6 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { supabasePendente } from "@/integrations/supabase/pendentes";
 import type { Database, Json } from "@/integrations/supabase/types";
 import {
   listarCamposDistribuicaoV2,
@@ -13,7 +14,7 @@ import {
   type CamposDistribuicaoV2,
   type WipCorretor,
 } from "./corretor-v2-client";
-import { motivoExcecaoLabel } from "@/lib/distribuicao";
+import { motivoExcecaoLabel, type ZonaRoletaLinha } from "@/lib/distribuicao";
 
 type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
 
@@ -118,6 +119,9 @@ export interface RoletaRow {
   webhook_token: string | null;
   projeto_id: string | null;
   tiers_recalculados_em: string | null;
+  // Roletas por filial (0079, 12/10/2026): a filial dona — sempre na roleta de
+  // filial (tipo zona), opcional na campanha (rótulo e agrupamento na aba Filas).
+  filial_id: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -275,9 +279,53 @@ export function useRoletas(enabled = true) {
     enabled,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("roletas").select("*").order("slug");
+      // supabasePendente: roletas.filial_id ainda não está nos types gerados.
+      const { data, error } = await supabasePendente.from("roletas").select("*").order("slug");
       if (error) throw error;
       return (data ?? []) as RoletaRow[];
+    },
+  });
+}
+
+/**
+ * O mapa das filiais: zonas_roletas (zona → roleta) com o nome da roleta e a
+ * filial dela (nome e ordem). Lido direto das três tabelas (RLS de leitura
+ * para autenticado) — é o que a aba Corretores usa para editar a região por
+ * filial e a aba Filas para ordenar as roletas de filial. Nunca uma constante:
+ * a gestão abre uma loja nova sem deploy.
+ */
+export function useZonasRoletas(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:zonas-roletas"],
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<ZonaRoletaLinha[]> => {
+      const [mapa, roletas, filiais] = await Promise.all([
+        supabase.from("zonas_roletas").select("zona, roleta_slug"),
+        supabasePendente.from("roletas").select("slug, nome, ativo, filial_id"),
+        supabase.from("filiais").select("id, slug, nome, ordem"),
+      ]);
+      if (mapa.error) throw mapa.error;
+      if (roletas.error) throw roletas.error;
+      if (filiais.error) throw filiais.error;
+      const porFilial = new Map((filiais.data ?? []).map((f) => [f.id, f]));
+      const porRoleta = new Map((roletas.data ?? []).map((r) => [r.slug, r]));
+      return (mapa.data ?? []).flatMap((m) => {
+        const r = porRoleta.get(m.roleta_slug);
+        if (!r) return [];
+        const f = r.filial_id ? porFilial.get(r.filial_id) : undefined;
+        return [
+          {
+            zona: m.zona,
+            roleta_slug: r.slug,
+            roleta_nome: r.nome,
+            roleta_ativa: r.ativo,
+            filial_slug: f?.slug ?? null,
+            filial_nome: f?.nome ?? null,
+            filial_ordem: f?.ordem ?? null,
+          },
+        ];
+      });
     },
   });
 }
@@ -641,6 +689,7 @@ export const DISTRIBUICAO_KEYS = [
   ["distribuicao:vendas-mes-anterior"],
   ["distribuicao:corretores"],
   ["distribuicao:wip"],
+  ["distribuicao:zonas-roletas"],
   // A página de métricas de Campanhas lê as mesmas linhas que a Central
   // agora edita — sem estas chaves ela ficaria stale após cada mutação.
   ["gestao:campanhas"],
@@ -911,7 +960,9 @@ export function useAtualizarConfigOrigem() {
 }
 
 /** Configuração da própria roleta (horários, presença, ativo e, nas
- *  campanhas, equipe fixa + projeto) — RPC admin auditada. */
+ *  campanhas, equipe fixa + projeto + filial) — RPC admin auditada. A
+ *  assinatura com `_filial_slug`/`_limpar_filial` é a da 0079 (a antiga saiu
+ *  do banco); os parâmetros passam pela fronteira pendentes.ts. */
 export function useAtualizarRoleta() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
@@ -925,8 +976,11 @@ export function useAtualizarRoleta() {
       equipeFixa?: boolean;
       /** null = desvincular projeto; undefined = manter. */
       projetoId?: string | null;
+      /** Campanha por filial (12/10/2026): null = sem filial; undefined = manter.
+       *  A roleta de filial (tipo zona) não troca de filial por aqui — o banco recusa. */
+      filialSlug?: string | null;
     }) => {
-      const { data, error } = await (supabase.rpc as CallableFunction)("atualizar_roleta", {
+      const { data, error } = await supabasePendente.rpc("atualizar_roleta", {
         _slug: args.slug,
         _ativo: args.ativo,
         _exigir_presenca: args.exigirPresenca,
@@ -936,6 +990,10 @@ export function useAtualizarRoleta() {
         _equipe_fixa: args.equipeFixa,
         _projeto_id: args.projetoId ?? undefined,
         _limpar_projeto: args.projetoId === null,
+        _filial_slug: args.filialSlug ?? undefined,
+        // Só manda quando é para limpar: com o parâmetro omitido a chamada
+        // casa também com a assinatura antiga (banco ainda sem a 0079).
+        _limpar_filial: args.filialSlug === null ? true : undefined,
       });
       if (error) throw error;
       return data;
@@ -948,15 +1006,22 @@ export function useAtualizarRoleta() {
   });
 }
 
-/** Cria roleta de campanha — slug e token nascem no SERVIDOR (RPC auditada). */
+/** Cria roleta de campanha — slug e token nascem no SERVIDOR (RPC auditada).
+ *  Desde a 0079 a campanha pode nascer com a filial dona (`_filial_slug`). */
 export function useCriarRoletaCampanha() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
-    mutationFn: async (args: { nome: string; equipeFixa?: boolean; projetoId?: string | null }) => {
-      const { data, error } = await (supabase.rpc as CallableFunction)("criar_roleta_campanha", {
+    mutationFn: async (args: {
+      nome: string;
+      equipeFixa?: boolean;
+      projetoId?: string | null;
+      filialSlug?: string | null;
+    }) => {
+      const { data, error } = await supabasePendente.rpc("criar_roleta_campanha", {
         _nome: args.nome,
         _equipe_fixa: args.equipeFixa ?? false,
         _projeto_id: args.projetoId ?? undefined,
+        _filial_slug: args.filialSlug ?? undefined,
       });
       if (error) throw error;
       return data as { ok?: boolean; roleta?: { slug?: string } } | null;
