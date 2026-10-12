@@ -66,7 +66,7 @@ describe("desfechoPara — a matriz do mockup", () => {
     ]);
     expect(d.opcoes[0].proximo?.titulo).toBe("Agendar assinatura");
     expect(d.opcoes[5].etapa).toEqual({ kind: "perdido" });
-    expect(d.opcoes[4].largo).toBe(true);
+    expect(d.opcoes[5].largo).toBe(true);
   });
 
   it("agendado: 'foi à visita' abre o modal de visita realizada; a pergunta é sobre a visita", () => {
