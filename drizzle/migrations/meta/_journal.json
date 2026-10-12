@@ -547,6 +547,13 @@
       "when": 1792162800000,
       "tag": "0077_minhas_posicoes_so_ativas",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1792249200000,
+      "tag": "0078_vez_unica_por_zona",
+      "breakpoints": true
     }
   ]
 }

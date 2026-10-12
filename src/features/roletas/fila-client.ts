@@ -20,6 +20,8 @@ const pessoaSchema = z.object({
   corretor_id: z.string(),
   nome: z.string().catch("Corretor"),
   motivos: z.array(z.string()).catch([]).optional(),
+  /** Vez única (20261017120000): fora desta fila porque é o 1º nesta zona. */
+  vez_em: z.string().nullable().optional(),
 });
 export type PessoaNaFila = z.infer<typeof pessoaSchema>;
 
@@ -32,6 +34,8 @@ const filaRoletaSchema = z.object({
   exige_presenca: z.boolean().catch(false),
   fora_do_horario: z.boolean().catch(false),
   segue_zona: z.boolean().catch(false),
+  /** A regra "a vez é uma só" vale nesta fila (Agendados do SDR e roleta de zona). */
+  vez_unica: z.boolean().catch(false),
   fila: z.array(pessoaSchema),
   fora: z.array(pessoaSchema).catch([]),
   reserva: z
@@ -60,6 +64,7 @@ const minhaPosicaoSchema = z.object({
   total: z.number().int().catch(0),
   apto: z.boolean(),
   motivos: z.array(z.string()).catch([]),
+  vez_em: z.string().nullable().catch(null),
 });
 export type MinhaPosicao = z.infer<typeof minhaPosicaoSchema>;
 

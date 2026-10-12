@@ -68,7 +68,7 @@ export function MinhasPosicoesRoletas({ className }: { className?: string }) {
                 </p>
               )}
               {fora.map((g) => (
-                <div key={g.motivo} className="text-[12px]" data-testid="fora-grupo">
+                <div key={g.chave} className="text-[12px]" data-testid="fora-grupo">
                   <p className="font-semibold text-warning">{g.rotulo}</p>
                   <p className="text-muted-foreground">{filasEmLinha(g.filas)}</p>
                   {g.checkin && (

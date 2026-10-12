@@ -298,7 +298,10 @@ function RoletaTabPadrao({
                                 <TooltipTrigger asChild>
                                   <Crown className="h-3.5 w-3.5 text-gold-500" />
                                 </TooltipTrigger>
-                                <TooltipContent>Próximo da vez nesta roleta</TooltipContent>
+                                <TooltipContent>
+                                  Há mais tempo sem receber nesta roleta. A vez por zona (que olha
+                                  as outras zonas) está na aba A vez por zona.
+                                </TooltipContent>
                               </Tooltip>
                             )}
                             {l.nome}

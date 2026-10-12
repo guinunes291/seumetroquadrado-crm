@@ -63,8 +63,11 @@ function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
                   : "Sem corretor apto — leads irão para exceção"}
               </StatusBadge>
             ) : (
-              <div className="text-xs text-muted-foreground">
-                Próximo da vez:{" "}
+              <div
+                className="text-xs text-muted-foreground"
+                title="Há mais tempo sem receber nesta roleta; a vez por zona está na aba A vez por zona."
+              >
+                Há mais tempo sem receber:{" "}
                 <span className="font-medium text-foreground">
                   {linhas.find((l) => l.corretor_id === proximo?.corretor_id)?.nome ?? "—"}
                 </span>

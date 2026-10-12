@@ -361,7 +361,8 @@ agendado. A tela segue o vídeo na forma e o SDR real no conteúdo
   nomes; a dele fica na roda de iniciais do vídeo, com o 1º na seta. O
   corretor vê a própria posição na Central de Comando. Nasceu como "roleta em
   número, pontos anônimos" e mudou no mesmo fim de semana; ver
-  `docs/ops/roletas-fila-por-zona.md`.
+  `docs/ops/roletas-fila-por-zona.md`. No mesmo dia, "a vez é uma só": o
+  mesmo corretor não é o 1º em mais de uma zona (§8 do mesmo doc).
 - **"Lead entregue"** (navy, como no vídeo): quem recebeu o último cliente
   passado e o que recebeu (renda, tipo, FGTS, CPF, visita).
 - **Confirmações** com resultado (Confirmou / Remarcar / Não atendeu), e as

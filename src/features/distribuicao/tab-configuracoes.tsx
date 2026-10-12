@@ -68,6 +68,13 @@ export function TabConfiguracoes() {
               label="Lead do Marquinhos vai primeiro para a Roleta Marquinhos (da zona dele)"
               hint="Com zona estrita: recebe quem da Roleta Marquinhos atende a zona do lead; sem ninguém apto ali, vai para o time da zona. Desligado: o lead do bot vai direto para a roleta da zona."
             />
+            {/* _vez_unica_ativa() (20261017120000): chave ausente = ligada. */}
+            <SettingBooleano
+              chave="vez_unica_por_zona"
+              padrao
+              label="A vez é uma só: o mesmo corretor não é o 1º da fila em mais de uma zona"
+              hint="Agendados do SDR e roletas de zona. Quem é o 1º em duas zonas fica com a mais movimentada (leads dos últimos 30 dias); na outra, a vez passa ao próximo. Desligado: cada zona com a própria fila, mesmo repetindo o 1º."
+            />
             {/* presenca_checkin (20261013120000): chave ausente = 3. */}
             <SettingNumero
               chave="presenca_casa_min_vendas_mes_anterior"

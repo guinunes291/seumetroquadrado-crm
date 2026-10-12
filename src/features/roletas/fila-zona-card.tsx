@@ -252,6 +252,7 @@ export function FilaZonaCard({
                   {comoAndaAVez(destaque.mecanica)}
                   {destaque.papel === "sdr" &&
                     " Quem tem visita no horário é pulado, e o corretor que falou com o cliente nos últimos 7 dias fura a fila."}
+                  {destaque.vez_unica && " A vez é uma só: quem é o 1º de outra zona espera lá."}
                 </p>
                 {foraEmLinha(destaque) && (
                   <p className="text-xs text-muted-foreground">
