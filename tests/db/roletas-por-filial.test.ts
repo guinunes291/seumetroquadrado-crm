@@ -11,7 +11,8 @@
  * O que se prova aqui:
  *   1. o mapa e a roleta da vez de cada zona;
  *   2. o lead da Leste alterna entre Liberdade e Belém, pula a filial sem
- *      ninguém apto e respeita o pino do lead (memória do repasse);
+ *      ninguém apto (para ESTE lead: quem já o teve não conta) e respeita o
+ *      pino do lead (memória do repasse);
  *   3. a reserva do SDR tenta as filiais na ordem do rodízio;
  *   4. a união dos times preserva cursor, pausa, limite e faixa;
  *   5. a vez única por roleta de filial, no motor e na tela;
@@ -35,7 +36,13 @@ import {
   type UsuarioTeste,
 } from "./helpers";
 
-type Pessoa = { posicao?: number; corretor_id: string; nome: string; motivos?: string[]; vez_em?: string };
+type Pessoa = {
+  posicao?: number;
+  corretor_id: string;
+  nome: string;
+  motivos?: string[];
+  vez_em?: string;
+};
 type FilaRoleta = {
   slug: string;
   papel: string;
@@ -165,9 +172,8 @@ async function leadDaZona(
   } else {
     await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste')`, [id]);
   }
-  const r = (
-    await c.query(`SELECT corretor_id, roleta_slug FROM public.leads WHERE id = $1`, [id])
-  ).rows[0] as { corretor_id: string | null; roleta_slug: string | null };
+  const r = (await c.query(`SELECT corretor_id, roleta_slug FROM public.leads WHERE id = $1`, [id]))
+    .rows[0] as { corretor_id: string | null; roleta_slug: string | null };
   return { ...r, lead_id: id };
 }
 
@@ -184,7 +190,9 @@ async function contexto(leadId: string): Promise<Record<string, unknown>> {
   ).rows[0]?.contexto as Record<string, unknown>;
 }
 
-async function visitaDoSdr(zona: string): Promise<{ corretor_id: string; regra: string; roleta: string }> {
+async function visitaDoSdr(
+  zona: string,
+): Promise<{ corretor_id: string; regra: string; roleta: string }> {
   await comoUsuario(c, sdr.id);
   try {
     return (
@@ -227,8 +235,9 @@ async function movimentar(roletaSlug: string, n: number) {
 
 async function zonasDoPerfil(u: UsuarioTeste): Promise<string[]> {
   await comoSuperuser(c);
-  const z = (await c.query(`SELECT coalesce(zonas, '{}') AS z FROM public.profiles WHERE id = $1`, [u.id]))
-    .rows[0].z as string[];
+  const z = (
+    await c.query(`SELECT coalesce(zonas, '{}') AS z FROM public.profiles WHERE id = $1`, [u.id])
+  ).rows[0].z as string[];
   return [...z].sort();
 }
 
@@ -236,8 +245,17 @@ beforeAll(async () => {
   await c.connect();
   await limparDados(c);
   await comoSuperuser(c);
-  for (const chave of ["zona_estrita", "modelo_v2_ativo", "percentual_minimo_trabalhado", "sdr_ativo", "roleta_sdr_regra_ativa", "vez_unica_por_zona"]) {
-    const r = await c.query(`SELECT valor FROM public.distribuicao_settings WHERE chave = $1`, [chave]);
+  for (const chave of [
+    "zona_estrita",
+    "modelo_v2_ativo",
+    "percentual_minimo_trabalhado",
+    "sdr_ativo",
+    "roleta_sdr_regra_ativa",
+    "vez_unica_por_zona",
+  ]) {
+    const r = await c.query(`SELECT valor FROM public.distribuicao_settings WHERE chave = $1`, [
+      chave,
+    ]);
     settingsAntes.set(chave, r.rows[0]?.valor);
   }
   await setSetting("zona_estrita", true);
@@ -277,7 +295,10 @@ afterAll(async () => {
     if (valor === undefined) {
       await c.query(`DELETE FROM public.distribuicao_settings WHERE chave = $1`, [chave]);
     } else {
-      await c.query(`UPDATE public.distribuicao_settings SET valor = $2::jsonb WHERE chave = $1`, [chave, JSON.stringify(valor)]);
+      await c.query(`UPDATE public.distribuicao_settings SET valor = $2::jsonb WHERE chave = $1`, [
+        chave,
+        JSON.stringify(valor),
+      ]);
     }
   }
   await c.query(`DELETE FROM public.roleta_participantes`);
@@ -326,8 +347,12 @@ describe("o mapa", () => {
       ["filial-belem", true, false],
     ]);
     await comoSuperuser(c);
-    expect((await c.query(`SELECT public.roleta_da_zona('Leste') AS s`)).rows[0].s).toBe("filial-liberdade");
-    expect((await c.query(`SELECT public.roleta_da_zona('Sul') AS s`)).rows[0].s).toBe("filial-barra-funda");
+    expect((await c.query(`SELECT public.roleta_da_zona('Leste') AS s`)).rows[0].s).toBe(
+      "filial-liberdade",
+    );
+    expect((await c.query(`SELECT public.roleta_da_zona('Sul') AS s`)).rows[0].s).toBe(
+      "filial-barra-funda",
+    );
   });
 });
 
@@ -387,7 +412,10 @@ describe("o lead da Leste alterna entre Liberdade e Belém", () => {
     expect(r.corretor_id).toBeNull();
     await comoSuperuser(c);
     const exc = (
-      await c.query(`SELECT motivo FROM public.distribuicao_excecoes WHERE lead_id = $1 AND status = 'pendente'`, [r.lead_id])
+      await c.query(
+        `SELECT motivo FROM public.distribuicao_excecoes WHERE lead_id = $1 AND status = 'pendente'`,
+        [r.lead_id],
+      )
     ).rows[0];
     expect(exc?.motivo).toBe("sem_corretor_na_zona");
     for (const u of [lia, bela, leo]) await presente(u, true);
@@ -410,6 +438,34 @@ describe("o lead da Leste alterna entre Liberdade e Belém", () => {
     const q = await leadDaZona("Leste", { pino: "filial-belem" });
     expect(q.roleta_slug).toBe("filial-liberdade");
     await presente(bela, true);
+    await presente(leo, true);
+  });
+
+  it("repasse: a filial em que só quem já teve o lead está apto é pulada; sem ninguém novo, espera no pino", async () => {
+    await zerarCursores();
+    await presente(leo, false);
+    // A Bela (única apta na Belém) estourou o SLA do lead pinado na Belém: a
+    // Belém está pronta, mas não para ESTE lead — ele vai para a Liberdade
+    // em vez de esperar a Belém (o pino é tentado primeiro, depois a outra).
+    const p = await leadDaZona("Leste", { pino: "filial-belem", tentaram: [bela.id] });
+    expect(p).toMatchObject({ roleta_slug: "filial-liberdade", corretor_id: lia.id });
+    // Sem pino: a Belém é a da vez (a Liberdade acabou de receber), mas lá só
+    // a Bela, que já teve o lead.
+    expect((await roletasDaZona("Leste")).find((r) => r.da_vez)?.roleta_slug).toBe("filial-belem");
+    const q = await leadDaZona("Leste", { tentaram: [bela.id] });
+    expect(q).toMatchObject({ roleta_slug: "filial-liberdade", corretor_id: lia.id });
+    // Todos os aptos já tiveram o lead: espera no pino (memória do time),
+    // nunca em outra zona.
+    const r = await leadDaZona("Leste", { pino: "filial-belem", tentaram: [bela.id, lia.id] });
+    expect(r.corretor_id).toBeNull();
+    await comoSuperuser(c);
+    const exc = (
+      await c.query(
+        `SELECT motivo, roleta_slug FROM public.distribuicao_excecoes WHERE lead_id = $1 AND status = 'pendente'`,
+        [r.lead_id],
+      )
+    ).rows[0];
+    expect(exc).toEqual({ motivo: "sem_corretor_na_zona", roleta_slug: "filial-belem" });
     await presente(leo, true);
   });
 });
@@ -473,7 +529,9 @@ describe("a união dos times", () => {
     const leoRow = rows.find((r) => r.corretor_id === leo.id)!;
     expect(rows.map((r) => r.corretor_id).sort()).toEqual([lia.id, leo.id].sort());
     // Lia: cursor = o mais recente (1h), pausa de 2 dias em vigor, limite 7, faixa C (mais recente), incluída há 30 dias.
-    expect(Date.now() - new Date(liaRow.ultimo_lead_em as string).getTime()).toBeLessThan(2 * 3600 * 1000);
+    expect(Date.now() - new Date(liaRow.ultimo_lead_em as string).getTime()).toBeLessThan(
+      2 * 3600 * 1000,
+    );
     expect(new Date(liaRow.pausado_ate as string).getTime()).toBeGreaterThan(Date.now());
     expect(liaRow.motivo_pausa).toBe("férias");
     expect(liaRow.limite_diario).toBe(7);
@@ -484,11 +542,16 @@ describe("a união dos times", () => {
     expect(leoRow.pausado_ate).toBeNull();
     expect(leoRow.ultimo_lead_em).toBeNull();
     const logs = (
-      await c.query(`SELECT acao, motivo FROM public.roleta_participantes_log WHERE roleta_id = $1`, [dest])
+      await c.query(
+        `SELECT acao, motivo FROM public.roleta_participantes_log WHERE roleta_id = $1`,
+        [dest],
+      )
     ).rows;
     expect(logs).toHaveLength(2);
     expect(logs.every((l) => l.acao === "incluido" && l.motivo === "teste união")).toBe(true);
-    await c.query(`DELETE FROM public.roleta_participantes WHERE roleta_id = ANY($1::uuid[])`, [[a, b, dest]]);
+    await c.query(`DELETE FROM public.roleta_participantes WHERE roleta_id = ANY($1::uuid[])`, [
+      [a, b, dest],
+    ]);
   });
 });
 
@@ -498,7 +561,10 @@ describe("a vez é uma só, por filial", () => {
     // Bela recebeu há pouco: Léo (nas duas) é o 1º da Belém; na Liberdade, Lia é
     // a 1ª e Léo o 2º. Belém mais movimentada: Léo fica com a Belém.
     await comoSuperuser(c);
-    await c.query(`UPDATE public.roleta_participantes SET ultimo_lead_em = now() WHERE corretor_id = $1`, [bela.id]);
+    await c.query(
+      `UPDATE public.roleta_participantes SET ultimo_lead_em = now() WHERE corretor_id = $1`,
+      [bela.id],
+    );
     await movimentar("filial-belem", 5);
     const f = await filas("Leste");
     const bel = roleta(f, "filial-belem");
@@ -509,7 +575,11 @@ describe("a vez é uma só, por filial", () => {
     expect(ids(bel.fila)[0]).toBe(leo.id);
     expect(ids(lib.fila)).toEqual([lia.id]);
     expect(lib.fora).toEqual([
-      expect.objectContaining({ corretor_id: leo.id, motivos: ["vez_em_outra_zona"], vez_em: "Belém" }),
+      expect.objectContaining({
+        corretor_id: leo.id,
+        motivos: ["vez_em_outra_zona"],
+        vez_em: "Belém",
+      }),
     ]);
     // Na tela do corretor: 1º na Belém, "vez na Belém" na Liberdade.
     const m = await minhas(leo);
@@ -552,7 +622,9 @@ describe("as duas portas", () => {
     ]);
     expect(f.zonas).toEqual(["Centro", "Grande SP", "Leste", "Norte", "Oeste", "Sul"]);
     const oeste = await filas("Oeste");
-    expect(oeste.roletas.filter((r) => r.papel === "zona").map((r) => r.slug)).toEqual(["filial-barra-funda"]);
+    expect(oeste.roletas.filter((r) => r.papel === "zona").map((r) => r.slug)).toEqual([
+      "filial-barra-funda",
+    ]);
     const sem = await filas(null);
     expect(sem.roletas.some((r) => r.papel === "zona")).toBe(false);
     await comoUsuario(c, sdr.id);
@@ -562,10 +634,20 @@ describe("as duas portas", () => {
 
   it("ler as filas não mexe em cursor nenhum", async () => {
     await comoSuperuser(c);
-    const antes = (await c.query(`SELECT zona, roleta_slug, ultimo_lead_em FROM public.zonas_roletas ORDER BY 1, 2`)).rows;
+    const antes = (
+      await c.query(
+        `SELECT zona, roleta_slug, ultimo_lead_em FROM public.zonas_roletas ORDER BY 1, 2`,
+      )
+    ).rows;
     await filas("Leste");
     await minhas(leo);
-    expect((await c.query(`SELECT zona, roleta_slug, ultimo_lead_em FROM public.zonas_roletas ORDER BY 1, 2`)).rows).toEqual(antes);
+    expect(
+      (
+        await c.query(
+          `SELECT zona, roleta_slug, ultimo_lead_em FROM public.zonas_roletas ORDER BY 1, 2`,
+        )
+      ).rows,
+    ).toEqual(antes);
   });
 });
 
@@ -573,18 +655,30 @@ describe("a região por filial (aba Corretores)", () => {
   it("só filial inteira; a união das zonas das filiais marcadas inclui e remove por roleta", async () => {
     await comoUsuario(c, admin.id);
     // "Só a Leste" não existe: a Leste vem com a filial inteira.
-    expect(await errCode(c.query(`SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Leste'])`, [bia.id]))).not.toBeNull();
+    expect(
+      await errCode(
+        c.query(`SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Leste'])`, [bia.id]),
+      ),
+    ).not.toBeNull();
     // Belém inteira: entra na Belém, sai da Barra Funda.
-    await c.query(`SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Leste','Grande SP'])`, [bia.id]);
+    await c.query(`SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Leste','Grande SP'])`, [
+      bia.id,
+    ]);
     expect(await zonasDoPerfil(bia)).toEqual(["Grande SP", "Leste"]);
     // Belém + Liberdade.
-    await c.query(`SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Leste','Grande SP','Centro'])`, [bia.id]);
+    await c.query(
+      `SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Leste','Grande SP','Centro'])`,
+      [bia.id],
+    );
     expect(await zonasDoPerfil(bia)).toEqual(["Centro", "Grande SP", "Leste"]);
     // Nenhuma: sai de todas.
     await c.query(`SELECT public.atualizar_corretor_distribuicao($1, ARRAY[]::text[])`, [bia.id]);
     expect(await zonasDoPerfil(bia)).toEqual([]);
     // De volta à Barra Funda.
-    await c.query(`SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Oeste','Norte','Sul'])`, [bia.id]);
+    await c.query(
+      `SELECT public.atualizar_corretor_distribuicao($1, ARRAY['Oeste','Norte','Sul'])`,
+      [bia.id],
+    );
     expect(await zonasDoPerfil(bia)).toEqual(["Norte", "Oeste", "Sul"]);
     await comoSuperuser(c);
   });
@@ -600,7 +694,10 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
     dan = await criarUsuario(c, { nome: "Dan Fora" });
     await comoSuperuser(c);
     for (const [i, u] of [cao, dan].entries()) {
-      await c.query(`UPDATE public.profiles SET telefone = $2, ativo = true WHERE id = $1`, [u.id, `11977771${String(i).padStart(2, "0")}`]);
+      await c.query(`UPDATE public.profiles SET telefone = $2, ativo = true WHERE id = $1`, [
+        u.id,
+        `11977771${String(i).padStart(2, "0")}`,
+      ]);
     }
     await darRegiao(c, cao.id, ["Oeste"]);
     await darRegiao(c, dan.id, ["Oeste"]);
@@ -616,18 +713,28 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
     slug = criada.roleta.slug;
     roletasCriadas.push(slug);
     expect(criada.roleta.filial_id).not.toBeNull();
-    await c.query(`SELECT public.gerenciar_participante_roleta($1, $2, 'incluir', 'teste')`, [slug, bia.id]);
-    await c.query(`SELECT public.gerenciar_participante_roleta($1, $2, 'incluir', 'teste')`, [slug, cao.id]);
+    await c.query(`SELECT public.gerenciar_participante_roleta($1, $2, 'incluir', 'teste')`, [
+      slug,
+      bia.id,
+    ]);
+    await c.query(`SELECT public.gerenciar_participante_roleta($1, $2, 'incluir', 'teste')`, [
+      slug,
+      cao.id,
+    ]);
     await comoSuperuser(c);
 
     // Lead da Leste pelo webhook da campanha: vai para a equipe, que só atende Oeste/Norte/Sul.
     const id = await criarLead(c, { telefone: novoTelefone() });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET zona = 'Leste' WHERE id = $1`, [id]);
-    const r = (await c.query(`SELECT public.distribuir_lead_ponderado($1::uuid, $2) AS r`, [id, slug])).rows[0].r as { ok: boolean; corretor_id: string };
+    const r = (
+      await c.query(`SELECT public.distribuir_lead_ponderado($1::uuid, $2) AS r`, [id, slug])
+    ).rows[0].r as { ok: boolean; corretor_id: string };
     expect(r.ok).toBe(true);
     expect([bia.id, cao.id]).toContain(r.corretor_id);
-    const lead = (await c.query(`SELECT corretor_id, roleta_slug, zona FROM public.leads WHERE id = $1`, [id])).rows[0];
+    const lead = (
+      await c.query(`SELECT corretor_id, roleta_slug, zona FROM public.leads WHERE id = $1`, [id])
+    ).rows[0];
     expect(lead.roleta_slug).toBe(slug);
     expect(lead.zona).toBe("Leste");
 
@@ -636,20 +743,32 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
     const outro = r.corretor_id === bia.id ? cao : bia;
     await comoUsuario(c, admin.id);
     await c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, outro.id]);
-    expect(await errCode(c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, dan.id]))).toBe("SMQZ1");
+    expect(
+      await errCode(c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, dan.id])),
+    ).toBe("SMQZ1");
     await comoSuperuser(c);
-    expect((await c.query(`SELECT corretor_id FROM public.leads WHERE id = $1`, [id])).rows[0].corretor_id).toBe(outro.id);
+    expect(
+      (await c.query(`SELECT corretor_id FROM public.leads WHERE id = $1`, [id])).rows[0]
+        .corretor_id,
+    ).toBe(outro.id);
 
     // Repasse por SLA dentro da campanha: volta para o outro da equipe, de qualquer zona.
     const rep = (
-      await c.query(`SELECT public._repassar_lead_campanha($1::uuid, $2, 'teste', '{}'::jsonb) AS r`, [id, slug])
+      await c.query(
+        `SELECT public._repassar_lead_campanha($1::uuid, $2, 'teste', '{}'::jsonb) AS r`,
+        [id, slug],
+      )
     ).rows[0].r as { ok: boolean; corretor_id: string };
     expect(rep.ok).toBe(true);
     expect(rep.corretor_id).toBe(r.corretor_id);
 
     // A guarda direta no banco: participante da campanha passa; quem não está, não.
     await c.query(`UPDATE public.leads SET corretor_id = $2 WHERE id = $1`, [id, outro.id]);
-    expect(await errCode(c.query(`UPDATE public.leads SET corretor_id = $2 WHERE id = $1`, [id, dan.id]))).toBe("SMQZ1");
+    expect(
+      await errCode(
+        c.query(`UPDATE public.leads SET corretor_id = $2 WHERE id = $1`, [id, dan.id]),
+      ),
+    ).toBe("SMQZ1");
   });
 
   it("a campanha aparece nas zonas da filial dona, com a equipe inteira; no corretor, uma fila só", async () => {
@@ -669,11 +788,18 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
       await c.query(`SELECT public.atualizar_roleta($1, _filial_slug => 'liberdade') AS r`, [slug])
     ).rows[0].r as { roleta: { filial_id: string } };
     await comoSuperuser(c);
-    const lib = (await c.query(`SELECT id FROM public.filiais WHERE slug = 'liberdade'`)).rows[0].id;
+    const lib = (await c.query(`SELECT id FROM public.filiais WHERE slug = 'liberdade'`)).rows[0]
+      .id;
     expect(r.roleta.filial_id).toBe(lib);
     await comoUsuario(c, admin.id);
-    expect(await errCode(c.query(`SELECT public.atualizar_roleta('filial-belem', _filial_slug => 'liberdade')`))).not.toBeNull();
-    expect(await errCode(c.query(`SELECT public.atualizar_roleta($1, _filial_slug => 'marte')`, [slug]))).not.toBeNull();
+    expect(
+      await errCode(
+        c.query(`SELECT public.atualizar_roleta('filial-belem', _filial_slug => 'liberdade')`),
+      ),
+    ).not.toBeNull();
+    expect(
+      await errCode(c.query(`SELECT public.atualizar_roleta($1, _filial_slug => 'marte')`, [slug])),
+    ).not.toBeNull();
     await comoSuperuser(c);
   });
 });

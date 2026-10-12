@@ -72,6 +72,10 @@ No motor da roleta (`_distribuir_lead_v3`), lead com zona e zona estrita:
    primeiro.
 2. Senão, a **da vez** pelo rodízio. Uma filial sem ninguém apto é pulada:
    o lead da Leste não espera a Liberdade acordar se a Belém está pronta.
+   "Apto" aqui é para **este** lead: quem já teve o lead não conta
+   (`_roleta_pronta_para_lead`). No repasse por SLA, se na filial do pino só
+   o dono que estourou está apto, o lead vai para a outra filial da zona em
+   vez de esperar.
 3. Nenhuma pronta: vai para a primeira da ordem e **espera lá** (exceção
    `sem_corretor_na_zona` / `zona_sem_time`, como hoje), nunca para outra
    zona.
@@ -189,6 +193,7 @@ participação antigas continuam lá, intactas.
 | `_roletas_da_zona(zona)`                                                  | As roletas da zona na ordem do rodízio, com `pronta` e `da_vez`.                                             |
 | `roleta_da_zona(zona)`                                                    | Mesma assinatura de antes: a roleta da vez (pronta), ou NULL.                                                |
 | `_distribuir_lead_v3`, `_distribuir_lead_sdr`                             | Pino válido → da vez → próxima pronta; grava o cursor do par ao entregar.                                    |
+| `_roleta_pronta_para_lead(slug, tentaram)`                                | Pronta para este lead: alguém apto que ainda não o teve (a escolha da filial no motor).                      |
 | `atualizar_corretor_distribuicao`                                         | Inclui/remove por roleta inteira (zonas desejadas = união de filiais).                                       |
 | `_vez_unica_unidades(familia)` e as peças da vez única                    | Unidade = zona (SDR) ou roleta (filiais).                                                                    |
 | `roletas_filas_zona_v1`, `minhas_posicoes_roletas_v1`                     | Todas as roletas da zona, com `da_vez`, `filial` e `zonas`; posição por roleta de filial; campanha sem zona. |
@@ -203,10 +208,13 @@ quem ficou em duas ou três filiais para a gestão enxugar.)
 ## 9. Testes
 
 - Banco: `tests/db/roletas-por-filial.test.ts` (mapa, rodízio da Leste,
-  filial sem apto é pulada, pino respeitado e com queda para a outra, união
-  dos atributos, cursor do par, SDR reserva, vez única por roleta, telas por
-  roleta). Ajustados: `zona-estrita`, `roletas-fila-zona`, `vez-unica-zona`,
-  `sdr-zona`, `marquinhos-na-zona`, `repasse-sla-campanha`,
-  `registro-mae-campanha` (slugs e expectativas por filial).
+  filial sem apto é pulada — também quando só quem já teve o lead está apto
+  —, pino respeitado e com queda para a outra, união dos atributos, cursor
+  do par, SDR reserva, vez única por roleta, telas por roleta). Ajustados:
+  `zona-estrita`, `roletas-fila-zona`, `vez-unica-zona`, `sdr-zona`,
+  `sdr-passagem`, `marquinhos-na-zona`, `repasse-sla-campanha` (slugs e
+  expectativas por filial; região por filial; campanha de equipe fixa sem
+  corte por zona). `tests/db/helpers.ts`: `darRegiao` por filial e
+  `limparDados` zera o cursor do rodízio entre filiais.
 - Telas: `central-distribuicao-unica`, `zona-estrita`, `roletas-por-zona`,
   `roletas-fila-zona` (chips, "da vez", editor por filial).

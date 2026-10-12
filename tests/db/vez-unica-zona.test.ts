@@ -16,8 +16,17 @@
  * lead. A prova é sempre a mesma: a fila prevista bate com quem o motor
  * entrega.
  *
- * Elenco: Igor (Sul e Leste), Ana (Sul), Gra (Leste) — todos na roleta do
- * SDR e nas roletas das próprias zonas, com check-in e telefone.
+ * Desde as roletas por filial (20261018120000, decisões do dono de
+ * 12/10/2026) a unidade da regra depende da família: nos Agendados do SDR
+ * continua a ZONA (a visita tem zona); nas roletas de filial é a ROLETA (a
+ * fila da Belém é a mesma para a Leste e a Grande SP), e "vez em" diz a
+ * filial ("vez na Barra Funda"). A cobertura do rodízio entre as filiais da
+ * Leste está em roletas-por-filial.test.ts; aqui as provas de filial usam
+ * Sul (Barra Funda) e Centro (Liberdade), zonas de uma filial só.
+ *
+ * Elenco: Igor (Sul e Leste → Barra Funda, Liberdade e Belém), Ana (Sul →
+ * Barra Funda), Gra (Leste → Liberdade e Belém) — todos na roleta do SDR e
+ * nas roletas das próprias filiais, com check-in e telefone.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -139,7 +148,7 @@ async function sair(slug: string, u: UsuarioTeste) {
   );
 }
 
-/** Zera os cursores de todo mundo nas roletas da prova. */
+/** Zera os cursores de todo mundo nas roletas da prova (e o rodízio entre filiais). */
 async function zerarCursores() {
   await participar("agendados-sdr", igor, 5);
   await participar("agendados-sdr", ana, 4);
@@ -149,6 +158,7 @@ async function zerarCursores() {
     `UPDATE public.roleta_participantes rp SET ultimo_lead_em = NULL, wrr_current = 0
        FROM public.roletas r WHERE r.id = rp.roleta_id AND r.tipo = 'zona'`,
   );
+  await c.query(`UPDATE public.zonas_roletas SET ultimo_lead_em = NULL`);
 }
 
 type Entrega = { corretor_id: string; regra: string; lead_id?: string };
@@ -234,12 +244,12 @@ async function corrida(l1: string, l2: string) {
   }
 }
 
-/** As zonas na ordem em que a vez única as olha. */
+/** As zonas na ordem em que a vez única do SDR as olha (unidade = zona). */
 async function ordemDasZonas(): Promise<string[]> {
   await comoSuperuser(c);
   return (
-    await c.query(`SELECT zona FROM public._vez_unica_zonas_ordem() ORDER BY ordem`)
-  ).rows.map((r) => r.zona as string);
+    await c.query(`SELECT unidade FROM public._vez_unica_unidades('sdr') ORDER BY ordem`)
+  ).rows.map((r) => r.unidade as string);
 }
 
 /** O contexto da última decisão de sucesso de um lead. */
@@ -261,7 +271,8 @@ async function contexto(leadId: string): Promise<Record<string, unknown>> {
  * anteriores ao começo desta semana), para ela ficar a mais movimentada. É o
  * volume TOTAL que ordena as zonas, e a janela é congelada por semana: as
  * entregas que a própria prova faz (desta semana) não contam. Cada cenário
- * seeda o movimento que quer.
+ * seeda o movimento que quer. Conta para a ordem do SDR (zona do contexto);
+ * pela roleta do SDR, não mexe na ordem das filiais.
  */
 async function movimentar(zona: string, n: number) {
   await comoSuperuser(c);
@@ -271,14 +282,33 @@ async function movimentar(zona: string, n: number) {
     const r = await c.query(
       `INSERT INTO public.distribution_log
          (lead_id, corretor_id, tipo, motivo, roleta_slug, regra_aplicada, resultado, created_at)
-       VALUES ($1, $2, 'automatica', 'teste vez única', $3, 'rodizio_menos_recente', 'sucesso',
+       VALUES ($1, $2, 'automatica', 'teste vez única', 'agendados-sdr', 'roleta_sdr', 'sucesso',
                now() - interval '8 days')
        RETURNING id`,
-      [id, ana.id, `zona-${zona.toLowerCase()}`],
+      [id, ana.id],
     );
     await c.query(
       `INSERT INTO public.distribuicao_log_contexto (log_id, contexto) VALUES ($1, $2::jsonb)`,
       [r.rows[0].id, JSON.stringify({ zona, teste: "vez única" })],
+    );
+  }
+}
+
+/**
+ * Leads entregues pela roleta de filial na semana passada: a ordem das
+ * filiais é por roleta (sem contexto de zona, não mexe na ordem do SDR).
+ */
+async function movimentarFilial(slug: string, n: number) {
+  await comoSuperuser(c);
+  for (let i = 0; i < n; i++) {
+    const id = await criarLead(c, { telefone: novoTelefone() });
+    await comoSuperuser(c);
+    await c.query(
+      `INSERT INTO public.distribution_log
+         (lead_id, corretor_id, tipo, motivo, roleta_slug, regra_aplicada, resultado, created_at)
+       VALUES ($1, $2, 'automatica', 'teste vez única', $3, 'rodizio_menos_recente', 'sucesso',
+               now() - interval '8 days')`,
+      [id, ana.id, slug],
     );
   }
 }
@@ -331,7 +361,7 @@ beforeAll(async () => {
       `119666600${String(i).padStart(2, "0")}`,
     ]);
   }
-  // A ordem de inclusão nas roletas de zona é a do rodízio: Igor primeiro.
+  // A ordem de inclusão nas roletas de filial é a do rodízio: Igor primeiro.
   await darRegiao(c, igor.id, ["Sul", "Leste"]);
   await darRegiao(c, ana.id, ["Sul"]);
   await darRegiao(c, gra.id, ["Leste"]);
@@ -519,59 +549,62 @@ describe("Agendados do SDR", () => {
   });
 });
 
-describe("roletas de zona", () => {
-  it("o 1º de duas roletas de zona fica com a mais movimentada; na outra a vez passa — e o motor segue", async () => {
+describe("roletas de filial", () => {
+  // Unidade = roleta de filial (decisão do dono, 12/10/2026): o Igor está na
+  // Barra Funda (Sul) e na Liberdade (Centro); a vez dele fica com a filial
+  // mais movimentada.
+  it("o 1º de duas roletas de filial fica com a mais movimentada; na outra a vez passa — e o motor segue", async () => {
     await zerarCursores();
-    // O Sul volta a ser a zona mais movimentada: Igor fica com o Sul.
-    await movimentar("Sul", 8);
-    const sul = roleta(await filas("Sul"), "zona-sul");
-    expect(sul.vez_unica).toBe(true);
-    expect(ids(sul.fila)).toEqual([igor.id, ana.id]);
-    const leste = roleta(await filas("Leste"), "zona-leste");
-    expect(ids(leste.fila)).toEqual([gra.id]);
-    expect(leste.fora).toEqual([
+    // A Barra Funda é a mais movimentada: Igor fica com ela.
+    await movimentarFilial("filial-barra-funda", 8);
+    const bf = roleta(await filas("Sul"), "filial-barra-funda");
+    expect(bf.vez_unica).toBe(true);
+    expect(ids(bf.fila)).toEqual([igor.id, ana.id]);
+    const lib = roleta(await filas("Centro"), "filial-liberdade");
+    expect(ids(lib.fila)).toEqual([gra.id]);
+    expect(lib.fora).toEqual([
       expect.objectContaining({
         corretor_id: igor.id,
         motivos: ["vez_em_outra_zona"],
-        vez_em: "Sul",
+        vez_em: "Barra Funda",
       }),
     ]);
-    expect((await minhas(igor)).find((x) => x.slug === "zona-leste")).toMatchObject({
+    expect((await minhas(igor)).find((x) => x.slug === "filial-liberdade")).toMatchObject({
       apto: false,
       posicao: null,
-      vez_em: "Sul",
+      vez_em: "Barra Funda",
     });
 
-    const l = await leadDaZona("Leste");
+    const l = await leadDaZona("Centro");
     expect(l.corretor_id).toBe(gra.id);
     expect(await contexto(l.lead_id)).toMatchObject({
       vez_unica: true,
-      vez_em_outra_zona: [{ corretor_id: igor.id, vez_em: "Sul" }],
+      vez_em_outra_zona: [{ corretor_id: igor.id, vez_em: "Barra Funda" }],
     });
     expect((await leadDaZona("Sul")).corretor_id).toBe(igor.id);
 
-    // Agora o Leste é a zona mais movimentada: com os cursores zerados, Igor
-    // fica com o Leste e o Sul passa para a Ana.
+    // Agora a Liberdade é a mais movimentada: com os cursores zerados, Igor
+    // fica com a Liberdade e a Barra Funda passa para a Ana.
     await zerarCursores();
-    await movimentar("Leste", 12);
-    expect(ids(roleta(await filas("Leste"), "zona-leste").fila)).toEqual([igor.id, gra.id]);
-    expect(ids(roleta(await filas("Sul"), "zona-sul").fila)).toEqual([ana.id]);
+    await movimentarFilial("filial-liberdade", 12);
+    expect(ids(roleta(await filas("Centro"), "filial-liberdade").fila)).toEqual([igor.id, gra.id]);
+    expect(ids(roleta(await filas("Sul"), "filial-barra-funda").fila)).toEqual([ana.id]);
     expect((await leadDaZona("Sul")).corretor_id).toBe(ana.id);
   });
 
-  it("dois leads da zona ao mesmo tempo: o rodízio espera o outro, e a vez única não deixa a fila vazia", async () => {
-    // Sul mais movimentado: Igor é o 1º no Sul; no Leste a fila é só a Gra.
-    // Sem o lock por roleta, o SKIP LOCKED do 2º lead pulava a Gra (presa
-    // pelo 1º) e, com o Igor fora pela vez, não achava ninguém: o lead ficava
-    // preso por um ciclo do cron.
+  it("dois leads da mesma roleta ao mesmo tempo: o rodízio espera o outro, e a vez única não deixa a fila vazia", async () => {
+    // Barra Funda mais movimentada: Igor é o 1º lá; na Liberdade a fila é só
+    // a Gra. Sem o lock por roleta, o SKIP LOCKED do 2º lead pulava a Gra
+    // (presa pelo 1º) e, com o Igor fora pela vez, não achava ninguém: o lead
+    // ficava preso por um ciclo do cron.
     await zerarCursores();
-    await movimentar("Sul", 10);
-    const leste = roleta(await filas("Leste"), "zona-leste");
-    expect(ids(leste.fila)).toEqual([gra.id]);
-    expect(ids(leste.fora)).toEqual([igor.id]);
+    await movimentarFilial("filial-barra-funda", 10);
+    const lib = roleta(await filas("Centro"), "filial-liberdade");
+    expect(ids(lib.fila)).toEqual([gra.id]);
+    expect(ids(lib.fora)).toEqual([igor.id]);
 
-    const l1 = await novoLeadDaZona("Leste");
-    const l2 = await novoLeadDaZona("Leste");
+    const l1 = await novoLeadDaZona("Centro");
+    const l2 = await novoLeadDaZona("Centro");
     const { ra, rb, bAntesDoCommit } = await corrida(l1, l2);
     expect(bAntesDoCommit).toBe("esperando");
     expect(ra.corretor_id).toBe(gra.id);
@@ -591,14 +624,14 @@ describe("roletas de zona", () => {
 
   it("redistribuição: quem já teve o lead sai antes da vez única; se sobrar só o tomado, forçado", async () => {
     await zerarCursores();
-    await movimentar("Sul", 30);
-    const leste = roleta(await filas("Leste"), "zona-leste");
-    expect(ids(leste.fila)).toEqual([gra.id]);
-    expect(ids(leste.fora)).toEqual([igor.id]);
+    await movimentarFilial("filial-barra-funda", 30);
+    const lib = roleta(await filas("Centro"), "filial-liberdade");
+    expect(ids(lib.fila)).toEqual([gra.id]);
+    expect(ids(lib.fora)).toEqual([igor.id]);
 
-    // A Gra já teve o lead: sobra só o Igor, que está com a vez no Sul — a
-    // regra não segura o lead: forçado, e ninguém listado como fora.
-    const l = await leadDaZona("Leste", [gra.id]);
+    // A Gra já teve o lead: sobra só o Igor, que está com a vez na Barra
+    // Funda — a regra não segura o lead: forçado, e ninguém listado como fora.
+    const l = await leadDaZona("Centro", [gra.id]);
     expect(l.corretor_id).toBe(igor.id);
     expect(await contexto(l.lead_id)).toMatchObject({
       vez_unica: true,

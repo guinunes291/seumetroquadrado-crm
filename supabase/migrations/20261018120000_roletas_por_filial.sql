@@ -145,6 +145,24 @@ AS $$
   SELECT EXISTS (SELECT 1 FROM public.zonas_roletas zr WHERE zr.zona = _zona AND zr.roleta_slug = _slug)
 $$;
 
+-- A roleta pode receber ESTE lead: ativa e com alguém apto que ainda não o
+-- teve. "Pronta" (_roleta_pronta, telas e roleta_da_zona) não conhece o lead;
+-- o motor escolhe a filial por esta, senão o repasse por SLA esperava na
+-- filial em que só o dono que estourou está apto, com a outra filial da zona
+-- pronta (o pino e a da vez são tentados primeiro, depois as outras).
+CREATE OR REPLACE FUNCTION public._roleta_pronta_para_lead(_slug text, _tentaram uuid[])
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT COALESCE((SELECT r.ativo FROM public.roletas r WHERE r.slug = _slug), false)
+     AND EXISTS (
+       SELECT 1 FROM public._elegibilidade_roleta(_slug) e
+        WHERE e.apto AND NOT (e.corretor_id = ANY (COALESCE(_tentaram, ARRAY[]::uuid[]))))
+$$;
+
 -- ---------------------------------------------------------------------------
 -- 4) Região de atuação (aba Corretores) por roleta inteira. Mesma assinatura
 --    de 20261009120000: _zonas são as zonas desejadas, que agora têm de ser a
@@ -813,6 +831,7 @@ DECLARE
   -- [ZONA]
   _estrita boolean := public._zona_estrita();
   _zslug_lead text;
+  _zslug_pronta text;
   _roleta_pedida text;
   _fora_regiao jsonb := '[]'::jsonb;
   _motivo_fora text;
@@ -866,15 +885,21 @@ BEGIN
   IF _zona IS NOT NULL THEN
     -- [FILIAL] (0079) A zona pode ter mais de uma roleta (Leste: Liberdade e
     -- Belém). Pino válido do lead (memória do repasse: fica no mesmo time)
-    -- e pronto → ele; senão a roleta da vez pelo rodízio entre as filiais da
-    -- zona (_roletas_da_zona), que pula quem não tem ninguém apto; nenhuma
-    -- pronta → o pino, ou a primeira da ordem (o lead espera lá, nunca troca
-    -- de zona).
+    -- e pronto PARA ESTE LEAD → ele; senão a primeira do rodízio entre as
+    -- filiais da zona (_roletas_da_zona) com alguém apto que ainda não teve
+    -- o lead (_roleta_pronta_para_lead); nenhuma → o pino, ou a da vez, ou a
+    -- primeira da ordem (o lead espera lá, nunca troca de zona).
+    SELECT x.roleta_slug INTO _zslug_pronta
+      FROM public._roletas_da_zona(_zona) x
+     WHERE x.pronta AND public._roleta_pronta_para_lead(x.roleta_slug, _tentaram)
+     ORDER BY x.ordem
+     LIMIT 1;
     IF _roleta_slug IS NOT NULL AND public._roleta_atende_zona(_roleta_slug, _zona)
-       AND (public._roleta_pronta(_roleta_slug) OR public.roleta_da_zona(_zona) IS NULL) THEN
+       AND (public._roleta_pronta_para_lead(_roleta_slug, _tentaram) OR _zslug_pronta IS NULL) THEN
       _zslug_lead := _roleta_slug;
     ELSE
       _zslug_lead := COALESCE(
+        _zslug_pronta,
         public.roleta_da_zona(_zona),
         (SELECT x.roleta_slug FROM public._roletas_da_zona(_zona) x ORDER BY x.ordem LIMIT 1));
     END IF;
@@ -2865,6 +2890,8 @@ REVOKE ALL ON FUNCTION public._roletas_da_zona(text) FROM PUBLIC, anon, authenti
 GRANT EXECUTE ON FUNCTION public._roletas_da_zona(text) TO service_role;
 REVOKE ALL ON FUNCTION public._roleta_atende_zona(text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public._roleta_atende_zona(text, text) TO service_role;
+REVOKE ALL ON FUNCTION public._roleta_pronta_para_lead(text, uuid[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._roleta_pronta_para_lead(text, uuid[]) TO service_role;
 REVOKE ALL ON FUNCTION public._filial_unir_participantes(text, text[], text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public._filial_unir_participantes(text, text[], text) TO service_role;
 REVOKE ALL ON FUNCTION public._vez_unica_unidades(text) FROM PUBLIC, anon, authenticated;
@@ -2932,7 +2959,8 @@ BEGIN
      OR to_regprocedure('public._roleta_fila_prevista(text, text, text, jsonb, jsonb)') IS NULL
      OR to_regprocedure('public._vez_unica_zonas_ordem()') IS NOT NULL
      OR to_regprocedure('public._vez_unica_unidades(text)') IS NULL
-     OR to_regprocedure('public._roletas_da_zona(text)') IS NULL THEN
+     OR to_regprocedure('public._roletas_da_zona(text)') IS NULL
+     OR to_regprocedure('public._roleta_pronta_para_lead(text, uuid[])') IS NULL THEN
     RAISE EXCEPTION 'roletas por filial: função ausente ou assinatura antiga ainda no lugar';
   END IF;
   IF to_regprocedure('public.criar_roleta_campanha(text, text, uuid, boolean)') IS NOT NULL
@@ -2956,6 +2984,7 @@ BEGIN
     SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = '_distribuir_lead_v3'
        AND p.prosrc LIKE '%_roleta_atende_zona(%' AND p.prosrc LIKE '%zonas_roletas SET ultimo_lead_em%'
+       AND p.prosrc LIKE '%_roleta_pronta_para_lead(%'
   ) OR NOT EXISTS (
     SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = '_distribuir_lead_sdr'

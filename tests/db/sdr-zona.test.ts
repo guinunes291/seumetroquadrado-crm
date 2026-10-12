@@ -30,8 +30,8 @@ import {
 const c = novoClient();
 let admin: UsuarioTeste;
 let sdr: UsuarioTeste;
-let ana: UsuarioTeste; // atende Leste
-let bia: UsuarioTeste; // atende Sul, na frente do rodízio
+let ana: UsuarioTeste; // atende Leste (Liberdade e Belém: Centro, Leste, Grande SP)
+let bia: UsuarioTeste; // atende Sul (Barra Funda: Norte, Sul, Oeste), na frente do rodízio
 let roletaId: string;
 let zonaEstritaAntes: unknown;
 
@@ -223,18 +223,35 @@ describe("agendar visita: a zona é obrigatória", () => {
   });
 
   it("ninguém da zona na roleta de agendados: vai ao time da zona, nunca a outra zona", async () => {
-    // Centro: ninguém dos agendados atende; o time da zona (roleta zona-centro)
-    // também está vazio → o SDR recebe o motivo e o lead fica na base. A RPC
-    // falha inteira: nem a zona escolhida fica (o SDR escolhe de novo).
-    const id = await leadDoSdr();
-    const e = await agendar(id, "Centro").then(
-      () => null,
-      (err: { code?: string; message: string }) => err,
+    // Centro: ninguém dos agendados atende; o time da zona (a filial
+    // Liberdade) também está vazio → o SDR recebe o motivo e o lead fica na
+    // base. A RPC falha inteira: nem a zona escolhida fica (o SDR escolhe de
+    // novo). Desde as roletas por filial a Ana (Leste) está na Liberdade e
+    // atende o Centro: a participação dela lá sai só neste teste.
+    await comoSuperuser(c);
+    const fora = await c.query(
+      `UPDATE public.roleta_participantes rp SET ativo = false
+         FROM public.roletas r
+        WHERE r.id = rp.roleta_id AND r.slug = 'filial-liberdade' AND rp.ativo
+        RETURNING rp.id`,
     );
-    expect(e?.code).toBe("22023");
-    expect(e?.message).toMatch(/nenhum corretor apto/);
-    expect(e?.message).toMatch(/sem_corretor_na_zona/);
-    expect(await estado(id)).toMatchObject({ zona: null, corretor_id: null, agendamentos: 0 });
+    try {
+      const id = await leadDoSdr();
+      const e = await agendar(id, "Centro").then(
+        () => null,
+        (err: { code?: string; message: string }) => err,
+      );
+      expect(e?.code).toBe("22023");
+      expect(e?.message).toMatch(/nenhum corretor apto/);
+      expect(e?.message).toMatch(/sem_corretor_na_zona/);
+      expect(await estado(id)).toMatchObject({ zona: null, corretor_id: null, agendamentos: 0 });
+    } finally {
+      await comoSuperuser(c);
+      await c.query(
+        `UPDATE public.roleta_participantes SET ativo = true WHERE id = ANY($1::uuid[])`,
+        [fora.rows.map((r) => r.id as string)],
+      );
+    }
   });
 });
 

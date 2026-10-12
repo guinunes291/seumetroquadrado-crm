@@ -36,7 +36,9 @@ let ana: UsuarioTeste; // na roleta agendados-sdr
 let bruno: UsuarioTeste; // dono de leads que o SDR puxa (fora da roleta do SDR)
 let roletaId: string;
 
-// Atende tudo menos "Grande SP": uma passagem para lá não tem corretor apto.
+// Desde as roletas por filial (20261018120000) a Leste traz a Belém, que
+// também atende a Grande SP: o time cobre as seis zonas. A zona sem ninguém
+// apto é montada no próprio teste (a Belém sem participante).
 const ZONAS_DO_TIME = ["Norte", "Sul", "Leste", "Oeste", "Centro"] as const;
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -251,9 +253,25 @@ describe("passagem do discador (sdr_passar_cliente)", () => {
   });
 
   it("sem corretor apto na zona: erro e o cadastro também volta atrás", async () => {
-    const p = payload({ zona: "Grande SP" });
-    expect(await errCode(passar(sdr, p))).toBe("22023");
-    expect(await leadPorTelefone(p.telefone as string)).toEqual([]);
+    // Grande SP só pela Belém: sem ninguém nela, a zona fica sem corretor apto.
+    await comoSuperuser(c);
+    const fora = await c.query(
+      `UPDATE public.roleta_participantes rp SET ativo = false
+         FROM public.roletas r
+        WHERE r.id = rp.roleta_id AND r.slug = 'filial-belem' AND rp.ativo
+        RETURNING rp.id`,
+    );
+    try {
+      const p = payload({ zona: "Grande SP" });
+      expect(await errCode(passar(sdr, p))).toBe("22023");
+      expect(await leadPorTelefone(p.telefone as string)).toEqual([]);
+    } finally {
+      await comoSuperuser(c);
+      await c.query(
+        `UPDATE public.roleta_participantes SET ativo = true WHERE id = ANY($1::uuid[])`,
+        [fora.rows.map((r) => r.id as string)],
+      );
+    }
   });
 
   it("documentação: o lead fica na base do SDR, em atendimento e sem corretor", async () => {

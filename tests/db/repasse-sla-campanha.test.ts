@@ -9,6 +9,9 @@
  *
  * Elenco: Ana (Sul) e Bia (Sul) na campanha comum `jardim-bf`; Ana e Caio
  * (Leste) na campanha de equipe fixa `equipe-guilherme`. Todos presentes.
+ * Desde as roletas por filial (20261018120000) o time da zona é a filial:
+ * Ana e Bia na Barra Funda (Oeste, Norte, Sul); Caio na Liberdade e na Belém
+ * (Centro, Leste, Grande SP).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -235,15 +238,22 @@ describe("cron de leads parados", () => {
 });
 
 describe("repasse respeita a zona estrita", () => {
-  it("equipe fixa com lead da Leste: só quem da equipe atende a Leste", async () => {
+  it("equipe fixa com lead da Leste: o repasse fica na equipe, de qualquer zona", async () => {
+    // Decisão do dono (12/10/2026): na campanha de equipe fixa a campanha
+    // manda — o repasse vai para quem está na equipe, mesmo que não atenda a
+    // zona (a Ana é da Barra Funda; a guarda de região libera o participante).
     const id = await leadDeCampanha({
       nome: "Leste da equipe",
       campanha: "equipe-guilherme",
-      dono: ana,
+      dono: caio,
       zona: "Leste",
     });
-    expect(await disparar(id, ana)).toBe(true);
-    expect((await lead(id)).corretor_id).toBe(caio.id);
+    expect(await disparar(id, caio)).toBe(true);
+    expect(await lead(id)).toMatchObject({
+      corretor_id: ana.id,
+      corretor_anterior_id: caio.id,
+      roleta_slug: "equipe-guilherme",
+    });
   });
 
   it("campanha comum com lead da Leste: vai para o time da zona (motor)", async () => {
@@ -254,7 +264,8 @@ describe("repasse respeita a zona estrita", () => {
       zona: "Leste",
     });
     expect(await disparar(id, ana)).toBe(true);
-    expect(await lead(id)).toMatchObject({ corretor_id: caio.id, roleta_slug: "zona-leste" });
+    // Rodízio zerado: a Liberdade é a filial da vez da Leste (empate pela ordem).
+    expect(await lead(id)).toMatchObject({ corretor_id: caio.id, roleta_slug: "filial-liberdade" });
   });
 
   it("campanha desligada: o repasse cai na triagem normal em vez de travar", async () => {
@@ -268,7 +279,10 @@ describe("repasse respeita a zona estrita", () => {
         zona: "Sul",
       });
       expect(await disparar(id, ana)).toBe(true);
-      expect(await lead(id)).toMatchObject({ corretor_id: bia.id, roleta_slug: "zona-sul" });
+      expect(await lead(id)).toMatchObject({
+        corretor_id: bia.id,
+        roleta_slug: "filial-barra-funda",
+      });
     } finally {
       await comoSuperuser(c);
       await c.query(`UPDATE public.roletas SET ativo = true WHERE slug = 'jardim-bf'`);
