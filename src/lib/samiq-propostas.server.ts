@@ -10,11 +10,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { displayNameForSamiQ } from "@/lib/samiq-governance";
 import {
+  INSTRUCAO_CLIENTE_AMBIGUO,
+  avaliarDesambiguacao,
+  candidatosParaPergunta,
+  filtrarHomonimos,
+  primeiroNomeNormalizado,
+  type ClienteParaDesambiguar,
+} from "@/lib/samiq-homonimos";
+import { escapeLike } from "@/lib/validators";
+import {
   AgendarVisitaPayload,
   AnotarPayload,
-  AtualizarQualificacaoPayload,
+  AtualizarQualificacaoInput,
   CriarTarefaPayload,
-  MudarEtapaPayload,
+  MudarEtapaInput,
   RegistrarContatoPayload,
   descreverProposta,
   type PropostaPayload,
@@ -46,26 +55,102 @@ const DESCRICOES = {
     "Prepara a mudança de etapa do funil do cliente (em atendimento, aguardando retorno, qualificação, qualificado, proposta enviada, perdido). Ao perder, exige motivo e categoria. Não grava: o corretor confirma no card.",
 } as const;
 
-async function resolverLead(
-  supabase: Db,
-  leadId: string,
-): Promise<{ id: string; nome: string | null; status: string } | null> {
+type LeadResolvido = {
+  id: string;
+  nome: string | null;
+  status: string;
+  bruto: ClienteParaDesambiguar;
+};
+
+async function resolverLead(supabase: Db, leadId: string): Promise<LeadResolvido | null> {
   const { data, error } = await supabase
     .from("leads")
-    .select("id, nome, status")
+    .select("id, nome, status, projeto_nome, telefone, telefone_e164")
     .eq("id", leadId)
     .is("deleted_at", null)
     .maybeSingle();
   if (error || !data) return null;
-  return { id: data.id, nome: displayNameForSamiQ(data.nome), status: data.status };
+  return {
+    id: data.id,
+    nome: displayNameForSamiQ(data.nome),
+    status: data.status,
+    bruto: {
+      id: data.id,
+      nome: data.nome,
+      projeto_nome: data.projeto_nome,
+      status: data.status,
+      telefone: data.telefone,
+      telefone_e164: data.telefone_e164,
+    },
+  };
+}
+
+/**
+ * Outros clientes da carteira (RLS do corretor) com o mesmo primeiro nome.
+ * Falha de consulta devolve null: quem chama trata como "não deu para checar"
+ * e bloqueia, porque propor no cliente errado é pior do que perguntar.
+ */
+async function buscarHomonimos(
+  supabase: Db,
+  alvo: ClienteParaDesambiguar,
+): Promise<ClienteParaDesambiguar[] | null> {
+  const primeiro = primeiroNomeNormalizado(alvo.nome);
+  if (!primeiro) return [];
+  const original = (alvo.nome ?? "").trim().split(/\s+/)[0] ?? "";
+  const { data, error } = await supabase
+    .from("leads")
+    .select("id, nome, status, projeto_nome, telefone, telefone_e164")
+    .is("deleted_at", null)
+    .eq("na_lixeira", false)
+    .neq("id", alvo.id)
+    .ilike("nome", `${escapeLike(original)}%`)
+    .limit(30);
+  if (error) return null;
+  return filtrarHomonimos(alvo, (data ?? []) as ClienteParaDesambiguar[]);
 }
 
 export function criarFerramentasDePropostaSamiQ(args: {
   supabase: Db;
   userId: string;
   coletor: PropostaColetada[];
+  /**
+   * Texto CRU do corretor neste turno (e turnos anteriores dele), usado só
+   * aqui no servidor para a trava de homônimos. Nunca vai ao modelo.
+   */
+  textoDoCorretor?: string;
+  /** Cliente já escolhido na tela (ex.: Sami aberta no dossiê): sem trava. */
+  leadIdEmContexto?: string;
 }): ToolSet {
   const { supabase, coletor } = args;
+  const textoDoCorretor = args.textoDoCorretor ?? "";
+  // Uma checagem por cliente por turno: o pacote costuma ter 2-3 propostas
+  // do mesmo cliente e todas têm a mesma resposta.
+  const desambiguados = new Map<string, Record<string, unknown> | null>();
+
+  const travaDeHomonimos = async (lead: LeadResolvido): Promise<Record<string, unknown> | null> => {
+    if (args.leadIdEmContexto && args.leadIdEmContexto === lead.id) return null;
+    if (desambiguados.has(lead.id)) return desambiguados.get(lead.id) ?? null;
+    const homonimos = await buscarHomonimos(supabase, lead.bruto);
+    let bloqueio: Record<string, unknown> | null = null;
+    if (homonimos === null) {
+      bloqueio = {
+        erro: "cliente_ambiguo",
+        detalhe:
+          "Não consegui confirmar se há outro cliente com esse nome. Confirme com o corretor o nome completo ou o empreendimento antes de propor.",
+      };
+    } else {
+      const r = avaliarDesambiguacao({ alvo: lead.bruto, homonimos, texto: textoDoCorretor });
+      if (!r.ok) {
+        bloqueio = {
+          erro: "cliente_ambiguo",
+          detalhe: INSTRUCAO_CLIENTE_AMBIGUO,
+          candidatos: candidatosParaPergunta([lead.bruto, ...homonimos], displayNameForSamiQ),
+        };
+      }
+    }
+    desambiguados.set(lead.id, bloqueio);
+    return bloqueio;
+  };
 
   const empilhar = async (payload: PropostaPayload) => {
     if (coletor.length >= SAMIQ_MAX_PROPOSTAS_POR_TURNO) {
@@ -81,6 +166,8 @@ export function criarFerramentasDePropostaSamiQ(args: {
           detalhe: "esse id não está na carteira do corretor; use buscar_clientes",
         };
       }
+      const bloqueio = await travaDeHomonimos(lead);
+      if (bloqueio) return bloqueio;
       leadNome = lead.nome;
       leadId = lead.id;
       if (payload.tipo === "mudar_etapa" && lead.status === payload.novoStatus) {
@@ -116,7 +203,7 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }),
     propor_qualificacao: tool({
       description: DESCRICOES.propor_qualificacao,
-      inputSchema: AtualizarQualificacaoPayload.omit({ tipo: true }),
+      inputSchema: AtualizarQualificacaoInput,
       execute: (input) => empilhar({ tipo: "atualizar_qualificacao", ...input }),
     }),
     propor_visita: tool({
@@ -126,7 +213,7 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }),
     propor_etapa: tool({
       description: DESCRICOES.propor_etapa,
-      inputSchema: MudarEtapaPayload.omit({ tipo: true }),
+      inputSchema: MudarEtapaInput,
       execute: (input) => empilhar({ tipo: "mudar_etapa", ...input }),
     }),
   };
