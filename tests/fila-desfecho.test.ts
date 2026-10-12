@@ -60,6 +60,7 @@ describe("desfechoPara — a matriz do mockup", () => {
       "credito_aprovado",
       "aguardando_caixa",
       "credito_reprovado",
+      "mandei_mensagem",
       "nao_atendeu",
       "perdeu",
     ]);
@@ -105,7 +106,7 @@ describe("desfechoPara — a matriz do mockup", () => {
 
   it("follow-up genérico: avançar usa a ação sugerida da etapa; 'pediu retorno' muda a etapa", () => {
     const d = desfechoPara(item({ status: "em_atendimento", bucket: "followup" }));
-    expect(ids(d)).toEqual(["avancar", "pediu_retorno", "objecao", "nao_atendeu", "perdeu"]);
+    expect(ids(d)).toEqual(["avancar", "pediu_retorno", "objecao", "mandei_mensagem", "nao_atendeu", "perdeu"]);
     expect(d.opcoes[0].proximo?.titulo).toBe("Agendar visita");
     expect(d.opcoes[1].etapa).toEqual({ kind: "direct", status: "aguardando_retorno" });
     expect(d.opcoes[2].pedeTexto).toBe("objecao");
@@ -116,15 +117,15 @@ describe("desfechoPara — a matriz do mockup", () => {
     // análise de crédito tem matriz própria mesmo vindo da pasta.
     expect(ids(d)[0]).toBe("credito_aprovado");
     const docs = desfechoPara(item({ status: "em_atendimento", bucket: "docs" }));
-    expect(ids(docs)).toEqual(["cliente_envia", "recebi", "nao_atendeu", "perdeu"]);
+    expect(ids(docs)).toEqual(["cliente_envia", "recebi", "mandei_mensagem", "nao_atendeu", "perdeu"]);
     expect(docs.opcoes.filter((o) => o.etapa && o.etapa.kind !== "perdido")).toHaveLength(0);
   });
 
   it("toda resposta que grava tem título no vocabulário da timeline", () => {
     const d = desfechoPara(item({ status: "visita_realizada" }));
     expect(tituloDaInteracao(d.opcoes[0])).toBe("Contato — interessado");
-    expect(tituloDaInteracao(d.opcoes[2])).toBe("Contato — não atendeu");
-    expect(rotuloDaEtapa(d.opcoes[3])).toBe("etapa → Perdido");
+    expect(tituloDaInteracao(d.opcoes[3])).toBe("Contato — não atendeu");
+    expect(rotuloDaEtapa(d.opcoes[4])).toBe("etapa → Perdido");
     expect(rotuloDaEtapa(d.opcoes[0])).toBeNull();
   });
 });
@@ -152,7 +153,7 @@ describe("o próximo passo com data", () => {
   it("a linha do próximo passo junta título e prazo; modal e perda dizem o que abrem", () => {
     const d = desfechoPara(item({ status: "analise_credito" }));
     expect(descreverProximo(d.opcoes[1], agora)).toMatch(/^cobrar o correspondente · /);
-    expect(descreverProximo(d.opcoes[4], agora)).toBe("perda com motivo");
+    expect(descreverProximo(d.opcoes[5], agora)).toBe("perda com motivo");
     const ag = desfechoPara(item({ status: "agendado" }));
     expect(descreverProximo(ag.opcoes[0], agora)).toBe("abrir visita realizada");
   });
