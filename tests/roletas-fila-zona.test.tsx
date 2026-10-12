@@ -558,7 +558,7 @@ describe("FilaZonaCard (SDR e gestão)", () => {
     montar(<FilaZonaCard />);
     const card = screen.getByRole("region", { name: "Roleta" });
     await waitFor(() =>
-      expect(card.textContent).toContain("Ninguém do time do SDR atende a Grande SP"),
+      expect(card.textContent).toContain("Ninguém do time do SDR atende esta zona"),
     );
     expect(card.textContent).toContain("a visita vai para a filial da vez (Roleta Belém)");
     expect(within(card).getAllByTestId("fila-pessoa")[0].textContent).toContain("Gil Prado");

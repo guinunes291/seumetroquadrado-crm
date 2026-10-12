@@ -282,11 +282,15 @@ function ResolverExcecaoDialog({
                   <SelectValue placeholder="Selecione a roleta" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ROLETA_LABEL).map(([slug, label]) => (
-                    <SelectItem key={slug} value={slug}>
-                      {label}
-                    </SelectItem>
-                  ))}
+                  {/* As zona-* (antigas) estão desligadas desde as roletas por
+                      filial (12/10/2026): mandar lead para elas só gera outra exceção. */}
+                  {Object.entries(ROLETA_LABEL)
+                    .filter(([slug]) => !slug.startsWith("zona-"))
+                    .map(([slug, label]) => (
+                      <SelectItem key={slug} value={slug}>
+                        {label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

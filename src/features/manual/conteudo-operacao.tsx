@@ -326,10 +326,11 @@ export function ConteudoOperacao() {
             de equipe fixa manda: quem está na equipe recebe, de qualquer zona.
           </p>
           <p>
-            <strong>A vez é uma só.</strong> Quem está em duas filas não fica em 1º nas duas ao
-            mesmo tempo: fica com a mais movimentada e, na outra, aparece como “vez no Sul” ou “vez
-            na Belém” até receber. Vale por zona nos Agendados do SDR e por filial nas roletas de
-            filial; a chave está na Central de Distribuição, em Configurações.
+            <strong>A vez é uma só.</strong> Quem está em duas filiais não fica em 1º nas duas ao
+            mesmo tempo (e, nos Agendados do SDR, em duas zonas): fica com a mais movimentada e, na
+            outra, aparece como “vez na Belém” ou “vez no Sul” até receber. As duas contas são
+            separadas — dá para ser o 1º no SDR e numa filial ao mesmo tempo. A chave está na
+            Central de Distribuição, em Configurações.
           </p>
           <Aviso>
             A fila é a ordem se os próximos clientes forem daquela zona. Quem tem visita no horário

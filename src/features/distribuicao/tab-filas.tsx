@@ -67,7 +67,7 @@ const ORDEM_SISTEMA = ["plantao", "marquinhos", "landing", "base"];
 
 const DESCRICAO_GRUPO: Record<Grupo, string> = {
   filiais:
-    "Time fixo da filial; recebe os leads das zonas que ela atende, de qualquer origem. Filial sem corretor apto não trava lead: ele espera lá (nunca vai para outra zona).",
+    "Time fixo da filial; recebe os leads das zonas que ela atende, de qualquer origem. Sem corretor apto, o lead da Leste vai para a outra filial que a atende; o das outras zonas espera aqui (nunca vai para outra zona).",
   sistema:
     "Plantão, Marquinhos e Landing são o fallback de quem não tem zona resolvida. A Base é a esteira universal do modelo v2: rodízio puro para todos os aptos.",
   campanhas:

@@ -38,12 +38,26 @@
 --     Agendados do SDR (a visita tem zona), ROLETA nas filiais (a fila da
 --     filial é uma só para todas as zonas dela).
 --
--- O que NÃO muda: zona do lead, zona estrita, corretor_atende_zona, a
--- guarda de região, presença, Marquinhos, campanhas, Bolsão, lote, discador,
--- webhooks e edge functions.
+-- O que NÃO muda: zona do lead, zona estrita, corretor_atende_zona,
+-- presença, Marquinhos, webhooks e edge functions. Mudam por decisão do dono
+-- (12/10): as campanhas de equipe fixa (sem corte por zona) e a guarda de
+-- região (libera participante de campanha de equipe fixa); e muda o alcance
+-- do que usa a região (Bolsão, lote, discador): a união das zonas das
+-- filiais do corretor.
 --
 -- Idempotente. Espelhada em drizzle/migrations/0079.
 -- =============================================================================
+
+-- A 0079 recria os motores com o bloco da vez única: sem a 0078 aplicada,
+-- a distribuição pararia (_vez_unica_ativa() inexistente). Ordem: 0078,
+-- depois 0079, no mesmo turno.
+DO $$
+BEGIN
+  IF to_regprocedure('public._vez_unica_ativa()') IS NULL THEN
+    RAISE EXCEPTION 'roletas por filial: aplique antes a 0078 (20261017120000_vez_unica_por_zona)';
+  END IF;
+END
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 1) Schema: zonas_roletas (zona, roleta_slug) + cursor; roletas.filial_id.
@@ -62,6 +76,14 @@ BEGIN
   END IF;
 END
 $$;
+
+-- O cursor anda a cada entrega e não pode disparar o reespelho de
+-- profiles.zonas de todo mundo (~55 ms por lead, medido no harness): só
+-- mudança do MAPA dispara o gatilho de 20261009120000.
+DROP TRIGGER IF EXISTS trg_zonas_roletas_regiao ON public.zonas_roletas;
+CREATE TRIGGER trg_zonas_roletas_regiao
+  AFTER INSERT OR DELETE OR UPDATE OF zona, roleta_slug ON public.zonas_roletas
+  FOR EACH STATEMENT EXECUTE FUNCTION public.tg_zonas_roletas_regiao();
 
 ALTER TABLE public.roletas ADD COLUMN IF NOT EXISTS filial_id uuid REFERENCES public.filiais(id);
 COMMENT ON COLUMN public.roletas.filial_id IS
@@ -111,7 +133,8 @@ AS $$
            row_number() OVER (
              ORDER BY zr.ultimo_lead_em ASC NULLS FIRST, coalesce(f.ordem, 99), zr.roleta_slug
            )::int AS ordem,
-           public._roleta_pronta(zr.roleta_slug) AS pronta
+           public._roleta_pronta(zr.roleta_slug)
+             AND NOT public._roleta_fora_do_horario(zr.roleta_slug) AS pronta
       FROM public.zonas_roletas zr
       JOIN public.roletas ro ON ro.slug = zr.roleta_slug
       LEFT JOIN public.filiais f ON f.id = ro.filial_id
@@ -174,6 +197,8 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
   SELECT COALESCE((SELECT r.ativo FROM public.roletas r WHERE r.slug = _slug), false)
+     -- Fora da janela de horário a roleta segura o lead ('adiado'): não está pronta.
+     AND NOT public._roleta_fora_do_horario(_slug)
      AND EXISTS (
        SELECT 1 FROM public._elegibilidade_roleta(_slug) e
         WHERE e.apto AND NOT (e.corretor_id = ANY (COALESCE(_tentaram, ARRAY[]::uuid[]))))
@@ -367,7 +392,13 @@ BEGIN
            max(o.pausado_ate) FILTER (WHERE o.pausado_ate > now()) AS pausado_ate,
            (array_agg(o.motivo_pausa ORDER BY o.pausado_ate DESC NULLS LAST)
               FILTER (WHERE o.pausado_ate > now()))[1] AS motivo_pausa,
-           max(o.limite_diario) AS limite_diario,
+           -- NULL = o padrão (limite_diario_default): vale como número na
+           -- comparação, senão max() o ignoraria e um limite reduzido numa
+           -- zona viraria o limite da filial inteira.
+           CASE WHEN bool_or(o.limite_diario IS NULL)
+                     AND coalesce(max(o.limite_diario), 0)
+                         <= coalesce((public.get_dist_setting('limite_diario_default') #>> '{}')::int, 10)
+                THEN NULL ELSE max(o.limite_diario) END AS limite_diario,
            coalesce((array_agg(o.tier ORDER BY o.tier_updated_at DESC NULLS LAST))[1], 'B') AS tier,
            min(o.incluido_em) AS incluido_em,
            (array_agg(o.incluido_por ORDER BY o.incluido_em ASC NULLS LAST))[1] AS incluido_por
@@ -385,7 +416,12 @@ BEGIN
       ativo = true,
       ultimo_lead_em = greatest(public.roleta_participantes.ultimo_lead_em, EXCLUDED.ultimo_lead_em),
       pausado_ate    = greatest(public.roleta_participantes.pausado_ate, EXCLUDED.pausado_ate),
-      limite_diario  = greatest(public.roleta_participantes.limite_diario, EXCLUDED.limite_diario)
+      limite_diario  = CASE
+        WHEN (public.roleta_participantes.limite_diario IS NULL OR EXCLUDED.limite_diario IS NULL)
+             AND coalesce(greatest(public.roleta_participantes.limite_diario, EXCLUDED.limite_diario), 0)
+                 <= coalesce((public.get_dist_setting('limite_diario_default') #>> '{}')::int, 10)
+        THEN NULL
+        ELSE greatest(public.roleta_participantes.limite_diario, EXCLUDED.limite_diario) END
     RETURNING corretor_id
   )
   INSERT INTO public.roleta_participantes_log (roleta_id, corretor_id, acao, motivo, feito_por)
@@ -433,6 +469,24 @@ BEGIN
     ('Leste',     'filial-belem'),
     ('Grande SP', 'filial-belem')
   ON CONFLICT (zona, roleta_slug) DO NOTHING;
+
+  -- Ninguém que estava ativo numa zona ficou fora da filial que a atende.
+  IF EXISTS (
+    SELECT 1
+      FROM public.roleta_participantes rp
+      JOIN public.roletas r ON r.id = rp.roleta_id
+      JOIN (VALUES ('zona-oeste', 'filial-barra-funda'), ('zona-norte', 'filial-barra-funda'),
+                   ('zona-sul', 'filial-barra-funda'), ('zona-centro', 'filial-liberdade'),
+                   ('zona-leste', 'filial-liberdade'), ('zona-leste', 'filial-belem'),
+                   ('zona-grande-sp', 'filial-belem')) m(antiga, nova) ON m.antiga = r.slug
+     WHERE rp.ativo
+       AND NOT EXISTS (
+         SELECT 1 FROM public.roleta_participantes rp2
+           JOIN public.roletas r2 ON r2.id = rp2.roleta_id
+          WHERE r2.slug = m.nova AND rp2.corretor_id = rp.corretor_id AND rp2.ativo)
+  ) THEN
+    RAISE EXCEPTION 'roletas por filial: participante ativo de uma zona ficou fora da filial';
+  END IF;
 
   -- As antigas: desligadas, nunca apagadas (histórico, tokens, rollback).
   UPDATE public.roletas
@@ -539,7 +593,10 @@ BEGIN
       _prioridade_recusa := 'corretor_inativo';
     ELSIF NOT public.has_role(_origem, 'corretor'::public.app_role) THEN
       _prioridade_recusa := 'corretor_sem_papel';
-    ELSIF _estrita AND NOT public.corretor_atende_zona(_origem, _zona) THEN
+    ELSIF _estrita AND NOT public.corretor_atende_zona(_origem, _zona)
+          -- [FILIAL] (0079) Dono que está na campanha de equipe fixa do lead
+          -- atende o lead de qualquer zona.
+          AND NOT public._lead_liberado_por_campanha(_lead.roleta_slug, _origem) THEN
       -- [ZONA] O dono antigo é de outra região: a visita vai para a zona.
       _prioridade_recusa := 'fora_da_regiao';
     ELSIF public._sdr_agenda_conflita(_origem, _inicio, _fim) THEN
@@ -749,8 +806,10 @@ BEGIN
   END IF;
   -- [FILIAL] (0079) A reserva também anda o cursor do par (zona, roleta).
   IF _regra = 'roleta_sdr_zona' AND _zona IS NOT NULL THEN
-    UPDATE public.zonas_roletas SET ultimo_lead_em = now()
-     WHERE zona = _zona AND roleta_slug = _slug_usado;
+    UPDATE public.zonas_roletas zr SET ultimo_lead_em = now()
+     WHERE zr.ctid = (SELECT z.ctid FROM public.zonas_roletas z
+                       WHERE z.zona = _zona AND z.roleta_slug = _slug_usado
+                       FOR UPDATE SKIP LOCKED);
   END IF;
   UPDATE public.profiles SET last_lead_assigned_at = now() WHERE id = _vencedor;
 
@@ -905,18 +964,30 @@ BEGIN
     -- filiais da zona (_roletas_da_zona) com alguém apto que ainda não teve
     -- o lead (_roleta_pronta_para_lead); nenhuma → o pino, ou a da vez, ou a
     -- primeira da ordem (o lead espera lá, nunca troca de zona).
-    -- Serializa a escolha da filial entre leads da MESMA zona, só onde a
-    -- zona tem mais de uma roleta: sem isto, dois leads da Leste ao mesmo
-    -- tempo leem o mesmo cursor e vão para a mesma filial (visto no harness,
-    -- 12/10). O segundo espera o COMMIT do primeiro e vê o cursor andado.
-    IF (SELECT count(*) FROM public.zonas_roletas zr WHERE zr.zona = _zona) > 1 THEN
-      PERFORM pg_advisory_xact_lock(hashtext('zona_filial:' || _zona));
+    -- Dois leads da mesma zona ao mesmo tempo não podem ler o mesmo cursor
+    -- e ir para a mesma filial (visto no harness, 12/10). A linha do par
+    -- (zona, roleta) escolhida fica presa até o COMMIT e o outro lead PULA
+    -- a presa (SKIP LOCKED) e vai para a outra filial — sem nunca esperar:
+    -- uma trava com espera aqui dava deadlock com o cron, que entrega em
+    -- lote numa transação só (revisão de 12/10). Todas presas: escolhe sem
+    -- trava (no pior caso, as duas na mesma filial).
+    IF _corretor_id IS NULL THEN
+      SELECT zr.roleta_slug INTO _zslug_pronta
+        FROM public.zonas_roletas zr
+        JOIN public._roletas_da_zona(_zona) x ON x.roleta_slug = zr.roleta_slug
+       WHERE zr.zona = _zona
+         AND x.pronta AND public._roleta_pronta_para_lead(x.roleta_slug, _tentaram)
+       ORDER BY x.ordem
+       LIMIT 1
+       FOR UPDATE OF zr SKIP LOCKED;
     END IF;
-    SELECT x.roleta_slug INTO _zslug_pronta
-      FROM public._roletas_da_zona(_zona) x
-     WHERE x.pronta AND public._roleta_pronta_para_lead(x.roleta_slug, _tentaram)
-     ORDER BY x.ordem
-     LIMIT 1;
+    IF _zslug_pronta IS NULL THEN
+      SELECT x.roleta_slug INTO _zslug_pronta
+        FROM public._roletas_da_zona(_zona) x
+       WHERE x.pronta AND public._roleta_pronta_para_lead(x.roleta_slug, _tentaram)
+       ORDER BY x.ordem
+       LIMIT 1;
+    END IF;
     IF _roleta_slug IS NOT NULL AND public._roleta_atende_zona(_roleta_slug, _zona)
        AND (public._roleta_pronta_para_lead(_roleta_slug, _tentaram)
             OR (_zslug_pronta IS NULL AND public._roleta_tem_time(_roleta_slug))) THEN
@@ -961,6 +1032,16 @@ BEGIN
       END IF;
     END IF;
   ELSE
+    -- [FILIAL] (0079) Pino antigo (roleta de zona desligada e fora do mapa:
+    -- as zona-*) não prende o lead sem zona (ou com a zona estrita
+    -- desligada) na roleta desligada: vale como se não houvesse pino.
+    IF _roleta_slug IS NOT NULL AND EXISTS (
+         SELECT 1 FROM public.roletas r
+          WHERE r.slug = _roleta_slug AND r.tipo = 'zona' AND NOT r.ativo
+            AND NOT EXISTS (SELECT 1 FROM public.zonas_roletas zr WHERE zr.roleta_slug = r.slug)) THEN
+      _roleta_pedida := _roleta_slug;
+      _roleta_slug := NULL;
+    END IF;
     _slug := COALESCE(_roleta_slug, public.roleta_da_zona(_zona));
     IF _slug IS NULL THEN
       _slug := public._resolver_roleta_lead(_lead.canal_entrada, _lead.origem);
@@ -997,7 +1078,10 @@ BEGIN
       -- explicitamente (forcar_fora_da_zona) e com motivo escrito.
       IF _zona IS NOT NULL
          AND public.has_role(_corretor_id, 'corretor'::public.app_role)
-         AND NOT public.corretor_atende_zona(_corretor_id, _zona) THEN
+         AND NOT public.corretor_atende_zona(_corretor_id, _zona)
+         -- [FILIAL] (0079) Lead de campanha de equipe fixa: quem está nela
+         -- recebe de qualquer zona (como na transferência e no repasse).
+         AND NOT public._lead_liberado_por_campanha(_lead.roleta_slug, _corretor_id) THEN
         _motivo_fora := NULLIF(btrim(COALESCE(_contexto_extra->>'motivo_fora_da_zona', '')), '');
         IF COALESCE(_contexto_extra->>'forcar_fora_da_zona', 'false') <> 'true'
            OR char_length(COALESCE(_motivo_fora, '')) < 5 THEN
@@ -1347,8 +1431,12 @@ BEGIN
   -- [FILIAL] (0079) O cursor do par (zona, roleta): é o que faz a Leste
   -- alternar entre Liberdade e Belém.
   IF _zona IS NOT NULL AND _roleta_tipo = 'zona' THEN
-    UPDATE public.zonas_roletas SET ultimo_lead_em = now()
-     WHERE zona = _zona AND roleta_slug = _slug;
+    -- Sem esperar: presa por outra entrega (outra transação), o cursor
+    -- daquela entrega já anda; esperar aqui reabria o deadlock com o lote.
+    UPDATE public.zonas_roletas zr SET ultimo_lead_em = now()
+     WHERE zr.ctid = (SELECT z.ctid FROM public.zonas_roletas z
+                       WHERE z.zona = _zona AND z.roleta_slug = _slug
+                       FOR UPDATE SKIP LOCKED);
   END IF;
 
   -- Cursor global informativo (integrações externas). Os contadores legados
@@ -1909,6 +1997,7 @@ BEGIN
        )
      ORDER BY CASE WHEN r.tipo = 'sdr' THEN 1 WHEN r.tipo = 'zona' THEN 2
                    WHEN r.slug = 'marquinhos' THEN 3 ELSE 4 END,
+              CASE WHEN r.tipo = 'zona' AND r.slug = _zvez THEN 0 ELSE 1 END,
               CASE WHEN r.tipo = 'zona' THEN coalesce(array_position(_zslugs, r.slug), 99) ELSE 0 END,
               r.nome
   LOOP
@@ -2921,6 +3010,92 @@ END;
 $function$;
 
 -- ---------------------------------------------------------------------------
+-- 10b) leads.roleta_slug é do motor. A guarda de região, a transferência e o
+--      repasse confiam nele para liberar lead de campanha de equipe fixa:
+--      quem escreve direto pela API (authenticated) não o altera — senão um
+--      PATCH de corretor_id + roleta_slug pegava lead de outra zona fora do
+--      fluxo (revisão de 12/10). Motor, RPCs SECURITY DEFINER, cron e o
+--      webhook (service_role) seguem escrevendo. Sem SECURITY DEFINER de
+--      propósito: current_user é quem escreveu.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.tg_leads_roleta_slug_do_motor()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon')
+     AND NEW.roleta_slug IS DISTINCT FROM
+         (CASE WHEN TG_OP = 'UPDATE' THEN OLD.roleta_slug END) THEN
+    RAISE EXCEPTION 'A roleta do lead é do motor de distribuição (não se altera direto).'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_leads_roleta_slug_do_motor ON public.leads;
+CREATE TRIGGER trg_leads_roleta_slug_do_motor
+  BEFORE INSERT OR UPDATE OF roleta_slug ON public.leads
+  FOR EACH ROW EXECUTE FUNCTION public.tg_leads_roleta_slug_do_motor();
+
+-- ---------------------------------------------------------------------------
+-- 10c) Meu perfil ("Minhas roletas de leads"): só as roletas ATIVAS. As
+--      zona-* desligadas guardam as participações antigas para o rollback
+--      (§5) e apareciam como "Apto — recebendo leads". Mesmo corpo de
+--      20260709120200; muda só o FOR.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.minha_elegibilidade()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _uid uuid := auth.uid();
+  _out jsonb := '[]'::jsonb;
+  _r record;
+  _linha record;
+BEGIN
+  IF _uid IS NULL THEN
+    RAISE EXCEPTION 'unauthorized';
+  END IF;
+
+  FOR _r IN SELECT slug, nome FROM public.roletas WHERE ativo ORDER BY slug LOOP
+    SELECT * INTO _linha FROM public._elegibilidade_roleta(_r.slug, _uid) e;
+    IF FOUND THEN
+      _out := _out || jsonb_build_object(
+        'roleta_slug', _r.slug,
+        'roleta_nome', _r.nome,
+        'participante', true,
+        'apto', _linha.apto,
+        'motivos', to_jsonb(_linha.motivos),
+        'pct_trabalhado', _linha.pct_trabalhado,
+        'carteira_total', _linha.carteira_total,
+        'aguardando', _linha.aguardando,
+        'recebidos_hoje', _linha.recebidos_hoje,
+        'recebidos_mes', _linha.recebidos_mes,
+        'limite_diario', _linha.limite_diario,
+        'pausado', _linha.pausado,
+        'motivo_pausa', _linha.motivo_pausa
+      );
+    ELSE
+      _out := _out || jsonb_build_object(
+        'roleta_slug', _r.slug,
+        'roleta_nome', _r.nome,
+        'participante', false,
+        'apto', false,
+        'motivos', to_jsonb(ARRAY['nao_participante'])
+      );
+    END IF;
+  END LOOP;
+
+  RETURN _out;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 11) Permissões: as peças internas só pelo banco; as portas, como antes.
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON FUNCTION public._roletas_da_zona(text) FROM PUBLIC, anon, authenticated;
@@ -2977,30 +3152,17 @@ BEGIN
                 AND ativo) THEN
     RAISE EXCEPTION 'roletas por filial: roleta de zona antiga ainda ativa';
   END IF;
-  -- Ninguém que estava ativo numa zona ficou fora da filial que a atende.
-  IF EXISTS (
-    SELECT 1
-      FROM public.roleta_participantes rp
-      JOIN public.roletas r ON r.id = rp.roleta_id
-      JOIN (VALUES ('zona-oeste', 'filial-barra-funda'), ('zona-norte', 'filial-barra-funda'),
-                   ('zona-sul', 'filial-barra-funda'), ('zona-centro', 'filial-liberdade'),
-                   ('zona-leste', 'filial-liberdade'), ('zona-leste', 'filial-belem'),
-                   ('zona-grande-sp', 'filial-belem')) m(antiga, nova) ON m.antiga = r.slug
-     WHERE rp.ativo
-       AND NOT EXISTS (
-         SELECT 1 FROM public.roleta_participantes rp2
-           JOIN public.roletas r2 ON r2.id = rp2.roleta_id
-          WHERE r2.slug = m.nova AND rp2.corretor_id = rp.corretor_id AND rp2.ativo)
-  ) THEN
-    RAISE EXCEPTION 'roletas por filial: participante ativo de uma zona ficou fora da filial';
-  END IF;
   IF to_regprocedure('public._roleta_fila_prevista(text, text, text, jsonb)') IS NOT NULL
      OR to_regprocedure('public._roleta_fila_prevista(text, text, text, jsonb, jsonb)') IS NULL
      OR to_regprocedure('public._vez_unica_zonas_ordem()') IS NOT NULL
      OR to_regprocedure('public._vez_unica_unidades(text)') IS NULL
      OR to_regprocedure('public._roletas_da_zona(text)') IS NULL
      OR to_regprocedure('public._roleta_pronta_para_lead(text, uuid[])') IS NULL
-     OR to_regprocedure('public._roleta_tem_time(text)') IS NULL THEN
+     OR to_regprocedure('public._roleta_tem_time(text)') IS NULL
+     OR NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_leads_roleta_slug_do_motor'
+                     AND tgrelid = 'public.leads'::regclass)
+     OR NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_zonas_roletas_regiao'
+                     AND pg_get_triggerdef(oid) LIKE '%UPDATE OF zona, roleta_slug%') THEN
     RAISE EXCEPTION 'roletas por filial: função ausente ou assinatura antiga ainda no lugar';
   END IF;
   IF to_regprocedure('public.criar_roleta_campanha(text, text, uuid, boolean)') IS NOT NULL
@@ -3023,9 +3185,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = '_distribuir_lead_v3'
-       AND p.prosrc LIKE '%_roleta_atende_zona(%' AND p.prosrc LIKE '%zonas_roletas SET ultimo_lead_em%'
+       AND p.prosrc LIKE '%_roleta_atende_zona(%' AND p.prosrc LIKE '%zonas_roletas zr SET ultimo_lead_em%'
        AND p.prosrc LIKE '%_roleta_pronta_para_lead(%'
-       AND p.prosrc LIKE '%zona_filial:%'
+       AND p.prosrc LIKE '%FOR UPDATE OF zr SKIP LOCKED%'
   ) OR NOT EXISTS (
     SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = '_distribuir_lead_sdr'

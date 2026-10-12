@@ -805,7 +805,7 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
 });
 
 describe("correções da revisão (12/10)", () => {
-  it("dois leads da Leste ao mesmo tempo alternam: o segundo espera o primeiro e vê o cursor andado", async () => {
+  it("dois leads da Leste ao mesmo tempo alternam, sem um esperar o outro", async () => {
     await zerarCursores();
     await presente(leo, false);
     const l1 = await criarLead(c, { telefone: novoTelefone() });
@@ -820,11 +820,13 @@ describe("correções da revisão (12/10)", () => {
       await a.query("BEGIN");
       await a.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste')`, [l1]);
       const pb = b.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste')`, [l2]);
+      // O segundo não espera o primeiro (esperar dava deadlock com o cron,
+      // revisão de 12/10): pula a linha presa da Liberdade e vai para a Belém.
       const antes = await Promise.race([
         pb.then(() => "terminou"),
-        new Promise<string>((r) => setTimeout(() => r("esperando"), 400)),
+        new Promise<string>((r) => setTimeout(() => r("esperando"), 2000)),
       ]);
-      expect(antes).toBe("esperando");
+      expect(antes).toBe("terminou");
       await a.query("COMMIT");
       await pb;
     } finally {
@@ -910,5 +912,182 @@ describe("correções da revisão (12/10)", () => {
       await errCode(c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, bia.id])),
     ).toBe("SMQZ1");
     await comoSuperuser(c);
+  });
+});
+
+describe("correções da segunda revisão (12/10)", () => {
+  it("leads.roleta_slug é do motor: pela API ninguém o altera; o motor e o superusuário sim", async () => {
+    const id = await criarLead(c, { telefone: novoTelefone() });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET zona = 'Leste', corretor_id = $2 WHERE id = $1`, [
+      id,
+      lia.id,
+    ]);
+    for (const quem of [lia, admin]) {
+      await comoUsuario(c, quem.id);
+      expect(
+        await errCode(
+          c.query(`UPDATE public.leads SET roleta_slug = 'filial-belem' WHERE id = $1`, [id]),
+        ),
+      ).toBe("42501");
+    }
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET roleta_slug = 'filial-belem' WHERE id = $1`, [id]);
+    expect(
+      (await c.query(`SELECT roleta_slug FROM public.leads WHERE id = $1`, [id])).rows[0]
+        .roleta_slug,
+    ).toBe("filial-belem");
+  });
+
+  it("pino antigo zona-* num lead SEM zona não o prende na roleta desligada", async () => {
+    const id = await criarLead(c, { telefone: novoTelefone() });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET zona = NULL, roleta_slug = 'zona-oeste' WHERE id = $1`, [
+      id,
+    ]);
+    const r = (
+      await c.query(
+        `SELECT public._distribuir_lead_v3($1::uuid, 'redistribuicao', 'zona-oeste', NULL, NULL, 'teste', '{}'::jsonb, true) AS r`,
+        [id],
+      )
+    ).rows[0].r as { roleta?: string; motivo?: string };
+    expect(r.roleta).not.toBe("zona-oeste");
+    const ctx = (
+      await c.query(
+        `SELECT x.contexto FROM public.distribuicao_log_contexto x JOIN public.distribution_log dl ON dl.id = x.log_id
+          WHERE dl.lead_id = $1 ORDER BY dl.created_at DESC LIMIT 1`,
+        [id],
+      )
+    ).rows[0]?.contexto as Record<string, unknown> | undefined;
+    expect(ctx?.roleta_pedida).toBe("zona-oeste");
+  });
+
+  it("filial fora do horário não é a da vez: o lead da Leste vai para a outra", async () => {
+    await zerarCursores();
+    await presente(leo, false);
+    await comoSuperuser(c);
+    // Janela de 1 minuto 12 horas à frente: agora está fora dela.
+    await c.query(
+      `UPDATE public.roletas SET horario_inicio = ((now() AT TIME ZONE 'America/Sao_Paulo') + interval '12 hours')::time,
+                                 horario_fim = ((now() AT TIME ZONE 'America/Sao_Paulo') + interval '12 hours 1 minute')::time,
+                                 permitir_fora_horario = false
+        WHERE slug = 'filial-liberdade'`,
+    );
+    try {
+      expect(
+        (await roletasDaZona("Leste")).find((r) => r.roleta_slug === "filial-liberdade")?.pronta,
+      ).toBe(false);
+      expect((await leadDaZona("Leste")).roleta_slug).toBe("filial-belem");
+    } finally {
+      await comoSuperuser(c);
+      await c.query(
+        `UPDATE public.roletas SET horario_inicio = NULL, horario_fim = NULL WHERE slug = 'filial-liberdade'`,
+      );
+      await presente(leo, true);
+    }
+  });
+
+  it("união dos times: NULL vale o padrão, e um limite reduzido numa zona não vira o da filial", async () => {
+    await comoSuperuser(c);
+    for (const slug of ["teste-lim-a", "teste-lim-b", "teste-lim-destino"]) {
+      await c.query(
+        `INSERT INTO public.roletas (slug, nome, tipo, ativo) VALUES ($1, $1, 'campanha', true) ON CONFLICT (slug) DO NOTHING`,
+        [slug],
+      );
+      roletasCriadas.push(slug);
+    }
+    const rid = async (s: string) =>
+      (await c.query(`SELECT id FROM public.roletas WHERE slug = $1`, [s])).rows[0].id as string;
+    const [a, b, d] = [
+      await rid("teste-lim-a"),
+      await rid("teste-lim-b"),
+      await rid("teste-lim-destino"),
+    ];
+    await c.query(
+      `INSERT INTO public.roleta_participantes (roleta_id, corretor_id, ativo, limite_diario)
+       VALUES ($1, $3, true, 3), ($2, $3, true, NULL), ($1, $4, true, 40), ($2, $4, true, NULL)`,
+      [a, b, lia.id, bela.id],
+    );
+    await c.query(
+      `SELECT public._filial_unir_participantes('teste-lim-destino', ARRAY['teste-lim-a','teste-lim-b'], 'teste')`,
+    );
+    const lim = async (u: UsuarioTeste) =>
+      (
+        await c.query(
+          `SELECT limite_diario FROM public.roleta_participantes WHERE roleta_id = $1 AND corretor_id = $2`,
+          [d, u.id],
+        )
+      ).rows[0].limite_diario as number | null;
+    expect(await lim(lia)).toBeNull(); // 3 e o padrão → o padrão
+    expect(await lim(bela)).toBe(40); // 40 e o padrão → 40
+    await c.query(`DELETE FROM public.roleta_participantes WHERE roleta_id = ANY($1::uuid[])`, [
+      [a, b, d],
+    ]);
+  });
+
+  it("Meu perfil lista só as roletas ativas; o cursor da zona não reespelha a região", async () => {
+    await comoUsuario(c, leo.id);
+    const minhas = (await c.query(`SELECT public.minha_elegibilidade() AS r`)).rows[0].r as {
+      roleta_slug: string;
+    }[];
+    await comoSuperuser(c);
+    expect(minhas.some((m) => m.roleta_slug.startsWith("zona-"))).toBe(false);
+    expect(minhas.some((m) => m.roleta_slug === "filial-belem")).toBe(true);
+    const trg = (
+      await c.query(
+        `SELECT pg_get_triggerdef(oid) AS d FROM pg_trigger WHERE tgname = 'trg_zonas_roletas_regiao'`,
+      )
+    ).rows[0].d as string;
+    expect(trg).toContain("UPDATE OF zona, roleta_slug");
+  });
+
+  it("lote do cron (Centro e depois Leste) contra um lead avulso da Leste: sem deadlock, os dois entregues", async () => {
+    // O cenário da revisão de 12/10: o lote segura a trava da Liberdade (lead
+    // do Centro); o avulso da Leste escolhe a Liberdade e espera essa trava;
+    // o lote chega a um lead da Leste. Com a trava de zona antiga, o lote
+    // esperava o avulso e o avulso o lote (deadlock).
+    await zerarCursores();
+    await presente(leo, false);
+    const centro = await criarLead(c, { telefone: novoTelefone() });
+    const leste1 = await criarLead(c, { telefone: novoTelefone() });
+    const leste2 = await criarLead(c, { telefone: novoTelefone() });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET zona = 'Centro' WHERE id = $1`, [centro]);
+    await c.query(`UPDATE public.leads SET zona = 'Leste' WHERE id = ANY($1::uuid[])`, [
+      [leste1, leste2],
+    ]);
+    const lote = novoClient();
+    const avulso = novoClient();
+    await lote.connect();
+    await avulso.connect();
+    try {
+      await lote.query("SET lock_timeout = '5s'");
+      await avulso.query("SET lock_timeout = '5s'");
+      await lote.query("BEGIN");
+      await lote.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste')`, [centro]);
+      const pa = avulso.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste') AS r`, [
+        leste1,
+      ]);
+      await new Promise((r) => setTimeout(r, 300));
+      const r2 = (
+        await lote.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste') AS r`, [leste2])
+      ).rows[0].r as { ok: boolean };
+      expect(r2.ok).toBe(true);
+      await lote.query("COMMIT");
+      const r1 = (await pa).rows[0].r as { ok: boolean };
+      expect(r1.ok).toBe(true);
+    } finally {
+      await lote.end();
+      await avulso.end();
+    }
+    await comoSuperuser(c);
+    const donos = (
+      await c.query(
+        `SELECT count(*) FILTER (WHERE corretor_id IS NOT NULL)::int AS n FROM public.leads WHERE id = ANY($1::uuid[])`,
+        [[centro, leste1, leste2]],
+      )
+    ).rows[0].n as number;
+    expect(donos).toBe(3);
+    await presente(leo, true);
   });
 });

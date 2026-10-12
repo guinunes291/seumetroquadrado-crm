@@ -991,7 +991,9 @@ export function useAtualizarRoleta() {
         _projeto_id: args.projetoId ?? undefined,
         _limpar_projeto: args.projetoId === null,
         _filial_slug: args.filialSlug ?? undefined,
-        _limpar_filial: args.filialSlug === null,
+        // Só manda quando é para limpar: com o parâmetro omitido a chamada
+        // casa também com a assinatura antiga (banco ainda sem a 0079).
+        _limpar_filial: args.filialSlug === null ? true : undefined,
       });
       if (error) throw error;
       return data;

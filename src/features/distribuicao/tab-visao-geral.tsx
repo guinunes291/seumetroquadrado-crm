@@ -77,7 +77,7 @@ function RoletaSaudeCard({
             {aptos.length === 0 ? (
               <StatusBadge intent="danger">
                 {ehFilial
-                  ? "Sem corretor apto — leads da filial esperam (não vão para outra zona)"
+                  ? "Sem corretor apto — lead da Leste vai para a outra filial; das outras zonas, espera aqui (nunca vai para outra zona)"
                   : "Sem corretor apto — leads irão para exceção"}
               </StatusBadge>
             ) : (

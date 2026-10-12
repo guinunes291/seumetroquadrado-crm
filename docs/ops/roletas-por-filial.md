@@ -33,9 +33,13 @@ para não ficar totalmente travado na sua zona"**:
 | Depois da entrega, pode ir para quem não atende a zona? | **Sim, entre os participantes da campanha.** Repasse por SLA e transferência valem entre quem está na equipe; a guarda de região libera só esse caso. |
 
 O que **não** muda: a zona do lead (vem do projeto), a zona estrita (lead
-da Leste só para quem atende a Leste), os motores (roleta, SDR, Marquinhos,
-campanhas, repasse por SLA, Bolsão, lote, discador), a presença, a guarda de
-região em `leads.corretor_id`, os webhooks e as edge functions.
+da Leste só para quem atende a Leste), a presença, o Marquinhos, os webhooks e
+as edge functions. Mudam por decisão do dono: as campanhas de equipe fixa
+(sem corte por zona, §3b) e a guarda de região, que libera o participante da
+campanha. E muda o **alcance** do que usa a região do corretor (Bolsão, lote
+de prospecção, discador, oferta ativa, escoar estoque): a região passa a ser
+a união das zonas das filiais dele — quem está na Belém pega lead da Leste e
+da Grande SP nessas telas também.
 
 ## 2. O modelo
 
@@ -82,11 +86,13 @@ No motor da roleta (`_distribuir_lead_v3`), lead com zona e zona estrita:
    nenhuma filial a exceção é `zona_sem_time`. Nunca vai para outra zona.
 4. Ao entregar, o motor grava `zonas_roletas.ultimo_lead_em` do par
    (zona, roleta): é isso que faz a Leste alternar.
-5. Leads da mesma zona com mais de uma filial são **serializados** na escolha
-   (trava por zona, `zona_filial:<zona>`): dois leads da Leste no mesmo
-   segundo não leem o mesmo cursor — o segundo espera o primeiro gravar e vai
-   para a outra filial. Visto no harness em 12/10, antes da trava: os dois
-   iam para a mesma loja.
+5. Dois leads da mesma zona no mesmo segundo **não vão para a mesma
+   filial**: a linha do par (zona, roleta) escolhida fica presa até o fim da
+   entrega e o outro lead a **pula** (`FOR UPDATE … SKIP LOCKED`), indo para
+   a outra filial — sem esperar. A primeira versão usava uma trava com espera
+   (`zona_filial`), e a revisão de 12/10 mostrou deadlock com o cron, que
+   entrega em lote numa transação só (o minuto inteiro era desfeito). O
+   cursor também anda sem esperar. Teste: "lote do cron … sem deadlock".
 
 Exemplo: dois leads da Leste chegam às 9h00 e 9h05. Liberdade e Belém
 prontas, nenhuma recebeu Leste hoje → o 1º vai para a Liberdade (ordem das
@@ -167,15 +173,30 @@ hoje desligado); `incluido_em`/`incluido_por` = o mais antigo. Uma linha em
 `roleta_participantes_log` por inclusão ("Roletas por filial (12/10/2026):
 união das zonas da filial").
 
-Pino antigo em `leads.roleta_slug` (1.831 leads vivos): `zona-oeste`,
-`zona-norte`, `zona-sul` → `filial-barra-funda`; `zona-centro` →
-`filial-liberdade`; `zona-grande-sp` → `filial-belem`; `zona-leste` → a
-filial em que o corretor atual do lead está (Liberdade se estiver nas duas;
-sem corretor, `NULL` — o rodízio decide no próximo repasse).
+Pino antigo em `leads.roleta_slug` (`zona-*`, ~1.800 leads vivos): fica
+como está — **nenhum UPDATE em leads**. O motor trata pino de roleta de zona
+desligada (fora do mapa) como ausente: lead com zona vai para o rodízio das
+filiais da zona; lead sem zona (ou com a zona estrita desligada) vai para a
+triagem, como o token antigo. O valor antigo fica no contexto da decisão
+como `roleta_pedida`.
+
+`leads.roleta_slug` passou a ser **do motor**: quem escreve direto pela API
+(`authenticated`) não o altera (`trg_leads_roleta_slug_do_motor`), porque a
+guarda de região confia nele para liberar lead de campanha — sem isso, um
+PATCH de corretor e roleta juntos pegava lead de outra zona fora do fluxo.
+Motor, RPCs, cron e o webhook (service_role) seguem escrevendo.
 
 Cota diária: passa a contar por roleta de filial (uma cota por filial, não
 uma por zona). Quem estava em três zonas da mesma filial tinha três cotas;
-agora tem uma. Ajuste na Central se precisar.
+agora tem uma — e quem atende a Leste entra na Liberdade e na Belém, com
+duas. Na união, o limite é o maior **efetivo**: `NULL` vale o padrão
+(`limite_diario_default`), então um limite reduzido numa zona não vira o
+limite da filial inteira. No dia da aplicação a cota zera (os recebidos de
+hoje estão nas `zona-*`). Ajuste na Central se precisar.
+
+"Meu perfil" (`minha_elegibilidade`) passa a listar só as roletas ativas:
+as `zona-*` desligadas guardam as participações antigas para o rollback e
+apareciam como "Apto — recebendo leads".
 
 Rollback (script, não migration): reativar as 6 roletas, devolver as 6
 linhas de `zonas_roletas` (1:1), desativar as 3 de filial — as linhas de
@@ -212,6 +233,23 @@ participação antigas continuam lá, intactas.
 | `roletas_filas_zona_v1`, `minhas_posicoes_roletas_v1`                     | Todas as roletas da zona, com `da_vez`, `filial` e `zonas`; posição por roleta de filial; campanha sem zona. |
 | `_lead_liberado_por_campanha`, `tg_leads_guarda_zona`, `transferir_leads` | Lead de campanha vai para quem está na campanha, de qualquer zona.                                           |
 | `criar_roleta_campanha`, `atualizar_roleta`                               | Campanha com filial (`_filial_slug`).                                                                        |
+
+**A vez única por filial nas primeiras semanas.** A ordem "da mais
+movimentada" conta os leads entregues pelas roletas de filial nos 30 dias
+anteriores ao começo da semana; na semana da aplicação o histórico está nas
+`zona-*`, então as três filiais empatam e vale a ordem Barra Funda,
+Liberdade, Belém. Nas semanas seguintes a contagem completa sozinha.
+
+## 7b. Ordem de aplicação
+
+1. Aplicar a `0078` (`20261017120000`, vez única) e registrar no drizzle.
+2. Aplicar a `0079` (`20261018120000`) e registrar. A 0079 recusa rodar sem
+   a 0078 (os motores dela chamam a vez única). Se por engano a 0079 entrar
+   antes, não aplicar a 0078 por cima (ela regravaria os motores antigos):
+   aplicar a 0078 e reaplicar a 0079.
+3. Só então **publicar o front** na Lovable. O front antigo funciona com o
+   banco na 0079 (as chamadas casam pelos padrões); o novo precisa dela
+   (`roletas.filial_id`, `zonas_roletas` com várias roletas).
 
 ## 8. Em produção
 

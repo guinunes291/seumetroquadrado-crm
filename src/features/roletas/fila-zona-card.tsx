@@ -259,7 +259,7 @@ export function FilaZonaCard({
                   <>
                     <p className="flex items-start gap-1 text-xs text-warning">
                       <WarningCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" weight="fill" />
-                      Ninguém do time do SDR atende a {zona}: a visita vai para a filial da vez (
+                      Ninguém do time do SDR atende esta zona: a visita vai para a filial da vez (
                       {reservaNome}).
                     </p>
                     {destaque.reserva.fila.length > 0 ? (
@@ -292,7 +292,7 @@ export function FilaZonaCard({
           {outras.length > 0 && (
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {zona === SEM_ZONA ? "Roletas para lead sem zona" : `Outras roletas da ${zona}`}
+                {zona === SEM_ZONA ? "Roletas para lead sem zona" : `Outras roletas · ${zona}`}
               </h3>
               {alterna && (
                 <p className="text-xs text-muted-foreground" data-testid="fila-alternancia">
