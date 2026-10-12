@@ -4,7 +4,7 @@
 // planta e amortizações extras com FGTS. Toda a conta mora em lib/amortizacao;
 // esta tela só coleta os dados e formata o resultado.
 
-import { lazy, Suspense, useId, useMemo, useState, type ReactNode } from "react";
+import { Fragment, lazy, Suspense, useId, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import {
@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatTile } from "@/components/ui/stat-tile";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -62,7 +63,6 @@ import {
   paramsDoForm,
   leituraComercial,
   textoResumo,
-  valorFinanciadoDe,
   type ExtraForm,
   type FormSimulador,
   type PrefillSimulador,
@@ -119,21 +119,28 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
   }
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <>
       <PageHeader
         title="Planilha de amortização"
-        description="SAC e PRICE mês a mês, com TR, seguros, taxa de administração, fase de obra e amortização com FGTS."
+        description="SAC ou PRICE, mês a mês, para o contrato do cliente."
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             {/* Saiu da sidebar na chegada dos Simuladores (2026-10-11): as duas
-                telas se apontam — construtora lá, banco aqui. */}
-            <Button variant="outline" asChild>
-              <Link to="/simuladores">
-                <Buildings className="mr-1.5 h-4 w-4" /> Fluxo das construtoras
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={copiarResumo} disabled={!sistemasAtivos.length}>
-              <Copy className="mr-1.5 h-4 w-4" /> Copiar resumo
+                telas se apontam — construtora lá, banco aqui. Link discreto:
+                a ação da tela é o PDF. */}
+            <Link
+              to="/simuladores"
+              className="mr-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline md:min-h-0"
+            >
+              <Buildings className="h-4 w-4" aria-hidden="true" /> Fluxo das construtoras
+            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copiarResumo}
+              disabled={!sistemasAtivos.length}
+            >
+              <Copy className="h-4 w-4" /> Copiar resumo
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -161,7 +168,7 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </>
+          </div>
         }
       />
 
@@ -170,7 +177,7 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
 
         <div className="min-w-0 space-y-4">
           {avisos.length > 0 && (
-            <div className="space-y-1 rounded-lg border border-aviso-300 bg-aviso-500/5 p-3 text-sm text-aviso-700">
+            <div className="space-y-1 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm text-warning">
               {avisos.map((a) => (
                 <div key={a} className="flex items-start gap-2">
                   <Warning className="mt-0.5 h-4 w-4 shrink-0" />
@@ -213,14 +220,12 @@ export function SimuladorAmortizacaoPage({ prefill }: { prefill?: PrefillSimulad
           )}
 
           <p className="text-[11px] text-muted-foreground">
-            Simulação comercial. A TR futura é uma projeção (média de 2026:{" "}
-            {pct(TR_MENSAL_REFERENCIA_2026)} ao mês) e os seguros por idade são estimativa: para
-            bater com a proposta do banco, use "Taxas da proposta". Não substitui a simulação
-            oficial nem garante aprovação.
+            Simulação comercial: TR projetada e seguros por idade são estimativa. Não substitui a
+            simulação oficial nem garante aprovação.
           </p>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -636,7 +641,15 @@ function Formulario({
 // Resumo
 // ============================================================================
 
+/**
+ * O Resumo responde o que o cliente pergunta, nesta ordem: a leitura (a frase
+ * que o corretor usa, a mesma do PDF), os três números (1ª parcela, renda
+ * mínima, total pago — SAC e PRICE lado a lado) e, atrás de "Ver comparativo
+ * completo", a tabela inteira. O que o formulário ao lado já mostra (valor,
+ * juros, correção) não se repete aqui.
+ */
 function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resultados }) {
+  const [comparativoAberto, setComparativoAberto] = useState(false);
   const sistemas = (["SAC", "PRICE"] as const).filter((s) => resultados[s]);
   const r0 = resultados[sistemas[0]!]!.resumo;
   const temObra = r0.mesesObra > 0;
@@ -726,113 +739,181 @@ function Resumo({ form, resultados }: { form: FormSimulador; resultados: Resulta
     "CET estimado": (r) => r.resumo.cetAnual ?? Infinity,
   };
 
+  const valorPar = (valor: (r: ResultadoSimulacao) => number) => (
+    <ParDeSistemas sistemas={sistemas} resultados={resultados} valor={valor} />
+  );
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Kpi
-          titulo="Valor do financiamento"
-          valor={brl(valorFinanciadoDe(form))}
-          sub={`${form.prazoMeses} meses`}
-        />
-        <Kpi
-          titulo="Juros ao mês"
-          valor={pct(r0.taxaMensal * 100, 4)}
-          sub={`nominal ${pct(r0.taxaNominalAnual)} · efetiva ${pct(r0.taxaEfetivaAnual)} a.a.`}
-        />
-        <Kpi
-          titulo="Correção do saldo"
-          valor={
-            form.modoCorrecao === "fixa" ? "Sem correção" : `${pct(paramsCorrecao(form))} a.m.`
-          }
-          sub={
-            form.modoCorrecao === "tr"
-              ? "TR projetada (média 2026)"
-              : form.modoCorrecao === "fixa"
-                ? "taxa fixa"
-                : "índice informado"
-          }
-        />
-      </div>
-
-      <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left">
-                <th className="px-4 py-2.5 font-medium">Item</th>
-                {sistemas.map((s) => (
-                  <th key={s} className="px-4 py-2.5 text-right font-medium">
-                    {s}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l) => {
-                const num = valorNum[l.rotulo];
-                const melhorSistema =
-                  sistemas.length === 2 && num
-                    ? num(resultados.SAC!) < num(resultados.PRICE!)
-                      ? "SAC"
-                      : num(resultados.PRICE!) < num(resultados.SAC!)
-                        ? "PRICE"
-                        : null
-                    : null;
-                return (
-                  <tr key={l.rotulo} className="border-b last:border-0">
-                    <td className="px-4 py-2">
-                      <span className="inline-flex items-center gap-1">
-                        {l.rotulo}
-                        {l.dica && (
-                          <span title={l.dica} className="text-muted-foreground">
-                            <Info className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    {sistemas.map((s) => (
-                      <td
-                        key={s}
-                        className={cn(
-                          "px-4 py-2 text-right tabular-nums",
-                          melhorSistema === s && "font-semibold text-exito-700",
-                        )}
-                      >
-                        {l.valor(resultados[s]!)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-
       {sistemas.length === 2 && (
         <LeituraComercial sac={resultados.SAC!} price={resultados.PRICE!} />
       )}
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatTile
+          title="1ª parcela"
+          value={valorPar((r) => r.resumo.primeiraParcela)}
+          hint="com seguros e taxa adm"
+        />
+        <StatTile
+          title="Renda mínima (30%)"
+          value={valorPar((r) => r.resumo.rendaMinima)}
+          hint={
+            form.renda > 0 ? (
+              <span>
+                renda de {brl(form.renda)}:{" "}
+                {sistemas.map((s, k) => {
+                  const c = (resultados[s]!.resumo.comprometimento ?? 0) * 100;
+                  return (
+                    <Fragment key={s}>
+                      {k > 0 && " · "}
+                      <span className={cn(c > 30 && "font-semibold text-destructive")}>
+                        {sistemas.length > 1 ? `${s} ` : ""}
+                        {pct(c, 1)}
+                      </span>
+                    </Fragment>
+                  );
+                })}
+              </span>
+            ) : (
+              "a parcela cabe em 30% da renda"
+            )
+          }
+        />
+        <StatTile
+          title="Total pago"
+          value={valorPar((r) => r.resumo.totalPago)}
+          hint="juros, TR, seguros e taxa"
+        />
+      </div>
+
+      <Collapsible open={comparativoAberto} onOpenChange={setComparativoAberto}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-border-subtle bg-card p-3.5 text-left text-sm shadow-elev-1 hover:bg-accent/40"
+          >
+            <span className="min-w-0">
+              <span className="font-semibold">Ver comparativo completo</span>
+              <span className="text-muted-foreground">
+                {" "}
+                · {linhas.length} itens: última e maior parcela, juros, TR, seguros, CET
+              </span>
+            </span>
+            <CaretDown
+              className={cn(
+                "h-4 w-4 shrink-0 transition-transform",
+                comparativoAberto && "rotate-180",
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3">
+          <Card>
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-2.5 font-medium">Item</th>
+                    {sistemas.map((s) => (
+                      <th key={s} className="px-4 py-2.5 text-right font-medium">
+                        {s}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((l) => {
+                    const num = valorNum[l.rotulo];
+                    const melhorSistema =
+                      sistemas.length === 2 && num
+                        ? num(resultados.SAC!) < num(resultados.PRICE!)
+                          ? "SAC"
+                          : num(resultados.PRICE!) < num(resultados.SAC!)
+                            ? "PRICE"
+                            : null
+                        : null;
+                    return (
+                      <tr key={l.rotulo} className="border-b last:border-0">
+                        <td className="px-4 py-2">
+                          <span className="inline-flex items-center gap-1">
+                            {l.rotulo}
+                            {l.dica && (
+                              <span title={l.dica} className="text-muted-foreground">
+                                <Info className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        {sistemas.map((s) => (
+                          <td
+                            key={s}
+                            className={cn(
+                              "px-4 py-2 text-right tabular-nums",
+                              melhorSistema === s && "font-semibold text-success",
+                            )}
+                          >
+                            {l.valor(resultados[s]!)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
 
-function paramsCorrecao(form: FormSimulador): number {
-  return form.modoCorrecao === "tr" ? TR_MENSAL_REFERENCIA_2026 : form.correcaoPersonalizada || 0;
+/** SAC e PRICE lado a lado no mesmo número (ou só o sistema escolhido). */
+function ParDeSistemas({
+  sistemas,
+  resultados,
+  valor,
+}: {
+  sistemas: readonly SistemaAmortizacao[];
+  resultados: Resultados;
+  valor: (r: ResultadoSimulacao) => number;
+}) {
+  if (sistemas.length === 1) {
+    return <span className="text-2xl">{brl(valor(resultados[sistemas[0]!]!))}</span>;
+  }
+  return (
+    <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
+      {sistemas.map((s) => (
+        <Fragment key={s}>
+          <dt className="font-sans text-xs font-semibold text-muted-foreground">{s}</dt>
+          <dd className="text-right text-lg font-bold">{brl(valor(resultados[s]!))}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
 }
 
-/** A leitura que o corretor usa na conversa com o cliente (mesma do PDF). */
+/** A leitura que o corretor usa na conversa com o cliente (mesma do PDF): o
+ *  cartão principal do Resumo. */
 function LeituraComercial({ sac, price }: { sac: ResultadoSimulacao; price: ResultadoSimulacao }) {
   return (
-    <Card className="border-primary/30 bg-primary/5">
-      <CardContent className="space-y-1.5 p-4 text-sm">
-        <div className="font-medium">Leitura para o cliente</div>
+    <section
+      aria-label="Leitura para o cliente"
+      className="rounded-2xl border border-l-4 border-border-subtle border-l-gold-500 bg-card p-5 text-card-foreground shadow-elev-1"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="font-display text-lg font-bold">Leitura para o cliente</h2>
+        <span className="text-xs text-muted-foreground">a mesma frase vai no PDF</span>
+      </div>
+      <div className="mt-3 space-y-2 text-sm leading-relaxed">
         {leituraComercial(sac, price).map((frase, k) => (
           <p key={k}>
             {frase.map((t, n) => (t.forte ? <strong key={n}>{t.texto}</strong> : t.texto))}
           </p>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -917,7 +998,7 @@ function TabelaMensal({ linhas }: { linhas: LinhaPlanilha[] }) {
             className={cn(
               "border-b last:border-0",
               l.fase === "obra" && "bg-gold/5",
-              l.amortizacaoExtra > 0 && "bg-exito-500/10",
+              l.amortizacaoExtra > 0 && "bg-success/10",
             )}
           >
             <td className={cn(TD, "text-left")}>{l.competencia ?? l.mes}</td>
@@ -1060,15 +1141,5 @@ function Numero({
         }}
       />
     </Campo>
-  );
-}
-
-function Kpi({ titulo, valor, sub }: { titulo: string; valor: string; sub?: string }) {
-  return (
-    <div className="rounded-lg border bg-card p-3">
-      <div className="text-xs text-muted-foreground">{titulo}</div>
-      <div className="mt-0.5 font-display text-lg font-bold">{valor}</div>
-      {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}
-    </div>
   );
 }

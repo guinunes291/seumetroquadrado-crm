@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
   ArrowCounterClockwise,
-  ArrowLeft,
   ArrowSquareOut,
   CheckCircle,
   Checks,
@@ -33,6 +32,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatGrid, StatTile } from "@/components/ui/stat-tile";
+import { FiltrosMenu } from "@/components/ui/filtros-menu";
 import {
   Table,
   TableBody,
@@ -96,7 +97,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserRoles } from "@/hooks/use-auth";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { OfertaEnvioMassa } from "@/components/oferta-envio-massa";
-import { LeadStageMenu } from "@/components/lead-stage-menu";
+import { LeadStageMenuItems } from "@/components/lead-stage-menu";
 import {
   LeadStageModals,
   type StageModalState,
@@ -134,7 +135,7 @@ function ToggleContatado({
       aria-pressed={row.contatado}
     >
       {row.contatado ? (
-        <CheckCircle className="w-5 h-5 text-verde-600" />
+        <CheckCircle className="w-5 h-5 text-success" />
       ) : (
         <Circle className="w-5 h-5 text-muted-foreground" />
       )}
@@ -155,6 +156,12 @@ function toStageLead(l: OfertaLeadInfo): StageLead {
   };
 }
 
+/**
+ * Uma ação visível por linha (identidade Lançamento, regra 5): o WhatsApp, que
+ * é o que a lista existe para fazer. Ligar, Abrir lead e a etapa moram no
+ * "…" — composto como o da Fila Única (fila-card.tsx), porque a troca de
+ * etapa é a lista inteira do funil (LeadStageMenuItems), não um item só.
+ */
 function LinhaAcoes({
   row,
   onWhatsApp,
@@ -179,26 +186,52 @@ function LinhaAcoes({
         onClick={() => onWhatsApp(row)}
       >
         <WhatsappLogo className="w-4 h-4" />
+        WhatsApp
       </Button>
-      <Button size="sm" variant="outline" title="Ligar" asChild>
-        <a href={`tel:${l.telefone}`} aria-label={`Ligar para ${l.nome}`}>
-          <Phone className="w-4 h-4" />
-        </a>
-      </Button>
-      <Button size="sm" variant="outline" title="Abrir lead" asChild>
-        <Link to="/leads/$leadId" params={{ leadId: l.id }} aria-label={`Abrir lead ${l.nome}`}>
-          <ArrowSquareOut className="w-4 h-4" />
-        </Link>
-      </Button>
-      {/* Avançar a etapa sem sair da lista — mesmo fluxo do kanban/carteira. */}
-      <LeadStageMenu
-        lead={l}
-        onPickDirect={(target) => onPickDirect(row, target)}
-        onPickModal={(modal) => onPickModal(row, modal)}
-        onPickPerdido={() => onPickPerdido(row)}
-      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Mais ações"
+            aria-label={`Mais ações de ${l.nome}`}
+          >
+            <DotsThreeVertical className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem asChild>
+            <a href={`tel:${l.telefone}`}>
+              <Phone className="w-4 h-4 mr-2" /> Ligar
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to="/leads/$leadId" params={{ leadId: l.id }}>
+              <ArrowSquareOut className="w-4 h-4 mr-2" /> Abrir lead
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* Avançar a etapa sem sair da lista — mesmo fluxo do kanban/carteira. */}
+          <LeadStageMenuItems
+            lead={l}
+            onPickDirect={(target) => onPickDirect(row, target)}
+            onPickModal={(modal) => onPickModal(row, modal)}
+            onPickPerdido={() => onPickPerdido(row)}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
+}
+
+const fmtDiaMes = (iso: string) =>
+  new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
+/** "todas as etapas" · "Visita agendada, Em qualificação" · "3 etapas". */
+function resumoDasEtapas(etapas: string[]): string {
+  if (etapas.length === 0) return "todas as etapas";
+  if (etapas.length <= 2) return etapas.map((s) => leadStatusLabel(s)).join(", ");
+  return `${etapas.length} etapas`;
 }
 
 function OfertaDetailPage() {
@@ -516,189 +549,215 @@ function OfertaDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link to="/oferta-ativa" aria-label="Voltar para Oferta Ativa">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-        </Button>
-        <div className="flex-1 min-w-0">
-          <PageHeader
-            title={oferta.nome}
-            description={oferta.descricao ?? undefined}
-            actions={
-              <div className="flex items-center gap-2">
-                <Badge variant={statusVariant(oferta.status)}>{statusLabel(oferta.status)}</Badge>
-                {canManage && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        title="Ações da lista"
-                        aria-label="Ações da lista"
-                      >
-                        <DotsThreeVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                        <PencilSimple className="w-4 h-4 mr-2" /> Editar
-                      </DropdownMenuItem>
-                      {oferta.status !== "arquivada" && (
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setCorretorSel(new Set(oferta.corretor_id ? [oferta.corretor_id] : []));
-                            setAtribuirOpen(true);
-                          }}
-                        >
-                          <UserPlus className="w-4 h-4 mr-2" /> Atribuir a corretor(es)
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() =>
-                          navigate({ to: "/oferta-ativa/nova", search: { de: ofertaId } })
-                        }
-                      >
-                        <Copy className="w-4 h-4 mr-2" /> Duplicar
-                      </DropdownMenuItem>
-                      {listaAtiva && (
-                        <DropdownMenuItem onClick={() => setConfirmConcluir(true)}>
-                          <Checks className="w-4 h-4 mr-2" /> Concluir
-                        </DropdownMenuItem>
-                      )}
-                      {!listaAtiva && (
-                        <DropdownMenuItem onClick={() => lifecycleM.mutate("reativar")}>
-                          <ArrowCounterClockwise className="w-4 h-4 mr-2" /> Reativar
-                        </DropdownMenuItem>
-                      )}
-                      {oferta.status !== "arquivada" && (
-                        <DropdownMenuItem onClick={() => lifecycleM.mutate("arquivar")}>
-                          <Archive className="w-4 h-4 mr-2" /> Arquivar
-                        </DropdownMenuItem>
-                      )}
-                      {isAdmin && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setConfirmExcluir(true)}
-                          >
-                            <Trash className="w-4 h-4 mr-2" /> Excluir
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+      {/* Um título só, como as outras telas: o nome da lista com o status ao
+          lado; a trilha do cabeçalho já leva de volta à Oferta Ativa. */}
+      <PageHeader
+        title={oferta.nome}
+        titleAddon={
+          <Badge variant={statusVariant(oferta.status)}>{statusLabel(oferta.status)}</Badge>
+        }
+        description={oferta.descricao ?? undefined}
+        actions={
+          canManage ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="Ações da lista"
+                  aria-label="Ações da lista"
+                >
+                  <DotsThreeVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                  <PencilSimple className="w-4 h-4 mr-2" /> Editar
+                </DropdownMenuItem>
+                {oferta.status !== "arquivada" && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setCorretorSel(new Set(oferta.corretor_id ? [oferta.corretor_id] : []));
+                      setAtribuirOpen(true);
+                    }}
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" /> Atribuir a corretor(es)
+                  </DropdownMenuItem>
                 )}
-              </div>
-            }
-          />
-        </div>
-      </div>
+                <DropdownMenuItem
+                  onClick={() => navigate({ to: "/oferta-ativa/nova", search: { de: ofertaId } })}
+                >
+                  <Copy className="w-4 h-4 mr-2" /> Duplicar
+                </DropdownMenuItem>
+                {listaAtiva && (
+                  <DropdownMenuItem onClick={() => setConfirmConcluir(true)}>
+                    <Checks className="w-4 h-4 mr-2" /> Concluir
+                  </DropdownMenuItem>
+                )}
+                {!listaAtiva && (
+                  <DropdownMenuItem onClick={() => lifecycleM.mutate("reativar")}>
+                    <ArrowCounterClockwise className="w-4 h-4 mr-2" /> Reativar
+                  </DropdownMenuItem>
+                )}
+                {oferta.status !== "arquivada" && (
+                  <DropdownMenuItem onClick={() => lifecycleM.mutate("arquivar")}>
+                    <Archive className="w-4 h-4 mr-2" /> Arquivar
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setConfirmExcluir(true)}
+                    >
+                      <Trash className="w-4 h-4 mr-2" /> Excluir
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : undefined
+        }
+      />
 
       {canManage && listaAtiva && statsAll.total > 0 && statsAll.contatados === statsAll.total && (
-        <div className="rounded-xl border border-verde-600/30 bg-verde-600/10 p-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm font-medium">Todos os leads desta lista já foram contatados. 🎉</p>
+        <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-medium">
+            Todos os {statsAll.total} leads desta lista já foram contatados.
+          </p>
           <Button size="sm" onClick={() => setConfirmConcluir(true)}>
             <Checks className="w-4 h-4 mr-2" /> Concluir lista
           </Button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-card border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">Total de leads</p>
-          <p className="text-2xl font-semibold">{statsAll.total}</p>
+      {/* O topo em três números (os mesmos de sempre, contados desde a
+          criação da lista); a explicação de cada um fica no tooltip. */}
+      <StatGrid className="sm:grid-cols-3 xl:grid-cols-3">
+        <StatTile
+          title="Total de leads"
+          value={statsAll.total}
+          hint={`na lista desde ${fmtDiaMes(oferta.created_at)}`}
+        />
+        <div title="Marcados na aba ou trabalhados na carteira desde a criação da lista">
+          <StatTile
+            className="h-full"
+            title="Contatados · desde a criação"
+            value={
+              <>
+                {statsAll.contatados}{" "}
+                <span className="text-base font-medium text-muted-foreground">
+                  {statsAll.pctContatados}%
+                </span>
+                <Progress
+                  value={statsAll.pctContatados}
+                  className="mt-2 h-1.5"
+                  aria-label="Contatados"
+                />
+              </>
+            }
+          />
         </div>
-        <div className="bg-card border rounded-xl p-4">
-          <p
-            className="text-xs text-muted-foreground"
-            title="Marcados na aba ou trabalhados na carteira desde a criação da lista"
-          >
-            Contatados <span className="opacity-70">· desde a criação</span>
-          </p>
-          <p className="text-2xl font-semibold">
-            {statsAll.contatados}{" "}
-            <span className="text-sm text-muted-foreground">({statsAll.pctContatados}%)</span>
-          </p>
-          <Progress value={statsAll.pctContatados} className="h-1.5 mt-2" />
+        <div title="Leads que progrediram de etapa na carteira desde a criação da lista">
+          <StatTile
+            className="h-full"
+            title="Avançados · desde a criação"
+            value={
+              <>
+                {statsAll.avancados}{" "}
+                <span className="text-base font-medium text-muted-foreground">
+                  {statsAll.pctAvancados}%
+                </span>
+                <Progress
+                  value={statsAll.pctAvancados}
+                  className="mt-2 h-1.5"
+                  aria-label="Avançados"
+                />
+              </>
+            }
+          />
         </div>
-        <div className="bg-card border rounded-xl p-4">
-          <p
-            className="text-xs text-muted-foreground"
-            title="Leads que progrediram de etapa na carteira desde a criação da lista"
-          >
-            Avançados <span className="opacity-70">· desde a criação</span>
-          </p>
-          <p className="text-2xl font-semibold">
-            {statsAll.avancados}{" "}
-            <span className="text-sm text-muted-foreground">({statsAll.pctAvancados}%)</span>
-          </p>
-          <Progress value={statsAll.pctAvancados} className="h-1.5 mt-2 [&>div]:bg-verde-500" />
-        </div>
-      </div>
+      </StatGrid>
 
+      {/* Busca e Contato à vista; a etapa mora atrás de "Filtros", com o
+          estado em texto ao lado (regra 5). */}
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <MagnifyingGlass className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome, telefone ou projeto..."
-              className="pl-8 w-64 max-w-full"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            {(
-              [
-                ["todos", "Todos"],
-                ["nao_contatados", "Não contatados"],
-                ["contatados", "Contatados"],
-              ] as const
-            ).map(([valor, rotulo]) => (
-              <button
-                key={valor}
-                type="button"
-                onClick={() => setContatoFiltro(valor)}
-                className={`px-3 py-1 rounded-full text-sm border transition-colors ${
-                  contatoFiltro === valor
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background border-border hover:border-primary/50"
-                }`}
-              >
-                {rotulo}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {statusPresentes.length > 1 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {statusPresentes.map(([status, count]) => {
-              const ativo = statusFiltro.includes(status);
-              return (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <MagnifyingGlass className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por nome, telefone ou projeto..."
+                aria-label="Buscar na lista"
+                className="pl-8 w-64 max-w-full"
+              />
+            </div>
+            <div className="flex items-center gap-1" role="group" aria-label="Contato">
+              {(
+                [
+                  ["todos", "Todos"],
+                  ["nao_contatados", "Não contatados"],
+                  ["contatados", "Contatados"],
+                ] as const
+              ).map(([valor, rotulo]) => (
                 <button
-                  key={status}
+                  key={valor}
                   type="button"
-                  onClick={() =>
-                    setStatusFiltro((prev) =>
-                      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status],
-                    )
-                  }
-                  className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
-                    ativo
+                  aria-pressed={contatoFiltro === valor}
+                  onClick={() => setContatoFiltro(valor)}
+                  className={`px-3 py-1 rounded-full text-sm border transition-colors ${
+                    contatoFiltro === valor
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background border-border hover:border-primary/50"
                   }`}
                 >
-                  {leadStatusLabel(status)} · {count}
+                  {rotulo}
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        )}
+
+          {(statusPresentes.length > 1 || statusFiltro.length > 0) && (
+            <FiltrosMenu
+              ativos={statusFiltro.length > 0 ? 1 : 0}
+              resumo={resumoDasEtapas(statusFiltro)}
+              onLimpar={() => setStatusFiltro([])}
+            >
+              <div className="space-y-2">
+                <p className="text-xs font-semibold">Etapa</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {statusPresentes.map(([status, count]) => {
+                    const ativo = statusFiltro.includes(status);
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        aria-pressed={ativo}
+                        onClick={() =>
+                          setStatusFiltro((prev) =>
+                            prev.includes(status)
+                              ? prev.filter((s) => s !== status)
+                              : [...prev, status],
+                          )
+                        }
+                        className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
+                          ativo
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {leadStatusLabel(status)} · {count}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </FiltrosMenu>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>
@@ -811,7 +870,7 @@ function OfertaDetailPage() {
                   <TableHead className="w-10"></TableHead>
                   <TableHead>Lead</TableHead>
                   <TableHead>Projeto</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Etapa</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -831,7 +890,13 @@ function OfertaDetailPage() {
                         <ToggleContatado row={row} onToggle={toggleContato} />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{l.nome}</div>
+                        <Link
+                          to="/leads/$leadId"
+                          params={{ leadId: l.id }}
+                          className="font-medium text-foreground hover:underline"
+                        >
+                          {l.nome}
+                        </Link>
                         <div className="text-xs text-muted-foreground">{l.telefone}</div>
                       </TableCell>
                       <TableCell className="text-sm">{l.projeto_nome ?? "—"}</TableCell>
@@ -888,7 +953,13 @@ function OfertaDetailPage() {
                       aria-label={`Selecionar ${l.nome}`}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium leading-tight">{l.nome}</p>
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: l.id }}
+                        className="block font-medium leading-tight text-foreground hover:underline"
+                      >
+                        {l.nome}
+                      </Link>
                       <p className="text-xs text-muted-foreground">{l.telefone}</p>
                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                         <Badge variant="secondary" className={LEAD_STATUS_BADGE_TONE[l.status]}>

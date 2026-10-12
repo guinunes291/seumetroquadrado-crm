@@ -89,3 +89,91 @@ Só trocam o markup local pelas peças (`SeloAoVivo`, `CartaoPrincipal`,
 `Painel`, `VendoDeOutro`), com o mesmo resultado na tela.
 `tests/bi-lancamento.test.tsx` passou a procurar `<SeloAoVivo` dentro da aba
 Dia em vez do `<span>` antigo.
+
+### Comissões (`/financeiro` → Comissões)
+
+- **Filtros:** Período, Status e Beneficiário foram para um `FiltrosMenu` na
+  linha logo acima da tabela, com o estado em texto ("Outubro de 2026 · todos
+  os status · todos os beneficiários"). Contam como ativos os que saem do
+  padrão (status, beneficiário, período fora do mês corrente); "Limpar
+  filtros" volta ao mês corrente. O "Limpar" do estado vazio continua levando
+  a "Todo o período", como antes.
+- **Cabeçalho:** "Exportar" é a única ação; descrição em uma frase.
+- **Totais:** só Valor e Líquido. O VGV não se repete, porque é o primeiro número
+  do topo. `computeTotais` não mudou.
+- **Vendas do período (distrato e exclusão):** atrás de "Ver vendas do
+  período", no fim, só para a gestão. O quadro só monta, e a consulta só
+  roda, quando alguém abre.
+- **"…" da linha:** é o `AcoesLinha` compartilhado, com os mesmos itens e
+  condições de antes.
+
+Ficou de fora do mockup, de propósito: "Pagar"/"Atribuir" visíveis na linha e
+uma busca. Os dois seriam comportamento novo. Testes:
+`tests/comissoes-lancamento.test.tsx`.
+
+### Oferta Ativa, detalhe da lista (`/oferta-ativa/$ofertaId`)
+
+- **Cabeçalho:** um título só, sem a seta de voltar (a trilha do header leva de
+  volta), com o status ao lado do nome.
+- **Números:** três `StatTile`: Total ("na lista desde dd/mm"), Contatados e
+  Avançados, com % e barra. São os números de `computeOfertaStats`, com as
+  explicações no tooltip.
+- **Faixa de 100%:** sem emoji, em `success`: "Todos os N leads desta lista já
+  foram contatados."
+- **Filtros:** busca e Contato à vista; as etapas atrás de `FiltrosMenu`.
+- **Linha:** WhatsApp é a ação visível. Ligar, Abrir lead e a troca de etapa
+  vão para o "…", montado como o da Fila Única (`fila-card.tsx`), porque a
+  troca de etapa é o funil inteiro com as permissões por papel
+  (`LeadStageMenuItems`) e não cabe nos itens simples do `AcoesLinha`.
+- **Pequenos acréscimos:** o nome do lead virou link para o lead, e a coluna
+  "Status" virou "Etapa".
+
+Testes: `tests/oferta-lista-lancamento.test.tsx`.
+
+### Aula da Academia (`/academia/modulo/$codigo/aula/$ordem`)
+
+- **Cabeçalho:** `PageHeader` com o eyebrow explícito ("Módulo 10 · {módulo} ·
+  Aula N de M"). O número vem do shell (`useModuloAtual`), então nunca discorda
+  da sidebar. O botão "← módulo" saiu, porque a trilha do header leva de volta.
+- **Ações:** no desktop ficam numa linha no fim do texto; no celular, no
+  `StickyActionRail`. A barra fixa caseira e os `p-4 md:p-6` saíram.
+- **Não mudou:** marcar/desmarcar, a navegação "Próxima / Voltar ao módulo",
+  o vídeo, os slides e o markdown. O treino prático do onboarding não foi
+  tocado.
+
+### Planilha de amortização (`/simulador-amortizacao`)
+
+- **Ordem do Resumo:** a "Leitura para o cliente" (a mesma frase do PDF) vem
+  primeiro, como cartão principal. Depois, três `StatTile` com SAC e PRICE lado
+  a lado: 1ª parcela, Renda mínima (30%), em vermelho acima de 30% quando há
+  renda informada, e Total pago. A tabela de 15 linhas fica atrás de "Ver
+  comparativo completo".
+- **O que saiu:** os três `Kpi` que repetiam o formulário (valor, juros,
+  correção). A taxa mensal com 4 casas só existia ali; a conversão
+  nominal/efetiva continua na dica do formulário.
+- **Ações e textos:** "Exportar PDF" é a única ação navy; "Fluxo das
+  construtoras" virou link discreto; o aviso legal ficou numa linha.
+- **Não mudou:** o formulário, as contas (`lib/amortizacao`), as abas, o PDF e
+  o texto copiado.
+
+### Materiais (`/projetos-materiais`)
+
+- **Topo:** os quatro `StatTile` e a barra de progresso viraram um `Placar`. O
+  anel mostra "prontos para a prateleira" (N de M), e os números são o trabalho
+  que sobra: Sem book · Sem tabela · Sem capa · Sem preço, em âmbar só acima
+  de zero. "Sob consulta" continua contando como preço.
+- **Ações:** "Colar lista" é a ação navy; "Ver a prateleira" é contornada.
+- **Grupos:** usam `SectionHeader`, com estrela dourada só para construtora
+  parceira.
+- **Espaçamento:** saiu o `p-6 pb-24`. O `pb-20` só entra enquanto a barra de
+  Salvar está na tela.
+
+Testes das três telas acima: `tests/fase1-telas-consulta.test.tsx`.
+
+## Validação da Fase 1
+
+`tsc --noEmit` limpo; eslint e prettier limpos nos arquivos tocados; suíte
+completa com 254 arquivos e 2750 testes verdes (antes da fase: 249 e 2709).
+Testes que já existiam e foram ajustados: só `bi-lancamento` e
+`em-atendimento-fatia2`, os dois descritos acima. Nenhum teste foi pulado ou
+desligado.

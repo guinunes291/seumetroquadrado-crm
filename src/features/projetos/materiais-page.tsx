@@ -47,10 +47,10 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
+import { Placar } from "@/components/ui/placar";
 import { QueryErrorState } from "@/components/ui/query-error-state";
+import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatTile } from "@/components/ui/stat-tile";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -312,36 +312,45 @@ export function MateriaisPage() {
     );
   };
 
+  const titulo = "Materiais dos empreendimentos";
+  const descricao = "Book, tabela, capa e preço — o que falta aqui não chega à prateleira.";
+
   if (projetosQ.isError) {
     return (
-      <div className="p-6">
-        <PageHeader title="Materiais dos empreendimentos" />
+      <>
+        <PageHeader title={titulo} description={descricao} />
         <QueryErrorState
           title="Não foi possível carregar os projetos."
           error={projetosQ.error}
           onRetry={() => projetosQ.refetch()}
         />
-      </div>
+      </>
     );
   }
 
+  const barraVisivel = pendentes.length + invalidos > 0;
+  const foraDaPrateleira = total - prontos;
+
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="space-y-6 p-6 pb-24">
+      {/* Sem padding próprio (o shell já dá); pb-20 só enquanto a barra fixa de
+          Salvar está na tela, para ela não cobrir a última linha. */}
+      <div className={cn("space-y-5", barraVisivel && "pb-20")}>
         <PageHeader
-          title="Materiais dos empreendimentos"
-          description="Book, tabela, capa e preço de cada projeto. É daqui que a prateleira do corretor se alimenta — o que falta aqui não aparece lá."
+          title={titulo}
+          description={descricao}
           actions={
             <>
-              <Button variant="outline" size="sm" onClick={() => setColarOpen(true)}>
-                <Clipboard className="mr-1 h-4 w-4" />
-                Colar lista
-              </Button>
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline">
                 <Link to="/projetos-foco">
                   <Star className="mr-1 h-4 w-4" />
                   Ver a prateleira
                 </Link>
+              </Button>
+              {/* A porta do trabalho em lote: a única ação navy do topo. */}
+              <Button onClick={() => setColarOpen(true)}>
+                <Clipboard className="mr-1 h-4 w-4" />
+                Colar lista
               </Button>
             </>
           }
@@ -349,52 +358,35 @@ export function MateriaisPage() {
 
         <ColarListaDialog open={colarOpen} onOpenChange={setColarOpen} onAplicar={aplicarColagem} />
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile
-            title="Com book"
-            value={comBook}
-            icon={BookOpen}
-            loading={projetosQ.isLoading}
-            hint={total > 0 ? `de ${total} empreendimentos` : undefined}
-          />
-          <StatTile
-            title="Com tabela"
-            value={comTabela}
-            icon={Table}
-            loading={projetosQ.isLoading}
-            hint={total > 0 ? `de ${total} empreendimentos` : undefined}
-          />
-          <StatTile
-            title="Com capa"
-            value={comCapa}
-            icon={ImageIcon}
-            loading={projetosQ.isLoading}
-            hint="Foto do card na prateleira"
-          />
-          <StatTile
-            title="Com preço"
-            value={comPreco}
-            icon={Wallet}
-            loading={projetosQ.isLoading}
-            hint="Ou marcado como sob consulta"
-          />
-        </div>
-
-        {total > 0 && (
-          <div className="space-y-1">
-            <Progress
-              value={(prontos / total) * 100}
-              aria-label={`${prontos} de ${total} empreendimentos prontos para a prateleira`}
+        {/* O topo diz quanto falta, não quanto há: o anel é o que já chega à
+            prateleira e os quatro números são o trabalho que sobra. */}
+        {projetosQ.isLoading ? (
+          <Skeleton className="h-44 rounded-2xl" />
+        ) : (
+          total > 0 && (
+            <Placar
+              data-testid="materiais-placar"
+              titulo="Prontos para a prateleira"
+              sub={`Zona conhecida e book ou tabela.${
+                foraDaPrateleira === 1
+                  ? " O outro fica só no catálogo."
+                  : foraDaPrateleira > 1
+                    ? ` Os outros ${foraDaPrateleira} ficam só no catálogo.`
+                    : ""
+              }`}
+              anel={{ valor: prontos, teto: total, rotulo: "prontos para a prateleira" }}
+              numeros={[
+                { valor: total - comBook, rotulo: "Sem book", cor: "text-warning" },
+                { valor: total - comTabela, rotulo: "Sem tabela", cor: "text-warning" },
+                { valor: total - comCapa, rotulo: "Sem capa", cor: "text-warning" },
+                { valor: total - comPreco, rotulo: "Sem preço", cor: "text-warning" },
+              ]}
             />
-            <p className="text-xs text-muted-foreground">
-              <strong className="tabular-nums text-foreground">{prontos}</strong> de {total} prontos
-              para a prateleira (zona conhecida e book ou tabela). Os demais ficam só no catálogo.
-            </p>
-          </div>
+          )
         )}
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div className="relative w-full md:max-w-md">
             <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={busca}
@@ -456,21 +448,24 @@ export function MateriaisPage() {
         ) : (
           <div className="space-y-6">
             {grupos.map((g) => (
-              <div key={g.titulo} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  {g.parceira ? (
-                    <Star
-                      className="h-4 w-4 text-gold-600 dark:text-gold-300"
-                      aria-label="Construtora parceira"
-                    />
-                  ) : (
-                    <Buildings className="h-4 w-4 text-primary" aria-hidden="true" />
-                  )}
-                  <h2 className="font-display text-sm font-semibold tracking-tight">{g.titulo}</h2>
-                  <Badge variant="outline" className="text-[10px]">
-                    {g.itens.length}
-                  </Badge>
-                </div>
+              <section key={g.titulo} aria-label={g.titulo} className="space-y-2">
+                <SectionHeader
+                  className="mb-0"
+                  title={
+                    <span className="inline-flex items-center gap-1.5">
+                      {g.parceira && (
+                        <Star
+                          className="h-4 w-4 shrink-0 text-gold-600 dark:text-gold-300"
+                          aria-label="Construtora parceira"
+                        />
+                      )}
+                      {g.titulo}
+                      <span className="font-sans text-sm font-normal tabular-nums text-muted-foreground">
+                        · {g.itens.length}
+                      </span>
+                    </span>
+                  }
+                />
                 <div
                   className={cn(
                     "divide-y divide-border-subtle overflow-hidden rounded-xl border bg-card shadow-elev-1",
@@ -489,7 +484,7 @@ export function MateriaisPage() {
                     />
                   ))}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         )}
@@ -498,7 +493,7 @@ export function MateriaisPage() {
           <PlantasDialog projeto={plantasDe} open onOpenChange={(v) => !v && setPlantasDe(null)} />
         )}
 
-        {pendentes.length + invalidos > 0 && (
+        {barraVisivel && (
           <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle bg-card/95 p-3 backdrop-blur md:left-64">
             <div className="mx-auto flex max-w-4xl items-center gap-3">
               <span className="flex-1 text-sm">

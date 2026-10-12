@@ -3,9 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowCounterClockwise,
   Buildings,
+  CaretDown,
   CheckCircle,
   Clock,
-  DotsThreeVertical,
   DownloadSimple,
   HandCoins,
   Percent,
@@ -42,12 +42,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { AcoesLinha } from "@/components/ui/acoes-linha";
+import { FiltrosMenu } from "@/components/ui/filtros-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import {
   listComissoes,
   listVendasPeriodo,
@@ -86,53 +84,12 @@ function Beneficiario({ row }: { row: ComissaoRow }) {
   return <span className="text-muted-foreground italic">{tipoLabel(row.tipo)} — a atribuir</span>;
 }
 
-// Fora do componente de página para não remontar as linhas a cada render.
-function AcoesLinha({
-  row,
-  onPagar,
-  onReverter,
-  onAtribuir,
-  onDesconto,
-}: {
-  row: ComissaoRow;
-  onPagar: (row: ComissaoRow) => void;
-  onReverter: (row: ComissaoRow) => void;
-  onAtribuir: (row: ComissaoRow) => void;
-  onDesconto: (row: ComissaoRow) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" title="Ações da comissão">
-          <DotsThreeVertical className="w-4 h-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {row.status !== "paga" && (
-          <DropdownMenuItem onClick={() => onPagar(row)}>
-            <CheckCircle className="w-4 h-4 mr-2" /> Marcar como paga
-          </DropdownMenuItem>
-        )}
-        {row.status === "paga" && (
-          <DropdownMenuItem onClick={() => onReverter(row)}>
-            <ArrowCounterClockwise className="w-4 h-4 mr-2" /> Reverter para pendente
-          </DropdownMenuItem>
-        )}
-        {row.status !== "paga" && (
-          <DropdownMenuItem onClick={() => onAtribuir(row)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            {row.beneficiario_id ? "Alterar beneficiário" : "Atribuir beneficiário"}
-          </DropdownMenuItem>
-        )}
-        {row.status !== "paga" && (
-          <DropdownMenuItem onClick={() => onDesconto(row)}>
-            <Percent className="w-4 h-4 mr-2" /> Aplicar desconto
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
+/** O status no resumo dos filtros: "Outubro de 2026 · pendentes · Marina Costa". */
+const STATUS_NO_PLURAL: Record<string, string> = {
+  pendente: "pendentes",
+  paga: "pagas",
+  cancelada: "canceladas",
+};
 
 const fmtDataCurta = (d: string | null | undefined) =>
   d ? new Date(`${d}T12:00:00`).toLocaleDateString("pt-BR") : "—";
@@ -152,6 +109,8 @@ export function ComissoesPage() {
   const [atribuirRow, setAtribuirRow] = useState<ComissaoRow | null>(null);
   const [beneficiarioEscolhido, setBeneficiarioEscolhido] = useState<string | null>(null);
   const [descontoRow, setDescontoRow] = useState<ComissaoRow | null>(null);
+  // Vendas do período (distrato e exclusão) ficam atrás de "Ver vendas".
+  const [vendasAbertas, setVendasAbertas] = useState(false);
 
   useEffect(() => {
     setBeneficiarioEscolhido(atribuirRow?.beneficiario_id ?? null);
@@ -279,52 +238,93 @@ export function ComissoesPage() {
     }
   }
 
+  // Identidade Lançamento (regra 5): os três filtros moram atrás de "Filtros",
+  // na linha discreta logo acima da tabela, e o estado vem em texto. Conta
+  // como ativo o que sai do padrão: status, beneficiário e período fora do
+  // mês corrente (o padrão da tela).
+  const mesAtual = mesesOpcoes[0]?.value ?? "todos";
+  const podeFiltrarBeneficiario = canManage && (beneficiarios.length > 0 || temSemBeneficiario);
+  const filtrosAtivos =
+    (mes !== mesAtual ? 1 : 0) + (status !== "all" ? 1 : 0) + (beneficiario !== "all" ? 1 : 0);
+  const resumoStatus =
+    status === "all"
+      ? "todos os status"
+      : (STATUS_NO_PLURAL[status] ?? statusLabel(status).toLowerCase());
+  const resumoBeneficiario =
+    beneficiario === "all"
+      ? "todos os beneficiários"
+      : beneficiario === "sem"
+        ? "sem beneficiário"
+        : (beneficiarios.find((b) => b.id === beneficiario)?.nome ?? "um beneficiário");
+  const resumoFiltros = [
+    mesLabel,
+    resumoStatus,
+    ...(podeFiltrarBeneficiario ? [resumoBeneficiario] : []),
+  ].join(" · ");
+  const limparFiltros = () => {
+    setMes(mesAtual);
+    setStatus("all");
+    setBeneficiario("all");
+  };
+
   const filtros = (
-    <div className="flex flex-wrap items-center gap-2">
-      <Select value={mes} onValueChange={setMes}>
-        <SelectTrigger className="w-[190px]">
-          <SelectValue placeholder="Período" />
-        </SelectTrigger>
-        <SelectContent>
-          {mesesOpcoes.map((m) => (
-            <SelectItem key={m.value} value={m.value}>
-              {m.label}
-            </SelectItem>
-          ))}
-          <SelectItem value="todos">Todo o período</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select value={status} onValueChange={setStatus}>
-        <SelectTrigger className="w-[150px]">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os status</SelectItem>
-          <SelectItem value="pendente">Pendente</SelectItem>
-          <SelectItem value="paga">Paga</SelectItem>
-          <SelectItem value="cancelada">Cancelada</SelectItem>
-        </SelectContent>
-      </Select>
-      {canManage && (beneficiarios.length > 0 || temSemBeneficiario) && (
-        <Select value={beneficiario} onValueChange={setBeneficiario}>
-          <SelectTrigger className="w-[190px]">
-            <SelectValue placeholder="Beneficiário" />
+    <FiltrosMenu ativos={filtrosAtivos} resumo={resumoFiltros} onLimpar={limparFiltros}>
+      <div className="space-y-1.5">
+        <Label htmlFor="comissoes-filtro-periodo" className="text-xs text-muted-foreground">
+          Período
+        </Label>
+        <Select value={mes} onValueChange={setMes}>
+          <SelectTrigger id="comissoes-filtro-periodo" className="w-full">
+            <SelectValue placeholder="Período" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos os beneficiários</SelectItem>
-            {temSemBeneficiario && <SelectItem value="sem">Sem beneficiário</SelectItem>}
-            {beneficiarios.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.nome}
+            {mesesOpcoes.map((m) => (
+              <SelectItem key={m.value} value={m.value}>
+                {m.label}
               </SelectItem>
             ))}
+            <SelectItem value="todos">Todo o período</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="comissoes-filtro-status" className="text-xs text-muted-foreground">
+          Status
+        </Label>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger id="comissoes-filtro-status" className="w-full">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="paga">Paga</SelectItem>
+            <SelectItem value="cancelada">Cancelada</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {podeFiltrarBeneficiario && (
+        <div className="space-y-1.5">
+          <Label htmlFor="comissoes-filtro-beneficiario" className="text-xs text-muted-foreground">
+            Beneficiário
+          </Label>
+          <Select value={beneficiario} onValueChange={setBeneficiario}>
+            <SelectTrigger id="comissoes-filtro-beneficiario" className="w-full">
+              <SelectValue placeholder="Beneficiário" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os beneficiários</SelectItem>
+              {temSemBeneficiario && <SelectItem value="sem">Sem beneficiário</SelectItem>}
+              {beneficiarios.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       )}
-      <Button variant="outline" size="sm" onClick={exportarXlsx} disabled={filtered.length === 0}>
-        <DownloadSimple className="w-4 h-4 mr-1.5" /> Exportar
-      </Button>
-    </div>
+    </FiltrosMenu>
   );
 
   const mutateUpdate = updateM.mutate;
@@ -474,15 +474,41 @@ export function ComissoesPage() {
         enableSorting: false,
         enableHiding: false,
         size: 48,
-        cell: ({ row }) => (
-          <AcoesLinha
-            row={row.original}
-            onPagar={setPagarRow}
-            onReverter={reverterComissao}
-            onAtribuir={setAtribuirRow}
-            onDesconto={setDescontoRow}
-          />
-        ),
+        cell: ({ row }) => {
+          const r = row.original;
+          const paga = r.status === "paga";
+          return (
+            <AcoesLinha
+              rotulo="Ações da comissão"
+              acoes={[
+                {
+                  rotulo: "Marcar como paga",
+                  icone: CheckCircle,
+                  onSelect: () => setPagarRow(r),
+                  oculta: paga,
+                },
+                {
+                  rotulo: "Reverter para pendente",
+                  icone: ArrowCounterClockwise,
+                  onSelect: () => reverterComissao(r),
+                  oculta: !paga,
+                },
+                {
+                  rotulo: r.beneficiario_id ? "Alterar beneficiário" : "Atribuir beneficiário",
+                  icone: UserPlus,
+                  onSelect: () => setAtribuirRow(r),
+                  oculta: paga,
+                },
+                {
+                  rotulo: "Aplicar desconto",
+                  icone: Percent,
+                  onSelect: () => setDescontoRow(r),
+                  oculta: paga,
+                },
+              ]}
+            />
+          );
+        },
       });
     }
     return cols;
@@ -495,15 +521,24 @@ export function ComissoesPage() {
         description={
           canManage
             ? "Geradas somente após a aprovação gerencial da venda."
-            : "Somente as SUAS comissões, das suas vendas — geradas após a aprovação gerencial."
+            : "Só as suas, geradas após a aprovação gerencial da venda."
         }
-        actions={filtros}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportarXlsx}
+            disabled={filtered.length === 0}
+          >
+            <DownloadSimple className="w-4 h-4 mr-1.5" /> Exportar
+          </Button>
+        }
       />
 
       {canManage && <PendingSalesApproval />}
 
       {/* Como no vídeo: a aprovação e logo os números do período; o quadro de
-          distrato e exclusão (gestão) vem depois. */}
+          distrato e exclusão (gestão) fica atrás de "Ver vendas", no fim. */}
       <StatGrid>
         <StatTile
           title={canManage ? "VGV do período" : "Meu VGV do período"}
@@ -541,12 +576,11 @@ export function ComissoesPage() {
         />
       </StatGrid>
 
-      {canManage && <VendasGestaoCard mes={mes} isAdmin={isAdmin} />}
-
       <div className="space-y-2">
         <DataTable
           tableId="comissoes"
           aria-label="Comissões"
+          toolbar={filtros}
           columns={columns}
           data={filtered}
           loading={comissoesQ.isLoading}
@@ -580,16 +614,14 @@ export function ComissoesPage() {
           }
         />
 
-        {/* Totais do filtro ativo (todas as linhas, não só as visíveis) */}
+        {/* Totais do filtro ativo (todas as linhas, não só as visíveis). O VGV
+            não se repete aqui: é o primeiro número do topo. */}
         {!comissoesQ.isLoading && !comissoesQ.isError && filtered.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-xl border border-border-subtle bg-muted/40 px-4 py-3 text-sm">
             <span className="font-medium">
               Totais ({filtered.length} {filtered.length === 1 ? "comissão" : "comissões"})
             </span>
             <span className="flex flex-wrap items-center gap-x-6 gap-y-1 tabular-nums">
-              <span className="text-muted-foreground">
-                VGV <span className="font-medium text-foreground">{formatBRL2(totais.vgv)}</span>
-              </span>
               <span className="text-muted-foreground">
                 Valor <span className="font-medium text-foreground">{formatBRL2(somaValor)}</span>
               </span>
@@ -601,6 +633,32 @@ export function ComissoesPage() {
           </div>
         )}
       </div>
+
+      {canManage && (
+        <Collapsible open={vendasAbertas} onOpenChange={setVendasAbertas}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-card px-4 py-3.5 text-left text-sm font-semibold shadow-elev-1 transition-colors hover:bg-accent/40"
+            >
+              <span>
+                Ver vendas do período{" "}
+                <span className="font-medium text-muted-foreground">· distrato e exclusão</span>
+              </span>
+              <CaretDown
+                aria-hidden="true"
+                className={cn(
+                  "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                  vendasAbertas && "rotate-180",
+                )}
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-4">
+            <VendasGestaoCard mes={mes} isAdmin={isAdmin} />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
 
       {/* Dialog: marcar como paga */}
       <Dialog open={!!pagarRow} onOpenChange={(o) => !o && setPagarRow(null)}>
