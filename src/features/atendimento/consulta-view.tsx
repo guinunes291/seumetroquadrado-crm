@@ -11,6 +11,12 @@
 // [Filtros] com o contador de ativos. O que ainda fica em /leads até o
 // PR (c): kanban, sort por coluna, ações em massa e importação — o link
 // "Abrir em Meus Leads" leva para lá preservando o recorte inteiro.
+//
+// Padrão Lançamento (Fase 2, 12/10/2026): a contagem virou o título da
+// lista ("N leads"), as linhas são EntityRow no cartão padrão (rounded-2xl,
+// border-border-subtle) e Ligar passou ao useLigarLead (3C Plus com recuo
+// para o tel:, como a Fila Única). Busca, drawer de filtros e o caminho para
+// Meus Leads não mudaram.
 
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -45,6 +51,7 @@ import {
 } from "@/components/ui/sheet";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { EmptyState } from "@/components/ui/empty-state";
+import { EntityRow } from "@/components/ui/entity-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { LeadPeekDrawer } from "@/features/leads/lead-peek-drawer";
@@ -53,6 +60,7 @@ import { ORIGEM_OPTIONS } from "@/features/leads/novo-lead-dialog";
 import type { Lead } from "@/features/leads/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { LEAD_STATUS_LABEL, leadStatusLabel } from "@/lib/leads";
@@ -90,6 +98,7 @@ export function ConsultaView() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
   const abrirWhatsApp = useWhatsAppLead();
+  const { ligar, discando } = useLigarLead();
   const [busca, setBusca] = useState("");
   const [buscaDebounced, setBuscaDebounced] = useState("");
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_PADRAO);
@@ -295,9 +304,9 @@ export function ConsultaView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas temperaturas</SelectItem>
-                  <SelectItem value="quente">🔥 Quente</SelectItem>
-                  <SelectItem value="morno">🌡️ Morno</SelectItem>
-                  <SelectItem value="frio">❄️ Frio</SelectItem>
+                  <SelectItem value="quente">Quente</SelectItem>
+                  <SelectItem value="morno">Morno</SelectItem>
+                  <SelectItem value="frio">Frio</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -471,70 +480,91 @@ export function ConsultaView() {
             className="py-12"
           />
         ) : (
-          <div className="space-y-2">
-            <div className="text-xs text-muted-foreground" aria-live="polite">
-              {total} lead{total === 1 ? "" : "s"}
-              {totalPages > 1 ? ` · página ${pageSafe} de ${totalPages}` : ""}
-            </div>
-            {rows.map((lead) => (
-              <div
-                key={lead.id}
-                onClick={(e) => {
-                  const target = e.target as HTMLElement;
-                  if (target.closest("a,button,input")) return;
-                  setPeek(lead);
-                }}
-                className="flex cursor-pointer items-center justify-between gap-2 rounded-md border p-2 transition-colors hover:bg-accent/40"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate text-sm font-medium">{lead.nome}</span>
-                    <TemperatureChip temperatura={lead.temperatura} size="sm" pulse={false} />
-                    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                      {leadStatusLabel(lead.status)}
-                    </Badge>
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {lead.telefone}
-                    {lead.projeto_nome ? ` · ${lead.projeto_nome}` : ""}
-                    {lead.ultima_interacao
-                      ? ` · contato ${formatRelativeTime(lead.ultima_interacao)}`
-                      : " · sem contato registrado"}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-success hover:bg-success/10"
-                    title="WhatsApp"
-                    onClick={() =>
-                      abrirWhatsApp({
-                        id: lead.id,
-                        nome: lead.nome,
-                        telefone: lead.telefone,
-                        projeto_nome: lead.projeto_nome,
-                      })
-                    }
+          <div className="space-y-3">
+            <section
+              aria-labelledby="consulta-contagem"
+              className="overflow-hidden rounded-2xl border border-border-subtle bg-card text-card-foreground shadow-elev-1"
+            >
+              {/* A contagem é o título da lista — o número é o dono. */}
+              <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-4 py-3">
+                <h2
+                  id="consulta-contagem"
+                  aria-live="polite"
+                  className="font-display text-base font-bold tabular-nums"
+                >
+                  {total} lead{total === 1 ? "" : "s"}
+                  {filtros.lixeira ? " na lixeira" : ""}
+                </h2>
+                {totalPages > 1 && (
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    página {pageSafe} de {totalPages}
+                  </span>
+                )}
+              </header>
+              <div role="table" aria-labelledby="consulta-contagem">
+                {rows.map((lead) => (
+                  <EntityRow
+                    key={lead.id}
+                    onActivate={() => setPeek(lead)}
+                    aria-label={`${lead.nome} — abrir o resumo`}
+                    className="flex items-center justify-between gap-3 border-t border-border-subtle px-4 py-3 first:border-t-0 hover:bg-accent/40"
                   >
-                    <WhatsappLogo className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    asChild
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-info hover:bg-info/10"
-                    title="Ligar"
-                  >
-                    <a href={`tel:${lead.telefone.replace(/\D/g, "")}`}>
-                      <Phone className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </div>
+                    <div role="cell" className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate text-sm font-semibold">{lead.nome}</span>
+                        <TemperatureChip temperatura={lead.temperatura} size="sm" pulse={false} />
+                        <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                          {leadStatusLabel(lead.status)}
+                        </Badge>
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {lead.telefone}
+                        {lead.projeto_nome ? ` · ${lead.projeto_nome}` : ""}
+                        {lead.ultima_interacao
+                          ? ` · contato ${formatRelativeTime(lead.ultima_interacao)}`
+                          : " · sem contato registrado"}
+                      </div>
+                    </div>
+                    <div role="cell" className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="md:h-8 md:w-8"
+                        aria-label={`Abrir WhatsApp de ${lead.nome}`}
+                        title="WhatsApp"
+                        onClick={() =>
+                          abrirWhatsApp({
+                            id: lead.id,
+                            nome: lead.nome,
+                            telefone: lead.telefone,
+                            projeto_nome: lead.projeto_nome,
+                          })
+                        }
+                      >
+                        <WhatsappLogo />
+                      </Button>
+                      {/* 3C Plus quando há integração; sem ela o hook avisa e
+                          abre o tel: do aparelho (antes era só o tel:). */}
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="md:h-8 md:w-8"
+                        aria-label={`Ligar para ${lead.nome}`}
+                        title="Ligar"
+                        disabled={discando}
+                        onClick={() =>
+                          ligar({ id: lead.id, nome: lead.nome, telefone: lead.telefone })
+                        }
+                      >
+                        <Phone />
+                      </Button>
+                    </div>
+                  </EntityRow>
+                ))}
               </div>
-            ))}
+            </section>
             {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between">
                 <Button
                   variant="ghost"
                   size="sm"

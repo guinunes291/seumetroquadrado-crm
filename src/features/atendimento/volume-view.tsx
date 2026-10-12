@@ -2,35 +2,57 @@
 // src/routes/_authenticated/blitz.tsx sem mudança de comportamento: um lead
 // por vez, priorizado por score, com atalhos de teclado. Desde o PR (c),
 // /blitz é redirect para /atendimento?modo=volume e este componente só monta
-// dentro de Atender — o cabeçalho é o da página, aqui fica a régua compacta
-// (badge de posição + atalhos).
+// dentro de Atender — o cabeçalho é o da página.
+//
+// Padrão Lançamento (Fase 2, 12/10/2026): o topo responde "como está a
+// carteira" em três números com dono (na carteira · SLA estourado · sem
+// contato há 5+ dias), todos contados do que esta tela JÁ carrega (a fila e o
+// leads_com_sla) — nenhuma consulta nova. A área de trabalho é o cartão no
+// molde do próximo lead da Prospecção (ProximoLeadCard): temperatura e etapa,
+// "N de M", nome, seis campos e Registrar contato como a única ação navy, ao
+// lado de Ligar (useLigarLead: 3C Plus com recuo para o tel:) e WhatsApp.
+// Mudar etapa, Agendar visita e Abrir dossiê vão para o "…"; observações e o
+// Resumo da Sami ficam atrás de "Ver resumo". Não mudou: a fila, a ordem
+// (scoreLead + chegada), as chaves de cache e os atalhos.
 
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Kbd } from "@/components/ui/kbd";
+import { Progress } from "@/components/ui/progress";
 import { QueryErrorState } from "@/components/ui/query-error-state";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatGrid, StatTile } from "@/components/ui/stat-tile";
+import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import {
   LEAD_STATUS_LABEL,
-  LEAD_STATUS_BADGE_TONE,
   PROXIMA_ACAO,
   resolveStageAction,
   type LeadStatus,
   type StageLead,
 } from "@/lib/leads";
 import { origemLabel } from "@/lib/origem";
+import { formatRelativeTime } from "@/lib/interacoes";
+import { INTENT_BADGE } from "@/lib/status-tones";
+import { isTypingTarget } from "@/lib/shortcuts";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
+import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
-import { LeadStageMenu } from "@/components/lead-stage-menu";
+import { LeadStageMenuItems } from "@/components/lead-stage-menu";
 import {
   LeadStageModals,
   type StageModalState,
@@ -38,26 +60,20 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import {
   ArrowSquareOut,
-  Bank,
   CalendarCheck,
-  CalendarDots,
+  CaretDown,
   CaretLeft,
   CaretRight,
-  Clock,
-  Envelope,
-  Fire,
-  IdentificationCard,
+  DotsThree,
   Phone,
-  PhoneCall,
-  PiggyBank,
   Tray,
-  Wallet,
   WhatsappLogo,
 } from "@phosphor-icons/react";
 import { ResumoIA } from "@/components/resumo-ia";
-import { formatDuration } from "@/lib/duracao";
 import { scoreLead } from "@/lib/priority";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
+import { Campo, ultimoContato } from "@/features/prospeccao/proximo-lead-card";
+import { DIAS_SEM_CONTATO, resumoDoVolume, ultimoToque } from "./volume-resumo";
 
 type Lead = {
   id: string;
@@ -89,18 +105,18 @@ type SlaRow = {
   sla_minutos: number;
 };
 
-const SLA_META: Record<string, { label: string; cls: string }> = {
-  estourado: { label: "SLA estourado", cls: "bg-destructive/15 text-destructive" },
-  atencao: { label: "Atenção", cls: "bg-warning/15 text-warning" },
-  ok: { label: "No prazo", cls: "bg-success/15 text-success" },
-};
-const TEMP_CLS: Record<string, string> = {
-  quente: "bg-destructive/15 text-destructive",
-  morno: "bg-warning/15 text-warning",
-  frio: "bg-info/15 text-info",
-};
+// Texto integral dos atalhos (leitor de tela); na tela, a linha discreta com
+// Kbd mostra só os que não estão nos botões (← → e A).
+const ATALHOS = "Atalhos: ← → navegar · L ligar · W WhatsApp · R registrar contato · A agendar.";
 
-const ATALHOS = "Atalhos: ← → navegar · L ligar · W WhatsApp · A agendar.";
+/** Número do topo: a cor só acende acima de zero. */
+function NumeroComDono({ valor, cor }: { valor: number; cor: string }) {
+  return <span className={cn(valor > 0 && cor)}>{valor}</span>;
+}
+
+function fgts(v: boolean | null): string {
+  return v == null ? "—" : v ? "Sim" : "Não";
+}
 
 export function VolumeView() {
   const { user } = useAuth();
@@ -108,6 +124,8 @@ export function VolumeView() {
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
   const [contatoOpen, setContatoOpen] = useState(false);
+  const [resumoAberto, setResumoAberto] = useState(false);
+  const { ligar: discar, discando } = useLigarLead();
 
   const leadsQ = useQuery({
     queryKey: ["blitz-queue", user?.id],
@@ -170,6 +188,8 @@ export function VolumeView() {
     return arr;
   }, [leadsQ.data, slaMap]);
 
+  const resumo = useMemo(() => resumoDoVolume(fila, slaMap, new Date()), [fila, slaMap]);
+
   useRealtimeInvalidate("leads", [["blitz-queue"], ["blitz-sla"]]);
 
   // Mantém o índice dentro dos limites quando a fila muda.
@@ -187,9 +207,12 @@ export function VolumeView() {
   const next = useCallback(() => setIndex((i) => Math.min(i + 1, fila.length - 1)), [fila.length]);
   const prev = useCallback(() => setIndex((i) => Math.max(i - 1, 0)), []);
 
+  // Ligar pelo 3C Plus quando o corretor tem a integração; sem ela o próprio
+  // hook avisa e cai no tel: do aparelho — o mesmo da Fila Única e da
+  // Prospecção (antes este botão abria só o tel:).
   const ligar = useCallback(() => {
-    if (current?.telefone) window.location.href = `tel:${current.telefone}`;
-  }, [current]);
+    if (current) discar({ id: current.id, nome: current.nome, telefone: current.telefone });
+  }, [current, discar]);
 
   const whatsapp = useCallback(() => {
     if (current?.telefone) {
@@ -206,66 +229,51 @@ export function VolumeView() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (modalState || perdidoLead || contatoOpen) return;
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      // ⌘K, Ctrl+L e afins são do navegador/da busca, não do Volume.
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      // Com o "…" do cartão aberto as setas andam no menu, não na fila.
+      if (document.querySelector("[role='menu']")) return;
       if (e.key === "ArrowRight" || e.key === "n") next();
       else if (e.key === "ArrowLeft" || e.key === "p") prev();
       else if (e.key.toLowerCase() === "w") whatsapp();
       else if (e.key.toLowerCase() === "l") ligar();
       else if (e.key.toLowerCase() === "a") agendar();
+      else if (e.key.toLowerCase() === "r" && current) setContatoOpen(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev, whatsapp, ligar, agendar, modalState, perdidoLead, contatoOpen]);
+  }, [next, prev, whatsapp, ligar, agendar, modalState, perdidoLead, contatoOpen, current]);
 
   const sla = current ? slaMap.get(current.id) : undefined;
+  // A próxima etapa do funil (Agendar visita, Marcar visita realizada…) vai
+  // para o "…". Antes de Em atendimento a ação é Registrar contato — o botão
+  // navy do cartão — e "Agendar visita" já tem item próprio (A).
+  const proxima = current ? PROXIMA_ACAO[current.status as LeadStatus] : undefined;
+  const proximaEtapa =
+    proxima && "target" in proxima && proxima.target !== "agendado" ? proxima : null;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="secondary" className="text-xs">
-          {fila.length === 0 ? "0 leads" : `${index + 1} de ${fila.length}`}
-        </Badge>
-        <span>{ATALHOS}</span>
-      </div>
-
-      {fila.length > 0 && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${((index + 1) / fila.length) * 100}%` }}
-          />
-        </div>
-      )}
-
       {leadsQ.isError ? (
         <QueryErrorState
           title="Não foi possível carregar sua fila do Blitz."
           error={leadsQ.error}
           onRetry={() => leadsQ.refetch()}
-          className="mx-auto max-w-4xl"
         />
       ) : leadsQ.isLoading ? (
-        <Card className="mx-auto max-w-4xl">
-          <CardContent className="space-y-6 p-6 md:p-8" aria-busy="true">
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-2/3" />
-              <Skeleton className="h-4 w-1/2" />
-            </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-6 w-24 rounded-full" />
-              <Skeleton className="h-6 w-20 rounded-full" />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-full" />
-            </div>
-            <Skeleton className="h-20 w-full rounded-lg" />
-            <Skeleton className="h-9 w-full" />
-          </CardContent>
-        </Card>
+        <div className="space-y-4" aria-busy="true">
+          <StatGrid className="sm:grid-cols-3 xl:grid-cols-3">
+            <StatTile title="Na carteira" value={null} loading />
+            <StatTile title="Com SLA estourado" value={null} loading />
+            <StatTile title={`Sem contato há ${DIAS_SEM_CONTATO}+ dias`} value={null} loading />
+          </StatGrid>
+          <div className="space-y-4 rounded-2xl border border-border-subtle bg-card p-5 md:p-6">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-10 w-72" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+        </div>
       ) : !current ? (
         <EmptyState
           icon={Tray}
@@ -279,163 +287,241 @@ export function VolumeView() {
           className="py-16"
         />
       ) : (
-        <Card className="mx-auto max-w-4xl">
-          <CardContent className="space-y-6 p-6 md:p-8">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate text-2xl font-bold md:text-3xl">{current.nome}</div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                  {current.projeto_nome && <span>{current.projeto_nome}</span>}
-                  {current.campanha && <span>· {current.campanha}</span>}
-                  <span>· {origemLabel(current.origem)}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/leads/$leadId" params={{ leadId: current.id }}>
-                    <ArrowSquareOut className="mr-1 h-4 w-4" /> Abrir
-                  </Link>
-                </Button>
-                <LeadStageMenu
-                  lead={current}
-                  onPickDirect={(target: LeadStatus) => {
-                    updateStatus.mutate({ id: current.id, status: target });
-                    next();
-                  }}
-                  onPickModal={(modal) => setModalState({ modal, lead: current as StageLead })}
-                  onPickPerdido={() => setPerdidoLead(current as StageLead)}
-                />
-              </div>
-            </div>
+        <>
+          <section aria-label="Como está a carteira">
+            <StatGrid className="sm:grid-cols-3 xl:grid-cols-3">
+              <StatTile
+                title="Na carteira"
+                value={
+                  <>
+                    {resumo.naCarteira}
+                    <Progress
+                      value={((index + 1) / fila.length) * 100}
+                      className="mt-2 h-1.5"
+                      aria-label={`Você está no lead ${index + 1} de ${fila.length}`}
+                    />
+                  </>
+                }
+                hint={
+                  <>
+                    você está no{" "}
+                    <b className="font-semibold text-foreground">
+                      {index + 1} de {fila.length}
+                    </b>
+                  </>
+                }
+              />
+              <StatTile
+                title="Com SLA estourado"
+                loading={slaQ.isLoading}
+                value={
+                  slaQ.isError ? (
+                    "—"
+                  ) : (
+                    <NumeroComDono valor={resumo.slaEstourado} cor="text-destructive" />
+                  )
+                }
+                hint={
+                  slaQ.isError
+                    ? "SLA indisponível agora"
+                    : resumo.slaMaisAntigoMin !== null
+                      ? `o mais antigo ${formatRelativeTime(
+                          new Date(Date.now() - resumo.slaMaisAntigoMin * 60_000).toISOString(),
+                        )}`
+                      : "todos no prazo"
+                }
+              />
+              <StatTile
+                title={`Sem contato há ${DIAS_SEM_CONTATO}+ dias`}
+                value={<NumeroComDono valor={resumo.semContato} cor="text-warning" />}
+                hint={
+                  resumo.semContatoMaisAntigoDias !== null
+                    ? `o mais antigo há ${resumo.semContatoMaisAntigoDias} dias`
+                    : "todos com contato recente"
+                }
+              />
+            </StatGrid>
+          </section>
 
+          <section
+            aria-label={`Lead da vez: ${current.nome}`}
+            className="flex min-h-[300px] flex-col rounded-2xl border border-border-subtle bg-card p-5 text-card-foreground shadow-elev-1 md:p-6"
+          >
             <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="secondary"
-                className={cn(LEAD_STATUS_BADGE_TONE[current.status as LeadStatus])}
-              >
-                {LEAD_STATUS_LABEL[current.status as LeadStatus] ?? current.status}
-              </Badge>
-              {current.temperatura && (
-                <Badge
-                  variant="secondary"
-                  className={cn("uppercase", TEMP_CLS[current.temperatura])}
+              <TemperatureChip temperatura={current.temperatura} />
+              <span className="rounded-full bg-gold-100 px-2 py-0.5 text-xs font-medium text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
+                {LEAD_STATUS_LABEL[current.status as LeadStatus] ??
+                  current.status.replace(/_/g, " ")}
+              </span>
+              {sla?.sla_status === "estourado" && (
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-medium",
+                    INTENT_BADGE.danger,
+                  )}
                 >
-                  <Fire className="mr-1 h-3 w-3" />
-                  {current.temperatura}
-                </Badge>
+                  SLA estourado
+                </span>
               )}
-              {sla && SLA_META[sla.sla_status] && (
-                <Badge variant="secondary" className={cn("gap-1", SLA_META[sla.sla_status].cls)}>
-                  <Clock className="h-3 w-3" />
-                  {SLA_META[sla.sla_status].label} · {formatDuration(sla.minutos_decorridos)}/
-                  {formatDuration(sla.sla_minutos)}
-                </Badge>
-              )}
+              <span className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
+                {index + 1} de {fila.length}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:h-8 md:w-8"
+                onClick={prev}
+                disabled={index === 0}
+                aria-label="Lead anterior"
+                aria-keyshortcuts="ArrowLeft"
+              >
+                <CaretLeft />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:h-8 md:w-8"
+                onClick={next}
+                disabled={index >= fila.length - 1}
+                aria-label="Próximo lead"
+                aria-keyshortcuts="ArrowRight"
+              >
+                <CaretRight />
+              </Button>
             </div>
 
-            <div className="grid gap-3 text-sm sm:grid-cols-2">
-              <InfoLine icon={Phone} label="Telefone" value={current.telefone} />
-              <InfoLine icon={Envelope} label="E-mail" value={current.email ?? "—"} />
-              <InfoLine icon={IdentificationCard} label="CPF" value={current.cpf ?? "—"} />
-              <InfoLine
-                icon={CalendarDots}
-                label="Último contato"
-                value={fmtDate(current.ultimo_contato ?? current.ultima_interacao)}
+            <h2 className="mt-4 truncate font-display text-3xl font-bold tracking-tight">
+              {current.nome}
+            </h2>
+
+            <div className="mt-5 grid max-w-3xl grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+              <Campo rotulo="Empreendimento" valor={current.projeto_nome ?? "—"} />
+              <Campo rotulo="Origem" valor={origemLabel(current.origem)} />
+              <Campo rotulo="Renda" valor={current.renda_informada ?? "—"} />
+              <Campo rotulo="FGTS" valor={fgts(current.usa_fgts)} />
+              <Campo rotulo="Entrada" valor={current.entrada_disponivel ?? "—"} />
+              <Campo
+                rotulo="Último contato"
+                valor={ultimoContato({
+                  ultima_interacao: ultimoToque(current),
+                  created_at: current.created_at,
+                })}
               />
             </div>
 
-            <Separator />
-
-            <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">
-                Perfil financeiro
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <InfoTile
-                  icon={Wallet}
-                  label="Renda"
-                  value={current.renda_informada ?? "Não informada"}
-                />
-                <InfoTile
-                  icon={PiggyBank}
-                  label="Entrada"
-                  value={current.entrada_disponivel ?? "Não informada"}
-                />
-                <InfoTile
-                  icon={Bank}
-                  label="FGTS"
-                  value={
-                    current.usa_fgts === true
-                      ? "Sim, usa"
-                      : current.usa_fgts === false
-                        ? "Não usa"
-                        : "Não informado"
-                  }
-                />
-              </div>
+            <div className="mt-auto flex flex-wrap items-center gap-2 pt-6">
+              <Button variant="outline" onClick={ligar} disabled={discando}>
+                <Phone />
+                {discando ? "Chamando…" : "Ligar"}
+                <Kbd className="hidden md:inline-flex">L</Kbd>
+              </Button>
+              <Button variant="outline" onClick={whatsapp}>
+                <WhatsappLogo />
+                WhatsApp
+                <Kbd className="hidden md:inline-flex">W</Kbd>
+              </Button>
+              <Button onClick={() => setContatoOpen(true)}>
+                Registrar contato
+                <Kbd className="hidden border-claro/30 bg-claro/15 text-claro md:inline-flex">
+                  R
+                </Kbd>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground md:h-9 md:w-9"
+                    aria-label="Mais ações: mudar etapa, agendar visita, abrir dossiê"
+                    title="Mudar etapa · Agendar visita · Abrir dossiê"
+                  >
+                    <DotsThree weight="bold" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  {proximaEtapa && (
+                    <DropdownMenuItem
+                      disabled={updateStatus.isPending}
+                      onSelect={() => {
+                        const action = resolveStageAction(proximaEtapa.target);
+                        if (action.kind === "modal")
+                          setModalState({ modal: action.modal, lead: current as StageLead });
+                        else if (action.kind === "perdido") setPerdidoLead(current as StageLead);
+                        else updateStatus.mutate({ id: current.id, status: proximaEtapa.target });
+                      }}
+                    >
+                      <CaretRight />
+                      {proximaEtapa.label}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onSelect={agendar}>
+                    <CalendarCheck />
+                    Agendar visita
+                    <Kbd className="ml-auto hidden md:inline-flex">A</Kbd>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/leads/$leadId" params={{ leadId: current.id }}>
+                      <ArrowSquareOut />
+                      Abrir dossiê
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <LeadStageMenuItems
+                    lead={current}
+                    onPickDirect={(target: LeadStatus) => {
+                      updateStatus.mutate({ id: current.id, status: target });
+                      next();
+                    }}
+                    onPickModal={(modal) => setModalState({ modal, lead: current as StageLead })}
+                    onPickPerdido={() => setPerdidoLead(current as StageLead)}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+          </section>
 
-            {current.observacoes && (
-              <div>
-                <div className="mb-2 text-xs font-medium text-muted-foreground">Observações</div>
-                <p className="rounded-md bg-muted/40 p-3 text-sm text-foreground/90 whitespace-pre-wrap">
-                  {current.observacoes}
+          <Collapsible open={resumoAberto} onOpenChange={setResumoAberto}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border-subtle bg-card px-4 py-3.5 text-left text-sm font-semibold shadow-elev-1 transition-colors hover:bg-accent/40"
+              >
+                <span>
+                  Ver resumo{" "}
+                  <span className="font-medium text-muted-foreground">
+                    · observações do lead e resumo da Sami
+                  </span>
+                </span>
+                <CaretDown
+                  aria-hidden="true"
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                    resumoAberto && "rotate-180",
+                  )}
+                />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3 space-y-3">
+              <div className="rounded-2xl border border-border-subtle bg-card p-4">
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Observações
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-foreground/90">
+                  {current.observacoes?.trim() || "Nenhuma observação registrada."}
                 </p>
               </div>
-            )}
+              <ResumoIA leadId={current.id} />
+            </CollapsibleContent>
+          </Collapsible>
 
-            <ResumoIA leadId={current.id} />
-
-            <Button className="w-full" onClick={() => setContatoOpen(true)}>
-              <PhoneCall className="mr-1 h-4 w-4" /> Registrar contato
-            </Button>
-            {(() => {
-              const proxima = PROXIMA_ACAO[current.status as LeadStatus];
-              // Antes de Em atendimento a ação é "Registrar contato" (botão acima).
-              if (!proxima || !("target" in proxima)) return null;
-              return (
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  disabled={updateStatus.isPending}
-                  onClick={() => {
-                    const action = resolveStageAction(proxima.target);
-                    if (action.kind === "modal")
-                      setModalState({ modal: action.modal, lead: current as StageLead });
-                    else if (action.kind === "perdido") setPerdidoLead(current as StageLead);
-                    else updateStatus.mutate({ id: current.id, status: proxima.target });
-                  }}
-                >
-                  {proxima.label}
-                </Button>
-              );
-            })()}
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" onClick={ligar}>
-                <Phone className="mr-1 h-4 w-4" /> Ligar
-              </Button>
-              <Button
-                variant="outline"
-                className="border-success/40 text-success hover:bg-success/10"
-                onClick={whatsapp}
-              >
-                <WhatsappLogo className="mr-1 h-4 w-4" /> WhatsApp
-              </Button>
-              <Button variant="outline" onClick={agendar}>
-                <CalendarCheck className="mr-1 h-4 w-4" /> Agendar
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between border-t pt-4">
-              <Button variant="ghost" onClick={prev} disabled={index === 0}>
-                <CaretLeft className="mr-1 h-4 w-4" /> Anterior
-              </Button>
-              <Button onClick={next} disabled={index >= fila.length - 1}>
-                Próximo <CaretRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          <p className="hidden flex-wrap items-center gap-x-1.5 gap-y-1 px-1 text-xs text-muted-foreground md:flex">
+            <span className="sr-only">{ATALHOS}</span>
+            <span aria-hidden="true" className="contents">
+              Atalhos: <Kbd>←</Kbd>
+              <Kbd>→</Kbd> navegam entre os leads · <Kbd>A</Kbd> agenda visita
+            </span>
+          </p>
+        </>
       )}
 
       <LeadStageModals
@@ -460,56 +546,4 @@ export function VolumeView() {
       )}
     </div>
   );
-}
-
-function InfoLine({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Icon className="h-4 w-4 text-muted-foreground" />
-      <span className="text-muted-foreground">{label}:</span>
-      <span className="truncate font-medium">{value}</span>
-    </div>
-  );
-}
-
-function InfoTile({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-lg border bg-muted/30 p-3">
-      <div className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" /> {label}
-      </div>
-      <div className="text-sm font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function fmtDate(iso: string | null | undefined) {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "—";
-  }
 }

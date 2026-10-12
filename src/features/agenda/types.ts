@@ -1,16 +1,8 @@
-// Vocabulário da Agenda — tipo/status do agendamento com labels, tons e
-// ícones, compartilhado entre a rota /agendamentos, o calendário, a timeline
+// Vocabulário da Agenda — tipo/status do agendamento com labels e tons,
+// compartilhado entre a rota /agendamentos, o calendário, a timeline
 // e o formulário. Extraído da rota na Fase 7: mesmos valores, zero mudança de
 // regra.
 
-import {
-  Alarm,
-  CalendarDots,
-  MapPinArea,
-  Phone,
-  UsersThree,
-  type Icon as IconComponent,
-} from "@phosphor-icons/react";
 import { HUE_BADGE, HUE_DOT, INTENT_BADGE } from "@/lib/status-tones";
 
 export const TIPO_OPTIONS = ["visita", "reuniao", "ligacao", "follow_up", "outro"] as const;
@@ -57,24 +49,6 @@ export const TIPO_DOT: Record<string, string> = {
   outro: HUE_DOT.slate,
 };
 
-/** Ícone por tipo — timeline e legendas. */
-export const TIPO_ICON: Record<string, IconComponent> = {
-  visita: MapPinArea,
-  reuniao: UsersThree,
-  ligacao: Phone,
-  follow_up: Alarm,
-  outro: CalendarDots,
-};
-
-/** Tom do ícone da timeline — mesmos hues dos dots (status-tones). */
-export const TIPO_ICON_TONE: Record<string, string> = {
-  visita: "text-azul-600 dark:text-azul-400",
-  reuniao: "text-violeta-600 dark:text-violeta-400",
-  ligacao: "text-exito-600 dark:text-exito-400",
-  follow_up: "text-aviso-600 dark:text-aviso-400",
-  outro: "text-ardosia-500 dark:text-ardosia-400",
-};
-
 export type Agendamento = {
   id: string;
   lead_id: string | null;
@@ -97,3 +71,14 @@ export function toLocalInput(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** Ponto do compromisso na Agenda (padrão Lançamento): cor só por intenção —
+ *  a validar acende (warning), visita em navy, os demais tipos em neutro e o
+ *  que já foi encerrado em cinza claro. Chaves = PontoDoCompromisso
+ *  (agenda-do-dia.ts). */
+export const PONTO_CLASSE: Record<"validar" | "encerrado" | "visita" | "outro", string> = {
+  validar: "bg-warning",
+  encerrado: "bg-border",
+  visita: "bg-primary",
+  outro: "bg-muted-foreground/50",
+};

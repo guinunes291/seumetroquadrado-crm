@@ -62,7 +62,7 @@ export function ComposerConversa({
       <Button
         onClick={onEnviar}
         disabled={pending || !value.trim() || disabled}
-        title="Registrar na conversa e abrir o WhatsApp"
+        title="Modo simulado: registra na conversa e abre o WhatsApp com o texto pronto"
       >
         <PaperPlaneTilt className="h-4 w-4" /> Enviar
       </Button>

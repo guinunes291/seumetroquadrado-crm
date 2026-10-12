@@ -1,9 +1,9 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
+import { CaretRight } from "@phosphor-icons/react";
 import { PageHeader } from "@/components/page-header";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VolumeView } from "@/features/atendimento/volume-view";
 import { ConsultaView } from "@/features/atendimento/consulta-view";
-import { Lightning, ListChecks, MagnifyingGlass } from "@phosphor-icons/react";
 
 // Atender — o modo PRIORIDADE foi aposentado na Fatia 3 da carteira ativa
 // (2026-09-13). Suas seis filas (novos, responder, followups, esfriando,
@@ -37,14 +37,11 @@ export const Route = createFileRoute("/_authenticated/atendimento")({
   component: AtendimentoPage,
 });
 
-const MODOS: { key: AtendimentoModo; label: string; hint: string; icon: typeof Lightning }[] = [
-  { key: "volume", label: "Volume", hint: "um lead por vez, a carteira inteira", icon: Lightning },
-  {
-    key: "consulta",
-    label: "Consulta",
-    hint: "buscar e filtrar como em Meus Leads",
-    icon: MagnifyingGlass,
-  },
+// O "como estou agora" de cada modo mora dentro dele (os três números do
+// Volume, a contagem da Consulta); aqui ficam só o título, a frase e a pílula.
+const MODOS: { key: AtendimentoModo; label: string; hint: string }[] = [
+  { key: "volume", label: "Volume", hint: "um lead por vez, a carteira inteira" },
+  { key: "consulta", label: "Consulta", hint: "buscar e filtrar como em Meus Leads" },
 ];
 
 function AtendimentoPage() {
@@ -55,41 +52,44 @@ function AtendimentoPage() {
     <div className="space-y-4">
       <PageHeader
         title="Atender"
-        description="Volume (um lead por vez) e Consulta (busca e filtros). As filas por prioridade agora são a Fila Única."
+        description="Um lead por vez, a carteira inteira — ou busque alguém."
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/fila">
-              <ListChecks className="h-4 w-4" />
-              <span className="ml-1">Fila Única</span>
-            </Link>
-          </Button>
+          // A Fila Única tem seção própria na sidebar: aqui é só um atalho
+          // discreto, sem competir com o trabalho da página.
+          <Link
+            to="/fila"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            Ir para a Fila Única
+            <CaretRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
         }
       />
 
-      <div
-        className="flex w-fit items-center gap-1 rounded-lg border bg-muted/40 p-1"
-        role="tablist"
-        aria-label="Modo de atendimento"
+      {/* Pílula Volume/Consulta: o controle segmentado das outras telas. O
+          modo continua na URL (?modo=) e cada modo só monta quando é o
+          escolhido. Ativação manual: com o foco na pílula, ← → continuam
+          andando na fila do Volume em vez de trocar de modo. */}
+      <Tabs
+        value={modo}
+        activationMode="manual"
+        onValueChange={(v) => void navigate({ search: { modo: v as AtendimentoModo } })}
+        className="space-y-4"
       >
-        {MODOS.map((m) => (
-          <Button
-            key={m.key}
-            role="tab"
-            aria-selected={modo === m.key}
-            variant={modo === m.key ? "default" : "ghost"}
-            size="sm"
-            className="h-7"
-            title={m.hint}
-            onClick={() => void navigate({ search: { modo: m.key } })}
-          >
-            <m.icon className="h-3.5 w-3.5" />
-            {m.label}
-          </Button>
-        ))}
-      </div>
-
-      {modo === "volume" && <VolumeView />}
-      {modo === "consulta" && <ConsultaView />}
+        <TabsList aria-label="Modo de atendimento" className="h-11 md:h-9">
+          {MODOS.map((m) => (
+            <TabsTrigger key={m.key} value={m.key} title={m.hint} className="h-9 px-4 md:h-7">
+              {m.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="volume" className="mt-0">
+          {modo === "volume" && <VolumeView />}
+        </TabsContent>
+        <TabsContent value="consulta" className="mt-0">
+          {modo === "consulta" && <ConsultaView />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

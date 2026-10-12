@@ -181,3 +181,137 @@ completa com 254 arquivos e 2750 testes verdes (antes da fase: 249 e 2709).
 Testes que já existiam e foram ajustados: só `bi-lancamento` e
 `em-atendimento-fatia2`, os dois descritos acima. Nenhum teste foi pulado ou
 desligado.
+
+## Fase 2 — o que mudou, e por quê
+
+O módulo 03 fora da Base de leads: o que o corretor abre todo dia depois da
+Fila. Mesmas regras da Fase 1. A única mudança de comportamento é a decisão
+3 do dono: o **Ligar** passa pelo `useLigarLead`, que disca no 3C Plus quando
+o corretor tem a integração. Sem ela, o hook avisa e abre o `tel:` do
+aparelho, o mesmo que a Fila Única já fazia. Vale para a Agenda (página e
+cartão do dia, que também aparece no /inicio) e para o Atendimento (Volume e
+Consulta). O Ligar da Reta final continua `tel:`, porque o plano não pedia
+mudança ali.
+
+### Kanban e Reta final (`/pipeline`; `/kanban` e `/radar` herdam)
+
+- **Título:** fixo, "Kanban". Antes ele virava "Prospecção" ou "Gestão de
+  Carteira" conforme `?fase`, contradizendo o eyebrow "Módulo 03". A fase
+  continua recortando as colunas e aparece como um chip "Só Carteira ×" que
+  limpa o filtro. A ação do cabeçalho é "Novo lead".
+- **Topo do Funil:** quatro números somados do snapshot que o quadro já
+  carrega: VGV no funil, follow-ups vencidos, sem próxima ação e parados 7+
+  dias. A dica de cada um diz onde o sinal pesa mais ("2 em Em atendimento").
+  Vermelho e âmbar só acendem acima de zero. São só as colunas visíveis, então
+  o número do topo é sempre a soma do que as colunas mostram.
+- **Colunas:** os três selos de 10 px viraram uma linha de texto miúdo ("2
+  vencidos · 1 sem ação"). O VGV e a conversão da etapa foram para a dica da
+  contagem.
+- **Instrução de arrastar:** virou `sr-only` e o quadro continua apontando
+  para ela.
+- **/leads:** usa o mesmo quadro. As props novas (`busca`, `resumo`) são
+  opcionais, então o /leads mantém o próprio campo de busca e o VGV.
+- **Reta final:** um `CartaoPrincipal` com "N dias para fechar o mês", o anel
+  dos sinais fortes ("6 de 54"), alta · média · baixa e a ação "Trabalhar os
+  fortes", que rola até a lista. Antes o sinal forte aparecia em dois lugares.
+- **Linha da Reta final:** nome, etapa, índice em anel pequeno e uma linha de
+  fatores; o clique na linha abre o lead. WhatsApp e Ligar ficam como ícones
+  por cima. A taxa histórica foi para a dica do selo Calibrado/Heurístico, e
+  o cálculo do índice ficou atrás de "Ver como o índice é calculado".
+
+Não mudou: as RPCs, a ordem pelo índice, `?tab=fechamento`, o atalho "Reta
+final" do ⌘K, o cartão do Kanban, o "Próximo passo" de 44 px e o fio de cor
+por etapa. Testes: `tests/pipeline-lancamento.test.tsx`.
+
+### Agenda (`/agendamentos`)
+
+- **Cabeçalho:** "Agenda" (era "Agendamentos"). No celular o título vem antes
+  das abas. "Novo agendamento" é a única ação.
+- **Cartão Hoje:** os compromissos do dia com o estado de cada um (confirmada,
+  sem confirmação, validar) e uma ação visível: validar, confirmar, ligar ou
+  remarcar. Usa as mesmas escritas do cartão do /inicio (`useAcoesAgenda`,
+  `salvar_modo_visita`, `RemarcarDialog`). Antes nada disso existia na
+  própria Agenda, só dava para abrir e editar. "Modo Visita" virou link do
+  cartão.
+- **Linha do mês:** "◀ outubro de 2026 ▶ · Hoje", com a pílula
+  Calendário/Lista e o `FiltrosMenu` (status; corretor só para a gestão).
+- **Visão padrão:** grade no desktop, lista no celular começando hoje ("Ver os
+  N anteriores" mostra o que passou).
+- **Lateral:** a partir de `xl`, "A validar" e "Amanhã".
+- **Remoção:** pede confirmação em `AlertDialog`, no lugar do `confirm()`
+  nativo.
+- **"Novo agendamento":** passou a usar o mesmo insert do /inicio
+  (`useCriarAgendamento`). Grava os mesmos 11 campos do formulário, e com
+  isso saíram 3 escapes de tipo.
+
+Não mudou: as queries, o soft-delete, o espelho no Google Agenda e as regras
+de validar e remarcar. Testes: `tests/agenda-lancamento.test.tsx` e
+`tests/agenda-hub-lancamento.test.tsx`.
+
+### Tarefas (`/agendamentos?tab=tarefas`)
+
+- **Topo:** Vencidas · Para hoje · Esta semana (no lugar de Pendentes, Em
+  andamento, Atrasadas e Concluídas hoje). Vencidas fica vermelha só acima de
+  zero.
+- **Criar:** o quick-add é a linha navy "Adicionar tarefa… Enter" e continua
+  gravando sem data (um teste confere o insert). "+ detalhes" abre o diálogo
+  completo com o título já digitado.
+- **Lista:** agrupada como a Fila Única: Vencidas → Hoje → Depois → Sem data.
+  A prioridade é um ponto colorido, o status fica implícito no grupo, e Adiar
+  e Editar vão para o "…".
+- **Concluídas:** atrás de "Ver concluídas (N)".
+- **Busca e filtros:** a busca também acha pelo nome do lead; status, tipo e
+  corretor ficam atrás de Filtros.
+- **Lateral:** "Agenda de hoje".
+
+Não mudou: as queries, o adiar, o diálogo e o badge de tarefas vencidas da
+sidebar. Testes: `tests/tarefas-lancamento.test.tsx`.
+
+### Atender (`/atendimento`; `/blitz` herda)
+
+- **Cabeçalho:** frase curta, sem a frase de manual. "Fila Única" virou link
+  de texto. Volume/Consulta virou o controle segmentado padrão e continua em
+  `?modo=`.
+- **Topo do Volume:** na carteira · com SLA estourado · sem contato há 5+
+  dias, contados da fila e do `leads_com_sla` que a tela já carregava
+  (`volume-resumo.ts`). "Sem contato" usa o mesmo relógio da Higiene do
+  Funil.
+- **Cartão:** no molde do próximo lead da Prospecção: temperatura, etapa,
+  "1 de N", nome e seis campos. "Registrar contato" é a única ação navy, ao
+  lado de Ligar e WhatsApp; o resto vai para o "…" (etapas, Agendar, Abrir
+  dossiê). Observações e o resumo da Sami ficam atrás de "Ver resumo". E-mail,
+  CPF, telefone e campanha saíram do cartão e continuam no dossiê.
+- **Atalhos:** ganharam o **R** (registrar contato, como no mockup) e passam a
+  ignorar ⌘/Ctrl/Alt (antes ⌘A agendava sem querer).
+- **Consulta:** linhas em `EntityRow`, a contagem como título da lista e o
+  Ligar pelo `useLigarLead`.
+
+Não mudou: a fila, a ordem, os atalhos antigos, o que "Registrar contato"
+grava e o WhatsApp abrindo o wa.me sem registrar nada. Teste ajustado:
+`tests/atendimento-modos.test.ts` (a checagem do `tel:` direto passou a
+travar o `useLigarLead`). Testes novos: `tests/atender-lancamento.test.tsx`.
+
+### Mensagens (`/mensagens`)
+
+- **Lista:** "N aguardando resposta · M conversas" como título, contado da
+  própria lista para bater com os pontos vermelhos. A conversa aberta fica em
+  `bg-accent`.
+- **Thread:** ocupa a altura da tela, com o composer fixo embaixo, e já abre
+  mostrando a última mensagem.
+- **Ações:** "Abrir lead" é ghost e "Marcar tratada" foi para o "…" (só
+  aparece quando o banco diz que a conversa aguarda resposta, a mesma regra
+  do botão antigo).
+- **Modo simulado:** o aviso foi para o tooltip do Enviar.
+- **Celular:** lista primeiro; a conversa abre em tela cheia com "Voltar às
+  conversas".
+
+Não mudou: `agruparConversas`, as chaves de cache, o envio pelo wa.me e a
+marca de tratada. Testes: `tests/mensagens-lancamento.test.tsx`.
+
+## Validação da Fase 2
+
+As mesmas etapas do CI, rodadas localmente com a `main` atual: `lint:ci`,
+`format:check`, `type-escape-budget` (142/145, eram 145), `typecheck`, a
+suíte completa (261 arquivos, 2828 testes verdes), `build` e
+`bundle-budget`. Teste existente ajustado: só `atendimento-modos`, descrito
+acima. Nenhum teste foi pulado ou desligado.
