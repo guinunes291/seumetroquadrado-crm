@@ -2285,9 +2285,14 @@ BEGIN
   IF _antes IS NULL THEN
     RAISE EXCEPTION 'roleta % inexistente', _slug;
   END IF;
-  -- A roleta de filial (tipo zona) não troca de filial por aqui.
-  IF (_antes ->> 'tipo') = 'zona' AND (_filial_slug IS NOT NULL OR _limpar_filial) THEN
-    RAISE EXCEPTION 'a roleta de filial não troca de filial';
+  -- equipe_fixa, projeto e filial são semântica de CAMPANHA — nas demais
+  -- roletas o pedido é erro, não silêncio. É a guarda de 20260827100000, que
+  -- está em produção (a 20260827180000 a tinha perdido no repositório); a
+  -- roleta de filial não troca de filial por aqui.
+  IF (_equipe_fixa IS NOT NULL OR _projeto_id IS NOT NULL OR _limpar_projeto
+      OR _filial_slug IS NOT NULL OR _limpar_filial)
+     AND (_antes ->> 'tipo') IS DISTINCT FROM 'campanha' THEN
+    RAISE EXCEPTION 'equipe_fixa/projeto/filial valem apenas para roletas de campanha';
   END IF;
 
   UPDATE public.roletas r SET
