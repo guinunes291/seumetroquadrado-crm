@@ -83,7 +83,16 @@ No motor da roleta (`_distribuir_lead_v3`), lead com zona e zona estrita:
 3. Nenhuma pronta: **espera** na primeira da ordem que tem time montado
    (`_roleta_tem_time`), para a exceção dizer "ninguém apto agora"
    (`sem_corretor_na_zona`) e não "sem time montado"; só sem time em
-   nenhuma filial a exceção é `zona_sem_time`. Nunca vai para outra zona.
+   nenhuma filial a exceção é `zona_sem_time`. O motor nunca manda para outra
+   zona.
+   **Fallback por velocidade (12/10/2026):** a espera dura até o próximo
+   ciclo do cron da distribuição (5 min). Se a triagem falhar de novo por
+   falta de apto (`sem_corretor_na_zona`, `zona_sem_time`…), o cron entrega
+   o lead pelo fallback ao corretor mais rápido com check-in válido hoje e
+   ativo no CRM — **de qualquer filial, mesmo fora da zona** (força a exceção
+   de zona, com o motivo _"Fallback por velocidade: ninguém apto na roleta"_
+   no log). Quem a localização barrou hoje fica de fora. Regras e chave para
+   desligar (`fallback_velocidade_ativo`): `presenca-filiais.md` §8c.
 4. Ao entregar, o motor grava `zonas_roletas.ultimo_lead_em` do par
    (zona, roleta): é isso que faz a Leste alternar.
 5. Dois leads da mesma zona no mesmo segundo **não vão para a mesma

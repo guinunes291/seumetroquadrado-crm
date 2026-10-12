@@ -65,7 +65,7 @@ function lerLiberado(uid: string, dia: string): boolean {
  * encerrado ou barrado) e quando a leitura falha. Também devolve o dia de São
  * Paulo que valeu para a decisão e a presença lida (filiais e régua do diálogo).
  */
-export function useCheckinObrigatorio(): {
+export function useCheckinObrigatorio({ releitura = false }: { releitura?: boolean } = {}): {
   pendente: boolean | null;
   dia: string;
   uid: string;
@@ -75,8 +75,19 @@ export function useCheckinObrigatorio(): {
   const { isCorretor, loading } = useUserRoles();
   const uid = user?.id ?? "";
   const dia = useDiaSaoPaulo();
-  const q = useMinhaPresenca(isCorretor);
+  // Diálogo na tela: relê a cada 15 s e ao voltar para a janela (o check-in
+  // feito no celular ou confirmado pela gestão fecha o diálogo).
+  const q = useMinhaPresenca(isCorretor, { releitura });
   const { refetch } = q;
+
+  // O react-query só escuta "visibilitychange"; no computador, voltar do
+  // celular para a janela do CRM costuma ser só "focus".
+  useEffect(() => {
+    if (!releitura || !isCorretor) return;
+    const reler = () => void refetch({ cancelRefetch: false });
+    window.addEventListener("focus", reler);
+    return () => window.removeEventListener("focus", reler);
+  }, [releitura, isCorretor, refetch]);
 
   const [liberado, setLiberado] = useState(() => lerLiberado(uid, dia));
   useEffect(() => {

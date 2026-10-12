@@ -2,23 +2,32 @@
 // a localização que barra o check-in fora da filial ("localização deve barrar
 // caso não esteja na filial"). A regra de aptidão é do banco
 // (tests/db/presenca-filial.test.ts); aqui se trava a TELA: quando o diálogo
-// abre, que ele não fecha sozinho, o que mostra quando a localização barra e
-// que falha técnica nunca prende o corretor fora do CRM.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// abre, que ele não fecha sozinho, a confirmação antes da filial, o que mostra
+// quando a localização barra, que um check-in que já liberou a roleta (no
+// celular, pela gestão, pelo interruptor) fecha o diálogo e nunca é rebaixado,
+// e que falha técnica nunca prende o corretor fora do CRM.
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const estado = vi.hoisted(() => ({
   rpc: vi.fn(),
   pathname: "/fila",
-  papeis: { isCorretor: true, loading: false },
+  papeis: { isCorretor: true, isGestor: false, loading: false },
   toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() },
+  capture: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({ toast: estado.toast }));
 vi.mock("@tanstack/react-router", () => ({
   useRouterState: ({ select }: { select: (s: { location: { pathname: string } }) => string }) =>
     select({ location: { pathname: estado.pathname } }),
+  useLocation: () => ({ pathname: estado.pathname }),
+  Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: { id: "c1" }, session: null, loading: false }),
@@ -28,8 +37,10 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: estado.rpc }
 vi.mock("@/integrations/supabase/pendentes", () => ({
   supabasePendente: { rpc: estado.rpc, from: vi.fn() },
 }));
+vi.mock("@/lib/error-tracking-browser", () => ({ captureClientError: estado.capture }));
 
 import { CheckinObrigatorioGlobal } from "@/features/presenca/checkin-obrigatorio-global";
+import { CheckinPendenteBanner } from "@/features/presenca/checkin-pendente-banner";
 import {
   checkinObrigatorioPendente,
   desfechoCheckin,
@@ -37,7 +48,7 @@ import {
 } from "@/features/presenca/checkin-obrigatorio";
 import { falhaDoCodigo, obterLocalizacao } from "@/features/presenca/presenca-client";
 import { useCheckinObrigatorioPendente } from "@/features/presenca/use-checkin-obrigatorio";
-import { parseMinhaPresenca } from "@/features/presenca/presenca-derive";
+import { AVISO_FORA_DO_REFORCO, parseMinhaPresenca } from "@/features/presenca/presenca-derive";
 import { publicarEstadoTreino } from "@/features/onboarding/treino-estado";
 
 const HOJE = new Intl.DateTimeFormat("en-CA", {
@@ -94,6 +105,38 @@ function checkin(over: Record<string, unknown> = {}) {
   };
 }
 
+const barradoFora = (over: Record<string, unknown> = {}) =>
+  checkin({
+    apto_roleta: false,
+    motivo: "fora_da_filial",
+    localizacao: "fora_do_raio",
+    distancia_m: 5830,
+    ...over,
+  });
+const barradoSemGps = (over: Record<string, unknown> = {}) =>
+  checkin({
+    apto_roleta: false,
+    motivo: "sem_localizacao",
+    localizacao: "sem_localizacao",
+    distancia_m: null,
+    precisao_m: null,
+    ...over,
+  });
+const casaRecusada = () =>
+  checkin({
+    id: "k3",
+    modo: "casa",
+    filial_slug: null,
+    filial_nome: null,
+    apto_roleta: false,
+    motivo: "casa_abaixo_minimo_vendas",
+    localizacao: null,
+    distancia_m: null,
+  });
+/** A gestão confirmou no plantão (presenca_checkin com _corretor_id). */
+const confirmadoPelaGestao = () =>
+  checkin({ id: "k9", origem: "gestao", localizacao: "confirmada_gestao", distancia_m: null });
+
 /** O banco de mentira: presenca_minha_v1 lê `atual`; presenca_checkin decide pela `resposta`. */
 const banco = {
   atual: minha() as ReturnType<typeof minha>,
@@ -109,15 +152,42 @@ function geolocalizacao(
     value: impl ? { getCurrentPosition: vi.fn(impl) } : undefined,
   });
 }
+const leiturasGps = () =>
+  (navigator.geolocation.getCurrentPosition as unknown as Mock).mock.calls.map(
+    (c) => c[2] as PositionOptions,
+  );
+
+/** Celular (tela de toque) ou computador — o que `(pointer: coarse)` responde. */
+function aparelho(tipo: "celular" | "computador") {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: (q: string) => ({
+      matches: q === "(pointer: coarse)" ? tipo === "celular" : false,
+      media: q,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
 
 const naLoja = (ok: PositionCallback) =>
   ok({ coords: { latitude: -23.52, longitude: -46.677, accuracy: 15 } } as GeolocationPosition);
 const negada = (_ok: PositionCallback, erro: PositionErrorCallback) =>
   erro({ code: 1, message: "denied" } as GeolocationPositionError);
 
+const chamadasCheckin = () =>
+  estado.rpc.mock.calls
+    .filter(([fn]) => fn === "presenca_checkin")
+    .map(([, a]) => a as Record<string, unknown>);
+
 beforeEach(() => {
   estado.pathname = "/fila";
-  estado.papeis = { isCorretor: true, loading: false };
+  estado.papeis = { isCorretor: true, isGestor: false, loading: false };
   banco.atual = minha();
   banco.resposta = () => minha(checkin());
   banco.falharLeitura = false;
@@ -135,12 +205,14 @@ beforeEach(() => {
     return { data: null, error: null };
   });
   geolocalizacao(naLoja);
+  aparelho("celular");
   publicarEstadoTreino({ decidido: true, aberto: false });
 });
 
 afterEach(() => {
   cleanup();
   estado.rpc.mockReset();
+  estado.capture.mockReset();
   for (const f of Object.values(estado.toast)) f.mockReset();
   localStorage.clear();
   publicarEstadoTreino({ decidido: false, aberto: false });
@@ -152,12 +224,13 @@ function Espera() {
   return <span data-testid="espera">{String(pendente)}</span>;
 }
 
-function montar() {
+function montar({ faixa = false }: { faixa?: boolean } = {}) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={qc}>
+      {faixa && <CheckinPendenteBanner />}
       <CheckinObrigatorioGlobal />
       <Espera />
     </QueryClientProvider>,
@@ -171,15 +244,42 @@ const leituraFeita = () =>
     expect(estado.rpc.mock.calls.some(([fn]) => fn === "presenca_minha_v1")).toBe(true),
   );
 
+/** Toca a filial e confirma "Estou na loja" (a exigência está ligada). */
+async function checkinNaFilial(nome: RegExp) {
+  const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+  fireEvent.click(within(d).getByRole("button", { name: nome }));
+  fireEvent.click(await screen.findByRole("button", { name: "Estou na loja" }));
+}
+
+/** O corretor volta para a janela do CRM (outro aparelho, outra aba). */
+function voltarParaAJanela() {
+  act(() => {
+    window.dispatchEvent(new Event("focus"));
+  });
+}
+
 describe("quando o diálogo obrigatório abre", () => {
-  it("corretor sem check-in hoje: abre com o porquê, as três filiais, Em casa e o aviso da localização", async () => {
+  it("corretor sem check-in hoje: abre com o porquê, as três filiais, Em casa, a dica e o aviso da localização", async () => {
     montar();
     const d = await screen.findByTestId("checkin-obrigatorio-dialog");
     expect(within(d).getByText("Para usar o CRM hoje, diga onde você está.")).toBeInTheDocument();
     for (const nome of ["Barra Funda", "Liberdade", "Belém", "Em casa"]) {
       expect(within(d).getByRole("button", { name: new RegExp(nome) })).toBeInTheDocument();
     }
+    expect(
+      within(d).getByText("Fora de uma filial (casa, visita, estande)? Escolha Em casa."),
+    ).toBeInTheDocument();
     expect(within(d).getByText(/a localização do celular é conferida/)).toBeInTheDocument();
+    // A régua não empurra quem está em casa para "escolher" uma filial.
+    expect(within(d).getByText("este mês, a roleta só libera no plantão")).toBeInTheDocument();
+    expect(within(d).queryByText(/só recebe leads no plantão/)).toBeNull();
+  });
+
+  it("o foco começa no título, não numa filial (um Enter solto não faz check-in)", async () => {
+    montar();
+    await screen.findByTestId("checkin-obrigatorio-dialog");
+    await waitFor(() => expect(document.activeElement).toHaveTextContent("Check-in de hoje"));
+    expect(document.activeElement?.tagName).toBe("H2");
   });
 
   it("enquanto a leitura não volta, não pisca diálogo", async () => {
@@ -198,18 +298,24 @@ describe("quando o diálogo obrigatório abre", () => {
   });
 
   it("gestão sem papel corretor nunca é bloqueada (nem lê a presença)", async () => {
-    estado.papeis = { isCorretor: false, loading: false };
+    estado.papeis = { isCorretor: false, isGestor: true, loading: false };
     montar();
     await new Promise((r) => setTimeout(r, 20));
     expect(dialogo()).toBeNull();
     expect(estado.rpc).not.toHaveBeenCalled();
   });
 
+  it("quem é gestor E corretor passa pela trava (decisão do dono: vale para quem tem papel corretor)", async () => {
+    estado.papeis = { isCorretor: true, isGestor: true, loading: false };
+    montar();
+    expect(await screen.findByTestId("checkin-obrigatorio-dialog")).toBeInTheDocument();
+  });
+
   it("com check-in hoje — aberto, encerrado ou barrado — não abre", async () => {
     for (const c of [
       checkin(),
       checkin({ encerrado_em: `${HOJE}T18:00:00Z` }),
-      checkin({ apto_roleta: false, motivo: "fora_da_filial", localizacao: "fora_do_raio" }),
+      barradoFora(),
       checkin({ modo: "casa", filial_slug: null, filial_nome: null, apto_roleta: false }),
     ]) {
       banco.atual = minha(c);
@@ -310,21 +416,82 @@ describe("o diálogo não fecha sozinho", () => {
   });
 });
 
+describe("a filial pede confirmação (um toque 'para ver' custaria as roletas e o reforço do dia)", () => {
+  it("tocar a filial NÃO faz check-in: pergunta se está dentro da loja; Voltar volta às opções", async () => {
+    montar();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(d).getByRole("button", { name: /Liberdade/ }));
+    const titulo = await screen.findByRole("heading", {
+      name: "Você está dentro da loja Liberdade agora?",
+    });
+    expect(
+      screen.getByText(
+        "O celular vai conferir. Se não confirmar, o check-in fica barrado e você fica fora das roletas e do reforço hoje.",
+      ),
+    ).toBeInTheDocument();
+    // O foco vai para a pergunta.
+    await waitFor(() => expect(document.activeElement).toBe(titulo));
+    expect(chamadasCheckin()).toEqual([]);
+    // Confirmação também não fecha com ESC.
+    fireEvent.keyDown(screen.getByTestId("checkin-obrigatorio-dialog"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    expect(
+      await screen.findByText("Para usar o CRM hoje, diga onde você está."),
+    ).toBeInTheDocument();
+    expect(chamadasCheckin()).toEqual([]);
+  });
+
+  it("no computador, a pergunta já avisa que a localização costuma falhar", async () => {
+    aparelho("computador");
+    montar();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(d).getByRole("button", { name: /Belém/ }));
+    expect(
+      await screen.findByText(/No computador a localização costuma falhar/),
+    ).toBeInTheDocument();
+  });
+
+  it("com a exigência desligada, a filial vai direto (nada a perder)", async () => {
+    banco.atual = minha(null, { exige_localizacao: false });
+    montar();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(d).getByRole("button", { name: /Barra Funda/ }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(chamadasCheckin()).toHaveLength(1);
+  });
+
+  it("'Em casa' não pede confirmação (nunca pede localização)", async () => {
+    banco.resposta = () =>
+      minha(checkin({ modo: "casa", filial_slug: null, filial_nome: null }), {
+        vendas_mes_anterior: 4,
+      });
+    montar();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(d).getByRole("button", { name: /Em casa/ }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(chamadasCheckin()[0]).toMatchObject({ _modo: "casa", _latitude: undefined });
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+});
+
 describe("depois do check-in", () => {
   it("na filial, dentro do raio: fecha com o toast verde", async () => {
     montar();
-    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    await screen.findByTestId("checkin-obrigatorio-dialog");
     expect(screen.getByTestId("espera")).toHaveTextContent("true");
-    fireEvent.click(within(d).getByRole("button", { name: /Barra Funda/ }));
+    await checkinNaFilial(/Barra Funda/);
     await waitFor(() => expect(dialogo()).toBeNull());
-    const chamada = estado.rpc.mock.calls.find(([fn]) => fn === "presenca_checkin");
-    expect(chamada?.[1]).toMatchObject({
+    expect(chamadasCheckin()[0]).toMatchObject({
       _modo: "loja",
       _filial: "barra-funda",
       _latitude: -23.52,
     });
+    // Com a localização lida, nada de porquê da falha.
+    expect(chamadasCheckin()[0]).not.toHaveProperty("_falha_localizacao");
+    expect(estado.capture).not.toHaveBeenCalled();
     expect(estado.toast.success).toHaveBeenCalledWith(
       "Check-in feito: Barra Funda. Você está na roleta hoje.",
+      { description: undefined },
     );
     // Fechou e não volta: o check-in de hoje existe — e o que vem depois segue.
     await new Promise((res) => setTimeout(res, 20));
@@ -332,26 +499,50 @@ describe("depois do check-in", () => {
     expect(screen.getByTestId("espera")).toHaveTextContent("false");
   });
 
-  it("fora da filial: mostra a distância, que só vale de dentro da loja, e as três saídas — sem toast verde", async () => {
-    banco.resposta = () =>
-      minha(
-        checkin({
-          apto_roleta: false,
-          motivo: "fora_da_filial",
-          localizacao: "fora_do_raio",
-          distancia_m: 5830,
-        }),
-      );
+  it("enquanto o aparelho lê a posição: 'Conferindo a localização…' (role=status)", async () => {
+    let responder: PositionCallback = () => {};
+    geolocalizacao((ok) => {
+      responder = ok;
+    });
     montar();
-    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
-    fireEvent.click(within(d).getByRole("button", { name: /Barra Funda/ }));
+    await checkinNaFilial(/Barra Funda/);
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent("Conferindo a localização…");
+    await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalled());
+    act(() =>
+      responder({
+        coords: { latitude: -23.52, longitude: -46.677, accuracy: 15 },
+      } as GeolocationPosition),
+    );
+    await waitFor(() => expect(dialogo()).toBeNull());
+  });
+
+  it("fora da filial: diz onde o APARELHO ficou, que não vale para as roletas nem para o reforço, e as saídas — sem toast", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
     const motivo = await screen.findByTestId("checkin-barrado-motivo");
     expect(motivo).toHaveTextContent(
-      "Você está a 5,8 km da filial Barra Funda. O check-in na filial só vale de dentro da loja. " +
+      "A localização deste aparelho ficou a 5,8 km da filial Barra Funda. O check-in na filial só vale de dentro da loja. " +
         "Se você está na loja, peça ao gestor para confirmar no plantão.",
     );
+    expect(motivo).toHaveAttribute("aria-live", "polite");
+    const efeito = screen.getByTestId("checkin-barrado-efeito");
+    expect(efeito).toHaveTextContent(
+      "Seu check-in em Barra Funda ficou registrado, mas não vale para as roletas nem para o reforço de hoje. " +
+        "Visitas marcadas pelo SDR continuam chegando.",
+    );
+    // Nada de "menu" que não existe: a saída é a faixa do topo.
+    expect(efeito).not.toHaveTextContent("no menu");
+    expect(efeito).toHaveTextContent("faixa no topo");
+    // O foco foi para o título da nova tela.
+    await waitFor(() =>
+      expect(document.activeElement).toHaveTextContent(
+        "A localização não confirmou a filial Barra Funda",
+      ),
+    );
     const aberto = screen.getByTestId("checkin-obrigatorio-dialog");
-    for (const nome of ["Tentar de novo", "Estou em casa", "Continuar sem receber leads"]) {
+    for (const nome of ["Tentar de novo", "Estou em casa", "Continuar fora das roletas"]) {
       expect(within(aberto).getByRole("button", { name: nome })).toBeInTheDocument();
     }
     expect(estado.toast.success).not.toHaveBeenCalled();
@@ -364,103 +555,104 @@ describe("depois do check-in", () => {
     fireEvent.keyDown(aberto, { key: "Escape" });
     await new Promise((res) => setTimeout(res, 20));
     expect(dialogo()).toBeInTheDocument();
-    // Seguir sem leads fecha e não reabre; aí o estudo e as metas seguem.
-    fireEvent.click(within(aberto).getByRole("button", { name: "Continuar sem receber leads" }));
+    // Seguir fora das roletas fecha e não reabre; aí o estudo e as metas seguem.
+    fireEvent.click(within(aberto).getByRole("button", { name: "Continuar fora das roletas" }));
     await waitFor(() => expect(dialogo()).toBeNull());
     await new Promise((res) => setTimeout(res, 20));
     expect(dialogo()).toBeNull();
     expect(screen.getByTestId("espera")).toHaveTextContent("false");
   });
 
-  it("barrado → Escolher outra filial: volta às opções, e a saída sem leads continua lá", async () => {
-    banco.resposta = () =>
-      minha(
-        checkin({
-          apto_roleta: false,
-          motivo: "fora_da_filial",
-          localizacao: "fora_do_raio",
-          distancia_m: 2100,
-        }),
-      );
+  it("localização aproximada (±5 km, típico de computador): não acusa a distância, manda usar o celular", async () => {
+    banco.resposta = () => minha(barradoFora({ distancia_m: 8363, precisao_m: 5000 }));
     montar();
-    fireEvent.click(
-      within(await screen.findByTestId("checkin-obrigatorio-dialog")).getByRole("button", {
-        name: /Barra Funda/,
-      }),
+    await checkinNaFilial(/Barra Funda/);
+    const motivo = await screen.findByTestId("checkin-barrado-motivo");
+    expect(motivo).toHaveTextContent(
+      "A localização deste aparelho é aproximada (±5 km): faça o check-in pelo celular, de dentro da loja, " +
+        "ou peça ao gestor para confirmar no plantão.",
     );
+    expect(motivo).not.toHaveTextContent("8,4 km");
+  });
+
+  it("barrado e 'Continuar fora das roletas': a faixa do topo passa a avisar e leva a /presenca", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar({ faixa: true });
+    await checkinNaFilial(/Barra Funda/);
+    fireEvent.click(await screen.findByRole("button", { name: "Continuar fora das roletas" }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    const faixa = await screen.findByTestId("faixa-checkin-barrado");
+    expect(faixa).toHaveTextContent(
+      "Seu check-in em Barra Funda não valeu: a localização não confirmou a loja. Chegou à loja? Refaça o check-in.",
+    );
+    expect(within(faixa).getByRole("link", { name: "Refazer check-in" })).toHaveAttribute(
+      "href",
+      "/presenca",
+    );
+  });
+
+  it("barrado → Escolher outra filial: volta às opções sem marcar a barrada, e a saída continua lá", async () => {
+    banco.resposta = () => minha(barradoFora({ distancia_m: 2100 }));
+    montar();
+    await checkinNaFilial(/Barra Funda/);
     fireEvent.click(await screen.findByRole("button", { name: "Escolher outra filial" }));
     const d = screen.getByTestId("checkin-obrigatorio-dialog");
     expect(within(d).getByRole("button", { name: /Liberdade/ })).toBeInTheDocument();
-    fireEvent.click(within(d).getByRole("button", { name: "Continuar sem receber leads" }));
+    // A filial barrada não aparece como escolha feita.
+    expect(within(d).getByRole("button", { name: /Barra Funda/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    fireEvent.click(within(d).getByRole("button", { name: "Continuar fora das roletas" }));
     await waitFor(() => expect(dialogo()).toBeNull());
   });
 
-  it("barrado → Tentar de novo na mesma filial: já dentro do raio, fecha", async () => {
+  it("barrado → Tentar de novo na mesma filial: lê a posição AGORA (maximumAge 0) e, dentro do raio, fecha", async () => {
     let tentativas = 0;
     banco.resposta = (args) => {
       tentativas += 1;
       const filial = { filial_slug: args._filial, filial_nome: "Liberdade" };
       return tentativas === 1
-        ? minha(
-            checkin({
-              ...filial,
-              apto_roleta: false,
-              motivo: "fora_da_filial",
-              localizacao: "fora_do_raio",
-              distancia_m: 900,
-            }),
-          )
-        : minha(checkin(filial));
+        ? minha(barradoFora({ ...filial, distancia_m: 900 }))
+        : minha(checkin({ ...filial, id: "k2" }));
     };
     montar();
-    fireEvent.click(
-      within(await screen.findByTestId("checkin-obrigatorio-dialog")).getByRole("button", {
-        name: /Liberdade/,
-      }),
-    );
+    await checkinNaFilial(/Liberdade/);
     fireEvent.click(await screen.findByRole("button", { name: "Tentar de novo" }));
     await waitFor(() => expect(dialogo()).toBeNull());
-    const filiais = estado.rpc.mock.calls
-      .filter(([fn]) => fn === "presenca_checkin")
-      .map(([, a]) => (a as { _filial?: string })._filial);
-    expect(filiais).toEqual(["liberdade", "liberdade"]);
+    expect(chamadasCheckin().map((a) => a._filial)).toEqual(["liberdade", "liberdade"]);
+    const [primeira, segunda] = leiturasGps();
+    expect(primeira.maximumAge).toBe(60_000);
+    expect(segunda.maximumAge).toBe(0);
   });
 
-  it("sem localização porque o navegador negou: ensina a liberar; 'Estou em casa' abaixo do mínimo mostra o motivo e libera", async () => {
+  it("sem localização porque o navegador negou: ensina a liberar (Android e iPhone), manda o porquê ao banco e ao Sentry; 'Estou em casa' abaixo do mínimo avisa do reforço e libera", async () => {
     geolocalizacao(negada);
     banco.resposta = (args) =>
-      args._modo === "casa"
-        ? minha(
-            checkin({
-              modo: "casa",
-              filial_slug: null,
-              filial_nome: null,
-              apto_roleta: false,
-              motivo: "casa_abaixo_minimo_vendas",
-              localizacao: null,
-              distancia_m: null,
-            }),
-          )
-        : minha(
-            checkin({
-              apto_roleta: false,
-              motivo: "sem_localizacao",
-              localizacao: "sem_localizacao",
-              distancia_m: null,
-            }),
-          );
+      args._modo === "casa" ? minha(casaRecusada()) : minha(barradoSemGps());
     montar();
-    fireEvent.click(
-      within(await screen.findByTestId("checkin-obrigatorio-dialog")).getByRole("button", {
-        name: /Belém/,
-      }),
-    );
+    await checkinNaFilial(/Belém/);
     const motivo = await screen.findByTestId("checkin-barrado-motivo");
     expect(motivo).toHaveTextContent("cadeado");
     expect(motivo).toHaveTextContent("Localização → Permitir");
-    // Para o banco nada muda: sem coordenada.
-    const loja = estado.rpc.mock.calls.find(([fn]) => fn === "presenca_checkin")?.[1];
-    expect(loja).toMatchObject({ _modo: "loja", _filial: "belem", _latitude: undefined });
+    expect(motivo).toHaveTextContent("aA ao lado do endereço → Ajustes do Site → Localização");
+    expect(motivo).toHaveTextContent(
+      "Ajustes → Privacidade e Segurança → Serviços de Localização → Sites do Safari",
+    );
+    // Sem coordenada — e, desde a 0080, o porquê vai junto.
+    expect(chamadasCheckin()[0]).toMatchObject({
+      _modo: "loja",
+      _filial: "belem",
+      _latitude: undefined,
+      _falha_localizacao: "negada",
+    });
+    await waitFor(() =>
+      expect(estado.capture).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "geolocalizacao:negada" }),
+        "presenca.checkin",
+        true,
+      ),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Estou em casa" }));
     const recusa = await screen.findByTestId("checkin-recusado-motivo");
@@ -468,13 +660,87 @@ describe("depois do check-in", () => {
       "Em casa, a roleta só libera com 3 vendas aprovadas em setembro",
     );
     expect(recusa).toHaveTextContent("é preciso estar numa filial");
+    // O barrado de antes tira também o reforço hoje — a tela diz.
+    expect(screen.getByTestId("checkin-recusado-reforco")).toHaveTextContent(AVISO_FORA_DO_REFORCO);
     // Cumpriu o check-in com sinceridade: o CRM está liberado (ESC fecha).
     fireEvent.keyDown(screen.getByTestId("checkin-obrigatorio-dialog"), { key: "Escape" });
     await waitFor(() => expect(dialogo()).toBeNull());
     expect(estado.toast.success).not.toHaveBeenCalled();
   });
 
-  it("erro técnico no check-in: mostra o erro e deixa seguir sem check-in (não volta a prender hoje)", async () => {
+  it("'Em casa' sincero desde o início (abaixo do mínimo): sem aviso de reforço perdido", async () => {
+    banco.resposta = () => minha(casaRecusada());
+    montar();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(d).getByRole("button", { name: /Em casa/ }));
+    expect(await screen.findByTestId("checkin-recusado-motivo")).toBeInTheDocument();
+    expect(screen.queryByTestId("checkin-recusado-reforco")).toBeNull();
+  });
+
+  it("barrado → 'Estou em casa' com a meta (ou mínimo 0): fecha com o verde, avisando que o reforço não volta", async () => {
+    banco.resposta = (args) =>
+      args._modo === "casa"
+        ? minha(checkin({ id: "k4", modo: "casa", filial_slug: null, filial_nome: null }), {
+            vendas_minimas: 0,
+          })
+        : minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    fireEvent.click(await screen.findByRole("button", { name: "Estou em casa" }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(estado.toast.success).toHaveBeenCalledWith(
+      "Check-in feito: Em casa. Você está na roleta hoje.",
+      { description: AVISO_FORA_DO_REFORCO },
+    );
+  });
+
+  it("no computador, sem localização: orienta fazer pelo celular", async () => {
+    aparelho("computador");
+    geolocalizacao((_ok, erro) => erro({ code: 2, message: "x" } as GeolocationPositionError));
+    banco.resposta = () => minha(barradoSemGps());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    const motivo = await screen.findByTestId("checkin-barrado-motivo");
+    expect(motivo).toHaveTextContent(
+      "No computador a localização costuma falhar: faça o check-in pelo celular, de dentro da loja, " +
+        "ou peça ao gestor para confirmar no plantão.",
+    );
+    expect(
+      screen.getByRole("heading", { name: /Sem a localização deste computador/ }),
+    ).toBeTruthy();
+  });
+
+  it("banco ainda sem a 0080 (sem _falha_localizacao): refaz o mesmo check-in sem o porquê", async () => {
+    geolocalizacao(negada);
+    estado.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      if (fn === "presenca_minha_v1") return { data: banco.atual, error: null };
+      if (fn === "presenca_checkin") {
+        if ("_falha_localizacao" in args) {
+          return {
+            data: null,
+            error: {
+              code: "PGRST202",
+              message:
+                "Could not find the function public.presenca_checkin(_falha_localizacao, _filial, _modo) in the schema cache",
+            },
+          };
+        }
+        banco.atual = minha(barradoSemGps());
+        return { data: { ...banco.atual, filiais: [] }, error: null };
+      }
+      return { data: null, error: null };
+    });
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    expect(await screen.findByTestId("checkin-barrado-motivo")).toHaveTextContent("cadeado");
+    const [primeira, segunda] = chamadasCheckin();
+    expect(primeira).toMatchObject({ _falha_localizacao: "negada" });
+    expect(segunda).not.toHaveProperty("_falha_localizacao");
+    expect(segunda).toMatchObject({ _modo: "loja", _filial: "barra-funda" });
+    expect(estado.toast.error).not.toHaveBeenCalled();
+  });
+
+  it("erro técnico no check-in: mostra o erro (sem toast vermelho repetindo) e deixa seguir sem check-in", async () => {
     estado.rpc.mockImplementation(async (fn: string) => {
       if (fn === "presenca_minha_v1") return { data: minha(), error: null };
       return { data: null, error: { message: "function presenca_checkin does not exist" } };
@@ -487,6 +753,7 @@ describe("depois do check-in", () => {
     );
     const alerta = await screen.findByRole("alert");
     expect(alerta).toHaveTextContent("function presenca_checkin does not exist");
+    expect(estado.toast.error).not.toHaveBeenCalled();
     fireEvent.click(within(alerta).getByRole("button", { name: "Continuar sem check-in" }));
     await waitFor(() => expect(dialogo()).toBeNull());
     // Recarregou a página no mesmo aparelho: continua liberado hoje.
@@ -495,6 +762,127 @@ describe("depois do check-in", () => {
     await leituraFeita();
     await new Promise((res) => setTimeout(res, 20));
     expect(dialogo()).toBeNull();
+  });
+});
+
+describe("check-in que liberou a roleta chegou de fora: fecha, e nunca é rebaixado", () => {
+  it("celular: o diálogo está no computador; o check-in feito no celular aparece ao voltar para a janela → fecha com o verde", async () => {
+    montar();
+    await screen.findByTestId("checkin-obrigatorio-dialog");
+    banco.atual = minha(checkin({ id: "k2" }));
+    voltarParaAJanela();
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(estado.toast.success).toHaveBeenCalledWith(
+      "Check-in feito: Barra Funda. Você está na roleta hoje.",
+    );
+    expect(chamadasCheckin()).toEqual([]);
+    expect(screen.getByTestId("espera")).toHaveTextContent("false");
+  });
+
+  it("celular: sem voltar à janela, a releitura de 15 s também fecha", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      montar();
+      await screen.findByTestId("checkin-obrigatorio-dialog");
+      banco.atual = minha(checkin({ id: "k2" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_500);
+      });
+      await waitFor(() => expect(dialogo()).toBeNull());
+      expect(chamadasCheckin()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("celular: tocou uma opção no computador depois do check-in do celular → relê na hora e fecha SEM chamar a RPC", async () => {
+    montar();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    // O celular fez o check-in; o computador ainda não releu.
+    banco.atual = minha(checkin({ id: "k2" }));
+    fireEvent.click(within(d).getByRole("button", { name: /Em casa/ }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(chamadasCheckin()).toEqual([]);
+    expect(estado.toast.success).toHaveBeenCalledWith(
+      "Check-in feito: Barra Funda. Você está na roleta hoje.",
+    );
+  });
+
+  it("gestão: barrado na tela, a gestão confirma no plantão → ao voltar para a aba, fecha com 'Plantão confirmado'", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    await screen.findByTestId("checkin-barrado-motivo");
+    banco.atual = minha(confirmadoPelaGestao());
+    // react-query relê no "visibilitychange" (aba de volta à frente; o evento
+    // sobe do document para a window, onde o react-query escuta).
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+    });
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(estado.toast.success).toHaveBeenCalledWith(
+      "Plantão confirmado pela gestão: Barra Funda. Você está na roleta hoje.",
+    );
+    expect(chamadasCheckin()).toHaveLength(1);
+  });
+
+  it("gestão: confirmou, o diálogo ainda não releu e o corretor toca 'Tentar de novo' → não refaz (a confirmação fica)", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    await screen.findByTestId("checkin-barrado-motivo");
+    banco.atual = minha(confirmadoPelaGestao());
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    // Só o check-in barrado de antes: o "Tentar de novo" não chamou a RPC.
+    expect(chamadasCheckin()).toHaveLength(1);
+    expect(estado.toast.success).toHaveBeenCalledWith(
+      "Plantão confirmado pela gestão: Barra Funda. Você está na roleta hoje.",
+    );
+  });
+
+  it("gestão: confirmou e o corretor toca 'Estou em casa' → também não refaz", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    await screen.findByTestId("checkin-barrado-motivo");
+    banco.atual = minha(confirmadoPelaGestao());
+    fireEvent.click(screen.getByRole("button", { name: "Estou em casa" }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(chamadasCheckin()).toHaveLength(1);
+  });
+
+  it("interruptor da gestão (liberado) com o barrado na tela: fecha com 'Liberado pela gestão'", async () => {
+    banco.resposta = () => minha(barradoSemGps());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    await screen.findByTestId("checkin-barrado-motivo");
+    banco.atual = minha(
+      checkin({
+        id: "k8",
+        modo: "liberado_gestao",
+        filial_slug: null,
+        filial_nome: null,
+        localizacao: null,
+        origem: "gestao",
+      }),
+    );
+    voltarParaAJanela();
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(estado.toast.success).toHaveBeenCalledWith(
+      "Liberado pela gestão: você está na roleta hoje.",
+    );
+  });
+
+  it("a releitura que só traz o mesmo barrado não fecha nada", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    await screen.findByTestId("checkin-barrado-motivo");
+    voltarParaAJanela();
+    await new Promise((res) => setTimeout(res, 30));
+    expect(dialogo()).toBeInTheDocument();
+    expect(estado.toast.success).not.toHaveBeenCalled();
   });
 });
 

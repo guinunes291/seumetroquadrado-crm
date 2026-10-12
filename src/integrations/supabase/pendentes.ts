@@ -22,7 +22,10 @@
 // produção, que ainda não tem a 0074, e esses tipos saíram de lá. Depois que a
 // 0074 rodar em produção e o Lovable regenerar types.ts com eles, apague o
 // bloco de presença daqui e troque `supabasePendente` por `supabase` em
-// src/features/presenca/presenca-client.ts.
+// src/features/presenca/presenca-client.ts. A 0080 acrescenta o parâmetro
+// opcional `_falha_localizacao` de presenca_checkin e a chave
+// `falha_localizacao` em presenca_minha_v1/presenca_hoje_v1 (a tela trata os
+// dois como opcionais até a 0080 rodar em produção).
 //
 // Roletas por filial (migration 20261018120000_roletas_por_filial.sql, a
 // 0079; decisão do dono, 12/10/2026): `roletas.filial_id` e os parâmetros
@@ -137,6 +140,8 @@ type PresencaHojeLinha = {
   presente: boolean;
   vendas_mes_anterior: number;
   vendas_minimas: number;
+  /** Desde a 0080 (ausente antes dela). */
+  falha_localizacao?: string | null;
 };
 
 type ColunasNovasProjetos = {
@@ -214,6 +219,8 @@ export type DatabasePendente = Omit<Database, "public"> & {
       presenca_checkin: {
         Args: {
           _corretor_id?: string;
+          /** Desde a 0080: por que o aparelho não deu a localização. */
+          _falha_localizacao?: string;
           _filial?: string;
           _latitude?: number;
           _longitude?: number;

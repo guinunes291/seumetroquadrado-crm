@@ -2,6 +2,11 @@
 // isso libera a roleta) e quem ainda não fez check-in. Admin e gestor também
 // confirmam o check-in de alguém numa filial (o corretor sem celular no
 // plantão); superintendente só lê.
+//
+// Barrado pela localização: fica na coluna da filial que escolheu, com o
+// porquê no selo, mas fora do número do cabeçalho (o selo "N barrados" ao
+// lado) — a soma das colunas bate com o tile "No plantão (filiais)". Quem foi
+// barrado e trocou para "Em casa" ganha o sinal "fora do reforço hoje".
 
 import {
   DotsThreeVertical,
@@ -25,10 +30,17 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useCheckinPelaGestao, useFiliais, usePresencaHoje } from "./presenca-client";
+import {
+  diaSaoPauloHoje,
+  useCheckinPelaGestao,
+  useCheckinsDoDia,
+  useFiliais,
+  usePresencaHoje,
+} from "./presenca-client";
 import {
   agruparQuadro,
   barradoPelaLocalizacao,
+  barradosSemDestrave,
   localizacaoLabel,
   resumoQuadro,
   statusRoletaLinha,
@@ -56,6 +68,8 @@ const iniciais = (nome: string) =>
 export function PresencaQuadro({ podeOperar }: { podeOperar: boolean }) {
   const hojeQ = usePresencaHoje(true);
   const filiaisQ = useFiliais();
+  // Só para o sinal "fora do reforço hoje": se falhar, o quadro segue sem ele.
+  const doDiaQ = useCheckinsDoDia(true, { dia: diaSaoPauloHoje() });
   const filiaisAtivas = (filiaisQ.data ?? []).filter((f) => f.ativa);
 
   if (hojeQ.isLoading || filiaisQ.isLoading) return <Skeleton className="h-80 w-full" />;
@@ -75,6 +89,7 @@ export function PresencaQuadro({ podeOperar }: { podeOperar: boolean }) {
   const rows = hojeQ.data ?? [];
   const resumo = resumoQuadro(rows);
   const colunas = agruparQuadro(rows, filiaisAtivas);
+  const foraDoReforco = barradosSemDestrave(doDiaQ.data ?? []);
 
   return (
     <div className="space-y-4">
@@ -118,6 +133,7 @@ export function PresencaQuadro({ podeOperar }: { podeOperar: boolean }) {
             coluna={col}
             filiais={filiaisAtivas.map((f) => ({ slug: f.slug, nome: f.nome }))}
             podeOperar={podeOperar}
+            foraDoReforco={foraDoReforco}
           />
         ))}
       </div>
@@ -129,10 +145,12 @@ function Coluna({
   coluna,
   filiais,
   podeOperar,
+  foraDoReforco,
 }: {
   coluna: ColunaQuadro;
   filiais: { slug: string; nome: string }[];
   podeOperar: boolean;
+  foraDoReforco: Set<string>;
 }) {
   const Icone = coluna.chave.startsWith("filial:")
     ? Storefront
@@ -146,7 +164,14 @@ function Coluna({
           <span className="flex items-center gap-1.5">
             <Icone className="h-4 w-4 text-primary" /> {coluna.titulo}
           </span>
-          <StatusBadge intent="neutral">{coluna.corretores.length}</StatusBadge>
+          <span className="flex items-center gap-1" data-testid={`contagem-${coluna.chave}`}>
+            <StatusBadge intent="neutral">{coluna.validos}</StatusBadge>
+            {coluna.barrados > 0 && (
+              <StatusBadge intent="danger">
+                {coluna.barrados} barrado{coluna.barrados === 1 ? "" : "s"}
+              </StatusBadge>
+            )}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -154,7 +179,13 @@ function Coluna({
           <p className="text-xs text-muted-foreground">Ninguém aqui.</p>
         ) : (
           coluna.corretores.map((r) => (
-            <LinhaCorretor key={r.corretor_id} r={r} filiais={filiais} podeOperar={podeOperar} />
+            <LinhaCorretor
+              key={r.corretor_id}
+              r={r}
+              filiais={filiais}
+              podeOperar={podeOperar}
+              foraDoReforco={foraDoReforco.has(r.corretor_id)}
+            />
           ))
         )}
       </CardContent>
@@ -166,10 +197,13 @@ function LinhaCorretor({
   r,
   filiais,
   podeOperar,
+  foraDoReforco,
 }: {
   r: PresencaHojeRow;
   filiais: { slug: string; nome: string }[];
   podeOperar: boolean;
+  /** Barrado pela localização hoje, sem destrave depois. */
+  foraDoReforco: boolean;
 }) {
   const checkin = useCheckinPelaGestao();
   const aberto = r.modo !== null && r.encerrado_em === null;
@@ -180,6 +214,8 @@ function LinhaCorretor({
       ? localizacaoLabel(r.localizacao, r.distancia_m)
       : null;
   const casaBloqueada = aberto && r.modo === "casa" && !r.apto_roleta;
+  // O barrado já diz que está fora; em casa depois de barrado, o reforço não volta.
+  const semReforco = aberto && r.modo === "casa" && foraDoReforco;
 
   return (
     <div className="flex items-center gap-2 rounded-md border p-2">
@@ -200,6 +236,11 @@ function LinhaCorretor({
             · {r.vendas_mes_anterior}/{r.vendas_minimas} vendas no mês anterior
           </span>
           {casaBloqueada && <span className="text-warning">· abaixo do mínimo</span>}
+          {semReforco && (
+            <span title="Barrado pela localização numa filial hoje: fora do reforço até um check-in na loja que valha (ou a liberação da gestão)">
+              <StatusBadge intent="warning">fora do reforço hoje</StatusBadge>
+            </span>
+          )}
           {evidencia && <StatusBadge intent={evidencia.intent}>{evidencia.texto}</StatusBadge>}
         </div>
       </div>

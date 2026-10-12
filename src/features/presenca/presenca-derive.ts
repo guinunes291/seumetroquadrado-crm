@@ -18,6 +18,12 @@ export type MotivoPresenca = "casa_abaixo_minimo_vendas" | "fora_da_filial" | "s
  * geolocalização.
  */
 export type FalhaLocalizacao = "negada" | "indisponivel" | "tempo" | "sem_suporte";
+const FALHAS: readonly FalhaLocalizacao[] = ["negada", "indisponivel", "tempo", "sem_suporte"];
+
+/** O porquê gravado pelo banco (_falha_localizacao), só se for um dos conhecidos. */
+export function parseFalhaLocalizacao(v: unknown): FalhaLocalizacao | null {
+  return FALHAS.find((f) => f === v) ?? null;
+}
 export type LocalizacaoCheckin =
   | "confirmada"
   | "fora_do_raio"
@@ -43,6 +49,11 @@ export type CheckinAtual = {
   localizacao: LocalizacaoCheckin | null;
   distancia_m: number | null;
   precisao_m: number | null;
+  /**
+   * Por que o aparelho não deu a localização (gravado desde a 0080 pelo
+   * parâmetro _falha_localizacao; null antes dela ou quando não faltou).
+   */
+  falha_localizacao: FalhaLocalizacao | null;
   origem: "corretor" | "gestao";
   criado_em: string;
   encerrado_em: string | null;
@@ -83,6 +94,10 @@ export type PresencaHojeRow = {
   encerrado_em: string | null;
   vendas_mes_anterior: number;
   vendas_minimas: number;
+  /** Desde a 0080 (pode faltar em produção antes dela). */
+  falha_localizacao?: string | null;
+  /** Se um dia vier na RPC: a precisão que o aparelho informou. */
+  precisao_m?: number | null;
 };
 
 const num = (v: unknown, fallback = 0): number => {
@@ -101,7 +116,9 @@ export function parseMinhaPresenca(json: unknown): MinhaPresenca {
     vendas_mes_anterior: num(o.vendas_mes_anterior),
     vendas_minimas: num(o.vendas_minimas, 3),
     casa_liberada: o.casa_liberada === true,
-    exige_localizacao: o.exige_localizacao === true,
+    // Sem a chave na resposta, assume ligada (o mais seguro para o corretor:
+    // a tela avisa da conferência antes do toque).
+    exige_localizacao: typeof o.exige_localizacao === "boolean" ? o.exige_localizacao : true,
     checkin: c
       ? {
           id: String(c.id),
@@ -113,6 +130,7 @@ export function parseMinhaPresenca(json: unknown): MinhaPresenca {
           localizacao: (c.localizacao as LocalizacaoCheckin | null) ?? null,
           distancia_m: c.distancia_m == null ? null : num(c.distancia_m),
           precisao_m: c.precisao_m == null ? null : num(c.precisao_m),
+          falha_localizacao: parseFalhaLocalizacao(c.falha_localizacao),
           origem: c.origem === "gestao" ? "gestao" : "corretor",
           criado_em: String(c.criado_em ?? ""),
           encerrado_em: (c.encerrado_em as string | null) ?? null,
@@ -142,7 +160,17 @@ export function rotuloLocal(modo: ModoPresenca | null, filialNome: string | null
 export function distanciaLabel(m: number): string {
   if (m < 1000) return `${Math.max(10, Math.round(m / 10) * 10)} m`;
   const km = m / 1000;
-  return km < 10 ? `${km.toFixed(1).replace(".", ",")} km` : `${Math.round(km)} km`;
+  return km < 10
+    ? `${km.toFixed(1).replace(".", ",").replace(/,0$/, "")} km`
+    : `${Math.round(km)} km`;
+}
+
+/**
+ * Leitura que o aparelho mesmo diz ser aproximada (Wi-Fi ou IP, típico de
+ * computador): acima de 1 km, a distância não prova onde a pessoa está.
+ */
+export function precisaoAproximada(precisao: number | null | undefined): boolean {
+  return precisao != null && precisao > 1000;
 }
 
 /** Evidência de localização do check-in na filial, para a gestão e o corretor. */
@@ -175,16 +203,27 @@ export function localizacaoLabel(
 /** "da filial Barra Funda" · "da filial" (sem nome). */
 const daFilial = (nome: string | null | undefined) => (nome ? `da filial ${nome}` : "da filial");
 
+const PELO_CELULAR =
+  "faça o check-in pelo celular, de dentro da loja, ou peça ao gestor para confirmar no plantão.";
+
 /**
- * O que fazer quando o celular não deu a localização, pelo tipo de falha.
- * Sem o tipo (o card relido depois, outro aparelho), a orientação geral.
+ * O que fazer quando o aparelho não deu a localização, pelo tipo de falha.
+ * No computador (sem tela de toque), a orientação é usar o celular. Sem o
+ * tipo (dado antigo), a orientação geral.
  */
-export function mensagemSemLocalizacao(falha: FalhaLocalizacao | null | undefined): string {
+export function mensagemSemLocalizacao(
+  falha: FalhaLocalizacao | null | undefined,
+  opts: { computador?: boolean } = {},
+): string {
+  if (opts.computador) return `No computador a localização costuma falhar: ${PELO_CELULAR}`;
   switch (falha) {
     case "negada":
       return (
-        "O navegador está bloqueando a localização para o CRM. Para liberar: toque no cadeado " +
-        "(ou no ícone) ao lado do endereço do site → Localização → Permitir. Depois, tente de novo."
+        "O navegador está bloqueando a localização para o CRM. Para liberar no Android (Chrome): " +
+        "toque no cadeado (ou no ícone) ao lado do endereço do site → Localização → Permitir. " +
+        "No iPhone (Safari): toque em aA ao lado do endereço → Ajustes do Site → Localização → " +
+        "Permitir; se não aparecer, vá em Ajustes → Privacidade e Segurança → Serviços de " +
+        "Localização → Sites do Safari → Durante o Uso do App. Depois, tente de novo."
       );
     case "indisponivel":
     case "tempo":
@@ -215,8 +254,12 @@ export function motivoPresencaLabel(
     /** Check-in na filial: qual filial e a distância que o banco calculou. */
     filial_nome?: string | null;
     distancia_m?: number | null;
-    /** Só a tela do check-in sabe por que a localização faltou. */
+    /** A precisão que o aparelho informou (acima de 1 km, a distância não prova nada). */
+    precisao_m?: number | null;
+    /** Por que a localização faltou (a tela do check-in ou, desde a 0080, o banco). */
     falha_localizacao?: FalhaLocalizacao | null;
+    /** Este aparelho é um computador (sem tela de toque)? */
+    computador?: boolean;
   },
 ): string | null {
   switch (motivo) {
@@ -229,21 +272,32 @@ export function motivoPresencaLabel(
       );
     }
     case "fora_da_filial": {
+      if (precisaoAproximada(ctx.precisao_m)) {
+        return `A localização deste aparelho é aproximada (±${distanciaLabel(ctx.precisao_m ?? 0)}): ${PELO_CELULAR}`;
+      }
       const onde =
         ctx.distancia_m == null
-          ? `Você está longe ${daFilial(ctx.filial_nome)}.`
-          : `Você está a ${distanciaLabel(ctx.distancia_m)} ${daFilial(ctx.filial_nome)}.`;
+          ? `A localização deste aparelho ficou longe ${daFilial(ctx.filial_nome)}.`
+          : `A localização deste aparelho ficou a ${distanciaLabel(ctx.distancia_m)} ${daFilial(ctx.filial_nome)}.`;
       return (
         `${onde} O check-in na filial só vale de dentro da loja. ` +
         "Se você está na loja, peça ao gestor para confirmar no plantão."
       );
     }
     case "sem_localizacao":
-      return mensagemSemLocalizacao(ctx.falha_localizacao);
+      return mensagemSemLocalizacao(ctx.falha_localizacao, { computador: ctx.computador });
     default:
       return null;
   }
 }
+
+/**
+ * Barrado pela localização hoje e trocou para "Em casa": a roleta pode voltar
+ * (com a meta), mas o reforço não — só um check-in na loja que valha (GPS ou
+ * a gestão confirmando no plantão) ou a liberação da gestão o devolvem.
+ */
+export const AVISO_FORA_DO_REFORCO =
+  "Como o check-in na filial foi barrado hoje, você também fica fora do reforço até um check-in na loja que valha (ou a gestão liberar você).";
 
 export type SituacaoHoje = {
   estado: "sem_checkin" | "na_roleta" | "fora_da_roleta" | "encerrado";
@@ -253,13 +307,20 @@ export type SituacaoHoje = {
 };
 
 /**
- * O cabeçalho do card de check-in: onde estou e se recebo lead. `falhaLocalizacao`:
- * por que o celular não deu a localização no último check-in feito NESTA tela
- * (o banco não sabe; sem ela, a orientação geral).
+ * O cabeçalho do card de check-in: onde estou e se recebo lead.
+ * - `falhaLocalizacao`: por que o aparelho não deu a localização no último
+ *   check-in feito NESTA tela (sem ela, o que o banco gravou, ou a geral);
+ * - `computador`: este aparelho não tem tela de toque (orienta usar o celular);
+ * - `barradoHoje`: houve um check-in na filial barrado hoje, sem destrave
+ *   depois — em casa, avisa que o reforço não volta.
  */
 export function situacaoHoje(
   p: MinhaPresenca,
-  opts: { falhaLocalizacao?: FalhaLocalizacao | null } = {},
+  opts: {
+    falhaLocalizacao?: FalhaLocalizacao | null;
+    computador?: boolean;
+    barradoHoje?: boolean;
+  } = {},
 ): SituacaoHoje {
   const c = p.checkin;
   const mes = nomeDoMes(p.mes_referencia);
@@ -267,7 +328,8 @@ export function situacaoHoje(
     return {
       estado: "sem_checkin",
       titulo: "Você ainda não fez o check-in de hoje",
-      detalhe: "Sem check-in, você não recebe leads das roletas. Escolha onde está trabalhando.",
+      detalhe:
+        "Sem check-in, você não recebe leads das roletas nem do reforço (as visitas marcadas pelo SDR continuam chegando). Escolha onde está trabalhando.",
       intent: "warning",
     };
   }
@@ -276,31 +338,35 @@ export function situacaoHoje(
     return {
       estado: "encerrado",
       titulo: `Presença encerrada (${local})`,
-      detalhe: "Você saiu da roleta. Faça o check-in de novo para voltar a receber.",
+      detalhe: "Você saiu das roletas e do reforço. Faça o check-in de novo para voltar a receber.",
       intent: "neutral",
     };
   }
+  const reforco = opts.barradoHoje && c.modo === "casa" ? ` ${AVISO_FORA_DO_REFORCO}` : "";
   if (c.apto_roleta && p.presente) {
     return {
       estado: "na_roleta",
       titulo: c.modo === "casa" ? "Em casa — na roleta" : `${local} — na roleta`,
       detalhe:
         c.modo === "casa"
-          ? `Você teve ${p.vendas_mes_anterior} venda${p.vendas_mes_anterior === 1 ? "" : "s"} aprovada${p.vendas_mes_anterior === 1 ? "" : "s"} em ${mes}: pode receber leads trabalhando de casa.`
+          ? `Você teve ${p.vendas_mes_anterior} venda${p.vendas_mes_anterior === 1 ? "" : "s"} aprovada${p.vendas_mes_anterior === 1 ? "" : "s"} em ${mes}: pode receber leads trabalhando de casa.${reforco}`
           : "Você está apto a receber leads das roletas hoje.",
       intent: "success",
     };
   }
+  const motivo = motivoPresencaLabel(c.motivo, {
+    ...p,
+    mes,
+    filial_nome: c.filial_nome,
+    distancia_m: c.distancia_m,
+    precisao_m: c.precisao_m,
+    falha_localizacao: opts.falhaLocalizacao ?? c.falha_localizacao,
+    computador: opts.computador,
+  });
   return {
     estado: "fora_da_roleta",
     titulo: `${local} — fora da roleta`,
-    detalhe: motivoPresencaLabel(c.motivo, {
-      ...p,
-      mes,
-      filial_nome: c.filial_nome,
-      distancia_m: c.distancia_m,
-      falha_localizacao: opts.falhaLocalizacao,
-    }),
+    detalhe: motivo ? `${motivo}${reforco}` : reforco.trim() || null,
     intent: "warning",
   };
 }
@@ -312,10 +378,44 @@ export function avisoLocalizacao(exige: boolean): string {
     : "Na filial, o celular informa a localização só no momento do check-in, para confirmar o plantão. Em casa, a localização nunca é pedida.";
 }
 
+/** A dica sob as opções: quem não está numa filial não tem por que escolher uma. */
+export const DICA_FORA_DA_FILIAL = "Fora de uma filial (casa, visita, estande)? Escolha Em casa.";
+
+/** O passo de confirmação antes do check-in na filial (com a exigência ligada). */
+export function perguntaConfirmarFilial(nome: string): { titulo: string; detalhe: string } {
+  return {
+    titulo: `Você está dentro da loja ${nome} agora?`,
+    detalhe:
+      "O celular vai conferir. Se não confirmar, o check-in fica barrado e você fica fora das roletas e do reforço hoje.",
+  };
+}
+
+/** Check-in de hoje aberto e que liberou a roleta (nada a refazer). */
+export function checkinAptoAberto(p: MinhaPresenca | null | undefined): boolean {
+  const c = p?.checkin;
+  return !!c && c.encerrado_em === null && c.apto_roleta;
+}
+
 /** Faixa no topo do CRM: só para corretor sem check-in aberto hoje. */
 export function precisaCheckin(p: MinhaPresenca | null | undefined): boolean {
   if (!p) return false;
   return !p.checkin || p.checkin.encerrado_em !== null;
+}
+
+/**
+ * Faixa do barrado: o check-in aberto de hoje é numa filial e a localização
+ * barrou (fora do raio ou sem localização). Sem ela, quem tocou "Continuar
+ * fora das roletas" ficaria sem aviso nenhum fora de /presenca.
+ */
+export function precisaRefazerCheckin(p: MinhaPresenca | null | undefined): boolean {
+  const c = p?.checkin;
+  return (
+    !!c &&
+    c.encerrado_em === null &&
+    c.modo === "loja" &&
+    !c.apto_roleta &&
+    (c.motivo === "fora_da_filial" || c.motivo === "sem_localizacao")
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +426,14 @@ export type ColunaQuadro = {
   chave: string;
   titulo: string;
   corretores: PresencaHojeRow[];
+  /**
+   * Na coluna da filial: quantos valem (o número do cabeçalho) e quantos a
+   * localização barrou (o selo ao lado). A soma das filiais bate com o tile
+   * "No plantão (filiais)" e com o "fora da conta". Nas outras colunas,
+   * válidos = todos e barrados = 0.
+   */
+  validos: number;
+  barrados: number;
 };
 
 /**
@@ -343,13 +451,24 @@ export function agruparQuadro(
       (a, b) => Number(b.presente) - Number(a.presente) || a.nome.localeCompare(b.nome, "pt-BR"),
     );
 
-  const colunas: ColunaQuadro[] = filiais.map((f) => ({
-    chave: `filial:${f.slug}`,
-    titulo: f.nome,
-    corretores: ordenar(
+  const coluna = (chave: string, titulo: string, lista: PresencaHojeRow[]): ColunaQuadro => {
+    const barrados = lista.filter(barradoPelaLocalizacao).length;
+    return {
+      chave,
+      titulo,
+      corretores: ordenar(lista),
+      validos: lista.length - barrados,
+      barrados,
+    };
+  };
+
+  const colunas: ColunaQuadro[] = filiais.map((f) =>
+    coluna(
+      `filial:${f.slug}`,
+      f.nome,
       rows.filter((r) => ativo(r) && r.modo === "loja" && r.filial_slug === f.slug),
     ),
-  }));
+  );
   // Filial desativada hoje, mas com gente que fez check-in antes: não some.
   const conhecidas = new Set(filiais.map((f) => f.slug));
   const orfas = new Map<string, PresencaHojeRow[]>();
@@ -359,28 +478,24 @@ export function agruparQuadro(
     }
   }
   for (const [slug, lista] of orfas) {
-    colunas.push({
-      chave: `filial:${slug}`,
-      titulo: lista[0].filial_nome ?? slug,
-      corretores: ordenar(lista),
-    });
+    colunas.push(coluna(`filial:${slug}`, lista[0].filial_nome ?? slug, lista));
   }
   colunas.push(
-    {
-      chave: "casa",
-      titulo: "Em casa",
-      corretores: ordenar(rows.filter((r) => ativo(r) && r.modo === "casa")),
-    },
-    {
-      chave: "liberado_gestao",
-      titulo: "Liberados pela gestão",
-      corretores: ordenar(rows.filter((r) => ativo(r) && r.modo === "liberado_gestao")),
-    },
-    {
-      chave: "sem_checkin",
-      titulo: "Sem check-in",
-      corretores: ordenar(rows.filter((r) => !ativo(r))),
-    },
+    coluna(
+      "casa",
+      "Em casa",
+      rows.filter((r) => ativo(r) && r.modo === "casa"),
+    ),
+    coluna(
+      "liberado_gestao",
+      "Liberados pela gestão",
+      rows.filter((r) => ativo(r) && r.modo === "liberado_gestao"),
+    ),
+    coluna(
+      "sem_checkin",
+      "Sem check-in",
+      rows.filter((r) => !ativo(r)),
+    ),
   );
   return colunas;
 }
@@ -406,16 +521,43 @@ export function barradoPelaLocalizacao(
  * para quem a localização barrou, o porquê ("Barrado: a 5,8 km da filial").
  * null = sem check-in aberto (a linha diz a hora da saída, se houver).
  */
+const FALHA_ROTULO: Record<FalhaLocalizacao, string> = {
+  negada: "permissão negada",
+  indisponivel: "GPS indisponível",
+  tempo: "o aparelho não respondeu",
+  sem_suporte: "navegador sem suporte",
+};
+
 export function statusRoletaLinha(
   r: Pick<
     PresencaHojeRow,
-    "modo" | "encerrado_em" | "apto_roleta" | "motivo" | "presente" | "distancia_m"
+    | "modo"
+    | "encerrado_em"
+    | "apto_roleta"
+    | "motivo"
+    | "presente"
+    | "distancia_m"
+    | "falha_localizacao"
+    | "precisao_m"
   >,
 ): { texto: string; intent: Intent } | null {
   if (r.modo === null || r.encerrado_em !== null) return null;
   if (barradoPelaLocalizacao(r)) {
-    if (r.motivo === "sem_localizacao")
-      return { texto: "Barrado: sem localização", intent: "danger" };
+    if (r.motivo === "sem_localizacao") {
+      const falha = parseFalhaLocalizacao(r.falha_localizacao);
+      return {
+        texto: falha
+          ? `Barrado: sem localização (${FALHA_ROTULO[falha]})`
+          : "Barrado: sem localização",
+        intent: "danger",
+      };
+    }
+    if (precisaoAproximada(r.precisao_m)) {
+      return {
+        texto: `Barrado: localização imprecisa (±${distanciaLabel(r.precisao_m ?? 0)})`,
+        intent: "danger",
+      };
+    }
     return {
       texto:
         r.distancia_m == null
@@ -449,6 +591,42 @@ export function resumoQuadro(rows: PresencaHojeRow[]): ResumoQuadro {
     emCasaForaDaRoleta: rows.filter((r) => ativo(r) && r.modo === "casa" && !r.apto_roleta).length,
     semCheckin: rows.filter((r) => !ativo(r)).length,
   };
+}
+
+/** Uma linha de presenca_checkins de hoje (o que o quadro e o card leem). */
+export type CheckinDoDia = {
+  corretor_id: string;
+  modo: string;
+  apto_roleta: boolean;
+  motivo: string | null;
+  created_at: string;
+};
+
+/**
+ * Quem a localização barrou hoje e ainda não destravou — fica fora do reforço
+ * no dia (decisão do dono 4, 12/10/2026), mesmo depois de trocar para "Em
+ * casa". Destrava só um check-in POSTERIOR que liberou a roleta na filial
+ * (GPS confirmado ou a gestão confirmando no plantão) ou a liberação da
+ * gestão (interruptor). A regra é do banco (fallback_velocidade_ranking);
+ * aqui só o sinal para a tela.
+ */
+export function barradosSemDestrave(checkins: CheckinDoDia[]): Set<string> {
+  const barrado = (c: CheckinDoDia) =>
+    c.modo === "loja" &&
+    !c.apto_roleta &&
+    (c.motivo === "fora_da_filial" || c.motivo === "sem_localizacao");
+  const destrava = (c: CheckinDoDia) =>
+    c.apto_roleta && (c.modo === "loja" || c.modo === "liberado_gestao");
+  const fora = new Set<string>();
+  for (const b of checkins) {
+    if (!barrado(b) || fora.has(b.corretor_id)) continue;
+    const t = Date.parse(b.created_at);
+    const destravou = checkins.some(
+      (d) => d.corretor_id === b.corretor_id && destrava(d) && Date.parse(d.created_at) > t,
+    );
+    if (!destravou) fora.add(b.corretor_id);
+  }
+  return fora;
 }
 
 // ---------------------------------------------------------------------------

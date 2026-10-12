@@ -7,11 +7,15 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { useAuth } from "@/hooks/use-auth";
+import { isMissingBackendObject } from "@/lib/supabase-errors";
 import {
+  AVISO_FORA_DO_REFORCO,
   motivoPresencaLabel,
   nomeDoMes,
   parseMinhaPresenca,
   rotuloLocal,
+  type CheckinAtual,
+  type CheckinDoDia,
   type FalhaLocalizacao,
   type MinhaPresenca,
   type PresencaHojeRow,
@@ -20,20 +24,54 @@ import {
 /** Prefixo de todas as queries de presença (a Central também invalida). */
 export const PRESENCA_KEY = ["presenca"] as const;
 
-export function useMinhaPresenca(enabled = true) {
+const chaveMinha = (uid: string | undefined) => [...PRESENCA_KEY, "minha", uid] as const;
+
+async function lerMinhaPresenca(): Promise<MinhaPresenca> {
+  const { data, error } = await supabasePendente.rpc("presenca_minha_v1");
+  if (error) throw error;
+  return parseMinhaPresenca(data);
+}
+
+/**
+ * A minha presença de hoje. `releitura`: enquanto o check-in obrigatório está
+ * na tela, relê a cada 15 s e ao voltar para a janela — um check-in feito no
+ * celular, o "Confirmar no plantão" da gestão ou o interruptor chegam sem o
+ * corretor recarregar a página.
+ */
+export function useMinhaPresenca(enabled = true, opts: { releitura?: boolean } = {}) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: [...PRESENCA_KEY, "minha", user?.id],
+    queryKey: chaveMinha(user?.id),
     enabled: enabled && !!user,
     // A faixa do topo lê isto em toda tela: 1 min de folga basta, e a virada
     // do dia (auto-checkout das 23h) aparece no próximo foco da janela.
-    staleTime: 60_000,
-    queryFn: async (): Promise<MinhaPresenca> => {
-      const { data, error } = await supabasePendente.rpc("presenca_minha_v1");
-      if (error) throw error;
-      return parseMinhaPresenca(data);
-    },
+    staleTime: opts.releitura ? 0 : 60_000,
+    refetchInterval: opts.releitura ? 15_000 : false,
+    refetchOnWindowFocus: opts.releitura ? "always" : false,
+    queryFn: lerMinhaPresenca,
   });
+}
+
+/**
+ * Lê a presença de novo AGORA (sem cache): antes de qualquer check-in do
+ * diálogo, para nunca rebaixar um check-in que já liberou a roleta (feito no
+ * celular, confirmado pela gestão ou liberado pelo interruptor).
+ */
+export function useBuscarPresencaFresca() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return () =>
+    qc.fetchQuery({ queryKey: chaveMinha(user?.id), queryFn: lerMinhaPresenca, staleTime: 0 });
+}
+
+/** Este aparelho é um computador (sem tela de toque)? Na dúvida, não. */
+export function ehComputador(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  try {
+    return !window.matchMedia("(pointer: coarse)").matches;
+  } catch {
+    return false;
+  }
 }
 
 export type Localizacao = { lat: number; lng: number; precisao: number | null };
@@ -56,7 +94,10 @@ export function falhaDoCodigo(code: number | undefined): FalhaLocalizacao {
  * explicar o que fazer. Para o banco não muda nada: sem coordenada, ele
  * registra "sem localização" (e barra, com a exigência ligada).
  */
-export function obterLocalizacao(timeoutMs = 10_000): Promise<LeituraLocalizacao> {
+export function obterLocalizacao(
+  timeoutMs = 10_000,
+  { maximumAge = 60_000 }: { maximumAge?: number } = {},
+): Promise<LeituraLocalizacao> {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return Promise.resolve({ ok: false, falha: "sem_suporte" });
   }
@@ -81,7 +122,7 @@ export function obterLocalizacao(timeoutMs = 10_000): Promise<LeituraLocalizacao
             precisao: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
           }),
         (err) => responder({ ok: false, falha: falhaDoCodigo(err?.code) }),
-        { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60_000 },
+        { enableHighAccuracy: true, timeout: timeoutMs, maximumAge },
       );
     } catch {
       responder({ ok: false, falha: "sem_suporte" });
@@ -106,7 +147,10 @@ export type ResultadoCheckin = {
 };
 
 /** O texto que explica por que o check-in não liberou a roleta (null = liberou). */
-export function motivoDoResultado(r: ResultadoCheckin): string | null {
+export function motivoDoResultado(
+  r: ResultadoCheckin,
+  opts: { computador?: boolean } = {},
+): string | null {
   const p = r.presenca;
   const c = p.checkin;
   if (!c || c.apto_roleta) return null;
@@ -115,17 +159,41 @@ export function motivoDoResultado(r: ResultadoCheckin): string | null {
     mes: nomeDoMes(p.mes_referencia),
     filial_nome: c.filial_nome,
     distancia_m: c.distancia_m,
-    falha_localizacao: r.falhaLocalizacao,
+    precisao_m: c.precisao_m,
+    falha_localizacao: r.falhaLocalizacao ?? c.falha_localizacao,
+    computador: opts.computador,
   });
 }
 
-function toastDoCheckin(r: ResultadoCheckin, avisarRecusa: boolean) {
+/**
+ * O check-in que liberou a roleta chegou de fora do diálogo (o celular, a
+ * gestão confirmando no plantão, o interruptor): o verde diz de onde.
+ */
+export function avisarNaRoletaDeFora(c: CheckinAtual) {
+  if (c.modo === "liberado_gestao") {
+    toast.success("Liberado pela gestão: você está na roleta hoje.");
+  } else if (c.origem === "gestao") {
+    toast.success(
+      `Plantão confirmado pela gestão: ${rotuloLocal(c.modo, c.filial_nome)}. Você está na roleta hoje.`,
+    );
+  } else {
+    toast.success(
+      `Check-in feito: ${rotuloLocal(c.modo, c.filial_nome)}. Você está na roleta hoje.`,
+    );
+  }
+}
+
+function toastDoCheckin(r: ResultadoCheckin, avisarRecusa: boolean, barradoHoje: boolean) {
   const c = r.presenca.checkin;
   if (!c) return;
   const local = rotuloLocal(c.modo, c.filial_nome);
   // O verde "na roleta" só quando o banco liberou de verdade.
   if (c.apto_roleta) {
-    toast.success(`Check-in feito: ${local}. Você está na roleta hoje.`);
+    toast.success(`Check-in feito: ${local}. Você está na roleta hoje.`, {
+      // Barrado na filial e depois "Em casa" com a meta: a roleta volta, o
+      // reforço não (decisão do dono 4).
+      description: barradoHoje && c.modo === "casa" ? AVISO_FORA_DO_REFORCO : undefined,
+    });
   } else if (avisarRecusa) {
     toast.warning(`Check-in registrado: ${local}. Você está fora da roleta.`, {
       description: motivoDoResultado(r) ?? undefined,
@@ -134,44 +202,77 @@ function toastDoCheckin(r: ResultadoCheckin, avisarRecusa: boolean) {
   }
 }
 
+/** A falha de localização vai para o Sentry (diagnóstico de "todo mundo barrado"). */
+function registrarFalhaLocalizacao(falha: FalhaLocalizacao) {
+  void import("@/lib/error-tracking-browser")
+    .then((m) =>
+      m.captureClientError(new Error(`geolocalizacao:${falha}`), "presenca.checkin", true),
+    )
+    .catch(() => {
+      /* sem rastreamento: o check-in segue igual */
+    });
+}
+
+export type ArgsCheckin = {
+  modo: "loja" | "casa";
+  filial?: string;
+  /** "Tentar de novo": lê a posição agora (sem reaproveitar a de até 1 min atrás). */
+  novaLeitura?: boolean;
+  /** Houve um check-in na filial barrado hoje (o verde avisa do reforço). */
+  barradoHoje?: boolean;
+};
+
 /**
  * O check-in do próprio corretor. `avisarRecusa: false` para quem mostra o
- * motivo na própria tela (o diálogo obrigatório): o toast fica só para o verde.
+ * motivo na própria tela (o diálogo obrigatório): o toast fica só para o
+ * verde. `avisarErro: false` para quem mostra o erro na própria tela.
  */
-export function useCheckin({ avisarRecusa = true }: { avisarRecusa?: boolean } = {}) {
+export function useCheckin({
+  avisarRecusa = true,
+  avisarErro = true,
+}: { avisarRecusa?: boolean; avisarErro?: boolean } = {}) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const invalidar = useInvalidarPresenca();
   return useMutation({
-    mutationFn: async (args: {
-      modo: "loja" | "casa";
-      filial?: string;
-    }): Promise<ResultadoCheckin> => {
-      const leitura = args.modo === "loja" ? await obterLocalizacao() : null;
+    mutationFn: async (args: ArgsCheckin): Promise<ResultadoCheckin> => {
+      const leitura =
+        args.modo === "loja"
+          ? await obterLocalizacao(undefined, args.novaLeitura ? { maximumAge: 0 } : undefined)
+          : null;
       const geo = leitura?.ok ? leitura : null;
-      const { data, error } = await supabasePendente.rpc("presenca_checkin", {
+      const falha = leitura && !leitura.ok ? leitura.falha : null;
+      if (falha) registrarFalhaLocalizacao(falha);
+      const base = {
         _modo: args.modo,
         _filial: args.filial,
         _latitude: geo?.lat,
         _longitude: geo?.lng,
         _precisao_m: geo?.precisao ?? undefined,
-      });
-      if (error) throw error;
-      return {
-        presenca: parseMinhaPresenca(data),
-        falhaLocalizacao: leitura && !leitura.ok ? leitura.falha : null,
       };
+      let { data, error } = await supabasePendente.rpc(
+        "presenca_checkin",
+        falha ? { ...base, _falha_localizacao: falha } : base,
+      );
+      // Banco sem a 0080 (sem o parâmetro novo): o mesmo check-in, sem o porquê.
+      if (error && falha && isMissingBackendObject(error)) {
+        ({ data, error } = await supabasePendente.rpc("presenca_checkin", base));
+      }
+      if (error) throw error;
+      return { presenca: parseMinhaPresenca(data), falhaLocalizacao: falha };
     },
-    onSuccess: (r) => {
+    onSuccess: (r, args) => {
       // A RPC não devolve as filiais — preserva as que já estavam no cache.
-      qc.setQueryData<MinhaPresenca>([...PRESENCA_KEY, "minha", user?.id], (antes) => ({
+      qc.setQueryData<MinhaPresenca>(chaveMinha(user?.id), (antes) => ({
         ...r.presenca,
         filiais: antes?.filiais ?? r.presenca.filiais,
       }));
       invalidar();
-      toastDoCheckin(r, avisarRecusa);
+      toastDoCheckin(r, avisarRecusa, !!args.barradoHoje);
     },
-    onError: (e: Error) => toast.error(`Não foi possível fazer o check-in: ${e.message}`),
+    onError: (e: Error) => {
+      if (avisarErro) toast.error(`Não foi possível fazer o check-in: ${e.message}`);
+    },
   });
 }
 
@@ -226,6 +327,46 @@ export function useCheckinPelaGestao() {
       toast.success(`${args.nome}: check-in confirmado pela gestão.`);
     },
     onError: (e: Error) => toast.error(`Falha no check-in: ${e.message}`),
+  });
+}
+
+const fmtDiaSaoPaulo = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Hoje em São Paulo (YYYY-MM-DD), o mesmo `dia` que o banco grava. */
+export function diaSaoPauloHoje(): string {
+  return fmtDiaSaoPaulo.format(new Date());
+}
+
+/**
+ * Os check-ins de hoje (todos, para a gestão; os do próprio corretor, pela
+ * RLS e pelo filtro). Serve só para o sinal "fora do reforço hoje" de quem a
+ * localização barrou e trocou para "Em casa" — presenca_hoje_v1 e
+ * presenca_minha_v1 trazem só o último check-in.
+ */
+export function useCheckinsDoDia(
+  enabled: boolean,
+  { dia, corretorId }: { dia: string; corretorId?: string },
+) {
+  return useQuery({
+    queryKey: [...PRESENCA_KEY, "checkins-dia", dia, corretorId ?? "todos"],
+    enabled: enabled && !!dia,
+    staleTime: 30_000,
+    refetchInterval: corretorId ? false : 60_000,
+    queryFn: async (): Promise<CheckinDoDia[]> => {
+      let q = supabase
+        .from("presenca_checkins")
+        .select("corretor_id, modo, apto_roleta, motivo, created_at")
+        .eq("dia", dia);
+      if (corretorId) q = q.eq("corretor_id", corretorId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 }
 
