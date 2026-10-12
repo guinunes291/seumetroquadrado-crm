@@ -206,7 +206,7 @@ describe("as telas (contratos no fonte)", () => {
     expect(visao).not.toContain("ZONA_ROLETAS");
     expect(visao).toContain("Storefront");
     expect(visao).toContain('r.tipo === "zona" && r.ativo');
-    expect(visao).toContain("leads da filial esperam");
+    expect(visao).toContain("das outras zonas, espera aqui");
   });
 
   it("os links antigos de zona caem na roleta da filial que herdou a zona", () => {
