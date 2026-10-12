@@ -8,6 +8,14 @@
 //
 // As opções (OpcoesCheckin) e a régua das vendas (RegraDasVendas) também
 // formam o diálogo do check-in obrigatório (checkin-obrigatorio-global.tsx).
+//
+// A mesma proteção do diálogo: antes de qualquer check-in daqui, relê a
+// presença na hora; se o check-in de hoje já liberou a roleta e o corretor
+// não estava vendo isso quando tocou (a gestão confirmou no plantão, o
+// celular fez, o interruptor liberou), NÃO chama a RPC — refazer encerraria a
+// confirmação e gravaria um barrado novo. E enquanto o card mostra um
+// check-in barrado pela localização, relê sozinho (15 s, aba e janela): o
+// "Confirmar no plantão" da gestão tira o card do "fora da roleta".
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -23,14 +31,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
   ehComputador,
+  useBuscarPresencaFresca,
   useCheckin,
   useCheckinsDoDia,
   useEncerrarPresenca,
   useMinhaPresenca,
 } from "./presenca-client";
 import {
+  avisoJaNaRoleta,
   avisoLocalizacao,
   barradosSemDestrave,
+  checkinAptoAberto,
   DICA_FORA_DA_FILIAL,
   enderecoCurto,
   localizacaoLabel,
@@ -38,15 +49,36 @@ import {
   perguntaConfirmarFilial,
   precisaRefazerCheckin,
   situacaoHoje,
+  type CheckinAtual,
   type FalhaLocalizacao,
   type FilialOpcao,
   type MinhaPresenca,
 } from "./presenca-derive";
 
+/** O check-in de hoje que o corretor via no card quando tocou a opção. */
+type Visto = Pick<CheckinAtual, "id" | "apto_roleta" | "encerrado_em"> | null;
+
+/**
+ * A presença relida agora traz um check-in de hoje que liberou a roleta e que
+ * o corretor NÃO estava vendo quando tocou? Então ele decidiu por uma tela
+ * velha (o barrado, o "Em casa" fora da roleta): nada a refazer. Se ele já
+ * via esse mesmo check-in valendo, a troca é de propósito (mudou de filial,
+ * foi para casa) e segue.
+ */
+function jaNaRoletaSemSaber(fresca: MinhaPresenca | null, visto: Visto): CheckinAtual | null {
+  const c = fresca?.checkin ?? null;
+  if (!c || !checkinAptoAberto(fresca)) return null;
+  const via = !!visto && visto.id === c.id && visto.apto_roleta && visto.encerrado_em === null;
+  return via ? null : c;
+}
+
 export function CheckinCard({ className }: { className?: string }) {
   const { user } = useAuth();
-  const q = useMinhaPresenca();
+  // Barrado na tela: relê sozinho, para sair do "fora da roleta" quando a
+  // gestão confirmar no plantão (ou o interruptor liberar).
+  const q = useMinhaPresenca(true, { releitura: precisaRefazerCheckin });
   const checkin = useCheckin();
+  const buscarPresencaFresca = useBuscarPresencaFresca();
   const encerrar = useEncerrarPresenca();
   // Barrado hoje e trocou para "Em casa": o card avisa que o reforço não volta.
   const doDia = useCheckinsDoDia(!!q.data?.dia && !!user, {
@@ -55,13 +87,17 @@ export function CheckinCard({ className }: { className?: string }) {
   });
   // Qual opção foi clicada (o GPS pode levar alguns segundos).
   const [escolha, setEscolha] = useState<string | null>(null);
-  // Por que o celular não deu a localização no último check-in daqui.
-  const [falha, setFalha] = useState<FalhaLocalizacao | null>(null);
-  // Filial tocada esperando o "Estou na loja" (com a exigência ligada).
-  const [confirmar, setConfirmar] = useState<FilialOpcao | null>(null);
+  // Por que o celular não deu a localização no último check-in daqui (só vale
+  // para aquele check-in: a releitura pode trazer outro).
+  const [falha, setFalha] = useState<{ id: string; falha: FalhaLocalizacao | null } | null>(null);
+  // Filial tocada esperando o "Estou na loja" (com a exigência ligada), e o
+  // check-in que o card mostrava no toque.
+  const [confirmar, setConfirmar] = useState<{ filial: FilialOpcao; visto: Visto } | null>(null);
 
   if (q.isLoading) return <Skeleton className={cn("h-72 w-full", className)} />;
-  if (q.isError || !q.data) {
+  // Só sem nenhum dado: a releitura do barrado que falha (rede) mantém o card
+  // com o último dado bom, e a próxima releitura tenta de novo.
+  if (!q.data) {
     return (
       <QueryErrorState
         className={className}
@@ -75,19 +111,31 @@ export function CheckinCard({ className }: { className?: string }) {
   const p = q.data;
   const computador = ehComputador();
   const barradoHoje = !!user && !!doDia.data && barradosSemDestrave(doDia.data).has(user.id);
-  const sit = situacaoHoje(p, { falhaLocalizacao: falha, computador, barradoHoje });
+  const falhaDaqui = falha && falha.id === p.checkin?.id ? falha.falha : null;
+  const sit = situacaoHoje(p, { falhaLocalizacao: falhaDaqui, computador, barradoHoje });
   const aberto = p.checkin && !p.checkin.encerrado_em ? p.checkin : null;
-  const ocupado = checkin.isPending || encerrar.isPending;
+  const ocupado = escolha !== null || checkin.isPending || encerrar.isPending;
   const evidencia =
     aberto?.modo === "loja" ? localizacaoLabel(aberto.localizacao, aberto.distancia_m) : null;
 
-  const registrar = (modo: "loja" | "casa", filial?: string) => {
+  const registrar = async (modo: "loja" | "casa", filial: string | undefined, visto: Visto) => {
     setEscolha(filial ?? modo);
+    // A presença de agora (sem cache): se o check-in de hoje já liberou a
+    // roleta sem o corretor saber, avisa e não refaz. Falha na leitura não
+    // impede o check-in.
+    const fresca = await buscarPresencaFresca().catch(() => null);
+    const jaVale = jaNaRoletaSemSaber(fresca, visto);
+    if (jaVale) {
+      toast.info(avisoJaNaRoleta(jaVale));
+      setEscolha(null);
+      setConfirmar(null);
+      return;
+    }
     checkin.mutate(
       // Refazendo depois de barrado: lê a posição agora, não a de 1 min atrás.
       { modo, filial, novaLeitura: modo === "loja" && precisaRefazerCheckin(p), barradoHoje },
       {
-        onSuccess: (r) => setFalha(r.falhaLocalizacao),
+        onSuccess: (r) => setFalha({ id: r.presenca.checkin?.id ?? "", falha: r.falhaLocalizacao }),
         onSettled: () => {
           setEscolha(null);
           setConfirmar(null);
@@ -107,12 +155,13 @@ export function CheckinCard({ className }: { className?: string }) {
       aberto.modo === "loja" &&
       aberto.filial_slug === filial
     ) {
-      toast.info(`Você já está na roleta hoje: ${aberto.filial_nome ?? "nesta filial"}.`);
+      toast.info(avisoJaNaRoleta(aberto));
       return;
     }
+    const visto: Visto = p.checkin;
     const f = modo === "loja" ? p.filiais.find((x) => x.slug === filial) : undefined;
-    if (f && p.exige_localizacao) return setConfirmar(f);
-    registrar(modo, filial);
+    if (f && p.exige_localizacao) return setConfirmar({ filial: f, visto });
+    void registrar(modo, filial, visto);
   };
 
   return (
@@ -138,11 +187,11 @@ export function CheckinCard({ className }: { className?: string }) {
 
         {confirmar ? (
           <ConfirmarFilial
-            filial={confirmar}
-            carregando={escolha === confirmar.slug}
+            filial={confirmar.filial}
+            carregando={escolha === confirmar.filial.slug}
             disabled={ocupado}
             computador={computador}
-            onConfirmar={() => registrar("loja", confirmar.slug)}
+            onConfirmar={() => void registrar("loja", confirmar.filial.slug, confirmar.visto)}
             onVoltar={() => setConfirmar(null)}
           />
         ) : (

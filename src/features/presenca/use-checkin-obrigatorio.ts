@@ -62,8 +62,10 @@ function lerLiberado(uid: string, dia: string): boolean {
 /**
  * O corretor ainda não fez NENHUM check-in hoje? `null` enquanto não dá para
  * saber; `false` para gestão sem papel corretor, para quem já fez (mesmo
- * encerrado ou barrado) e quando a leitura falha. Também devolve o dia de São
- * Paulo que valeu para a decisão e a presença lida (filiais e régua do diálogo).
+ * encerrado ou barrado) e quando a leitura falha sem nenhum dado de hoje (a
+ * primeira; a releitura que falha mantém o último dado bom). Também devolve o
+ * dia de São Paulo que valeu para a decisão e a presença lida (filiais e
+ * régua do diálogo).
  */
 export function useCheckinObrigatorio({ releitura = false }: { releitura?: boolean } = {}): {
   pendente: boolean | null;
@@ -75,19 +77,11 @@ export function useCheckinObrigatorio({ releitura = false }: { releitura?: boole
   const { isCorretor, loading } = useUserRoles();
   const uid = user?.id ?? "";
   const dia = useDiaSaoPaulo();
-  // Diálogo na tela: relê a cada 15 s e ao voltar para a janela (o check-in
-  // feito no celular ou confirmado pela gestão fecha o diálogo).
+  // Diálogo na tela: relê a cada 15 s, ao voltar para a aba e ao voltar para
+  // a janela (o check-in feito no celular ou confirmado pela gestão fecha o
+  // diálogo).
   const q = useMinhaPresenca(isCorretor, { releitura });
   const { refetch } = q;
-
-  // O react-query só escuta "visibilitychange"; no computador, voltar do
-  // celular para a janela do CRM costuma ser só "focus".
-  useEffect(() => {
-    if (!releitura || !isCorretor) return;
-    const reler = () => void refetch({ cancelRefetch: false });
-    window.addEventListener("focus", reler);
-    return () => window.removeEventListener("focus", reler);
-  }, [releitura, isCorretor, refetch]);
 
   const [liberado, setLiberado] = useState(() => lerLiberado(uid, dia));
   useEffect(() => {
@@ -114,7 +108,11 @@ export function useCheckinObrigatorio({ releitura = false }: { releitura?: boole
   const pendente = checkinObrigatorioPendente({
     carregando: !uid || loading,
     ehCorretor: isCorretor,
-    erro: q.isError,
+    // Só libera a falha sem dado de hoje (a PRIMEIRA leitura, ou a releitura
+    // da virada do dia). Uma releitura que falha com o dado de hoje já lido
+    // (a de 15 s do diálogo, uma invalidação) mantém o que ele disse: um
+    // soluço da rede não fecha o diálogo obrigatório.
+    erro: q.isError && (!q.data || desatualizado),
     presenca: q.data,
     aguardandoReleitura: desatualizado && (relidoEm !== dia || relendo),
     liberadoPorFalha: liberado,

@@ -1,11 +1,13 @@
 // Presença por filial — o card de /presenca (e Meu Perfil) e o quadro da
 // gestão, renderizados. A regra é do banco; aqui se trava o que a tela mostra:
-// a confirmação antes da filial também no card, a régua das vendas que não
-// empurra quem está em casa para uma filial, o aviso do reforço perdido depois
-// de um barrado, e o quadro cujo cabeçalho de filial conta só os válidos (os
-// barrados num selo ao lado) e sinaliza quem foi barrado e trocou para casa.
+// a confirmação antes da filial também no card, a mesma proteção do diálogo
+// (um check-in que já liberou a roleta sem o corretor ver nunca é refeito), a
+// releitura do card barrado, a régua das vendas que não empurra quem está em
+// casa para uma filial, o aviso do reforço perdido depois de um barrado, e o
+// quadro cujo cabeçalho de filial conta só os válidos (os barrados num selo ao
+// lado) e sinaliza quem foi barrado e trocou para casa.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const estado = vi.hoisted(() => ({
@@ -126,6 +128,39 @@ function montar(ui: React.ReactNode) {
 }
 
 const chamadasCheckin = () => estado.rpc.mock.calls.filter(([fn]) => fn === "presenca_checkin");
+const leiturasMinha = () =>
+  estado.rpc.mock.calls.filter(([fn]) => fn === "presenca_minha_v1").length;
+
+/** Check-in na Barra Funda barrado: o navegador não deu a localização. */
+const barradoSemGps = () => ({
+  id: "k0",
+  modo: "loja",
+  filial_slug: "barra-funda",
+  filial_nome: "Barra Funda",
+  apto_roleta: false,
+  motivo: "sem_localizacao",
+  localizacao: "sem_localizacao",
+  distancia_m: null,
+  precisao_m: null,
+  origem: "corretor",
+  criado_em: `${HOJE}T11:00:00Z`,
+  encerrado_em: null,
+});
+/** A gestão confirmou no plantão (presenca_checkin com _corretor_id). */
+const confirmadoPelaGestao = () => ({
+  id: "k9",
+  modo: "loja",
+  filial_slug: "barra-funda",
+  filial_nome: "Barra Funda",
+  apto_roleta: true,
+  motivo: null,
+  localizacao: "confirmada_gestao",
+  distancia_m: null,
+  precisao_m: null,
+  origem: "gestao",
+  criado_em: `${HOJE}T11:30:00Z`,
+  encerrado_em: null,
+});
 
 describe("card de check-in (/presenca, Meu Perfil)", () => {
   it("a filial pede confirmação também aqui; Voltar não faz nada; 'Estou na loja' faz o check-in", async () => {
@@ -168,7 +203,159 @@ describe("card de check-in (/presenca, Meu Perfil)", () => {
     fireEvent.click(barra);
     expect(screen.queryByText(/Você está dentro da loja/)).toBeNull();
     expect(chamadasCheckin()).toHaveLength(0);
-    expect(estado.toast.info).toHaveBeenCalledWith("Você já está na roleta hoje: Barra Funda.");
+    expect(estado.toast.info).toHaveBeenCalledWith(
+      "Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão).",
+    );
+  });
+
+  it("barrado na tela → a gestão confirma no plantão → tocar a filial e 'Estou na loja' NÃO chama a RPC (a confirmação fica)", async () => {
+    atual = minha(barradoSemGps());
+    montar(<CheckinCard />);
+    expect(await screen.findByText("Barra Funda — fora da roleta")).toBeInTheDocument();
+    // A gestão confirma; o card ainda não releu (nem 15 s, nem foco).
+    atual = minha(confirmadoPelaGestao());
+    fireEvent.click(screen.getByRole("button", { name: /Barra Funda/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Estou na loja" }));
+    await waitFor(() =>
+      expect(estado.toast.info).toHaveBeenCalledWith(
+        "Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão).",
+      ),
+    );
+    expect(chamadasCheckin()).toHaveLength(0);
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    // A confirmação some e o card mostra o que vale agora.
+    expect(screen.queryByRole("button", { name: "Estou na loja" })).toBeNull();
+    expect(await screen.findByText("Barra Funda — na roleta")).toBeInTheDocument();
+    expect(screen.getByText("Confirmado pela gestão")).toBeInTheDocument();
+  });
+
+  it("barrado na tela → o interruptor libera → 'Em casa' também não refaz", async () => {
+    atual = minha(barradoSemGps());
+    montar(<CheckinCard />);
+    await screen.findByText("Barra Funda — fora da roleta");
+    atual = minha({
+      ...confirmadoPelaGestao(),
+      id: "k8",
+      modo: "liberado_gestao",
+      filial_slug: null,
+      filial_nome: null,
+      localizacao: null,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Em casa/ }));
+    await waitFor(() =>
+      expect(estado.toast.info).toHaveBeenCalledWith(
+        "Você já está na roleta hoje: liberado pela gestão.",
+      ),
+    );
+    expect(chamadasCheckin()).toHaveLength(0);
+  });
+
+  it("barrado na tela: o card relê sozinho (foco da janela e 15 s) e sai do 'fora da roleta' quando a gestão confirma", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      atual = minha(barradoSemGps());
+      montar(<CheckinCard />);
+      await screen.findByText("Barra Funda — fora da roleta");
+      const leituras = leiturasMinha();
+      // A releitura de 15 s, sem nada mudar: continua barrado.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_500);
+      });
+      expect(leiturasMinha()).toBeGreaterThan(leituras);
+      expect(screen.getByText("Barra Funda — fora da roleta")).toBeInTheDocument();
+      // A gestão confirma; o corretor volta para a janela.
+      atual = minha(confirmadoPelaGestao());
+      act(() => {
+        window.dispatchEvent(new Event("focus"));
+      });
+      expect(await screen.findByText("Barra Funda — na roleta")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Barra Funda/ })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      // Valendo, o card para de reler.
+      const depois = leiturasMinha();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(31_000);
+      });
+      expect(leiturasMinha()).toBe(depois);
+      // E tocar a filial agora só avisa: nada de refazer a confirmação.
+      fireEvent.click(screen.getByRole("button", { name: /Barra Funda/ }));
+      expect(estado.toast.info).toHaveBeenCalledWith(
+        "Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão).",
+      );
+      expect(chamadasCheckin()).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("barrado na tela e a releitura falha (rede): o card continua com o último dado, e a próxima releitura segue", async () => {
+    atual = minha(barradoSemGps());
+    montar(<CheckinCard />);
+    await screen.findByText("Barra Funda — fora da roleta");
+    const ler = estado.rpc.getMockImplementation()!;
+    estado.rpc.mockImplementation(async (fn: string, args?: unknown) =>
+      fn === "presenca_minha_v1"
+        ? { data: null, error: { message: "Failed to fetch" } }
+        : ler(fn, args),
+    );
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(leiturasMinha()).toBeGreaterThan(1));
+    await new Promise((res) => setTimeout(res, 20));
+    expect(screen.getByText("Barra Funda — fora da roleta")).toBeInTheDocument();
+    expect(screen.queryByText("Não foi possível carregar o seu check-in.")).toBeNull();
+    // A leitura volta com a confirmação da gestão.
+    estado.rpc.mockImplementation(ler);
+    atual = minha(confirmadoPelaGestao());
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(await screen.findByText("Barra Funda — na roleta")).toBeInTheDocument();
+  });
+
+  it("sem barrado, o card não fica relendo", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      montar(<CheckinCard />);
+      await screen.findByText("Você ainda não fez o check-in de hoje");
+      const leituras = leiturasMinha();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(31_000);
+      });
+      act(() => {
+        window.dispatchEvent(new Event("focus"));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(leiturasMinha()).toBe(leituras);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("já na roleta e VENDO isso no card: trocar de filial é de propósito e segue", async () => {
+    atual = minha({
+      id: "k1",
+      modo: "loja",
+      filial_slug: "barra-funda",
+      filial_nome: "Barra Funda",
+      apto_roleta: true,
+      localizacao: "confirmada",
+      origem: "corretor",
+      criado_em: `${HOJE}T12:00:00Z`,
+      encerrado_em: null,
+    });
+    montar(<CheckinCard />);
+    await screen.findByText("Barra Funda — na roleta");
+    fireEvent.click(screen.getByRole("button", { name: /Liberdade/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Estou na loja" }));
+    await waitFor(() => expect(chamadasCheckin()).toHaveLength(1));
+    expect(chamadasCheckin()[0][1]).toMatchObject({ _modo: "loja", _filial: "liberdade" });
+    expect(estado.toast.info).not.toHaveBeenCalled();
   });
 
   it("régua das vendas: 'a roleta só libera no plantão' (não 'só recebe leads'), e a dica de quem está fora de uma filial", async () => {
@@ -337,5 +524,40 @@ describe("quadro da gestão", () => {
     expect(within(caio).getByText("fora do reforço hoje")).toBeInTheDocument();
     const duda = screen.getByText("Duda").closest("div.rounded-md") as HTMLElement;
     expect(within(duda).queryByText("fora do reforço hoje")).toBeNull();
+  });
+
+  it("com a precisão na linha (presenca_hoje_v1 desde a 0080): localização por Wi-Fi/IP não vira 'a 8 km da filial'", async () => {
+    const hoje = [
+      linha({
+        nome: "Edu",
+        modo: "loja",
+        filial_slug: "barra-funda",
+        filial_nome: "Barra Funda",
+        apto_roleta: false,
+        motivo: "fora_da_filial",
+        localizacao: "fora_do_raio",
+        distancia_m: 8363,
+        precisao_m: 5000,
+      }),
+      linha({
+        nome: "Fabi",
+        modo: "loja",
+        filial_slug: "liberdade",
+        filial_nome: "Liberdade",
+        apto_roleta: false,
+        motivo: "fora_da_filial",
+        localizacao: "fora_do_raio",
+        distancia_m: 2100,
+        precisao_m: 25,
+      }),
+    ];
+    estado.rpc.mockImplementation(async (fn: string) =>
+      fn === "presenca_hoje_v1" ? { data: hoje, error: null } : { data: null, error: null },
+    );
+    montar(<PresencaQuadro podeOperar={false} />);
+    expect(await screen.findByText("Barrado: localização imprecisa (±5 km)")).toBeInTheDocument();
+    expect(screen.queryByText("Barrado: a 8,4 km da filial")).toBeNull();
+    // Com o GPS preciso, a distância vale.
+    expect(screen.getByText("Barrado: a 2,1 km da filial")).toBeInTheDocument();
   });
 });

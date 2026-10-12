@@ -2,6 +2,7 @@
 // Toda escrita passa por RPC: o banco aplica a regra do plantão e trava o
 // UPDATE direto em profiles.presente.
 
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,30 +33,54 @@ async function lerMinhaPresenca(): Promise<MinhaPresenca> {
   return parseMinhaPresenca(data);
 }
 
+/** Intervalo da releitura enquanto algo na tela depende de uma ação de fora. */
+export const RELEITURA_MS = 15_000;
+
 /**
- * A minha presença de hoje. `releitura`: enquanto o check-in obrigatório está
- * na tela, relê a cada 15 s e ao voltar para a janela — um check-in feito no
- * celular, o "Confirmar no plantão" da gestão ou o interruptor chegam sem o
- * corretor recarregar a página.
+ * A minha presença de hoje. `releitura` (sim/não, ou decidido pelo dado lido):
+ * relê a cada 15 s, quando a aba volta a ficar visível e quando a janela
+ * ganha o foco — um check-in feito no celular, o "Confirmar no plantão" da
+ * gestão ou o interruptor chegam sem o corretor recarregar a página. O
+ * diálogo obrigatório relê enquanto está na tela; o card de /presenca e a
+ * faixa do topo, enquanto mostram um check-in barrado pela localização.
  */
-export function useMinhaPresenca(enabled = true, opts: { releitura?: boolean } = {}) {
+export function useMinhaPresenca(
+  enabled = true,
+  opts: { releitura?: boolean | ((p: MinhaPresenca | undefined) => boolean) } = {},
+) {
   const { user } = useAuth();
-  return useQuery({
+  const { releitura } = opts;
+  const relendo = (p: MinhaPresenca | undefined) =>
+    typeof releitura === "function" ? releitura(p) : !!releitura;
+  const q = useQuery({
     queryKey: chaveMinha(user?.id),
     enabled: enabled && !!user,
-    // A faixa do topo lê isto em toda tela: 1 min de folga basta, e a virada
-    // do dia (auto-checkout das 23h) aparece no próximo foco da janela.
-    staleTime: opts.releitura ? 0 : 60_000,
-    refetchInterval: opts.releitura ? 15_000 : false,
-    refetchOnWindowFocus: opts.releitura ? "always" : false,
+    // Sem releitura, a faixa do topo lê isto em toda tela: 1 min de folga
+    // basta. A virada do dia (o reset das 00:00; não há auto-checkout às 23h)
+    // chega pela releitura diária de useCheckinObrigatorio ou na próxima
+    // invalidação (um check-in, o "Encerrar presença").
+    staleTime: (query) => (relendo(query.state.data) ? 0 : 60_000),
+    refetchInterval: (query) => (relendo(query.state.data) ? RELEITURA_MS : false),
+    refetchOnWindowFocus: (query) => (relendo(query.state.data) ? "always" : false),
     queryFn: lerMinhaPresenca,
   });
+  // O react-query só escuta "visibilitychange"; no computador, voltar do
+  // celular para a janela do CRM costuma ser só "focus".
+  const ouvirFoco = enabled && !!user && relendo(q.data);
+  const { refetch } = q;
+  useEffect(() => {
+    if (!ouvirFoco) return;
+    const reler = () => void refetch({ cancelRefetch: false });
+    window.addEventListener("focus", reler);
+    return () => window.removeEventListener("focus", reler);
+  }, [ouvirFoco, refetch]);
+  return q;
 }
 
 /**
  * Lê a presença de novo AGORA (sem cache): antes de qualquer check-in do
- * diálogo, para nunca rebaixar um check-in que já liberou a roleta (feito no
- * celular, confirmado pela gestão ou liberado pelo interruptor).
+ * diálogo e do card, para nunca rebaixar um check-in que já liberou a roleta
+ * (feito no celular, confirmado pela gestão ou liberado pelo interruptor).
  */
 export function useBuscarPresencaFresca() {
   const qc = useQueryClient();

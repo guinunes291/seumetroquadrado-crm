@@ -394,6 +394,58 @@ describe("quando o diálogo obrigatório abre", () => {
     expect(dialogo()).toBeNull();
     expect(screen.getByTestId("espera")).toHaveTextContent("false");
   });
+
+  it("só a PRIMEIRA leitura com erro libera: com o diálogo aberto, a releitura que falha não fecha (e ele segue normal quando a leitura volta)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      montar();
+      await screen.findByTestId("checkin-obrigatorio-dialog");
+      const leituras = () =>
+        estado.rpc.mock.calls.filter(([fn]) => fn === "presenca_minha_v1").length;
+      // A rede soluça: a releitura de 15 s (e a do foco) falham.
+      banco.falharLeitura = true;
+      const antes = leituras();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_500);
+      });
+      voltarParaAJanela();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(leituras()).toBeGreaterThan(antes);
+      expect(dialogo()).toBeInTheDocument();
+      expect(screen.getByTestId("espera")).toHaveTextContent("true");
+      // A leitura volta (ainda sem check-in): continua aberto, e relendo.
+      banco.falharLeitura = false;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_500);
+      });
+      expect(dialogo()).toBeInTheDocument();
+      // O check-in feito no celular chega pela releitura de 15 s: fecha com o verde.
+      banco.atual = minha(checkin({ id: "k2" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_500);
+      });
+      await waitFor(() => expect(dialogo()).toBeNull());
+      expect(estado.toast.success).toHaveBeenCalledWith(
+        "Check-in feito: Barra Funda. Você está na roleta hoje.",
+      );
+      expect(chamadasCheckin()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("releitura com erro e o barrado na tela: o barrado continua (nada fecha por erro)", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    await screen.findByTestId("checkin-barrado-motivo");
+    banco.falharLeitura = true;
+    voltarParaAJanela();
+    await new Promise((res) => setTimeout(res, 30));
+    expect(screen.getByTestId("checkin-barrado-motivo")).toBeInTheDocument();
+  });
 });
 
 describe("o diálogo não fecha sozinho", () => {
@@ -499,6 +551,43 @@ describe("depois do check-in", () => {
     expect(screen.getByTestId("espera")).toHaveTextContent("false");
   });
 
+  it("leitor de tela: UMA região aria-live sempre montada, que troca só o texto (conferindo → motivo)", async () => {
+    let responder: PositionCallback = () => {};
+    geolocalizacao((ok) => {
+      responder = ok;
+    });
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await screen.findByTestId("checkin-obrigatorio-dialog");
+    const regiao = screen.getByTestId("checkin-anuncio");
+    expect(regiao).toHaveAttribute("aria-live", "polite");
+    expect(regiao).toHaveAttribute("role", "status");
+    expect(regiao).toHaveTextContent(/^$/);
+    await checkinNaFilial(/Barra Funda/);
+    await waitFor(() => expect(regiao).toHaveTextContent("Conferindo a localização…"));
+    // O spinner visível não é uma segunda região (seria anunciado duas vezes).
+    expect(screen.getByTestId("checkin-status")).toHaveAttribute("aria-hidden", "true");
+    await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalled());
+    act(() =>
+      responder({
+        coords: { latitude: -23.6, longitude: -46.7, accuracy: 15 },
+      } as GeolocationPosition),
+    );
+    await screen.findByTestId("checkin-barrado-motivo");
+    // A MESMA região (não uma nova, nascida com o texto) agora diz o motivo.
+    expect(screen.getByTestId("checkin-anuncio")).toBe(regiao);
+    expect(regiao).toHaveTextContent(
+      "A localização deste aparelho ficou a 5,8 km da filial Barra Funda.",
+    );
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    // "Estou em casa" abaixo do mínimo: a mesma região diz o motivo do recusado.
+    banco.resposta = () => minha(casaRecusada());
+    fireEvent.click(screen.getByRole("button", { name: "Estou em casa" }));
+    await screen.findByTestId("checkin-recusado-motivo");
+    expect(screen.getByTestId("checkin-anuncio")).toBe(regiao);
+    expect(regiao).toHaveTextContent("Em casa, a roleta só libera com 3 vendas aprovadas");
+  });
+
   it("enquanto o aparelho lê a posição: 'Conferindo a localização…' (role=status)", async () => {
     let responder: PositionCallback = () => {};
     geolocalizacao((ok) => {
@@ -526,7 +615,12 @@ describe("depois do check-in", () => {
       "A localização deste aparelho ficou a 5,8 km da filial Barra Funda. O check-in na filial só vale de dentro da loja. " +
         "Se você está na loja, peça ao gestor para confirmar no plantão.",
     );
-    expect(motivo).toHaveAttribute("aria-live", "polite");
+    // O leitor de tela ouve o motivo pela região sempre montada (não por uma
+    // que nasce com o texto).
+    expect(screen.getByTestId("checkin-anuncio")).toHaveTextContent(
+      "A localização deste aparelho ficou a 5,8 km da filial Barra Funda.",
+    );
+    expect(motivo).not.toHaveAttribute("aria-live");
     const efeito = screen.getByTestId("checkin-barrado-efeito");
     expect(efeito).toHaveTextContent(
       "Seu check-in em Barra Funda ficou registrado, mas não vale para as roletas nem para o reforço de hoje. " +
@@ -765,6 +859,26 @@ describe("depois do check-in", () => {
   });
 });
 
+describe("erro técnico com o barrado na tela", () => {
+  it("'Estou em casa' (ou 'Tentar de novo') dá erro: 'Não foi possível registrar o check-in: …', e o barrado e as saídas continuam", async () => {
+    banco.resposta = () => minha(barradoFora());
+    montar();
+    await checkinNaFilial(/Barra Funda/);
+    await screen.findByTestId("checkin-barrado-motivo");
+    banco.resposta = () => {
+      throw new Error("Failed to fetch");
+    };
+    fireEvent.click(screen.getByRole("button", { name: "Estou em casa" }));
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("Não foi possível registrar o check-in: Failed to fetch");
+    expect(alerta).not.toHaveTextContent("tentar de novo");
+    expect(estado.toast.error).not.toHaveBeenCalled();
+    expect(screen.getByTestId("checkin-barrado-motivo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar fora das roletas" }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+  });
+});
+
 describe("check-in que liberou a roleta chegou de fora: fecha, e nunca é rebaixado", () => {
   it("celular: o diálogo está no computador; o check-in feito no celular aparece ao voltar para a janela → fecha com o verde", async () => {
     montar();
@@ -883,6 +997,73 @@ describe("check-in que liberou a roleta chegou de fora: fecha, e nunca é rebaix
     await new Promise((res) => setTimeout(res, 30));
     expect(dialogo()).toBeInTheDocument();
     expect(estado.toast.success).not.toHaveBeenCalled();
+  });
+});
+
+describe("a faixa do barrado relê e some quando o check-in passa a valer", () => {
+  const leituras = () => estado.rpc.mock.calls.filter(([fn]) => fn === "presenca_minha_v1").length;
+
+  it("a gestão confirma no plantão: a faixa some ao voltar para a janela", async () => {
+    banco.atual = minha(barradoFora());
+    montar({ faixa: true });
+    await screen.findByTestId("faixa-checkin-barrado");
+    banco.atual = minha(confirmadoPelaGestao());
+    voltarParaAJanela();
+    await waitFor(() => expect(screen.queryByTestId("faixa-checkin-barrado")).toBeNull());
+    // Nada de "Faça o check-in" no lugar: o check-in de hoje vale.
+    expect(screen.queryByTestId("faixa-checkin")).toBeNull();
+    expect(dialogo()).toBeNull();
+  });
+
+  it("o interruptor libera: a faixa some sozinha na releitura de 15 s (sem foco)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      banco.atual = minha(barradoSemGps());
+      montar({ faixa: true });
+      await screen.findByTestId("faixa-checkin-barrado");
+      banco.atual = minha(
+        checkin({
+          id: "k8",
+          modo: "liberado_gestao",
+          filial_slug: null,
+          filial_nome: null,
+          localizacao: null,
+          origem: "gestao",
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_500);
+      });
+      await waitFor(() => expect(screen.queryByTestId("faixa-checkin-barrado")).toBeNull());
+      // Valendo, ninguém fica relendo.
+      const depois = leituras();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(31_000);
+      });
+      expect(leituras()).toBe(depois);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a faixa de quem encerrou a presença não fica relendo (só o barrado relê)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      banco.atual = minha(checkin({ encerrado_em: `${HOJE}T15:00:00Z` }));
+      montar({ faixa: true });
+      await screen.findByTestId("faixa-checkin");
+      const antes = leituras();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(31_000);
+      });
+      voltarParaAJanela();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(leituras()).toBe(antes);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

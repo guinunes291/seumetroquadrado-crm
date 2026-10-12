@@ -10,18 +10,24 @@
 // o bloqueio; fica a faixa do topo), treino do onboarding fora da tela e rota
 // que não seja /presenca, /meu-perfil (já têm o card) nem a tela cheia de
 // campo (/modo-visita). Gestão sem papel corretor nunca. Leitura carregando:
-// nada abre (sem piscar). Leitura com erro: libera — falha técnica nunca
-// prende ninguém.
+// nada abre (sem piscar). A primeira leitura com erro: libera — falha técnica
+// nunca prende ninguém. Já com o diálogo na tela, uma releitura que falha não
+// fecha nada (vale o último dado bom; a releitura de 15 s continua).
 //
 // Com a exigência de localização ligada, tocar numa filial pede confirmação
 // ("Você está dentro da loja X agora?"): um toque "para ver" fora da loja
 // vira check-in barrado e tira das roletas e do reforço no dia.
 //
-// Enquanto está na tela, relê a presença (15 s e ao voltar para a janela): o
-// check-in feito no celular, o "Confirmar no plantão" da gestão ou o
-// interruptor fecham o diálogo com o verde. E antes de QUALQUER check-in
+// Enquanto está na tela, relê a presença (15 s, ao voltar para a aba e para a
+// janela): o check-in feito no celular, o "Confirmar no plantão" da gestão ou
+// o interruptor fecham o diálogo com o verde. E antes de QUALQUER check-in
 // daqui, relê na hora: se o check-in de hoje já liberou a roleta, fecha sem
-// chamar a RPC — nunca rebaixa uma confirmação.
+// chamar a RPC — nunca rebaixa uma confirmação. (O card de /presenca e Meu
+// Perfil tem a mesma proteção.)
+//
+// Leitor de tela: o foco vai para o título de cada tela nova, e UMA região
+// aria-live, sempre montada, troca só o texto — "Conferindo a localização…"
+// durante a leitura, depois o motivo do barrado ou do recusado.
 //
 // Depois do check-in:
 // - liberou a roleta → fecha (toast verde);
@@ -242,6 +248,15 @@ export function CheckinObrigatorioGlobal() {
   if (!aberto || !p) return null;
 
   const bloqueante = tela !== "recusado";
+  const anuncio = ocupado
+    ? escolha === "casa"
+      ? "Registrando o check-in…"
+      : "Conferindo a localização…"
+    : resultado && tela === "barrado"
+      ? (motivoDoResultado(resultado, { computador }) ?? "")
+      : resultado && tela === "recusado"
+        ? (motivoDoResultado(resultado) ?? "")
+        : "";
 
   return (
     <Dialog open onOpenChange={(o) => !o && !bloqueante && fechar()}>
@@ -326,16 +341,28 @@ export function CheckinObrigatorioGlobal() {
             )}
           </>
         )}
+        {/* O que se vê (o leitor de tela ouve a região abaixo). */}
         {ocupado && (
           <p
-            role="status"
+            aria-hidden="true"
             className="flex items-center gap-1.5 text-xs text-muted-foreground"
             data-testid="checkin-status"
           >
             <CircleNotch className="h-4 w-4 animate-spin" />
-            {escolha === "casa" ? "Registrando o check-in…" : "Conferindo a localização…"}
+            {anuncio}
           </p>
         )}
+        {/* Sempre montada: uma região que já existe e só troca o texto é
+            anunciada; uma que nasce com o texto, muitas vezes não. */}
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+          data-testid="checkin-anuncio"
+        >
+          {anuncio}
+        </p>
       </DialogContent>
     </Dialog>
   );
@@ -434,11 +461,7 @@ function Barrado({
         >
           <WarningCircle className="h-5 w-5 shrink-0 text-warning" /> {titulo}
         </DialogTitle>
-        <DialogDescription
-          className="text-foreground/90"
-          aria-live="polite"
-          data-testid="checkin-barrado-motivo"
-        >
+        <DialogDescription className="text-foreground/90" data-testid="checkin-barrado-motivo">
           {motivoDoResultado(resultado, { computador })}
         </DialogDescription>
       </DialogHeader>
@@ -457,7 +480,7 @@ function Barrado({
       </div>
       {erro && (
         <p role="alert" className="text-sm text-destructive">
-          Não foi possível tentar de novo: {erro}
+          Não foi possível registrar o check-in: {erro}
         </p>
       )}
       <DialogFooter className="gap-2 sm:flex-wrap sm:justify-between sm:space-x-0">
@@ -529,11 +552,7 @@ function Recusado({
           <House className="h-5 w-5 text-primary" /> Check-in feito:{" "}
           {rotuloLocal(c?.modo ?? null, c?.filial_nome ?? null)}
         </DialogTitle>
-        <DialogDescription
-          className="text-foreground/90"
-          aria-live="polite"
-          data-testid="checkin-recusado-motivo"
-        >
+        <DialogDescription className="text-foreground/90" data-testid="checkin-recusado-motivo">
           {motivoDoResultado(resultado)}
         </DialogDescription>
       </DialogHeader>

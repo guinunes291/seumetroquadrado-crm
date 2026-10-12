@@ -27,11 +27,14 @@ export function rotaSemCheckinObrigatorio(pathname: string): boolean {
  *
  * `null` = ainda não dá para saber (sessão, papéis ou presença carregando, ou
  * dados de ontem numa aba que virou o dia): nada abre, para não piscar.
- * Erro na leitura → `false`: falha técnica nunca prende ninguém fora do CRM.
+ * Leitura com erro e sem dado de hoje (`erro`) → `false`: falha técnica nunca
+ * prende ninguém fora do CRM. A releitura que falha com o dado de hoje já
+ * lido não chega aqui como erro — vale o último dado bom.
  */
 export function checkinObrigatorioPendente(input: {
   carregando: boolean;
   ehCorretor: boolean;
+  /** A leitura falhou e não há dado de hoje para decidir. */
   erro: boolean;
   presenca: MinhaPresenca | undefined;
   /** O cache é de outro dia e a releitura ainda não voltou. */

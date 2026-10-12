@@ -96,7 +96,11 @@ export type PresencaHojeRow = {
   vendas_minimas: number;
   /** Desde a 0080 (pode faltar em produção antes dela). */
   falha_localizacao?: string | null;
-  /** Se um dia vier na RPC: a precisão que o aparelho informou. */
+  /**
+   * A precisão que o aparelho informou (desde a 0080; pode faltar antes
+   * dela). Acima de 1 km, o quadro diz "localização imprecisa" em vez de
+   * acusar a distância.
+   */
   precisao_m?: number | null;
 };
 
@@ -388,6 +392,21 @@ export function perguntaConfirmarFilial(nome: string): { titulo: string; detalhe
     detalhe:
       "O celular vai conferir. Se não confirmar, o check-in fica barrado e você fica fora das roletas e do reforço hoje.",
   };
+}
+
+/**
+ * O aviso do card quando o toque não refaz o check-in porque o de hoje já
+ * liberou a roleta: "Você já está na roleta hoje: Barra Funda (plantão
+ * confirmado pela gestão)." — diz de onde veio, para o corretor que via um
+ * barrado entender por que nada foi refeito.
+ */
+export function avisoJaNaRoleta(c: Pick<CheckinAtual, "modo" | "filial_nome" | "origem">): string {
+  if (c.modo === "liberado_gestao") return "Você já está na roleta hoje: liberado pela gestão.";
+  if (c.modo === "casa") return "Você já está na roleta hoje: Em casa.";
+  const nome = c.filial_nome ?? "nesta filial";
+  return c.origem === "gestao"
+    ? `Você já está na roleta hoje: ${nome} (plantão confirmado pela gestão).`
+    : `Você já está na roleta hoje: ${nome}.`;
 }
 
 /** Check-in de hoje aberto e que liberou a roleta (nada a refazer). */

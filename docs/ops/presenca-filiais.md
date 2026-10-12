@@ -38,13 +38,13 @@ Em 09/10 às ~18h, 24 corretores estavam "presentes" — todos pelo auto check-i
 O corretor faz o check-in em **/presenca** escolhendo **Barra Funda**,
 **Liberdade**, **Belém** ou **Em casa**:
 
-| Check-in                                             | Recebe das filas em que está?             | Pelo fallback (roleta vazia, §8c)? |
-| ---------------------------------------------------- | ----------------------------------------- | ---------------------------------- |
-| Numa filial (plantão) — qualquer uma das três        | Sim — desde 12/10, com o GPS na loja (§3) | Sim                                |
-| Numa filial, **barrado** pelo GPS (§3)               | **Não**                                   | **Não**, no dia inteiro            |
-| Em casa, com **3+ vendas** aprovadas no mês anterior | Sim                                       | Sim                                |
-| Em casa, com **menos de 3** vendas no mês anterior   | **Não** (fica registrado, com o motivo)   | Sim (disse a verdade)              |
-| Sem check-in, ou check-in encerrado                  | Não                                       | Não                                |
+| Check-in                                             | Recebe das filas em que está?             | Pelo fallback (roleta vazia, §8c)?                                                        |
+| ---------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Numa filial (plantão) — qualquer uma das três        | Sim — desde 12/10, com o GPS na loja (§3) | Sim                                                                                       |
+| Numa filial, **barrado** pelo GPS (§3)               | **Não**                                   | **Não**, no dia — salvo check-in posterior que valha na loja ou liberação da gestão (§8c) |
+| Em casa, com **3+ vendas** aprovadas no mês anterior | Sim                                       | Sim                                                                                       |
+| Em casa, com **menos de 3** vendas no mês anterior   | **Não** (fica registrado, com o motivo)   | Sim (disse a verdade)                                                                     |
+| Sem check-in, ou check-in encerrado                  | Não                                       | Não                                                                                       |
 
 A fila **Agendados do SDR** não exige presença (§9): as visitas marcadas pelo
 SDR chegam com ou sem check-in, inclusive para o barrado.
@@ -90,66 +90,101 @@ localização, §3).
 
 <!-- TELA -->
 
-> Texto escrito pela frente do banco a partir das notas da frente da tela e
-> das correções da revisão de 12/10. **A confirmar com a frente da tela**
-> (que manda o texto final) os trechos marcados com _(confirmar)_.
+**O que o corretor vê.** Ao abrir o CRM sem nenhum check-in no dia, aparece um diálogo que não fecha: nem ESC, nem clique fora, nem X. Ele traz o título _"Check-in de hoje"_ e a frase _"Para usar o CRM hoje, diga onde você está."_. As opções são:
 
-**O que o corretor vê.** Ao abrir o CRM sem nenhum check-in no dia, um
-diálogo que não fecha — nem ESC, nem clique fora, nem X: _"Check-in de hoje —
-Para usar o CRM hoje, diga onde você está."_, com **Barra Funda**,
-**Liberdade**, **Belém** e **Em casa** (as mesmas opções do card de
-/presenca) e a régua das vendas do mês anterior (some quando o mínimo é 0).
-A ordem da abertura é onboarding (treino prático) → **check-in** → estudo do
-funil (quinta) → metas do dia: o estudo e as metas esperam o diálogo fechar.
-A trava é só da tela (`src/features/presenca/checkin-obrigatorio-global.tsx`,
-carregada sob demanda no shell; não está no `beforeLoad`, para uma falha de
-leitura nunca barrar a navegação).
+- **Barra Funda**, **Liberdade** e **Belém**, com o endereço curto embaixo (ou _"Plantão: libera a roleta"_);
+- **Em casa**, com _"Libera a roleta (meta de setembro batida)"_ ou _"Não libera a roleta: 2 de 3 vendas em setembro"_.
 
-**Confirmação antes da filial.** Com a exigência de localização ligada, tocar
-numa filial não faz o check-in direto: abre a pergunta _"Você está dentro da
-loja {Filial} agora? O celular vai conferir. Se não confirmar, o check-in fica
-barrado e você fica fora das roletas e do reforço hoje."_, com **[Voltar]** e
-**[Estou na loja]**. No computador, um aviso a mais: _"No computador a
-localização costuma falhar: se puder, faça o check-in pelo celular."_ É o que
-evita o toque de sondagem (em 11/10, 2 dos 3 corretores que usaram o check-in
-saíram de "Em casa" para uma filial e voltaram em segundos) — desde a `0080`, ele custa o reforço do
-dia.
+Embaixo das opções:
 
-**Quem não passa pela trava, e quando ela não abre:** gestão **sem** papel
-corretor (admin, gestor, superintendente) e SDR; quem já fez **qualquer**
-check-in hoje — aberto, encerrado (o "Encerrar presença" não reabre o
-diálogo: fica a faixa do topo), barrado pela localização ou liberado pela
-gestão; nas telas que já têm o card (/presenca e /meu-perfil) e na tela
-cheia de campo (/modo-visita); enquanto o treino do onboarding está na tela
-(obrigatório ou reaberto pelo menu — o treino não é atrapalhado, AGENTS.md);
-enquanto a leitura da presença carrega (nada pisca); e quando a leitura
-falha (o CRM fica liberado — falha técnica nunca prende ninguém). Se o
-próprio check-in der erro técnico, o diálogo mostra o erro e oferece
-**"Continuar sem check-in"** (vale naquele aparelho até a meia-noite; sem
-check-in ele continua fora das roletas e do reforço). Aba aberta desde ontem
-relê a presença na virada do dia e cobra o check-in do dia novo.
+- a dica _"Fora de uma filial (casa, visita, estande)? Escolha Em casa."_;
+- a régua _"Vendas aprovadas em setembro: 2 de 3"_, com _"este mês, a roleta só libera no plantão"_ ou _"este mês, pode receber leads de casa"_ (a régua some quando o mínimo é 0);
+- o aviso _"Na filial, a localização do celular é conferida no momento do check-in: o check-in só vale de dentro da loja. Em casa, a localização nunca é pedida."_.
+
+As opções, a régua e a confirmação são as mesmas do card de /presenca e Meu Perfil. A trava é só da tela (`src/features/presenca/checkin-obrigatorio-global.tsx`, carregada sob demanda no shell). Ela não está no `beforeLoad`, para uma falha de leitura nunca barrar a navegação.
+
+**Ordem da abertura.** Onboarding (treino prático) → **check-in** → estudo do funil (quinta) → metas do dia. O diálogo só abre depois que o treino está decidido e fora da tela, seja o obrigatório, seja o reaberto pelo menu. Assim o treino não é atrapalhado (AGENTS.md). O estudo e as metas esperam o check-in **e** o diálogo fechar, inclusive enquanto ele explica um barrado.
+
+**Confirmação antes da filial.** Com a exigência de localização ligada, tocar numa filial não faz o check-in. Abre a pergunta _"Você está dentro da loja {Filial} agora?"_, com _"O celular vai conferir. Se não confirmar, o check-in fica barrado e você fica fora das roletas e do reforço hoje."_ e os botões **[Voltar]** e **[Estou na loja]**. No computador (aparelho sem tela de toque), entra mais um aviso: _"No computador a localização costuma falhar: se puder, faça o check-in pelo celular."_. "Em casa" nunca pede confirmação nem localização. Com a exigência desligada, a filial vai direto.
+
+A confirmação evita o toque de sondagem. Em 11/10, 2 dos 3 corretores que usaram o check-in saíram de "Em casa" para uma filial e voltaram em segundos. Desde a `0080`, esse toque custa o reforço do dia.
+
+**Enquanto confere.** Os botões travam e aparece _"Conferindo a localização…"_ (no "Em casa", _"Registrando o check-in…"_). Para o leitor de tela:
+
+- o foco vai para o título de cada tela nova, nunca para uma filial (um Enter solto não faz check-in);
+- uma região `aria-live`, sempre montada, troca só o texto: primeiro o "Conferindo…", depois o motivo do barrado ou do recusado.
 
 **Depois do check-in:**
 
-| Resultado do banco                                     | O que a tela faz                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Liberou a roleta                                       | Fecha. Toast verde _"Check-in feito: Barra Funda. Você está na roleta hoje."_ — o verde só aparece aqui.                                                                                                                                                                                                                                                                                                                                                                        |
-| Em casa abaixo do mínimo (`casa_abaixo_minimo_vendas`) | Mostra _"Em casa, a roleta só libera com 3 vendas aprovadas em setembro — você teve 2. Para receber leads da roleta hoje, é preciso estar numa filial: vá até a loja e faça o check-in de lá."_ e **libera o CRM** ("Entendi", ESC ou X): ele disse a verdade (e segue podendo receber pelo fallback). Se antes, no mesmo dia, um check-in na filial foi barrado, acrescenta que ele também fica fora do reforço até um check-in na loja que valha _(confirmar o texto final)_. |
-| Filial, fora do raio (`fora_da_filial`)                | O diálogo **continua**: _"Você está a 5,8 km da filial Barra Funda…"_ (com a precisão, quando a localização é imprecisa _(confirmar)_) e _"Se você está na loja, peça ao gestor para confirmar no plantão."_                                                                                                                                                                                                                                                                    |
-| Filial, sem localização (`sem_localizacao`)            | O diálogo **continua**, dizendo o que fazer conforme o navegador respondeu (permissão negada → como permitir; GPS indisponível ou demorou → ligar a localização e tentar perto de uma janela; navegador sem suporte → abrir no Chrome ou Safari). O porquê vai para o banco (`falha_localizacao`, §3).                                                                                                                                                                          |
-| Barrado (qualquer dos dois)                            | Diz que o check-in _"ficou registrado, mas não vale para as roletas nem para o reforço de hoje. Visitas marcadas pelo SDR continuam chegando."_ Botões: **Tentar de novo** (lê o GPS de novo, sem reaproveitar a posição antiga), **Estou em casa**, **Escolher outra filial** e **Continuar fora das roletas**. Enquanto está aberto, relê a presença: se a gestão confirmar no plantão (ou o check-in vier de outro aparelho), fecha com o verde _(confirmar)_.               |
+| Resultado do banco                                     | O que a tela faz                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Liberou a roleta                                       | Fecha. Toast verde _"Check-in feito: Barra Funda. Você está na roleta hoje."_ (ou _"Check-in feito: Em casa. Você está na roleta hoje."_). O verde só aparece quando o banco liberou.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Em casa abaixo do mínimo (`casa_abaixo_minimo_vendas`) | Mostra a tela _"Check-in feito: Em casa"_ com _"Em casa, a roleta só libera com 3 vendas aprovadas em setembro — você teve 2. Para receber leads da roleta hoje, é preciso estar numa filial: vá até a loja e faça o check-in de lá."_ e _"Você já pode usar o CRM: o check-in de hoje está feito."_. **Libera o CRM** (**Entendi**, ESC, X ou clique fora): ele disse a verdade e segue podendo receber pelo fallback. Se antes, no mesmo diálogo, um check-in na filial foi barrado, acrescenta _"Como o check-in na filial foi barrado hoje, você também fica fora do reforço até um check-in na loja que valha (ou a gestão liberar você)."_.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Filial, fora do raio (`fora_da_filial`)                | O diálogo **continua**. Título _"A localização não confirmou a filial Barra Funda"_. Motivo: _"A localização deste aparelho ficou a 5,8 km da filial Barra Funda. O check-in na filial só vale de dentro da loja. Se você está na loja, peça ao gestor para confirmar no plantão."_. Quando o aparelho informa precisão acima de 1 km (Wi-Fi ou IP, típico de computador), a tela não acusa a distância. O título vira _"A localização deste aparelho é aproximada"_, e o motivo, _"A localização deste aparelho é aproximada (±5 km): faça o check-in pelo celular, de dentro da loja, ou peça ao gestor para confirmar no plantão."_.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Filial, sem localização (`sem_localizacao`)            | O diálogo **continua**. O título é _"Sem a localização do celular"_ (no computador, _"Sem a localização deste computador"_). O texto diz o que fazer conforme o navegador respondeu. Permissão negada: _"O navegador está bloqueando a localização para o CRM. Para liberar no Android (Chrome): toque no cadeado (ou no ícone) ao lado do endereço do site → Localização → Permitir. No iPhone (Safari): toque em aA ao lado do endereço → Ajustes do Site → Localização → Permitir; se não aparecer, vá em Ajustes → Privacidade e Segurança → Serviços de Localização → Sites do Safari → Durante o Uso do App. Depois, tente de novo."_. GPS indisponível ou sem resposta: _"O celular não conseguiu informar a localização. Ligue a localização do celular e tente de novo, de preferência perto de uma janela."_. Navegador sem suporte: _"Este navegador não informa a localização. Abra o CRM no navegador do celular (Chrome ou Safari) e tente de novo."_. No computador, qualquer falha: _"No computador a localização costuma falhar: faça o check-in pelo celular, de dentro da loja, ou peça ao gestor para confirmar no plantão."_. O porquê vai para o banco (`_falha_localizacao` → `falha_localizacao`, §3) e para o Sentry (`geolocalizacao:<falha>`). Se o banco ainda não tem a `0080` (erro PGRST202), o mesmo check-in é refeito sem o parâmetro. |
+| Barrado (qualquer dos dois)                            | Diz _"Seu check-in em Barra Funda ficou registrado, mas não vale para as roletas nem para o reforço de hoje. Visitas marcadas pelo SDR continuam chegando."_ e _"Chegou à loja depois? Refaça o check-in pela faixa no topo do CRM."_. Botões: **Tentar de novo** (lê o GPS na hora, sem reaproveitar a posição antiga), **Estou em casa** e **Continuar fora das roletas**. O link **Escolher outra filial** volta às opções sem marcar a filial barrada. A filial nova pede a confirmação e também lê o GPS na hora, e o "Continuar fora das roletas" continua lá. Se um desses der erro técnico, aparece _"Não foi possível registrar o check-in: {erro}"_, e o barrado e as saídas continuam. Não sai toast amarelo nem vermelho repetindo o que o diálogo já diz.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
-**A faixa do barrado.** Quem toca "Continuar fora das roletas" (ou fecha e
-recarrega) vê no topo do CRM, fora de /presenca e /meu-perfil: _"Seu check-in
-em {Filial} não valeu: a localização não confirmou a loja. Chegou à loja?
-Refaça o check-in."_, com o botão **Refazer check-in** (/presenca). Quem
-encerrou a presença (ou está sem check-in em /modo-visita, onde o diálogo não
-abre) vê a faixa de sempre (_"Faça o check-in de hoje."_ / _"Sua presença de hoje foi
-encerrada."_).
+**Barrado → "Estou em casa".** Com a meta, ou com o mínimo 0 como em 12/10, a roleta libera. O diálogo fecha com o verde, e o mesmo toast traz _"Como o check-in na filial foi barrado hoje, você também fica fora do reforço até um check-in na loja que valha (ou a gestão liberar você)."_. Abaixo do mínimo, aparece a tela do recusado com o mesmo aviso. O card de /presenca repete o aviso enquanto ele estiver em casa sem destrave (lido dos check-ins de hoje).
 
-**Barrado → "Estou em casa".** Com a meta (ou com o mínimo 0, como em
-12/10), a roleta libera: o diálogo fecha com o verde. O reforço (fallback)
-**não** volta no dia — a tela avisa no card de /presenca _(confirmar)_.
+**Releitura de 15 s e o check-in que veio de fora.** Com o diálogo na tela, a presença é relida a cada 15 s, quando a aba volta a ficar visível e quando a janela ganha o foco. Se aparece um check-in de hoje que liberou a roleta, o diálogo fecha com um verde que diz de onde ele veio:
+
+- feito no celular: _"Check-in feito: Barra Funda. Você está na roleta hoje."_;
+- **Confirmar no plantão** da gestão: _"Plantão confirmado pela gestão: Barra Funda. Você está na roleta hoje."_;
+- interruptor: _"Liberado pela gestão: você está na roleta hoje."_.
+
+Um check-in de outro aparelho que não liberou também fecha o diálogo das opções, sem verde; a faixa passa a avisar.
+
+Antes de **qualquer** check-in daqui (filial, Em casa, Tentar de novo, Estou em casa), a tela relê a presença na hora. Se o check-in de hoje já liberou a roleta, fecha sem chamar `presenca_checkin`, porque refazer encerraria a confirmação da gestão e gravaria um barrado novo.
+
+**O card de /presenca e Meu Perfil.** É o mesmo check-in, com um cabeçalho que mostra a situação do dia:
+
+- _"Você ainda não fez o check-in de hoje"_, com _"Sem check-in, você não recebe leads das roletas nem do reforço (as visitas marcadas pelo SDR continuam chegando). Escolha onde está trabalhando."_;
+- _"Barra Funda — na roleta"_, com _"Você está apto a receber leads das roletas hoje."_;
+- _"Barra Funda — fora da roleta"_, com o motivo (os mesmos textos da tabela acima);
+- _"Presença encerrada (Barra Funda)"_, com _"Você saiu das roletas e do reforço. Faça o check-in de novo para voltar a receber."_.
+
+Junto vem o selo da evidência: _"Na filial (80 m)"_, _"A 5,8 km da filial"_, _"Sem localização"_ ou _"Confirmado pela gestão"_.
+
+Abaixo do cabeçalho:
+
+- a pergunta _"Onde você está trabalhando hoje?"_, com as opções e a dica;
+- a mesma confirmação [Voltar]/[Estou na loja];
+- a régua das vendas;
+- o botão **Encerrar presença**.
+
+Depois do check-in sai um toast: verde quando liberou, ou amarelo _"Check-in registrado: Barra Funda. Você está fora da roleta."_ com o motivo.
+
+O card tem a mesma proteção do diálogo. Antes de qualquer check-in, relê a presença na hora. Se o check-in de hoje já liberou a roleta e o corretor não estava vendo isso quando tocou, o card **não** chama a RPC. Ele avisa _"Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão)."_ (ou _"Você já está na roleta hoje: Barra Funda."_, _"Você já está na roleta hoje: liberado pela gestão."_, _"Você já está na roleta hoje: Em casa."_), fecha a confirmação e mostra o que vale agora. Tocar de novo a filial em que ele já está na roleta dá o mesmo aviso. Se ele já via o check-in valendo e escolheu outra filial ou "Em casa", é troca de propósito, e o check-in segue.
+
+Enquanto mostra um barrado, o card relê sozinho: a cada 15 s, quando a aba volta a ficar visível e quando a janela ganha o foco. Quando a gestão confirma no plantão ou o interruptor libera, ele sai do "fora da roleta" sem recarregar a página e para de reler. Uma releitura com erro mantém o último dado, sem trocar o card pela tela de erro.
+
+**A faixa do topo.** Aparece fora de /presenca e /meu-perfil, inclusive em /modo-visita, onde o diálogo não abre.
+
+- Barrado (check-in aberto numa filial que a localização barrou): _"Seu check-in em Barra Funda não valeu: a localização não confirmou a loja. Chegou à loja? Refaça o check-in."_, com o botão **Refazer check-in** (leva a /presenca). Enquanto aparece, a faixa relê a presença (15 s, aba e janela). Ela **some sozinha** quando a gestão confirma no plantão, quando o interruptor libera ou quando chega de outro aparelho um check-in que vale.
+- Sem check-in ou presença encerrada: _"Faça o check-in de hoje."_ ou _"Sua presença de hoje foi encerrada."_, mais _"Escolha a filial em que você está (ou se está em casa) para entrar nas roletas de leads."_, com o botão **Fazer check-in**. Essa faixa não relê.
+
+**Quem não passa pela trava, e quando ela não abre:**
+
+- gestão **sem** papel corretor (admin, gestor, superintendente) e SDR: nem leem a presença;
+- quem é gestor **e** corretor passa pela trava (decisão do dono: vale para quem tem o papel corretor);
+- quem já fez **qualquer** check-in hoje: aberto, encerrado, barrado pela localização ou liberado pela gestão (o "Encerrar presença" não reabre o diálogo; fica a faixa);
+- nas telas que já têm o card (/presenca e /meu-perfil) e na tela cheia de campo (/modo-visita);
+- enquanto o treino do onboarding está na tela ou ainda não foi decidido;
+- enquanto a leitura da presença carrega (nada pisca).
+
+**Falha técnica nunca prende.**
+
+- Se a **primeira** leitura da presença falha, o CRM fica liberado, e o estudo e as metas seguem.
+- Já com o diálogo aberto, uma releitura que falha **não** fecha nada: vale o último dado bom, e a releitura de 15 s continua até a leitura voltar.
+- Se o próprio check-in der erro técnico nas opções, o diálogo mostra _"Não foi possível registrar o check-in ({erro}). Tente de novo ou siga sem ele por hoje."_, com o botão **Continuar sem check-in**. Essa saída vale naquele aparelho até a meia-noite. Sem check-in, ele continua fora das roletas e do reforço, e a faixa segue avisando.
+- Na aba aberta desde ontem, a presença é relida na virada do dia (00:00, o reset diário; não há auto-checkout às 23h), e o check-in do dia novo é cobrado.
+
+**No quadro da gestão (§4).**
+
+- O número da coluna da filial conta só os válidos. Os barrados ficam no selo ao lado (_"1 barrado"_) e no tile _"Fora da conta: 1 barrado pela localização"_.
+- O selo da linha diz o porquê: _"Barrado: a 5,8 km da filial"_ ou _"Barrado: sem localização (permissão negada)"_. Com a precisão acima de 1 km (coluna `precisao_m` de `presenca_hoje_v1`, desde a `0080`), aparece _"Barrado: localização imprecisa (±5 km)"_ no lugar da distância.
+- Quem foi barrado e trocou para casa ganha o selo _"fora do reforço hoje"_.
+- O menu **Confirmar no plantão** faz o check-in do corretor numa filial, com o toast _"{Nome}: check-in confirmado pela gestão."_.
 
 <!-- /TELA -->
 
@@ -300,8 +335,11 @@ nunca impede o check-in).
 | `NULL`              | antes da `0080`, ou o front antigo (não manda)        | —                                                                               |
 
 `presenca_minha_v1` (e o retorno do check-in) traz a chave
-`checkin.falha_localizacao`; `presenca_hoje_v1` (quadro da gestão) traz a
-coluna `falha_localizacao`.
+`checkin.falha_localizacao`; `presenca_hoje_v1` (quadro da gestão) traz as
+colunas `falha_localizacao` e `precisao_m` (a última). Com a precisão acima de
+1 km (Wi-Fi ou IP, típico de computador), o quadro mostra "Barrado: localização
+imprecisa (±X km)" em vez de "a X km da filial", que pareceria mentira do
+corretor.
 
 **Diagnóstico de amanhã (13/10), às 8h** — rodar no SQL editor (só leitura;
 precisa da `0080` em produção — antes dela, tirar `falha_localizacao` das
@@ -505,13 +543,13 @@ A `0080` chega pelo migrador do Lovable no merge (`when` 1792422000000, maior
 que o da `0079`, último registro: id 82). Em produção ela muda: as regras de
 presença no ranking, o diagnóstico do GPS (coluna `falha_localizacao`,
 `presenca_checkin` com o parâmetro novo — a assinatura de 6 argumentos é
-apagada —, a chave em `_presenca_status`/`presenca_minha_v1` e a coluna em
-`presenca_hoje_v1`) e o `REVOKE` de anon/authenticated em
+apagada —, a chave em `_presenca_status`/`presenca_minha_v1` e as colunas
+`falha_localizacao` e `precisao_m` em `presenca_hoje_v1`) e o `REVOKE` de anon/authenticated em
 `corretor_velocidade`. O resto já está lá e vira no-op.
 
 **Antes do merge (só SELECT em produção).** Essas funções estão sendo
 mexidas direto em produção (11:20, 14:50, ~15:27 de 12/10). A `0080` traz o
-texto lido às 15:32 (conferido de novo às 15:52); o que mudar depois disso é **desfeito em silêncio** pelo
+texto lido às 15:32 (conferido de novo às 15:52, 16:33 e 17:03, sem mudança); o que mudar depois disso é **desfeito em silêncio** pelo
 deploy. Logo antes do merge, conferir que nada mudou — se algum md5 for
 outro, reler o `pg_get_functiondef` e reembutir:
 
@@ -538,6 +576,15 @@ SELECT jobid, schedule, command FROM cron.job
  WHERE jobname = 'recalcular-velocidade-contato';  -- 45 | 7 * * * * | SELECT public.recalcular_velocidade_contato();
 ```
 
+**Ordem do deploy: a `0080` antes do front (ou junto).** O front novo manda
+`_falha_localizacao` ao `presenca_checkin`. Sem a `0080`, o PostgREST responde
+404 `PGRST202` e a tela refaz o mesmo check-in sem o parâmetro — nada quebra,
+mas cada falha de GPS custa duas chamadas e o porquê não é gravado, e os
+textos sobre o reforço ficam mais duros que o banco até a `0080` entrar. A
+`0080` é compatível com o front publicado hoje (chamada nomeada de 6
+argumentos funciona na função de 7 com `DEFAULT NULL`; a coluna a mais de
+`presenca_hoje_v1` é ignorada).
+
 **Depois do deploy:**
 
 ```sql
@@ -548,13 +595,15 @@ SELECT jobid, schedule, command FROM cron.job
 -- fallback_velocidade_ranking(uuid)     1179f52d43022ceb19e5fd65a6e36894 (+ [PRESENÇA 12/10])
 -- presenca_checkin(text,text,double precision,double precision,double precision,uuid,text)
 --                                       93374641bcf273b4a6d58d3704ce1fbf (só esta; a de 6 argumentos sumiu)
--- presenca_hoje_v1()                    66366a43780cd9e61beaad4a353f1870 (+ falha_localizacao)
+-- presenca_hoje_v1()                    58f6fec37be5484903f7d541a82250fb (+ falha_localizacao, precisao_m)
 -- processar_distribuicao_automatica()   700bd6b2163aae1649901b4ba0d5ec82 (igual)
 -- recalcular_velocidade_contato()       7f00c496551ff1d3fbd5b7a57c90ff83 (igual)
 SELECT has_table_privilege('authenticated', 'public.corretor_velocidade', 'SELECT');  -- false
 SELECT column_name FROM information_schema.columns
  WHERE table_schema = 'public' AND table_name = 'presenca_checkins'
    AND column_name = 'falha_localizacao';                                            -- 1 linha
+SELECT 'precisao_m' = ANY(proargnames) FROM pg_proc
+ WHERE oid = 'public.presenca_hoje_v1()'::regprocedure;                             -- true
 ```
 
 Os md5 "depois" foram medidos no harness reconstruído do zero (459
@@ -704,7 +753,12 @@ Decisões do dono (12/10/2026), na `0080` (bloco `[PRESENÇA 12/10]` de
   0, como em 12/10) ele volta à **roleta** — isso é regra da presença —, mas
   não ao reforço. Se, depois do destrave, ele refizer o check-in na filial e
   for barrado de novo, vale o último. No dia seguinte, começa do zero (o
-  barrado de ontem não pesa).
+  barrado de ontem não pesa). Pela letra do banco, destrava qualquer
+  check-in posterior **liberado** em `loja` ou `liberado_gestao`: hoje isso é
+  sempre GPS confirmado ou "Confirmar no plantão", porque as três filiais têm
+  coordenadas e a exigência está ligada. Uma filial sem coordenadas
+  (`filial_sem_coordenadas`) ou a exigência desligada no meio do dia também
+  destravariam.
 
 **Por quê.** O fallback nasceu aceitando "ausente", para a roleta vazia por
 falta de check-in. Com o check-in obrigatório e a localização barrando,

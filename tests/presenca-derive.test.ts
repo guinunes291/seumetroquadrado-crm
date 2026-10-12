@@ -12,6 +12,7 @@ import { presencaObrigatoria } from "@/lib/distribuicao";
 import {
   agruparQuadro,
   AVISO_FORA_DO_REFORCO,
+  avisoJaNaRoleta,
   avisoLocalizacao,
   barradoPelaLocalizacao,
   barradosSemDestrave,
@@ -703,5 +704,22 @@ describe("presença obrigatória nas filas", () => {
     expect(presencaObrigatoria({ tipo: "campanha" })).toBe(true);
     expect(presencaObrigatoria({ tipo: null })).toBe(true);
     expect(presencaObrigatoria({ tipo: "sdr" })).toBe(false);
+  });
+});
+
+describe("avisoJaNaRoleta: o toque que não refaz o check-in diz de onde ele veio", () => {
+  it("filial (GPS), filial confirmada pela gestão, liberado pela gestão e em casa", () => {
+    expect(avisoJaNaRoleta({ modo: "loja", filial_nome: "Belém", origem: "corretor" })).toBe(
+      "Você já está na roleta hoje: Belém.",
+    );
+    expect(avisoJaNaRoleta({ modo: "loja", filial_nome: "Belém", origem: "gestao" })).toBe(
+      "Você já está na roleta hoje: Belém (plantão confirmado pela gestão).",
+    );
+    expect(avisoJaNaRoleta({ modo: "liberado_gestao", filial_nome: null, origem: "gestao" })).toBe(
+      "Você já está na roleta hoje: liberado pela gestão.",
+    );
+    expect(avisoJaNaRoleta({ modo: "casa", filial_nome: null, origem: "corretor" })).toBe(
+      "Você já está na roleta hoje: Em casa.",
+    );
   });
 });

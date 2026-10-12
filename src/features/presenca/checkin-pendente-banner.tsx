@@ -6,6 +6,10 @@
 // presença, para as telas em que o diálogo não abre e para quem a localização
 // barrou (check-in aberto numa filial que não vale): sem ela, quem tocou
 // "Continuar fora das roletas" ficaria sem aviso nenhum.
+//
+// Enquanto mostra o barrado, relê a presença (15 s, aba e janela): quando a
+// gestão confirmar no plantão (ou o interruptor liberar), a faixa some
+// sozinha — e não empurra o corretor para refazer um check-in que já vale.
 
 import { Link, useLocation } from "@tanstack/react-router";
 import { MapPinSimpleArea, Storefront } from "@phosphor-icons/react";
@@ -18,12 +22,16 @@ import { precisaCheckin, precisaRefazerCheckin } from "./presenca-derive";
 export function CheckinPendenteBanner() {
   const { isCorretor, loading } = useUserRoles();
   const location = useLocation();
-  const q = useMinhaPresenca(isCorretor);
+  // Nas telas com o card, quem relê o barrado é o card.
+  const telaComCard = TELAS_COM_CARD_CHECKIN.some((t) => location.pathname.startsWith(t));
+  const q = useMinhaPresenca(isCorretor, {
+    releitura: (p) => !telaComCard && precisaRefazerCheckin(p),
+  });
 
   if (loading || !isCorretor) return null;
   const barrado = precisaRefazerCheckin(q.data);
   if (!barrado && !precisaCheckin(q.data)) return null;
-  if (TELAS_COM_CARD_CHECKIN.some((t) => location.pathname.startsWith(t))) return null;
+  if (telaComCard) return null;
 
   const encerrado = !!q.data?.checkin?.encerrado_em;
   return (

@@ -82,13 +82,14 @@
 -- fallback_velocidade_ranking é a de produção (a94e8164…) mais o bloco
 -- [PRESENÇA 12/10].
 -- presenca_checkin, _presenca_status e presenca_hoje_v1 são as da 0074 (iguais
--- às de produção) com só o acréscimo da falha_localizacao. ATENÇÃO NO DEPLOY:
+-- às de produção) com só o acréscimo da falha_localizacao (e, no quadro da
+-- gestão, também da precisao_m). ATENÇÃO NO DEPLOY:
 -- quem mexer nessas funções direto em produção antes do merge perde a mudança
 -- em silêncio — reler os md5 antes de aplicar (doc §6).
 --
 -- Em produção, aplicar muda: a regra do ranking (itens 4 e 5), a coluna e o
--- parâmetro do diagnóstico, a chave nova no JSON da presença, a coluna nova
--- no quadro da gestão e o REVOKE de anon/authenticated em
+-- parâmetro do diagnóstico, a chave nova no JSON da presença, as duas
+-- colunas novas no quadro da gestão e o REVOKE de anon/authenticated em
 -- corretor_velocidade (a tabela nasceu com os grants padrão da plataforma;
 -- o RLS sem policy já negava a leitura). O resto já está lá e vira no-op.
 --
@@ -537,6 +538,12 @@ $function$;
 --    check-in) e presenca_hoje_v1 ganham a chave/coluna falha_localizacao —
 --    só um acréscimo; presenca_hoje_v1 muda o tipo de retorno, por isso
 --    também é recriada.
+--    presenca_hoje_v1 ganha ainda, por último, precisao_m: a precisão que o
+--    aparelho informou (a coluna já é gravada desde a 0074; presenca_minha_v1
+--    já a devolve ao corretor). Sem ela, o quadro da gestão mostrava o
+--    computador com localização por Wi-Fi/IP (±5 km) como "Barrado: a 8 km
+--    da filial", o que parece mentira do corretor; com ela, a tela diz
+--    "localização imprecisa (±X km)".
 -- ---------------------------------------------------------------------------
 ALTER TABLE public.presenca_checkins
   ADD COLUMN IF NOT EXISTS falha_localizacao text
@@ -701,7 +708,7 @@ $function$;
 DROP FUNCTION IF EXISTS public.presenca_hoje_v1();
 
 CREATE OR REPLACE FUNCTION public.presenca_hoje_v1()
- RETURNS TABLE(corretor_id uuid, nome text, avatar_url text, presente boolean, modo text, filial_slug text, filial_nome text, apto_roleta boolean, motivo text, localizacao text, distancia_m integer, origem text, checkin_em timestamp with time zone, encerrado_em timestamp with time zone, vendas_mes_anterior integer, vendas_minimas integer, falha_localizacao text)
+ RETURNS TABLE(corretor_id uuid, nome text, avatar_url text, presente boolean, modo text, filial_slug text, filial_nome text, apto_roleta boolean, motivo text, localizacao text, distancia_m integer, origem text, checkin_em timestamp with time zone, encerrado_em timestamp with time zone, vendas_mes_anterior integer, vendas_minimas integer, falha_localizacao text, precisao_m integer)
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
@@ -734,7 +741,8 @@ BEGIN
          c.encerrado_em,
          public._corretor_vendas_mes_anterior(p.id, _hoje),
          _min,
-         c.falha_localizacao
+         c.falha_localizacao,
+         c.precisao_m
     FROM public.profiles p
     LEFT JOIN LATERAL (
       SELECT pc.* FROM public.presenca_checkins pc
@@ -905,7 +913,8 @@ BEGIN
                        AND p.prosrc LIKE '%''falha_localizacao'', u.falha_localizacao%')
      OR NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
                      WHERE n.nspname = 'public' AND p.proname = 'presenca_hoje_v1'
-                       AND 'falha_localizacao' = ANY (p.proargnames))
+                       AND 'falha_localizacao' = ANY (p.proargnames)
+                       AND 'precisao_m' = ANY (p.proargnames))
      OR NOT has_function_privilege('authenticated', 'public.presenca_hoje_v1()', 'EXECUTE')
      OR has_function_privilege('anon', 'public.presenca_hoje_v1()', 'EXECUTE') THEN
     RAISE EXCEPTION 'presença: diagnóstico do GPS fora do esperado (presenca_checkin, coluna ou retornos)';

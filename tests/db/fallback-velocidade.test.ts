@@ -20,7 +20,9 @@
  *   gestão) ou o interruptor da gestão. "Em casa" depois não devolve o
  *   fallback, mesmo liberado com o mínimo 0.
  *   E o diagnóstico do GPS: presenca_checkin guarda por que a localização não
- *   veio (falha_localizacao), sem quebrar quem chama sem o parâmetro novo.
+ *   veio (falha_localizacao), sem quebrar quem chama sem o parâmetro novo; e
+ *   o quadro da gestão (presenca_hoje_v1) passa a trazer também a precisão do
+ *   aparelho (precisao_m), para a localização aproximada não parecer mentira.
  *
  * Elenco (todos ativos no CRM, com telefone, na Roleta Liberdade — Centro —,
  * salvo dito; o score de velocidade mostra que quem fica fora não é por ser
@@ -776,6 +778,86 @@ describe("diagnóstico do GPS (presenca_checkin._falha_localizacao)", () => {
     expect(quadro).toEqual([{ falha_localizacao: "negada", localizacao: "sem_localizacao" }]);
   });
 
+  it("o quadro da gestão traz a precisão do aparelho (precisao_m), como última coluna", async () => {
+    /** A linha do Fábio no quadro, como a gestão lê (SELECT *, na ordem do retorno). */
+    async function quadroFabio() {
+      await comoUsuario(c, gestor.id);
+      try {
+        return await c.query(`SELECT * FROM public.presenca_hoje_v1() WHERE corretor_id = $1`, [
+          u.fabio.id,
+        ]);
+      } finally {
+        await comoSuperuser(c);
+      }
+    }
+
+    // O computador com localização por Wi-Fi/IP: ±5 km, a ~5 km da filial.
+    // Barrado como fora_da_filial — e a gestão precisa ver que a leitura era
+    // aproximada, para não tomar por mentira do corretor.
+    await rpc(u.fabio, {
+      _modo: "loja",
+      _filial: "liberdade",
+      _latitude: longeLiberdade.lat,
+      _longitude: longeLiberdade.lng,
+      _precisao_m: 4999.6,
+    });
+    const r = await quadroFabio();
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toMatchObject({
+      modo: "loja",
+      apto_roleta: false,
+      motivo: "fora_da_filial",
+      localizacao: "fora_do_raio",
+      falha_localizacao: null,
+      precisao_m: 5000,
+    });
+    expect(r.rows[0].distancia_m).toBeGreaterThan(4000);
+    // Só um acréscimo no fim: as colunas de antes, na mesma ordem (o front
+    // publicado lê por nome e ignora a coluna a mais).
+    expect(r.fields.map((f) => f.name)).toEqual([
+      "corretor_id",
+      "nome",
+      "avatar_url",
+      "presente",
+      "modo",
+      "filial_slug",
+      "filial_nome",
+      "apto_roleta",
+      "motivo",
+      "localizacao",
+      "distancia_m",
+      "origem",
+      "checkin_em",
+      "encerrado_em",
+      "vendas_mes_anterior",
+      "vendas_minimas",
+      "falha_localizacao",
+      "precisao_m",
+    ]);
+
+    // GPS que confirmou: a precisão boa também aparece.
+    await rpc(u.fabio, {
+      _modo: "loja",
+      _filial: "liberdade",
+      _latitude: dentroLiberdade.lat,
+      _longitude: dentroLiberdade.lng,
+      _precisao_m: 12,
+    });
+    expect((await quadroFabio()).rows[0]).toMatchObject({
+      apto_roleta: true,
+      localizacao: "confirmada",
+      precisao_m: 12,
+    });
+
+    // Sem a localização (ou sem a precisão informada): NULL.
+    await rpc(u.fabio, { _modo: "loja", _filial: "liberdade", _falha_localizacao: "negada" });
+    expect((await quadroFabio()).rows[0]).toMatchObject({
+      localizacao: "sem_localizacao",
+      falha_localizacao: "negada",
+      precisao_m: null,
+    });
+  });
+
   it("as quatro falhas da tela entram; com a localização, em casa ou pela gestão, fica NULL", async () => {
     for (const falha of ["indisponivel", "tempo", "sem_suporte"]) {
       await rpc(u.fabio, { _modo: "loja", _filial: "liberdade", _falha_localizacao: falha });
@@ -899,6 +981,40 @@ describe("a guarda da migration pega o ranking sem as regras do dono", () => {
     ["o 'depois' do destrave", "               AND d.created_at > b.created_at\n"],
   ])("sem %s, a guarda barra o deploy", async (_nome, trecho) => {
     expect(await guardaCom(trecho)).toMatch(/o ranking não aplica as regras de presença do dono/);
+  });
+
+  /** Recria o quadro da gestão (com ou sem a precisao_m) e roda a guarda (rollback). */
+  async function guardaComQuadro(semPrecisao: boolean): Promise<string | null> {
+    await comoSuperuser(c);
+    await c.query("BEGIN");
+    try {
+      let def = (
+        await c.query(`SELECT pg_get_functiondef('public.presenca_hoje_v1()'::regprocedure) AS d`)
+      ).rows[0].d as string;
+      if (semPrecisao) {
+        def = def
+          .replace(", falha_localizacao text, precisao_m integer)", ", falha_localizacao text)")
+          .replace("c.falha_localizacao,\n         c.precisao_m\n", "c.falha_localizacao\n");
+        expect(def).not.toContain("precisao_m");
+      }
+      await c.query(`DROP FUNCTION public.presenca_hoje_v1()`);
+      await c.query(def);
+      await c.query(`REVOKE ALL ON FUNCTION public.presenca_hoje_v1() FROM PUBLIC, anon`);
+      await c.query(
+        `GRANT EXECUTE ON FUNCTION public.presenca_hoje_v1() TO authenticated, service_role`,
+      );
+      await c.query(guarda);
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    } finally {
+      await c.query("ROLLBACK");
+    }
+  }
+
+  it("sem a precisao_m no quadro da gestão (presenca_hoje_v1), a guarda barra o deploy", async () => {
+    expect(await guardaComQuadro(false)).toBeNull();
+    expect(await guardaComQuadro(true)).toMatch(/presença: diagnóstico do GPS fora do esperado/);
   });
 });
 
