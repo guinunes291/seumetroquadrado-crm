@@ -251,10 +251,71 @@ Liberdade, Belém. Nas semanas seguintes a contagem completa sozinha.
    banco na 0079 (as chamadas casam pelos padrões); o novo precisa dela
    (`roletas.filial_id`, `zonas_roletas` com várias roletas).
 
-## 8. Em produção
+## 8. Em produção (12/10/2026)
 
-(preenchido na aplicação: horário, conferências, os três times e a lista de
-quem ficou em duas ou três filiais para a gestão enxugar.)
+Aplicadas no banco da Lovable em 12/10, entre 10:35 e 10:55 (BRT), depois do
+merge do #280, na ordem do §7b.
+
+**Antes.** Último id do drizzle = 80; a função da vez única ausente; sem
+`roletas.filial_id`. Das 17 funções que a 0079 recria, 14 com md5 de
+`pg_get_functiondef` igual ao do repositório; `_elegibilidade_roleta_sdr` e
+`criar_roleta_campanha` diferiam só nos comentários; `atualizar_roleta` tinha
+a guarda "só em campanha" que o repositório tinha perdido — a 0079 a mantém.
+Times nas roletas antigas (participação ativa): Leste 18, Oeste 16, Sul 10,
+Norte 7, Centro 6, Grande SP 3.
+
+**Como entrou.**
+
+1. `0078` em 3 blocos (os arquivos do drizzle cortados por seção; a
+   concatenação conferida byte a byte com o arquivo mergeado); a guarda da
+   migration passou. Registrada no drizzle (id 81, `created_at =
+1792249200000`).
+2. `0079` em 4 blocos, na ordem 1, 3, 2, 4: o bloco 3 (vez única por filial,
+   telas, campanhas) antes do 2 (motores), porque o motor novo chama
+   `_lead_liberado_por_campanha`, criada no 3 — assim não houve minuto em que
+   o motor chamasse função inexistente. O estado final é o mesmo (só funções,
+   sem dependência entre os dois). O bloco 4 entrou com `SET LOCAL
+lock_timeout = '5s'` (o `DROP/CREATE TRIGGER` em `leads` pede trava
+   exclusiva; sem trava em 5 s, desfaz e tenta de novo, em vez de parar o
+   app atrás do lote do cron). A guarda final passou. Registrada no drizzle
+   (id 82, `created_at = 1792335600000`).
+3. Conferências: as 27 funções tocadas pelas duas migrations com md5 de
+   `pg_get_functiondef` **igual ao do harness**; permissões iguais (as únicas
+   diferenças são os privilégios padrão do Supabase: `service_role` em tudo e
+   EXECUTE explícito nas funções de gatilho); os dois gatilhos no lugar
+   (`trg_zonas_roletas_regiao` só em mudança do mapa;
+   `trg_leads_roleta_slug_do_motor`); mapa com 6 zonas em 7 linhas para 3
+   roletas, Leste com Liberdade e Belém; nenhum perfil com região diferente
+   das filiais em que está; a vez única com unidade por filial (Barra Funda,
+   Liberdade, Belém, como previsto para a semana da aplicação).
+4. Execução real: o cron das 10:50 já decidiu pelo motor novo (lead da Norte
+   na `filial-barra-funda`, "o lead espera o time da filial"), sem erro.
+
+**O que aconteceu na aplicação.** O bloco 1 (com o `ALTER TABLE` em
+`roletas` e `zonas_roletas` e a migração dos times) esperou o lote do cron e
+passou de 60 s; concluiu inteiro (é uma transação). Nessa janela, a rodada
+das 10:40 de `distribuicao-automatica-5min` caiu por `statement timeout`; as
+rodadas seguintes rodaram normais. Ninguém estava presente (havia 1 check-in
+no dia, às 10:27), então nenhum lead deixou de ser entregue por isso. Da
+próxima vez: blocos com `ALTER TABLE` em tabela que o cron lê também com
+`lock_timeout`.
+
+**Os times (participação ativa).** A união das zonas, sem ninguém a mais ou
+a menos: Barra Funda 23, Liberdade 22, Belém 19 — 30 pessoas, 26 com conta
+ativa. A prévia de antes do merge (20, 20 e 18) contava só contas ativas; as
+roletas antigas tinham participações ativas de contas desativadas (3 na Barra
+Funda, 2 na Liberdade, 1 na Belém), que vieram junto — o motor não as
+escolhe (conta inativa não é apta), mas a gestão deve tirá-las. Entre as
+contas ativas, todas têm o papel corretor e 1 corretora está sem telefone
+(Liberdade e Belém: não recebe até cadastrar). Em duas ou mais filiais: 23 pessoas (21 com conta
+ativa), 11 delas nas três — é quem atendia zonas de filiais diferentes;
+a gestão enxuga na Central → Corretores (editor por filial). A lista nominal
+foi entregue ao dono em 12/10.
+
+**Depois de publicar o front.** Até a Lovable publicar o commit do #280, o
+front antigo segue de pé (as chamadas casam pelos padrões), mas o editor de
+região antigo marca zona por zona e o banco agora recusa zona solta ("a
+região é por filial"), e a aba Filas antiga mostra as `zona-*` desligadas.
 
 ## 9. Testes
 
