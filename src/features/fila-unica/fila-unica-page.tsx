@@ -238,8 +238,12 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   // Desfecho de um toque: quem gravou vira "Registrado ✓" no card até a fila
   // se atualizar (o lead sai, ou volta em outro balde e o selo some).
   const [registrados, setRegistrados] = useState<Map<string, string | null>>(() => new Map());
+  // Lead tratado nesta tela (desfecho, WhatsApp) some na hora, sem recarregar.
+  const [tratados, setTratados] = useState<Set<string>>(() => new Set());
+  const esconder = (id: string) => setTratados((s) => new Set(s).add(id));
   const desfecho = useDesfecho({
     onRegistrado: (r) => {
+      esconder(r.leadId);
       setRegistrados((m) => new Map(m).set(r.leadId, r.proximoTexto));
       window.setTimeout(
         () =>
@@ -314,13 +318,15 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
         titulo: `WhatsApp — Fila Única · ${BUCKET_LABEL[item.bucket]}`,
       },
     );
+    esconder(item.lead.id);
+    window.setTimeout(invalidarFila, 1500);
   };
 
   // Agrupa preservando a ordem global (os itens já vêm ordenados por balde).
   const grupos = fila
     ? BUCKET_ORDER.map((b) => ({
         bucket: b,
-        itens: fila.itens.filter((i) => i.bucket === b),
+        itens: fila.itens.filter((i) => i.bucket === b && !tratados.has(i.lead.id)),
       })).filter((g) => g.itens.length > 0)
     : [];
 
