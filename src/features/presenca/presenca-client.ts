@@ -279,7 +279,7 @@ export function useCheckin({
         "presenca_checkin",
         falha ? { ...base, _falha_localizacao: falha } : base,
       );
-      // Banco sem a 0080 (sem o parâmetro novo): o mesmo check-in, sem o porquê.
+      // Banco sem a 0082 (sem o parâmetro novo): o mesmo check-in, sem o porquê.
       if (error && falha && isMissingBackendObject(error)) {
         ({ data, error } = await supabasePendente.rpc("presenca_checkin", base));
       }

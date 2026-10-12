@@ -50,7 +50,7 @@ export type CheckinAtual = {
   distancia_m: number | null;
   precisao_m: number | null;
   /**
-   * Por que o aparelho não deu a localização (gravado desde a 0080 pelo
+   * Por que o aparelho não deu a localização (gravado desde a 0082 pelo
    * parâmetro _falha_localizacao; null antes dela ou quando não faltou).
    */
   falha_localizacao: FalhaLocalizacao | null;
@@ -94,10 +94,10 @@ export type PresencaHojeRow = {
   encerrado_em: string | null;
   vendas_mes_anterior: number;
   vendas_minimas: number;
-  /** Desde a 0080 (pode faltar em produção antes dela). */
+  /** Desde a 0082 (pode faltar em produção antes dela). */
   falha_localizacao?: string | null;
   /**
-   * A precisão que o aparelho informou (desde a 0080; pode faltar antes
+   * A precisão que o aparelho informou (desde a 0082; pode faltar antes
    * dela). Acima de 1 km, o quadro diz "localização imprecisa" em vez de
    * acusar a distância.
    */
@@ -260,7 +260,7 @@ export function motivoPresencaLabel(
     distancia_m?: number | null;
     /** A precisão que o aparelho informou (acima de 1 km, a distância não prova nada). */
     precisao_m?: number | null;
-    /** Por que a localização faltou (a tela do check-in ou, desde a 0080, o banco). */
+    /** Por que a localização faltou (a tela do check-in ou, desde a 0082, o banco). */
     falha_localizacao?: FalhaLocalizacao | null;
     /** Este aparelho é um computador (sem tela de toque)? */
     computador?: boolean;

@@ -423,7 +423,12 @@ describe("Meus65Page", () => {
     estado.escolher.mockResolvedValue({ ok: true, escolhido: true, escolhidos: 2, teto: 65 });
     montar(<Meus65Page />);
 
-    expect(screen.getByTestId("meus-65-placar").textContent).toContain("3/65");
+    // O placar é o mesmo anel "X de 65" da Central (padrão Lançamento, Fase 1
+    // das demais páginas) — o número continua vindo do contador.
+    const placar = screen.getByTestId("meus-65-placar");
+    expect(within(placar).getByRole("img", { name: "3 de 65 em atendimento" })).toBeTruthy();
+    expect(within(placar).getByText("escolhidos").previousSibling?.textContent).toBe("1");
+    expect(within(placar).getByText("perdem a vaga").previousSibling?.textContent).toBe("1");
     const linhas = screen.getAllByTestId("meus-65-linha");
     expect(linhas).toHaveLength(3);
     expect(linhas[0].textContent).toContain("toque até 06/10 para manter");

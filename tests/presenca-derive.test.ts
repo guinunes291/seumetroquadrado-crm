@@ -129,7 +129,7 @@ describe("parseMinhaPresenca", () => {
     expect(parseMinhaPresenca({}).exige_localizacao).toBe(true);
   });
 
-  it("falha_localizacao (desde a 0080): lida do check-in; ausente ou desconhecida = null", () => {
+  it("falha_localizacao (desde a 0082): lida do check-in; ausente ou desconhecida = null", () => {
     const com = parseMinhaPresenca({
       checkin: { id: "c", modo: "loja", falha_localizacao: "negada", criado_em: "x" },
     });
@@ -420,7 +420,7 @@ describe("check-in na filial barrado pela localização: o que o corretor lê", 
       { falhaLocalizacao: "negada" },
     );
     expect(s.detalhe).toBe(mensagemSemLocalizacao("negada"));
-    // Recarregou: o porquê gravado pelo banco (0080) no lugar da orientação geral.
+    // Recarregou: o porquê gravado pelo banco (0082) no lugar da orientação geral.
     const relido = situacaoHoje(
       presenca({
         checkin: checkin({
@@ -576,7 +576,7 @@ describe("quadro da gestão", () => {
       texto: "Barrado: sem localização",
       intent: "danger",
     });
-    // Desde a 0080, o porquê da falha aparece para a gestão.
+    // Desde a 0082, o porquê da falha aparece para a gestão.
     expect(statusRoletaLinha({ ...semGps, falha_localizacao: "negada" })?.texto).toBe(
       "Barrado: sem localização (permissão negada)",
     );

@@ -84,7 +84,7 @@ _"checkin obrigatório"_: o corretor faz o check-in — **Barra Funda**,
 receber leads. Vale para **quem tem o papel corretor**, inclusive quem também
 é gestor (em 12/10, uma conta: Ingrid Queiroz). A obrigatoriedade é da tela;
 no banco, sem check-in de hoje ele não recebe de fila nenhuma (decisão 2) nem
-pelo fallback por velocidade (§8c, desde a `0080`), e o que libera ou não a
+pelo fallback por velocidade (§8c, desde a `0082`), e o que libera ou não a
 roleta continua decidido no próprio check-in (a regra das vendas acima e a da
 localização, §3).
 
@@ -107,7 +107,7 @@ As opções, a régua e a confirmação são as mesmas do card de /presenca e Me
 
 **Confirmação antes da filial.** Com a exigência de localização ligada, tocar numa filial não faz o check-in. Abre a pergunta _"Você está dentro da loja {Filial} agora?"_, com _"O celular vai conferir. Se não confirmar, o check-in fica barrado e você fica fora das roletas e do reforço hoje."_ e os botões **[Voltar]** e **[Estou na loja]**. No computador (aparelho sem tela de toque), entra mais um aviso: _"No computador a localização costuma falhar: se puder, faça o check-in pelo celular."_. "Em casa" nunca pede confirmação nem localização. Com a exigência desligada, a filial vai direto.
 
-A confirmação evita o toque de sondagem. Em 11/10, 2 dos 3 corretores que usaram o check-in saíram de "Em casa" para uma filial e voltaram em segundos. Desde a `0080`, esse toque custa o reforço do dia.
+A confirmação evita o toque de sondagem. Em 11/10, 2 dos 3 corretores que usaram o check-in saíram de "Em casa" para uma filial e voltaram em segundos. Desde a `0082`, esse toque custa o reforço do dia.
 
 **Enquanto confere.** Os botões travam e aparece _"Conferindo a localização…"_ (no "Em casa", _"Registrando o check-in…"_). Para o leitor de tela:
 
@@ -121,7 +121,7 @@ A confirmação evita o toque de sondagem. Em 11/10, 2 dos 3 corretores que usar
 | Liberou a roleta                                       | Fecha. Toast verde _"Check-in feito: Barra Funda. Você está na roleta hoje."_ (ou _"Check-in feito: Em casa. Você está na roleta hoje."_). O verde só aparece quando o banco liberou.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Em casa abaixo do mínimo (`casa_abaixo_minimo_vendas`) | Mostra a tela _"Check-in feito: Em casa"_ com _"Em casa, a roleta só libera com 3 vendas aprovadas em setembro — você teve 2. Para receber leads da roleta hoje, é preciso estar numa filial: vá até a loja e faça o check-in de lá."_ e _"Você já pode usar o CRM: o check-in de hoje está feito."_. **Libera o CRM** (**Entendi**, ESC, X ou clique fora): ele disse a verdade e segue podendo receber pelo fallback. Se antes, no mesmo diálogo, um check-in na filial foi barrado, acrescenta _"Como o check-in na filial foi barrado hoje, você também fica fora do reforço até um check-in na loja que valha (ou a gestão liberar você)."_.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Filial, fora do raio (`fora_da_filial`)                | O diálogo **continua**. Título _"A localização não confirmou a filial Barra Funda"_. Motivo: _"A localização deste aparelho ficou a 5,8 km da filial Barra Funda. O check-in na filial só vale de dentro da loja. Se você está na loja, peça ao gestor para confirmar no plantão."_. Quando o aparelho informa precisão acima de 1 km (Wi-Fi ou IP, típico de computador), a tela não acusa a distância. O título vira _"A localização deste aparelho é aproximada"_, e o motivo, _"A localização deste aparelho é aproximada (±5 km): faça o check-in pelo celular, de dentro da loja, ou peça ao gestor para confirmar no plantão."_.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Filial, sem localização (`sem_localizacao`)            | O diálogo **continua**. O título é _"Sem a localização do celular"_ (no computador, _"Sem a localização deste computador"_). O texto diz o que fazer conforme o navegador respondeu. Permissão negada: _"O navegador está bloqueando a localização para o CRM. Para liberar no Android (Chrome): toque no cadeado (ou no ícone) ao lado do endereço do site → Localização → Permitir. No iPhone (Safari): toque em aA ao lado do endereço → Ajustes do Site → Localização → Permitir; se não aparecer, vá em Ajustes → Privacidade e Segurança → Serviços de Localização → Sites do Safari → Durante o Uso do App. Depois, tente de novo."_. GPS indisponível ou sem resposta: _"O celular não conseguiu informar a localização. Ligue a localização do celular e tente de novo, de preferência perto de uma janela."_. Navegador sem suporte: _"Este navegador não informa a localização. Abra o CRM no navegador do celular (Chrome ou Safari) e tente de novo."_. No computador, qualquer falha: _"No computador a localização costuma falhar: faça o check-in pelo celular, de dentro da loja, ou peça ao gestor para confirmar no plantão."_. O porquê vai para o banco (`_falha_localizacao` → `falha_localizacao`, §3) e para o Sentry (`geolocalizacao:<falha>`). Se o banco ainda não tem a `0080` (erro PGRST202), o mesmo check-in é refeito sem o parâmetro. |
+| Filial, sem localização (`sem_localizacao`)            | O diálogo **continua**. O título é _"Sem a localização do celular"_ (no computador, _"Sem a localização deste computador"_). O texto diz o que fazer conforme o navegador respondeu. Permissão negada: _"O navegador está bloqueando a localização para o CRM. Para liberar no Android (Chrome): toque no cadeado (ou no ícone) ao lado do endereço do site → Localização → Permitir. No iPhone (Safari): toque em aA ao lado do endereço → Ajustes do Site → Localização → Permitir; se não aparecer, vá em Ajustes → Privacidade e Segurança → Serviços de Localização → Sites do Safari → Durante o Uso do App. Depois, tente de novo."_. GPS indisponível ou sem resposta: _"O celular não conseguiu informar a localização. Ligue a localização do celular e tente de novo, de preferência perto de uma janela."_. Navegador sem suporte: _"Este navegador não informa a localização. Abra o CRM no navegador do celular (Chrome ou Safari) e tente de novo."_. No computador, qualquer falha: _"No computador a localização costuma falhar: faça o check-in pelo celular, de dentro da loja, ou peça ao gestor para confirmar no plantão."_. O porquê vai para o banco (`_falha_localizacao` → `falha_localizacao`, §3) e para o Sentry (`geolocalizacao:<falha>`). Se o banco ainda não tem a `0082` (erro PGRST202), o mesmo check-in é refeito sem o parâmetro. |
 | Barrado (qualquer dos dois)                            | Diz _"Seu check-in em Barra Funda ficou registrado, mas não vale para as roletas nem para o reforço de hoje. Visitas marcadas pelo SDR continuam chegando."_ e _"Chegou à loja depois? Refaça o check-in pela faixa no topo do CRM."_. Botões: **Tentar de novo** (lê o GPS na hora, sem reaproveitar a posição antiga), **Estou em casa** e **Continuar fora das roletas**. O link **Escolher outra filial** volta às opções sem marcar a filial barrada. A filial nova pede a confirmação e também lê o GPS na hora, e o "Continuar fora das roletas" continua lá. Se um desses der erro técnico, aparece _"Não foi possível registrar o check-in: {erro}"_, e o barrado e as saídas continuam. Não sai toast amarelo nem vermelho repetindo o que o diálogo já diz.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 **Barrado → "Estou em casa".** Com a meta, ou com o mínimo 0 como em 12/10, a roleta libera. O diálogo fecha com o verde, e o mesmo toast traz _"Como o check-in na filial foi barrado hoje, você também fica fora do reforço até um check-in na loja que valha (ou a gestão liberar você)."_. Abaixo do mínimo, aparece a tela do recusado com o mesmo aviso. O card de /presenca repete o aviso enquanto ele estiver em casa sem destrave (lido dos check-ins de hoje).
@@ -182,7 +182,7 @@ Enquanto mostra um barrado, o card relê sozinho: a cada 15 s, quando a aba volt
 **No quadro da gestão (§4).**
 
 - O número da coluna da filial conta só os válidos. Os barrados ficam no selo ao lado (_"1 barrado"_) e no tile _"Fora da conta: 1 barrado pela localização"_.
-- O selo da linha diz o porquê: _"Barrado: a 5,8 km da filial"_ ou _"Barrado: sem localização (permissão negada)"_. Com a precisão acima de 1 km (coluna `precisao_m` de `presenca_hoje_v1`, desde a `0080`), aparece _"Barrado: localização imprecisa (±5 km)"_ no lugar da distância.
+- O selo da linha diz o porquê: _"Barrado: a 5,8 km da filial"_ ou _"Barrado: sem localização (permissão negada)"_. Com a precisão acima de 1 km (coluna `precisao_m` de `presenca_hoje_v1`, desde a `0082`), aparece _"Barrado: localização imprecisa (±5 km)"_ no lugar da distância.
 - Quem foi barrado e trocou para casa ganha o selo _"fora do reforço hoje"_.
 - O menu **Confirmar no plantão** faz o check-in do corretor numa filial, com o toast _"{Nome}: check-in confirmado pela gestão."_.
 
@@ -194,7 +194,7 @@ Os motores (roleta v3/`_elegibilidade_roleta`, campanha ponderada, repasse por
 SLA, Escoar estoque) já liam a mesma chave: `profiles.presente`. **Nenhum
 motor mudou.** A regra entra no único lugar que liga essa chave — o check-in
 (`presenca_checkin`). Check-in em casa abaixo do mínimo grava a linha com
-`apto_roleta = false` e deixa `presente = false`. A exceção, desde a `0080`,
+`apto_roleta = false` e deixa `presente = false`. A exceção, desde a `0082`,
 é o fallback por velocidade (§8c): ele lê o próprio `presenca_checkins` (o
 check-in de hoje aberto, e se houve barrado pela localização), porque
 `presente = false` não distingue quem disse "Em casa" de quem não disse nada.
@@ -257,7 +257,7 @@ nunca é pedida.**
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | `confirmada`             | dentro do raio (+ até 150 m de tolerância pela precisão do GPS)                                                         |
 | `fora_do_raio`           | longe da loja                                                                                                           |
-| `sem_localizacao`        | o corretor negou, o aparelho não tem GPS ou demorou 10 s — o porquê fica em `falha_localizacao` desde a `0080` (abaixo) |
+| `sem_localizacao`        | o corretor negou, o aparelho não tem GPS ou demorou 10 s — o porquê fica em `falha_localizacao` desde a `0082` (abaixo) |
 | `filial_sem_coordenadas` | a filial ainda não tem coordenadas cadastradas                                                                          |
 | `confirmada_gestao`      | a gestão fez o check-in pelo corretor                                                                                   |
 
@@ -268,8 +268,8 @@ filial (80 m)", "A 4,2 km da filial"), como recomendado na entrega.
 
 Decisão do dono: _"localização deve barrar caso não esteja na filial"_. A
 chave `presenca_loja_exige_localizacao` foi ligada em produção às 14:19 BRT
-(com linha em `audit_log` dizendo a origem) e a migration `20261019120000`
-(drizzle `0080`) registra o valor no repositório — ambiente novo já nasce
+(com linha em `audit_log` dizendo a origem) e a migration `20261021120000`
+(drizzle `0082`) registra o valor no repositório — ambiente novo já nasce
 exigindo. A recomendação de rodar 1–2 semanas só informando ficou para trás
 por decisão do dono.
 
@@ -284,7 +284,7 @@ O que muda para o corretor, no check-in **na filial**:
 | Feito pela gestão (`confirmada_gestao`)                 | libera              | libera                                    |
 
 - O check-in barrado fica registrado, com a distância e o motivo; o corretor
-  fica sem presença e fora das filas — e, desde a `0080`, **fora também do
+  fica sem presença e fora das filas — e, desde a `0082`, **fora também do
   fallback por velocidade naquele dia** (§8c): quem disse estar na loja e
   não estava não recebe o lead que a exigência segurou. Trocar para "Em
   casa" depois devolve a roleta (se tiver a meta, ou com o mínimo 0), mas
@@ -306,11 +306,11 @@ O que muda para o corretor, no check-in **na filial**:
 - **Voltar a só informar** (sem deploy): Central de Distribuição →
   Configurações → desligar _"Check-in na filial exige a localização do
   celular"_ — ou `presenca_loja_exige_localizacao = false`. **Cuidado:** a
-  `0080` grava `true`; se a exigência for desligada antes de ela chegar à
+  `0082` grava `true`; se a exigência for desligada antes de ela chegar à
   produção, o deploy a religa (sem linha em `audit_log`). Conferir antes
   (§6).
 
-### Por que a localização não veio (`falha_localizacao`, desde a `0080`)
+### Por que a localização não veio (`falha_localizacao`, desde a `0082`)
 
 Até 12/10 à tarde, **3 de 3** check-ins reais na filial chegaram ao banco
 como `sem_localizacao` (11/10 09:08 e 09:53; 12/10 14:05) — nenhum
@@ -319,7 +319,7 @@ as 14:19 isso não barrava; com a exigência ligada, se a causa for do sistema
 (permissão, app instalado, computador), amanhã cedo todo corretor na loja
 sai barrado e depende do "Confirmar no plantão".
 
-A tela sabe por que o navegador não deu a posição e, desde a `0080`, manda
+A tela sabe por que o navegador não deu a posição e, desde a `0082`, manda
 para o banco: `presenca_checkin(…, _falha_localizacao)` grava em
 `presenca_checkins.falha_localizacao`, **só quando a localização não veio**
 (`localizacao = 'sem_localizacao'`). Com coordenada, em casa ou feito pela
@@ -332,7 +332,7 @@ nunca impede o check-in).
 | `indisponivel`      | o aparelho não conseguiu a posição                    | ligar a localização do celular; perto de uma janela                             |
 | `tempo`             | demorou mais que o limite (10 s, ou a guarda de 30 s) | tentar de novo; se repetir com todos, é sinal de GPS fraco dentro da loja       |
 | `sem_suporte`       | navegador sem geolocalização                          | abrir o CRM no Chrome ou no Safari                                              |
-| `NULL`              | antes da `0080`, ou o front antigo (não manda)        | —                                                                               |
+| `NULL`              | antes da `0082`, ou o front antigo (não manda)        | —                                                                               |
 
 `presenca_minha_v1` (e o retorno do check-in) traz a chave
 `checkin.falha_localizacao`; `presenca_hoje_v1` (quadro da gestão) traz as
@@ -342,7 +342,7 @@ imprecisa (±X km)" em vez de "a X km da filial", que pareceria mentira do
 corretor.
 
 **Diagnóstico de amanhã (13/10), às 8h** — rodar no SQL editor (só leitura;
-precisa da `0080` em produção — antes dela, tirar `falha_localizacao` das
+precisa da `0082` em produção — antes dela, tirar `falha_localizacao` das
 consultas 1 e 2):
 
 ```sql
@@ -528,30 +528,39 @@ presente); o check-in deles em `/presenca` registra onde estão.
 
 ### Estado em produção (12/10/2026, tarde)
 
-| O quê                                                       | Em produção                                                 | No repositório               |
-| ----------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------- |
-| Fallback por velocidade (tabela, 3 funções, cron)           | desde 12/10, por SQL direto (§8c)                           | `0080` (esta leva)           |
-| `processar_distribuicao_automatica` reescrita               | desde 12/10, por SQL direto                                 | `0080`, verbatim             |
-| `_fallback_velocidade` com dono inativo + `_dono_ativo`     | desde ~15:27 de 12/10, por SQL direto                       | `0080`, verbatim             |
-| Regras de presença no fallback (D4, D5, destrave — §8c)     | **ainda não** — entram com a `0080`                         | `0080`                       |
-| `falha_localizacao` (coluna, parâmetro, chave nos retornos) | **ainda não** — entra com a `0080`                          | `0080`                       |
-| `presenca_loja_exige_localizacao = true`                    | desde 12/10 14:19 (com `audit_log`)                         | `0080`                       |
-| `presenca_casa_min_vendas_mes_anterior = 0`                 | só 12/10; o cron one-shot devolve 3 em 13/10 00:00 BRT (§5) | não (fica `3`, de propósito) |
-| `_reatribuir_se_dono_inativo`, `registrar_volta_campanha`   | desde ~15:27 de 12/10, por SQL direto                       | **não** — pendência (§8c)    |
+| O quê                                                       | Em produção                                                 | No repositório                  |
+| ----------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------- |
+| Fallback por velocidade (tabela, 3 funções, cron)           | desde 12/10, por SQL direto (§8c)                           | `0080` (#284), igual à produção |
+| `processar_distribuicao_automatica` reescrita               | desde 12/10, por SQL direto                                 | `0080` (#284), igual à produção |
+| `_fallback_velocidade` com dono inativo + `_dono_ativo`     | desde ~15:27 de 12/10, por SQL direto                       | `0081` (#286), igual à produção |
+| `_reatribuir_se_dono_inativo`, `registrar_volta_campanha`   | desde ~15:27 de 12/10, por SQL direto                       | `0081` (#286), igual à produção |
+| Regras de presença no fallback (D4, D5, destrave — §8c)     | **ainda não** — entram com a `0082`                         | `0082`                          |
+| `falha_localizacao` (coluna, parâmetro, chave nos retornos) | **ainda não** — entra com a `0082`                          | `0082`                          |
+| `REVOKE` de anon/authenticated em `corretor_velocidade`     | **ainda não** — entra com a `0082`                          | `0082`                          |
+| `presenca_loja_exige_localizacao = true`                    | desde 12/10 14:19 (com `audit_log`)                         | `0082`                          |
+| `presenca_casa_min_vendas_mes_anterior = 0`                 | só 12/10; o cron one-shot devolve 3 em 13/10 00:00 BRT (§5) | não (fica `3`, de propósito)    |
 
-A `0080` chega pelo migrador do Lovable no merge (`when` 1792422000000, maior
-que o da `0079`, último registro: id 82). Em produção ela muda: as regras de
-presença no ranking, o diagnóstico do GPS (coluna `falha_localizacao`,
-`presenca_checkin` com o parâmetro novo — a assinatura de 6 argumentos é
-apagada —, a chave em `_presenca_status`/`presenca_minha_v1` e as colunas
-`falha_localizacao` e `precisao_m` em `presenca_hoje_v1`) e o `REVOKE` de anon/authenticated em
-`corretor_velocidade`. O resto já está lá e vira no-op.
+A `0080` e a `0081` vieram da outra conversa do dono (#284 e #286). Elas
+versionam o que ele aplicou direto em produção, mas não foram registradas em
+`drizzle.__drizzle_migrations` (o último registro, às 17:26 de 12/10, era o id
+82, da `0079`). Às 17:26, um banco montado no harness só até a `0081` deu o
+**mesmo md5 de produção** nas dez funções da tabela acima. Por isso, aplicar as
+duas em produção não muda nada: é só registro.
+
+A `0082` (`when` 1792594800000, depois das duas) é a que muda produção: as
+regras de presença no ranking, o diagnóstico do GPS (coluna
+`falha_localizacao`, `presenca_checkin` com o parâmetro novo — a assinatura de
+6 argumentos é apagada —, a chave em `_presenca_status`/`presenca_minha_v1` e
+as colunas `falha_localizacao` e `precisao_m` em `presenca_hoje_v1`) e o
+`REVOKE` de anon/authenticated em `corretor_velocidade`.
 
 **Antes do merge (só SELECT em produção).** Essas funções estão sendo
-mexidas direto em produção (11:20, 14:50, ~15:27 de 12/10). A `0080` traz o
-texto lido às 15:32 (conferido de novo às 15:52, 16:33 e 17:03, sem mudança); o que mudar depois disso é **desfeito em silêncio** pelo
-deploy. Logo antes do merge, conferir que nada mudou — se algum md5 for
-outro, reler o `pg_get_functiondef` e reembutir:
+mexidas direto em produção (11:20, 14:50, ~15:27 de 12/10). A `0082` recria
+o ranking e as três funções de presença a partir do texto de produção
+(conferido às 15:32, 15:52, 16:33, 17:03 e 17:26, sem mudança); o que mudar
+depois disso é **desfeito em silêncio** pelo deploy. Logo antes do merge,
+conferir que nada mudou — se algum md5 for outro, reler o
+`pg_get_functiondef` e reembutir:
 
 ```sql
 SELECT p.oid::regprocedure AS funcao, md5(pg_get_functiondef(p.oid))
@@ -559,29 +568,32 @@ SELECT p.oid::regprocedure AS funcao, md5(pg_get_functiondef(p.oid))
  WHERE n.nspname = 'public'
    AND p.proname IN ('processar_distribuicao_automatica', '_fallback_velocidade',
                      'recalcular_velocidade_contato', 'fallback_velocidade_ranking',
-                     '_dono_ativo', 'presenca_checkin', '_presenca_status', 'presenca_hoje_v1')
+                     '_dono_ativo', 'presenca_checkin', '_presenca_status', 'presenca_hoje_v1',
+                     '_reatribuir_se_dono_inativo', 'registrar_volta_campanha')
  ORDER BY 1;
 -- _dono_ativo(uuid)                     4e1cd9bb3a0ecec9c0118139b72bf93c
 -- _fallback_velocidade(uuid)            2317edb2460317f7ef4f7f96e5958b23
 -- _presenca_status(uuid)                15e331424b9aaba309f5498c49ad7ccc
+-- _reatribuir_se_dono_inativo(uuid)     053bfda34ea69b59268ef055966bef32
 -- fallback_velocidade_ranking(uuid)     a94e816480d16cc9db64f04fa763b8ce
 -- presenca_checkin(text,text,double precision,double precision,double precision,uuid)
 --                                       5029000a0c185327f2d5fec9222f6dcc
 -- presenca_hoje_v1()                    8a0b3369d046c73ffbfb4629cb7b3451
 -- processar_distribuicao_automatica()   700bd6b2163aae1649901b4ba0d5ec82
 -- recalcular_velocidade_contato()       7f00c496551ff1d3fbd5b7a57c90ff83
+-- registrar_volta_campanha(jsonb)       c4cf1a145e18c2a69ae5be39e81fddd5
 SELECT valor FROM public.distribuicao_settings
  WHERE chave = 'presenca_loja_exige_localizacao';  -- true (se for false, o deploy RELIGA: falar com o dono)
 SELECT jobid, schedule, command FROM cron.job
  WHERE jobname = 'recalcular-velocidade-contato';  -- 45 | 7 * * * * | SELECT public.recalcular_velocidade_contato();
 ```
 
-**Ordem do deploy: a `0080` antes do front (ou junto).** O front novo manda
-`_falha_localizacao` ao `presenca_checkin`. Sem a `0080`, o PostgREST responde
+**Ordem do deploy: a `0082` antes do front (ou junto).** O front novo manda
+`_falha_localizacao` ao `presenca_checkin`. Sem a `0082`, o PostgREST responde
 404 `PGRST202` e a tela refaz o mesmo check-in sem o parâmetro — nada quebra,
 mas cada falha de GPS custa duas chamadas e o porquê não é gravado, e os
-textos sobre o reforço ficam mais duros que o banco até a `0080` entrar. A
-`0080` é compatível com o front publicado hoje (chamada nomeada de 6
+textos sobre o reforço ficam mais duros que o banco até a `0082` entrar. A
+`0082` é compatível com o front publicado hoje (chamada nomeada de 6
 argumentos funciona na função de 7 com `DEFAULT NULL`; a coluna a mais de
 `presenca_hoje_v1` é ignorada).
 
@@ -592,12 +604,14 @@ argumentos funciona na função de 7 com `DEFAULT NULL`; a coluna a mais de
 -- _dono_ativo(uuid)                     4e1cd9bb3a0ecec9c0118139b72bf93c (igual)
 -- _fallback_velocidade(uuid)            2317edb2460317f7ef4f7f96e5958b23 (igual)
 -- _presenca_status(uuid)                8bcc2f640ef4b0b6576bd50bb1e6045e (+ falha_localizacao)
+-- _reatribuir_se_dono_inativo(uuid)     053bfda34ea69b59268ef055966bef32 (igual)
 -- fallback_velocidade_ranking(uuid)     1179f52d43022ceb19e5fd65a6e36894 (+ [PRESENÇA 12/10])
 -- presenca_checkin(text,text,double precision,double precision,double precision,uuid,text)
 --                                       93374641bcf273b4a6d58d3704ce1fbf (só esta; a de 6 argumentos sumiu)
 -- presenca_hoje_v1()                    58f6fec37be5484903f7d541a82250fb (+ falha_localizacao, precisao_m)
 -- processar_distribuicao_automatica()   700bd6b2163aae1649901b4ba0d5ec82 (igual)
 -- recalcular_velocidade_contato()       7f00c496551ff1d3fbd5b7a57c90ff83 (igual)
+-- registrar_volta_campanha(jsonb)       c4cf1a145e18c2a69ae5be39e81fddd5 (igual)
 SELECT has_table_privilege('authenticated', 'public.corretor_velocidade', 'SELECT');  -- false
 SELECT column_name FROM information_schema.columns
  WHERE table_schema = 'public' AND table_name = 'presenca_checkins'
@@ -606,9 +620,12 @@ SELECT 'precisao_m' = ANY(proargnames) FROM pg_proc
  WHERE oid = 'public.presenca_hoje_v1()'::regprocedure;                             -- true
 ```
 
-Os md5 "depois" foram medidos no harness reconstruído do zero (459
-migrations); tirando os acréscimos da `0080`, o texto de cada função alterada
-dá exatamente o md5 "antes" de produção.
+Os md5 "depois" foram medidos no harness: um banco montado só até a `0081`
+(md5 iguais aos de produção), com os grants padrão da plataforma em
+`corretor_velocidade` e a exigência ligada, como em produção, e a `0082`
+aplicada por cima (duas vezes: é idempotente). Tirando os acréscimos da
+`0082`, o texto de cada função alterada dá exatamente o md5 "antes" de
+produção.
 
 ## 7. Conferências do dia a dia
 
@@ -672,9 +689,14 @@ com a meta) e libera todas as filas em que o corretor está. Ver
 
 ## 8c. Fallback por velocidade (12/10/2026)
 
-Migration `supabase/migrations/20261019120000_presenca_exigida_fallback_velocidade.sql`
-(espelho `drizzle/migrations/0080_presenca_exigida_fallback_velocidade.sql`).
-Testes: `tests/db/fallback-velocidade.test.ts`.
+O fallback em si: migration `supabase/migrations/20261019120000_fallback_velocidade_distribuicao.sql`
+(drizzle `0080`, #284) e, para o cliente que volta com o dono inativo,
+`20261020120000_volta_dono_inativo.sql` (drizzle `0081`, #286). As regras de
+presença (D4, D5, o destrave) e o diagnóstico do GPS:
+`supabase/migrations/20261021120000_presenca_exigida_fallback_velocidade.sql`
+(drizzle `0082`). Testes: `tests/db/fallback-velocidade.test.ts` (o fallback),
+`tests/db/registro-mae-campanha.test.ts` (a volta) e
+`tests/db/presenca-fallback-velocidade.test.ts` (a presença).
 
 ### O que faz
 
@@ -730,7 +752,7 @@ Lead nunca contatado conta como falha.
 
 ### Presença no fallback: quem entra e quem fica fora (decisões 4 e 5)
 
-Decisões do dono (12/10/2026), na `0080` (bloco `[PRESENÇA 12/10]` de
+Decisões do dono (12/10/2026), na `0082` (bloco `[PRESENÇA 12/10]` de
 `fallback_velocidade_ranking`):
 
 - **Decisão 5 — só com check-in de hoje ainda aberto.** Entra quem tem o
@@ -765,7 +787,7 @@ falta de check-in. Com o check-in obrigatório e a localização barrando,
 "ausente" passou a esconder três situações: quem não disse onde está, quem
 disse e encerrou (ou a gestão desligou), e quem disse uma filial e o GPS
 desmentiu. Do jeito que entrou em produção, o reforço pegava as três; e a
-primeira versão da `0080`, que só tirava o barrado, invertia o incentivo:
+primeira versão da `0082`, que só tirava o barrado, invertia o incentivo:
 quem nunca disse onde está recebia, e quem disse e o GPS falhou, não. Agora **dizer onde está é a condição** para o
 reforço, e **mentir a filial não compensa**: escolher a filial sem estar nela
 custa o reforço do dia, enquanto quem disse "Em casa" desde o início segue
@@ -837,8 +859,9 @@ SELECT dl.created_at AT TIME ZONE 'America/Sao_Paulo' AS hora, p.nome, dl.motivo
 
 Feito por outra conversa do dono, pela ferramenta de banco, ao longo do dia
 (e, às ~15:30, pelo orquestrador desta leva, por decisão do dono). O dono
-confirmou que **fica** (_"sim"_); a `0080` traz para o repositório o que é
-estrutura e configuração do fallback e da presença. Horários de Brasília,
+confirmou que **fica** (_"sim"_). A `0080` e a `0081` (#284 e #286, da outra
+conversa) trazem para o repositório o fallback e a volta pela campanha; a
+`0082` registra a exigência de localização. Horários de Brasília,
 pelos registros do banco (`updated_at` das chaves, `audit_log`,
 `distribution_log`, `cron.job` e, onde não há carimbo, o `xmin` dos
 catálogos comparado com linhas de horário conhecido):
@@ -858,7 +881,7 @@ catálogos comparado com linhas de horário conhecido):
 | ~15:27      | `_fallback_velocidade` passa a aceitar também lead com **dono inativo/bloqueado** (função nova `_dono_ativo`); na mesma transação, `_reatribuir_se_dono_inativo` (nova) e `registrar_volta_campanha` (o dono inativo nunca é devolvido na volta pela campanha); sem `audit_log` |
 | ~15:30      | Cron `restaurar-presenca-casa-1310` movido para `0 3 13 10 *` (UTC) = **00:00 BRT de 13/10**, junto do reset diário — decisão do dono (§5)                                                                                                                                      |
 
-O que a `0080` **não** registra, de propósito:
+O que nenhuma das três registra, de propósito:
 
 - o mínimo em 0 (é só de 12/10; o cron one-shot cuida da volta a 3 —
   registrar 0 reabriria a casa em qualquer ambiente novo);
@@ -868,12 +891,9 @@ O que a `0080` **não** registra, de propósito:
   dado, não estrutura. **Pendência:** decidir quando apagar
   `projetos_backup_20261012` (é segura enquanto existir: RLS e sem grant para
   a API);
-- **`_reatribuir_se_dono_inativo` e `registrar_volta_campanha`** (~15:27):
-  não são do fallback. **Pendência:** uma migration própria, com testes (a
-  `registrar_volta_campanha` do repositório, da `20261010120400`, é a de
-  antes). Até lá, o deploy da `0080` não as toca — produção fica como está.
-  A `0080` traz só o que o fallback precisa: `_fallback_velocidade` verbatim
-  e `_dono_ativo`, de que ela depende.
+- ~~`_reatribuir_se_dono_inativo` e `registrar_volta_campanha`~~ (~15:27):
+  resolvido — vieram na `0081` (#286), com testes em
+  `tests/db/registro-mae-campanha.test.ts`, iguais à produção.
 
 **Correção de registro.** A regra a mais de `_em_atendimento_classificar` em
 produção (`WHEN m.status IN ('qualificacao_corretor','qualificado') THEN

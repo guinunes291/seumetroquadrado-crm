@@ -526,7 +526,7 @@ describe("quadro da gestão", () => {
     expect(within(duda).queryByText("fora do reforço hoje")).toBeNull();
   });
 
-  it("com a precisão na linha (presenca_hoje_v1 desde a 0080): localização por Wi-Fi/IP não vira 'a 8 km da filial'", async () => {
+  it("com a precisão na linha (presenca_hoje_v1 desde a 0082): localização por Wi-Fi/IP não vira 'a 8 km da filial'", async () => {
     const hoje = [
       linha({
         nome: "Edu",

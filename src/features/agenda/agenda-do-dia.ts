@@ -14,7 +14,7 @@ import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Database } from "@/integrations/supabase/types";
 import type { InteresseVisita, ObjecaoVisita } from "@/features/visitas/resultado-visita";
-import { TIPO_LABEL, type Agendamento } from "./types";
+import { STATUS_LABEL, TIPO_LABEL, type Agendamento } from "./types";
 
 /** Lead embutido no agendamento (join `lead:leads(...)`). null = compromisso sem lead. */
 export type LeadDaAgenda = {
@@ -136,7 +136,10 @@ const TIPOS_COM_CLIENTE: ReadonlyArray<ItemAgendaDia["tipo"]> = ["visita", "reun
  * - validar (realizada / não compareceu): visita com lead que já começou;
  * - remarcar: qualquer compromisso ainda aberto.
  */
-export function acoesDisponiveis(item: ItemAgendaDia, agora: Date = new Date()): AcaoAgenda[] {
+export function acoesDisponiveis(
+  item: Pick<ItemAgendaDia, "status" | "lead_id" | "tipo" | "data_inicio">,
+  agora: Date = new Date(),
+): AcaoAgenda[] {
   if (!estaAberto(item)) return [];
   const out: AcaoAgenda[] = [];
   const iniciou = Date.parse(item.data_inicio) <= agora.getTime();
@@ -417,3 +420,97 @@ export function vazioDoEscopo(tipo: TipoEscopoAgenda): string {
 /** Listas secundárias (pendências e amanhã) cortam aqui; o resto vai para a
  *  agenda completa. Na operação inteira a prévia de amanhã passa de 10 linhas. */
 export const LIMITE_LISTA_SECUNDARIA = 10;
+
+// ---------------------------------------------------------------------------
+// A Agenda no padrão Lançamento (2026-10): o cartão "Hoje" mostra o estado de
+// cada compromisso e UMA ação visível; a grade e a lista usam o mesmo estado.
+// Só leitura do que acoesDisponiveis/aguardaValidacao já decidem — nenhuma
+// regra nova.
+// ---------------------------------------------------------------------------
+
+type CompromissoBase = Pick<
+  ItemAgendaDia,
+  "status" | "lead_id" | "tipo" | "data_inicio" | "data_fim"
+>;
+
+export type IntentDoEstado = "success" | "warning" | "neutral";
+
+/**
+ * "confirmada" / "sem confirmação" / "validar" — a mesma régua da lateral da
+ * Fila (AgendaDeHoje). Agendado sem nada a cobrar não ganha selo; encerrados
+ * (realizado, não compareceu, remarcado, cancelado) ficam em cinza.
+ */
+export function estadoDoCompromisso(
+  item: CompromissoBase,
+  agora: Date = new Date(),
+): { rotulo: string; intent: IntentDoEstado } | null {
+  if (item.status === "agendado") {
+    if (aguardaValidacao(item, agora)) return { rotulo: "validar", intent: "warning" };
+    if (acoesDisponiveis(item, agora).includes("confirmar")) {
+      return { rotulo: "sem confirmação", intent: "warning" };
+    }
+    return null;
+  }
+  if (item.status === "confirmado") return { rotulo: "confirmada", intent: "success" };
+  return { rotulo: (STATUS_LABEL[item.status] ?? item.status).toLowerCase(), intent: "neutral" };
+}
+
+export type AcaoPrincipal = "validar" | "confirmar" | "ligar" | "remarcar";
+
+/**
+ * A ação visível da linha (as outras moram no "…"): validar a visita que já
+ * começou → confirmar a que ainda vai acontecer → ligar, quando o compromisso
+ * É uma ligação → remarcar o que segue aberto. Encerrado não tem ação.
+ */
+export function acaoPrincipal(item: ItemAgendaDia, agora: Date = new Date()): AcaoPrincipal | null {
+  const acoes = acoesDisponiveis(item, agora);
+  if (acoes.includes("validar")) return "validar";
+  if (acoes.includes("confirmar")) return "confirmar";
+  if (item.tipo === "ligacao" && estaAberto(item) && !!item.lead?.telefone) return "ligar";
+  if (acoes.includes("remarcar")) return "remarcar";
+  return null;
+}
+
+/** O ponto do compromisso na grade e na legenda: a validar acende; encerrado
+ *  fica cinza; visita em navy; os demais tipos em neutro. */
+export type PontoDoCompromisso = "validar" | "encerrado" | "visita" | "outro";
+
+export function pontoDoCompromisso(
+  item: CompromissoBase,
+  agora: Date = new Date(),
+): PontoDoCompromisso {
+  if (aguardaValidacao(item, agora)) return "validar";
+  if (!estaAberto(item)) return "encerrado";
+  return item.tipo === "visita" ? "visita" : "outro";
+}
+
+/** O recorte do filtro "Corretor" da gestão aplicado ao dia (pendentes, hoje,
+ *  amanhã) — o mesmo filtro que a grade usa, só que no cliente. */
+export function recortarPorCorretor(
+  cls: AgendaClassificada,
+  corretorId: string | null,
+): AgendaClassificada {
+  if (!corretorId) return cls;
+  const doCorretor = (i: ItemAgendaDia) => i.corretor_id === corretorId;
+  return {
+    pendentes: cls.pendentes.filter(doCorretor),
+    hoje: cls.hoje.filter(doCorretor),
+    amanha: cls.amanha.filter(doCorretor),
+  };
+}
+
+/** "há 40 min" | "há 1 h 40" | "há 3 h" — quanto tempo a visita passou sem desfecho. */
+export function passouHa(iso: string, agora: Date = new Date()): string {
+  const min = Math.max(0, Math.floor((agora.getTime() - Date.parse(iso)) / 60_000));
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  const resto = min % 60;
+  return resto === 0 ? `há ${h} h` : `há ${h} h ${String(resto).padStart(2, "0")}`;
+}
+
+/** "Carlos Mendes" → "Carlos M." — o rótulo que cabe numa célula da grade. */
+export function nomeCurto(nome: string | null | undefined): string {
+  const partes = (nome ?? "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length <= 1) return partes[0] ?? "";
+  return `${partes[0]} ${partes[partes.length - 1][0]}.`;
+}

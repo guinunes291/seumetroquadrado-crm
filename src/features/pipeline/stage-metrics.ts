@@ -64,3 +64,57 @@ export function formatVgvCompact(vgv: number | null): string | null {
   }
   return `R$ ${Math.round(vgv).toLocaleString("pt-BR")}`;
 }
+
+export type SinaisSnapshotRow = {
+  etapa: string;
+  quantidade: number | string;
+  followups_vencidos?: number | string | null;
+  sem_proxima_acao?: number | string | null;
+  parados_ha_7_dias?: number | string | null;
+};
+
+/** Um sinal do funil somado nas colunas: o total e a etapa que mais o tem. */
+export type SinalDoFunil = {
+  total: number;
+  /** Etapa com mais leads nesse sinal (null quando zerado). */
+  maiorEtapa: string | null;
+  /** Quantos estão nessa etapa. */
+  naMaiorEtapa: number;
+};
+
+export type SinaisDoFunil = {
+  /** Leads nas colunas somadas. */
+  leads: number;
+  vencidos: SinalDoFunil;
+  semAcao: SinalDoFunil;
+  parados: SinalDoFunil;
+};
+
+/**
+ * Os números do topo do Kanban: soma dos sinais que o snapshot já traz por
+ * etapa (follow-ups vencidos, sem próxima ação, parados 7+ dias) — os mesmos
+ * da linha de cada coluna, sem consulta nova. `rows` são só as colunas
+ * visíveis (a fase recorta o topo como recorta o quadro).
+ */
+export function somarSinaisDoFunil(rows: readonly SinaisSnapshotRow[]): SinaisDoFunil {
+  const sinal = (campo: "followups_vencidos" | "sem_proxima_acao" | "parados_ha_7_dias") => {
+    let total = 0;
+    let maiorEtapa: string | null = null;
+    let naMaiorEtapa = 0;
+    rows.forEach((row) => {
+      const n = Number(row[campo] ?? 0) || 0;
+      total += n;
+      if (n > naMaiorEtapa) {
+        naMaiorEtapa = n;
+        maiorEtapa = row.etapa;
+      }
+    });
+    return { total, maiorEtapa, naMaiorEtapa };
+  };
+  return {
+    leads: rows.reduce((soma, row) => soma + (Number(row.quantidade) || 0), 0),
+    vencidos: sinal("followups_vencidos"),
+    semAcao: sinal("sem_proxima_acao"),
+    parados: sinal("parados_ha_7_dias"),
+  };
+}

@@ -5,6 +5,9 @@
 // amanhã — e, em cada linha, o que o corretor precisa fazer sem trocar de
 // aba: ligar / WhatsApp / rota, confirmar, validar (realizada ou não veio) e
 // remarcar. Regras em agenda-do-dia.ts; escrita em use-agenda-do-dia.ts.
+// Ligar (decisão do dono, 12/10/2026): pelo useLigarLead — disca no 3C Plus
+// quando o corretor tem a integração e cai no tel: do aparelho sem ela, o
+// mesmo da Fila Única e da página Agenda.
 
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
@@ -31,6 +34,7 @@ import {
 } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,6 +81,7 @@ export function AgendaDoDiaCard() {
   const mostrarCorretor = tipoEscopo !== "minha";
   const acoes = useAcoesAgenda();
   const criar = useCriarAgendamento();
+  const { ligar, discando } = useLigarLead();
 
   const [validando, setValidando] = useState<{ item: ItemAgendaDia; desfecho: Desfecho } | null>(
     null,
@@ -129,6 +134,12 @@ export function AgendaDoDiaCard() {
     onConfirmar: (item: ItemAgendaDia) => acoes.confirmar.mutate(item),
     onValidar: (item: ItemAgendaDia, desfecho: Desfecho) => setValidando({ item, desfecho }),
     onRemarcar: (item: ItemAgendaDia) => setRemarcando(item),
+    ligando: discando,
+    onLigar: (item: ItemAgendaDia) => {
+      if (item.lead) {
+        ligar({ id: item.lead.id, nome: item.lead.nome, telefone: item.lead.telefone });
+      }
+    },
   };
 
   if (!user) return null;
@@ -382,6 +393,8 @@ function Linha({
   onConfirmar,
   onValidar,
   onRemarcar,
+  ligando,
+  onLigar,
 }: {
   item: ItemAgendaDia;
   agora: Date;
@@ -392,6 +405,9 @@ function Linha({
   onConfirmar: (item: ItemAgendaDia) => void;
   onValidar: (item: ItemAgendaDia, desfecho: Desfecho) => void;
   onRemarcar: (item: ItemAgendaDia) => void;
+  /** Uma ligação pelo 3C Plus já está sendo pedida. */
+  ligando: boolean;
+  onLigar: (item: ItemAgendaDia) => void;
 }) {
   const acoes = acoesDisponiveis(item, agora);
   const aberto = estaAberto(item);
@@ -457,10 +473,19 @@ function Linha({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-          {tel && (
-            <AtalhoIcone href={`tel:${tel}`} label="Ligar">
+          {tel && item.lead && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              aria-label="Ligar"
+              title="Ligar"
+              disabled={ligando}
+              onClick={() => onLigar(item)}
+            >
               <Phone className="h-4 w-4" />
-            </AtalhoIcone>
+            </Button>
           )}
           {whatsapp && (
             <AtalhoIcone href={whatsapp} label="WhatsApp" externo>

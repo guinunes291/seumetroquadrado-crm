@@ -733,7 +733,7 @@ describe("depois do check-in", () => {
     expect(motivo).toHaveTextContent(
       "Ajustes → Privacidade e Segurança → Serviços de Localização → Sites do Safari",
     );
-    // Sem coordenada — e, desde a 0080, o porquê vai junto.
+    // Sem coordenada — e, desde a 0082, o porquê vai junto.
     expect(chamadasCheckin()[0]).toMatchObject({
       _modo: "loja",
       _filial: "belem",
@@ -804,7 +804,7 @@ describe("depois do check-in", () => {
     ).toBeTruthy();
   });
 
-  it("banco ainda sem a 0080 (sem _falha_localizacao): refaz o mesmo check-in sem o porquê", async () => {
+  it("banco ainda sem a 0082 (sem _falha_localizacao): refaz o mesmo check-in sem o porquê", async () => {
     geolocalizacao(negada);
     estado.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
       if (fn === "presenca_minha_v1") return { data: banco.atual, error: null };

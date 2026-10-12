@@ -3363,6 +3363,54 @@ export type Database = {
           },
         ]
       }
+      corretor_velocidade: {
+        Row: {
+          atualizado_em: string
+          contatados: number
+          contatados_15min: number
+          corretor_id: string
+          pct_15min: number
+          pct_contato: number
+          recebidos: number
+          score: number
+        }
+        Insert: {
+          atualizado_em?: string
+          contatados: number
+          contatados_15min: number
+          corretor_id: string
+          pct_15min: number
+          pct_contato: number
+          recebidos: number
+          score: number
+        }
+        Update: {
+          atualizado_em?: string
+          contatados?: number
+          contatados_15min?: number
+          corretor_id?: string
+          pct_15min?: number
+          pct_contato?: number
+          recebidos?: number
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corretor_velocidade_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corretor_velocidade_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: true
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
       devolucao_log: {
         Row: {
           aplicado: boolean
@@ -7078,6 +7126,177 @@ export type Database = {
         }
         Relationships: []
       }
+      projetos_backup_20261012: {
+        Row: {
+          ano_entrega: number | null
+          argumentos_venda: string[] | null
+          ativo: boolean | null
+          backup_em: string | null
+          bairro: string | null
+          book_url: string | null
+          capa_url: string | null
+          cidade: string | null
+          construtora: string | null
+          created_at: string | null
+          criado_por: string | null
+          deleted_at: string | null
+          diferenciais: string[] | null
+          disponibilidade_resumo: string | null
+          dorms_max: number | null
+          dorms_min: number | null
+          endereco: string | null
+          entrega_status: string | null
+          fonte: string | null
+          galeria_urls: string[] | null
+          id: string | null
+          lat: number | null
+          lng: number | null
+          logradouro: string | null
+          mes_entrega: number | null
+          metragem_max: number | null
+          metragem_min: number | null
+          nome: string | null
+          numero: string | null
+          observacoes: string | null
+          percentual_comissao: number | null
+          perfil_ideal: string | null
+          plantas: Json | null
+          preco_a_partir: number | null
+          preco_atualizado_em: string | null
+          preco_inicial: string | null
+          regiao: string | null
+          renda_minima: number | null
+          slug: string | null
+          sob_consulta: boolean | null
+          status_entrega: string | null
+          status_preco: string | null
+          suites: number | null
+          tabela_atualizada_em: string | null
+          tabela_precos_url: string | null
+          tipo_extra: string | null
+          tipologia: string | null
+          updated_at: string | null
+          vagas: string | null
+          vagas_max: number | null
+          vagas_min: number | null
+          vagas_observacao: string | null
+          webhook_token: string | null
+          zona_smq: string | null
+        }
+        Insert: {
+          ano_entrega?: number | null
+          argumentos_venda?: string[] | null
+          ativo?: boolean | null
+          backup_em?: string | null
+          bairro?: string | null
+          book_url?: string | null
+          capa_url?: string | null
+          cidade?: string | null
+          construtora?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          deleted_at?: string | null
+          diferenciais?: string[] | null
+          disponibilidade_resumo?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
+          endereco?: string | null
+          entrega_status?: string | null
+          fonte?: string | null
+          galeria_urls?: string[] | null
+          id?: string | null
+          lat?: number | null
+          lng?: number | null
+          logradouro?: string | null
+          mes_entrega?: number | null
+          metragem_max?: number | null
+          metragem_min?: number | null
+          nome?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          percentual_comissao?: number | null
+          perfil_ideal?: string | null
+          plantas?: Json | null
+          preco_a_partir?: number | null
+          preco_atualizado_em?: string | null
+          preco_inicial?: string | null
+          regiao?: string | null
+          renda_minima?: number | null
+          slug?: string | null
+          sob_consulta?: boolean | null
+          status_entrega?: string | null
+          status_preco?: string | null
+          suites?: number | null
+          tabela_atualizada_em?: string | null
+          tabela_precos_url?: string | null
+          tipo_extra?: string | null
+          tipologia?: string | null
+          updated_at?: string | null
+          vagas?: string | null
+          vagas_max?: number | null
+          vagas_min?: number | null
+          vagas_observacao?: string | null
+          webhook_token?: string | null
+          zona_smq?: string | null
+        }
+        Update: {
+          ano_entrega?: number | null
+          argumentos_venda?: string[] | null
+          ativo?: boolean | null
+          backup_em?: string | null
+          bairro?: string | null
+          book_url?: string | null
+          capa_url?: string | null
+          cidade?: string | null
+          construtora?: string | null
+          created_at?: string | null
+          criado_por?: string | null
+          deleted_at?: string | null
+          diferenciais?: string[] | null
+          disponibilidade_resumo?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
+          endereco?: string | null
+          entrega_status?: string | null
+          fonte?: string | null
+          galeria_urls?: string[] | null
+          id?: string | null
+          lat?: number | null
+          lng?: number | null
+          logradouro?: string | null
+          mes_entrega?: number | null
+          metragem_max?: number | null
+          metragem_min?: number | null
+          nome?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          percentual_comissao?: number | null
+          perfil_ideal?: string | null
+          plantas?: Json | null
+          preco_a_partir?: number | null
+          preco_atualizado_em?: string | null
+          preco_inicial?: string | null
+          regiao?: string | null
+          renda_minima?: number | null
+          slug?: string | null
+          sob_consulta?: boolean | null
+          status_entrega?: string | null
+          status_preco?: string | null
+          suites?: number | null
+          tabela_atualizada_em?: string | null
+          tabela_precos_url?: string | null
+          tipo_extra?: string | null
+          tipologia?: string | null
+          updated_at?: string | null
+          vagas?: string | null
+          vagas_max?: number | null
+          vagas_min?: number | null
+          vagas_observacao?: string | null
+          webhook_token?: string | null
+          zona_smq?: string | null
+        }
+        Relationships: []
+      }
       projetos_metragem_backup_20260902: {
         Row: {
           corrigido_em: string
@@ -7901,6 +8120,7 @@ export type Database = {
           descricao: string | null
           equipe_fixa: boolean
           exigir_presenca: boolean
+          filial_id: string | null
           horario_fim: string | null
           horario_inicio: string | null
           id: string
@@ -7930,6 +8150,7 @@ export type Database = {
           descricao?: string | null
           equipe_fixa?: boolean
           exigir_presenca?: boolean
+          filial_id?: string | null
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
@@ -7959,6 +8180,7 @@ export type Database = {
           descricao?: string | null
           equipe_fixa?: boolean
           exigir_presenca?: boolean
+          filial_id?: string | null
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
@@ -7981,6 +8203,13 @@ export type Database = {
           webhook_token?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "roletas_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roletas_projeto_id_fkey"
             columns: ["projeto_id"]
@@ -9787,16 +10016,19 @@ export type Database = {
         Row: {
           criado_em: string
           roleta_slug: string
+          ultimo_lead_em: string | null
           zona: string
         }
         Insert: {
           criado_em?: string
           roleta_slug: string
+          ultimo_lead_em?: string | null
           zona: string
         }
         Update: {
           criado_em?: string
           roleta_slug?: string
+          ultimo_lead_em?: string | null
           zona?: string
         }
         Relationships: [
@@ -10794,7 +11026,28 @@ export type Database = {
         Args: { _lead_id: string; _tentativas: number }
         Returns: undefined
       }
+      _fallback_velocidade: { Args: { _lead_id: string }; Returns: Json }
+      _fila_swrr: {
+        Args: {
+          _correntes: number[]
+          _desempate_move: boolean
+          _ids: string[]
+          _pesos: number[]
+        }
+        Returns: {
+          corretor_id: string
+          posicao: number
+        }[]
+      }
+      _filial_unir_participantes: {
+        Args: { _destino: string; _motivo: string; _origens: string[] }
+        Returns: number
+      }
       _gestao_escopo: { Args: never; Returns: Record<string, unknown> }
+      _lead_liberado_por_campanha: {
+        Args: { _corretor: string; _roleta_slug: string }
+        Returns: boolean
+      }
       _lead_venda_viva: { Args: { _lead: string }; Returns: boolean }
       _meu_funil_coorte: {
         Args: { _corretores: string[]; _fim: string; _ini: string }
@@ -11009,7 +11262,37 @@ export type Database = {
         }
         Returns: string
       }
+      _roleta_atende_zona: {
+        Args: { _slug: string; _zona: string }
+        Returns: boolean
+      }
+      _roleta_fila_mecanica: {
+        Args: { _regua?: string; _slug: string }
+        Returns: string
+      }
+      _roleta_fila_prevista: {
+        Args: {
+          _cabecas?: Json
+          _elig_pronta?: Json
+          _regua?: string
+          _slug: string
+          _zona?: string
+        }
+        Returns: {
+          apto: boolean
+          corretor_id: string
+          motivos: string[]
+          nome: string
+          posicao: number
+          vez_em: string
+        }[]
+      }
+      _roleta_fora_do_horario: { Args: { _slug: string }; Returns: boolean }
       _roleta_pronta: { Args: { _slug: string }; Returns: boolean }
+      _roleta_pronta_para_lead: {
+        Args: { _slug: string; _tentaram: string[] }
+        Returns: boolean
+      }
       _roleta_sdr_bool: {
         Args: { _chave: string; _padrao: boolean }
         Returns: boolean
@@ -11049,6 +11332,19 @@ export type Database = {
           _visitas: number
         }
         Returns: string
+      }
+      _roleta_tem_time: { Args: { _slug: string }; Returns: boolean }
+      _roletas_da_zona: {
+        Args: { _zona: string }
+        Returns: {
+          da_vez: boolean
+          filial_nome: string
+          filial_slug: string
+          nome: string
+          ordem: number
+          pronta: boolean
+          roleta_slug: string
+        }[]
       }
       _rotulo_zona: { Args: { _zona: string }; Returns: string }
       _sdr_agenda_conflita: {
@@ -11112,6 +11408,38 @@ export type Database = {
         Returns: undefined
       }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
+      _vez_unica_ativa: { Args: never; Returns: boolean }
+      _vez_unica_cabecas: {
+        Args: { _ate_unidade?: string; _familia: string }
+        Returns: {
+          corretor_id: string
+          forcado: boolean
+          ordem: number
+          rotulo: string
+          unidade: string
+        }[]
+      }
+      _vez_unica_cabecas_json: {
+        Args: { _ate_unidade?: string; _familia: string }
+        Returns: Json
+      }
+      _vez_unica_tomados: {
+        Args: { _familia: string; _unidade: string }
+        Returns: {
+          corretor_id: string
+          vez_em: string
+        }[]
+      }
+      _vez_unica_unidades: {
+        Args: { _familia: string }
+        Returns: {
+          ordem: number
+          roleta_slug: string
+          rotulo: string
+          unidade: string
+          zona: string
+        }[]
+      }
       _wip_corretor: { Args: { _corretor_id: string }; Returns: number }
       _zona_chave: { Args: { _txt: string }; Returns: string }
       _zona_destravar_espera: { Args: { _corretor: string }; Returns: number }
@@ -11548,8 +11876,10 @@ export type Database = {
           _ativo?: boolean
           _equipe_fixa?: boolean
           _exigir_presenca?: boolean
+          _filial_slug?: string
           _horario_fim?: string
           _horario_inicio?: string
+          _limpar_filial?: boolean
           _limpar_projeto?: boolean
           _permitir_fora_horario?: boolean
           _projeto_id?: string
@@ -12136,6 +12466,7 @@ export type Database = {
       criar_roleta_campanha: {
         Args: {
           _equipe_fixa?: boolean
+          _filial_slug?: string
           _nome: string
           _projeto_id?: string
           _slug?: string
@@ -12670,6 +13001,18 @@ export type Database = {
       }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       faixa_mcmv_norm: { Args: { _v: string }; Returns: string }
+      fallback_velocidade_ranking: {
+        Args: { _lead_id: string }
+        Returns: {
+          corretor_id: string
+          min_desde_ultima_acao: number
+          nome: string
+          pct_15min: number
+          recebidos_14d: number
+          roleta_ok: string
+          score: number
+        }[]
+      }
       fechamento_sinais_v1: { Args: { _limit?: number }; Returns: Json }
       fila_equipe_v1: {
         Args: never
@@ -13458,6 +13801,7 @@ export type Database = {
       meu_funil_estagio: { Args: { _status: string }; Returns: number }
       meu_funil_estudo: { Args: { _dias?: number }; Returns: Json }
       minha_elegibilidade: { Args: never; Returns: Json }
+      minhas_posicoes_roletas_v1: { Args: never; Returns: Json }
       motivo_perda_sem_retrabalho: {
         Args: { _motivo: string }
         Returns: boolean
@@ -13696,6 +14040,7 @@ export type Database = {
         Returns: number
       }
       recalcular_tiers_todas: { Args: { _gatilho?: string }; Returns: number }
+      recalcular_velocidade_contato: { Args: never; Returns: number }
       reconciliar_atividades_diarias: {
         Args: { _desde?: string }
         Returns: number
@@ -13897,6 +14242,7 @@ export type Database = {
           visitas: number
         }[]
       }
+      roletas_filas_zona_v1: { Args: { _zona?: string }; Returns: Json }
       salvar_modo_visita: {
         Args: {
           p_agendamento_id: string

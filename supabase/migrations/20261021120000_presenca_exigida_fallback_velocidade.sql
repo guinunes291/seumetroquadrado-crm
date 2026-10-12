@@ -1,48 +1,36 @@
 -- =============================================================================
--- Presença exigida e fallback por velocidade — o que entrou direto em
--- produção em 12/10/2026 vem para o repositório; o fallback passa a exigir o
--- check-in de hoje (e deixa de fora quem a localização barrou); o check-in
--- guarda por que o celular não deu a localização
+-- Presença exigida no fallback por velocidade, localização que barra e o
+-- diagnóstico do GPS no check-in
 -- =============================================================================
+-- Vem depois da 0080 (fallback por velocidade, #284) e da 0081 (volta pela
+-- campanha, #286), que versionaram o que a outra conversa do dono aplicou
+-- direto em produção em 12/10/2026. Conferido às 17:26 BRT de 12/10: um banco
+-- montado só até a 0081 tem o MESMO md5 de produção nas dez funções que
+-- importam aqui (recalcular_velocidade_contato, _dono_ativo,
+-- fallback_velocidade_ranking, _fallback_velocidade,
+-- processar_distribuicao_automatica, _reatribuir_se_dono_inativo,
+-- registrar_volta_campanha, presenca_checkin, _presenca_status e
+-- presenca_hoje_v1). Esta migration muda só o que o dono decidiu à tarde.
+--
 -- Decisões do dono (12/10/2026), literais:
 --
---   1. "sim" — as mudanças feitas DIRETO em produção hoje (outra conversa
---      dele, pela ferramenta de banco) FICAM. Nada disso estava no
---      repositório; esta migration traz, sem mudar uma linha:
---        * a tabela corretor_velocidade e recalcular_velocidade_contato(): a
---          velocidade REAL de primeiro contato de cada corretor (WhatsApp ou
---          ligação de saída dele mesmo, em até 15 min úteis), recalculada de
---          hora em hora pelo cron 'recalcular-velocidade-contato' (7 * * * *);
---        * _fallback_velocidade(): roleta sem ninguém apto → o lead vai para o
---          corretor mais rápido do ranking (seção 4);
---        * processar_distribuicao_automatica() reescrita: só reprocessa lead
---          dos últimos 7 dias, o mais novo primeiro, e chama o fallback;
---        * _dono_ativo(), de que _fallback_velocidade depende desde ~15:27;
---        * as chaves fallback_velocidade_ativo (true),
---          fallback_velocidade_atividade_min (30) e velocidade_janela_dias (14).
---      Linha do tempo (BRT): 11:20–12:18 tabela, funções, cron e chaves;
---      14:19 presenca_loja_exige_localizacao = true; 14:50–14:53 as três
---      funções do fallback recriadas só com comentários novos; ~15:27
---      _fallback_velocidade passa a aceitar também lead com dono
---      inativo/bloqueado (_dono_ativo) — na mesma transação entraram
---      _reatribuir_se_dono_inativo() e registrar_volta_campanha() novas, que
---      NÃO são do fallback e ficam para uma migration própria (doc §8c).
---      Também de hoje, e que esta migration NÃO toca: o mínimo de vendas para
---      trabalhar em casa (presenca_casa_min_vendas_mes_anterior) foi a 0 só
---      por 12/10; o cron one-shot 'restaurar-presenca-casa-1310' devolve 3 em
---      13/10 às 00:00 BRT ('0 3 13 10 *', junto do reset diário; movido às
---      ~15:30 por decisão do dono) e se desagenda. Registrar 0 aqui reabriria
---      a casa para todos em qualquer ambiente novo; registrar 3 brigaria com o
---      0 que o dono quis hoje em produção. Fica com o cron.
+--   1. "sim" — as mudanças feitas direto em produção hoje ficam (já estão na
+--      0080 e na 0081). Também de hoje, e que esta migration NÃO toca: o
+--      mínimo de vendas para trabalhar em casa
+--      (presenca_casa_min_vendas_mes_anterior) foi a 0 só por 12/10; o cron
+--      one-shot 'restaurar-presenca-casa-1310' devolve 3 em 13/10 às 00:00
+--      BRT ('0 3 13 10 *') e se desagenda. Registrar 0 aqui reabriria a casa
+--      para todos em qualquer ambiente novo; registrar 3 brigaria com o 0 que
+--      o dono quis hoje em produção. Fica com o cron.
 --
 --   2. "checkin obrigatório" — para usar o CRM, quem tem papel corretor faz
 --      o check-in (Barra Funda, Liberdade, Belém ou Em casa). A trava é da
 --      TELA; no banco, sem check-in ele já não recebia de fila nenhuma (0074)
---      e, com a seção 4, também não recebe pelo fallback.
+--      e, com a seção 2, também não recebe pelo fallback.
 --
 --   3. "localização deve barrar caso não esteja na filial" — a chave
 --      presenca_loja_exige_localizacao foi ligada em produção às 14:19 BRT
---      (com linha em audit_log). Aqui ela fica registrada (seção 9). Ligada,
+--      (com linha em audit_log). Aqui ela fica registrada (seção 5). Ligada,
 --      check-in na filial fora do raio ou sem localização grava
 --      apto_roleta = false com motivo 'fora_da_filial' ou 'sem_localizacao'.
 --
@@ -62,11 +50,16 @@
 --   (mesmo liberado, com o mínimo 0) — devolve a roleta normal, que é regra
 --   da presença, não do fallback.
 --
+--   As regras 4 e 5 ficam no ranking, então valem para os dois caminhos que
+--   o usam: o cron (lead novo sem ninguém apto na roleta) e o cliente que
+--   volta pela campanha com o dono inativo (0081: roleta da região → fallback
+--   → sem ninguém, segue com o Marquinhos).
+--
 --   Mantido (09/10): a fila Agendados do SDR não exige presença — e o
 --   fallback não mexe nela (só reprocessa lead sem SDR; o ranking ignora as
 --   roletas 'base' e 'agendados-sdr').
 --
--- Diagnóstico do GPS (seção 7): em produção, 3 de 3 check-ins reais na filial
+-- Diagnóstico do GPS (seção 3): em produção, 3 de 3 check-ins reais na filial
 -- chegaram sem localização, e ninguém sabe por quê — a tela sabe (permissão
 -- negada, GPS indisponível, demorou, navegador sem suporte), mas descartava.
 -- presenca_checkin ganha o parâmetro opcional _falha_localizacao, gravado em
@@ -75,25 +68,18 @@
 -- tempo deixariam o PostgREST sem saber qual chamar. O front publicado, que
 -- chama sem o parâmetro, continua funcionando (o parâmetro tem DEFAULT NULL).
 --
--- Verbatim: recalcular_velocidade_contato, _dono_ativo, _fallback_velocidade e
--- processar_distribuicao_automatica são o pg_get_functiondef de produção
--- relido às 15:32 BRT de 12/10 e conferido de novo às 15:52 (md5 7f00c496…,
--- 4e1cd9bb…, 2317edb2…, 700bd6b2…; os mesmos no harness depois de aplicar).
--- fallback_velocidade_ranking é a de produção (a94e8164…) mais o bloco
--- [PRESENÇA 12/10].
--- presenca_checkin, _presenca_status e presenca_hoje_v1 são as da 0074 (iguais
--- às de produção) com só o acréscimo da falha_localizacao (e, no quadro da
--- gestão, também da precisao_m). ATENÇÃO NO DEPLOY:
--- quem mexer nessas funções direto em produção antes do merge perde a mudança
--- em silêncio — reler os md5 antes de aplicar (doc §6).
+-- De onde vem cada corpo: fallback_velocidade_ranking é a da 0080 (= produção,
+-- md5 a94e8164…) mais o bloco [PRESENÇA 12/10]. presenca_checkin,
+-- _presenca_status e presenca_hoje_v1 são as da 0074 (= produção, md5
+-- 5029000a…, 15e33142…, 8a0b3369…) com só o acréscimo da falha_localizacao
+-- (e, no quadro da gestão, também da precisao_m). ATENÇÃO NO DEPLOY: quem
+-- mexer nessas quatro funções direto em produção antes do merge perde a
+-- mudança em silêncio — reler os md5 antes de aplicar (doc §6).
 --
--- Em produção, aplicar muda: a regra do ranking (itens 4 e 5), a coluna e o
--- parâmetro do diagnóstico, a chave nova no JSON da presença, as duas
--- colunas novas no quadro da gestão e o REVOKE de anon/authenticated em
--- corretor_velocidade (a tabela nasceu com os grants padrão da plataforma;
--- o RLS sem policy já negava a leitura). O resto já está lá e vira no-op.
+-- Também muda em produção: o REVOKE de anon/authenticated em
+-- corretor_velocidade (seção 1).
 --
--- presenca_loja_exige_localizacao: a seção 9 GRAVA true. Se alguém desligar
+-- presenca_loja_exige_localizacao: a seção 5 GRAVA true. Se alguém desligar
 -- a exigência em produção antes desta migration chegar, o deploy a RELIGA
 -- (sem linha em audit_log). Conferir o valor antes de aplicar (doc §6).
 --
@@ -101,144 +87,45 @@
 --   * fallback desligado ............ fallback_velocidade_ativo = false
 --   * localização volta a só informar  presenca_loja_exige_localizacao = false
 --
--- Idempotente. Espelhada em drizzle/migrations/0080.
+-- Idempotente. Espelhada em drizzle/migrations/0082.
 -- =============================================================================
 
--- O ranking lê presenca_checkins (0074) e o fallback entrega pelo motor de
--- 8 argumentos (com _registrar_excecao). Sem eles, a função nasceria
--- quebrada — e, no migrador do Drizzle, que aplica as pendentes numa
--- transação só, levaria as outras junto.
+-- O ranking é o da 0080 e o diagnóstico mexe na presença da 0074. Sem elas,
+-- as funções nasceriam quebradas — e, no migrador do Drizzle, que aplica as
+-- pendentes numa transação só, levariam as outras junto.
 DO $$
 BEGIN
-  IF to_regclass('public.presenca_checkins') IS NULL THEN
-    RAISE EXCEPTION 'fallback por velocidade: aplique antes a 0074 (20261013120000_presenca_por_filial)';
-  END IF;
-  IF to_regprocedure('public._distribuir_lead_v3(uuid, distribuicao_tipo, text, uuid, uuid, text, jsonb, boolean)') IS NULL
-     OR to_regprocedure('public._elegibilidade_roleta(text, uuid)') IS NULL
-     OR to_regprocedure('public._minutos_uteis_entre(timestamptz, timestamptz)') IS NULL
-     OR to_regprocedure('public.triar_e_distribuir_lead(uuid, text)') IS NULL
-     OR to_regprocedure('public.redistribuir_sla_webhook()') IS NULL
-     OR to_regprocedure('public.redistribuir_leads_parados()') IS NULL
-     OR to_regprocedure('public.get_dist_setting(text)') IS NULL
+  IF to_regclass('public.presenca_checkins') IS NULL
      OR to_regprocedure('public._presenca_encerrar_aberto(uuid)') IS NULL
      OR to_regprocedure('public._presenca_aplicar(uuid, boolean)') IS NULL THEN
-    RAISE EXCEPTION 'fallback por velocidade: o motor da distribuição não está na versão esperada';
+    RAISE EXCEPTION 'presença exigida: aplique antes a 0074 (20261013120000_presenca_por_filial)';
+  END IF;
+  IF to_regclass('public.corretor_velocidade') IS NULL
+     OR to_regprocedure('public.fallback_velocidade_ranking(uuid)') IS NULL
+     OR to_regprocedure('public._fallback_velocidade(uuid)') IS NULL
+     OR to_regprocedure('public._elegibilidade_roleta(text, uuid)') IS NULL
+     OR to_regprocedure('public.get_dist_setting(text)') IS NULL THEN
+    RAISE EXCEPTION 'presença exigida: aplique antes a 0080 (20261019120000_fallback_velocidade_distribuicao)';
+  END IF;
+  IF to_regprocedure('public._reatribuir_se_dono_inativo(uuid)') IS NULL THEN
+    RAISE EXCEPTION 'presença exigida: aplique antes a 0081 (20261020120000_volta_dono_inativo)';
   END IF;
 END
 $$;
 
 -- ---------------------------------------------------------------------------
--- 1) corretor_velocidade — a foto da velocidade de cada corretor.
---    Por que tabela, e não cálculo na hora: o ranking roda dentro do cron da
---    distribuição, lead a lead; a janela de 14 dias de distribution_log ×
---    interacoes custaria uma varredura por lead. O cron de hora em hora
---    recalcula a foto inteira.
---    Idêntica à de produção (colunas, NOT NULL, default, PK, FK com CASCADE,
---    comentário). Escrita só por recalcular_velocidade_contato (dona da
---    tabela, SECURITY DEFINER); leitura só pelo ranking. RLS ligado e sem
---    policy: pela API ninguém lê nem escreve — e os grants dizem o mesmo.
+-- 1) corretor_velocidade: só o service_role e o dono das funções.
+--    A tabela nasceu em produção com os grants padrão da plataforma para
+--    anon/authenticated (has_table_privilege('authenticated', …, 'SELECT')
+--    = true em 12/10); o RLS ligado e sem policy já negava a leitura pela
+--    API, mas os grants passam a dizer o mesmo — se alguém um dia criar uma
+--    policy por engano, a velocidade de cada corretor não vaza.
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.corretor_velocidade (
-  corretor_id      uuid        NOT NULL,
-  recebidos        integer     NOT NULL,
-  contatados       integer     NOT NULL,
-  contatados_15min integer     NOT NULL,
-  pct_15min        numeric     NOT NULL,
-  pct_contato      numeric     NOT NULL,
-  score            numeric     NOT NULL,
-  atualizado_em    timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT corretor_velocidade_pkey PRIMARY KEY (corretor_id),
-  CONSTRAINT corretor_velocidade_corretor_id_fkey
-    FOREIGN KEY (corretor_id) REFERENCES public.profiles(id) ON DELETE CASCADE
-);
-
-COMMENT ON TABLE public.corretor_velocidade IS
-  'Velocidade real de primeiro contato por corretor (12/10/2026). Conta só WhatsApp/ligação de saída feitos pelo próprio corretor após receber o lead pela roleta; lead nunca contatado conta como falha. score = taxa em até 15 min úteis suavizada para a média do time (k=10), para quem tem pouca amostra não disparar no topo nem no fim.';
-
-ALTER TABLE public.corretor_velocidade ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.corretor_velocidade FROM PUBLIC, anon, authenticated;
 GRANT ALL ON TABLE public.corretor_velocidade TO service_role;
 
 -- ---------------------------------------------------------------------------
--- 2) recalcular_velocidade_contato() — VERBATIM de produção (12/10/2026;
---    recriada às 14:50 com o mesmo texto). md5 7f00c496551ff1d3fbd5b7a57c90ff83.
---    Janela: velocidade_janela_dias (14), sem as 2 últimas horas (o lead de
---    agora ainda não teve tempo de ser contatado). Conta lead de roleta
---    (automatica/redistribuicao) e o que o próprio fallback entregou.
---    score = 100 × (contatados em 15 min úteis + k × média do time) /
---            (recebidos + k), k = 10.
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.recalcular_velocidade_contato()
- RETURNS integer
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE
-  _janela int := COALESCE((public.get_dist_setting('velocidade_janela_dias') #>> '{}')::int, 14);
-  _k numeric := 10;
-  _media numeric;
-  _n int;
-BEGIN
-  CREATE TEMP TABLE IF NOT EXISTS _vel (corretor_id uuid, recebidos int, contatados int, ate15 int) ON COMMIT DROP;
-  TRUNCATE _vel;
-
-  INSERT INTO _vel
-  WITH base AS (
-    SELECT dl.corretor_id, dl.created_at,
-           (SELECT min(i.ocorreu_em) FROM public.interacoes i
-             WHERE i.lead_id = dl.lead_id AND i.autor_id = dl.corretor_id
-               AND i.deleted_at IS NULL
-               AND i.ocorreu_em >= dl.created_at
-               AND i.direcao::text = 'saida'
-               AND i.tipo::text IN ('whatsapp','ligacao')) AS pc
-      FROM public.distribution_log dl
-     WHERE dl.resultado = 'sucesso'
-       AND dl.corretor_id IS NOT NULL
-       AND (dl.tipo::text IN ('automatica','redistribuicao') OR dl.regra_aplicada = 'fallback_velocidade')
-       AND dl.created_at >= now() - make_interval(days => _janela)
-       AND dl.created_at <  now() - interval '2 hours'
-  )
-  SELECT corretor_id, count(*), count(pc),
-         count(*) FILTER (WHERE pc IS NOT NULL AND public._minutos_uteis_entre(created_at, pc) <= 15)
-    FROM base GROUP BY corretor_id;
-
-  SELECT COALESCE(sum(ate15)::numeric / NULLIF(sum(recebidos), 0), 0) INTO _media FROM _vel;
-
-  DELETE FROM public.corretor_velocidade;
-  INSERT INTO public.corretor_velocidade
-    (corretor_id, recebidos, contatados, contatados_15min, pct_15min, pct_contato, score, atualizado_em)
-  SELECT v.corretor_id, v.recebidos, v.contatados, v.ate15,
-         round(100.0 * v.ate15 / v.recebidos, 1),
-         round(100.0 * v.contatados / v.recebidos, 1),
-         round(100.0 * (v.ate15 + _k * _media) / (v.recebidos + _k), 2),
-         now()
-    FROM _vel v
-    JOIN public.profiles p ON p.id = v.corretor_id;
-  GET DIAGNOSTICS _n = ROW_COUNT;
-  RETURN _n;
-END;
-$function$;
-
--- ---------------------------------------------------------------------------
--- 3) _dono_ativo(corretor) — VERBATIM de produção (12/10/2026, ~15:27).
---    md5 4e1cd9bb3a0ecec9c0118139b72bf93c. Vem aqui porque
---    _fallback_velocidade (seção 5) a chama: corretor com perfil ativo e conta
---    'ativa' (não pendente nem bloqueada).
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public._dono_ativo(_corretor uuid)
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-  SELECT EXISTS (
-    SELECT 1 FROM public.profiles p
-     WHERE p.id = _corretor AND p.ativo AND p.status_conta::text = 'ativa');
-$function$;
-
--- ---------------------------------------------------------------------------
--- 4) fallback_velocidade_ranking(lead) — produção + as regras do dono.
+-- 2) fallback_velocidade_ranking(lead) — a da 0080 + as regras do dono.
 --    Quem entra (produção): corretor ativo, com ação no CRM nos últimos
 --    fallback_velocidade_atividade_min minutos (audit_log ou interação
 --    registrada), participante ativo de alguma roleta ativa que não seja
@@ -356,176 +243,7 @@ AS $function$
 $function$;
 
 -- ---------------------------------------------------------------------------
--- 5) _fallback_velocidade(lead) — VERBATIM de produção (12/10/2026, ~15:27).
---    md5 2317edb2460317f7ef4f7f96e5958b23.
---    Desligado pela chave → 'fallback_desligado'. Só lead sem corretor (ou com
---    dono inativo/bloqueado, para quem o chamar com esse lead), sem SDR, fora
---    da lixeira e que não seja da base. Entrega pelo motor
---    (_distribuir_lead_v3, atribuição direta, sem abrir exceção nova) com
---    forcar_fora_da_zona — com a zona estrita, o mais rápido pode não atender
---    a zona do lead, e o motivo fica escrito — e regrava o log como
---    regra_aplicada = 'fallback_velocidade', com score e minutos desde a
---    última ação.
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public._fallback_velocidade(_lead_id uuid)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE
-  _c record;
-  _res jsonb;
-  _log uuid;
-BEGIN
-  IF NOT COALESCE((public.get_dist_setting('fallback_velocidade_ativo') #>> '{}')::boolean, false) THEN
-    RETURN jsonb_build_object('ok', false, 'motivo', 'fallback_desligado');
-  END IF;
-
-  -- Só lead quente, sem dono ou com dono inativo/bloqueado (12/10/2026).
-  IF NOT EXISTS (SELECT 1 FROM public.leads l
-                  WHERE l.id = _lead_id
-                    AND (l.corretor_id IS NULL OR NOT public._dono_ativo(l.corretor_id))
-                    AND l.sdr_id IS NULL
-                    AND l.deleted_at IS NULL AND NOT l.na_lixeira
-                    AND COALESCE(l.classe_lead, 'quente') <> 'base') THEN
-    RETURN jsonb_build_object('ok', false, 'motivo', 'lead_fora_do_escopo');
-  END IF;
-
-  SELECT * INTO _c FROM public.fallback_velocidade_ranking(_lead_id) LIMIT 1;
-  IF _c.corretor_id IS NULL THEN
-    -- Ninguém ativo: o lead fica com o Marquinhos.
-    RETURN jsonb_build_object('ok', false, 'motivo', 'ninguem_ativo_no_crm');
-  END IF;
-
-  _res := public._distribuir_lead_v3(
-    _lead_id, 'automatica'::public.distribuicao_tipo, NULL, _c.corretor_id, NULL, 'fallback_velocidade',
-    jsonb_build_object(
-      'forcar_fora_da_zona', 'true',
-      'motivo_fora_da_zona', 'Fallback por velocidade: ninguém apto na roleta',
-      'fallback_velocidade', jsonb_build_object(
-        'score', _c.score, 'pct_15min', _c.pct_15min,
-        'min_desde_ultima_acao', _c.min_desde_ultima_acao, 'roleta_ok', _c.roleta_ok)),
-    false);
-
-  IF (_res->>'ok')::boolean THEN
-    SELECT id INTO _log FROM public.distribution_log
-     WHERE lead_id = _lead_id AND corretor_id = _c.corretor_id AND resultado = 'sucesso'
-     ORDER BY created_at DESC LIMIT 1;
-    UPDATE public.distribution_log
-       SET regra_aplicada = 'fallback_velocidade',
-           motivo = 'Fallback por velocidade: ninguém apto na roleta; foi para o mais rápido ativo no CRM ('
-                    || _c.nome || ', ' || _c.pct_15min || '% contatados em até 15 min, última ação há '
-                    || _c.min_desde_ultima_acao || ' min)'
-     WHERE id = _log;
-  END IF;
-  RETURN _res || jsonb_build_object('fallback', 'velocidade', 'score', _c.score);
-END;
-$function$;
-
--- ---------------------------------------------------------------------------
--- 6) processar_distribuicao_automatica() — VERBATIM de produção (12/10/2026).
---    md5 700bd6b2163aae1649901b4ba0d5ec82.
---    Muda em relação a 20261009120300: (a) só reprocessa lead criado nos
---    últimos 7 dias — o mais antigo sem corretor (base, importação) fica com
---    o Marquinhos pelo escalonado da base; (b) o mais novo primeiro; (c) a
---    triagem que falha por falta de apto (sem_corretor_na_zona,
---    sem_corretor_elegivel, sem_corretor_ativo, zona_sem_time) tenta o
---    fallback, num bloco que nunca derruba a rodada; fora do horário da
---    roleta ('fora_do_horario', adiado) não entra: é espera de propósito;
---    (d) o resultado ganha a contagem 'fallback_velocidade'.
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.processar_distribuicao_automatica()
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE
-  _lead_id uuid;
-  _res jsonb;
-  _fb jsonb;
-  _dist int := 0;
-  _falhas int := 0;
-  _fallback int := 0;
-  _sla int := 0;
-  _redist int := 0;
-  _max_tent int := (public.get_dist_setting('reprocesso_max_tentativas') #>> '{}')::int;
-BEGIN
-  -- Rodada manual ("Rodar distribuição" da Central) é de ADMIN. Sem JWT é o
-  -- pg_cron (dono da função) ou service_role — o anon perdeu o EXECUTE abaixo,
-  -- então "auth.uid() nulo" volta a significar só "sistema".
-  IF auth.uid() IS NOT NULL AND NOT public.has_role(auth.uid(), 'admin') THEN
-    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
-  END IF;
-
-  FOR _lead_id IN
-    SELECT l.id FROM public.leads l
-    WHERE l.corretor_id IS NULL
-      AND l.sdr_id IS NULL
-      AND l.status IN ('novo', 'aguardando_atendimento')
-      AND l.deleted_at IS NULL
-      AND l.na_lixeira = false
-      -- [12/10/2026] Só reprocessa lead dos últimos 7 dias. Lead mais antigo sem
-      -- corretor (base, importação) fica com o Marquinhos pelo escalonado da base.
-      AND l.created_at > now() - interval '7 days'
-      AND NOT EXISTS (
-        SELECT 1 FROM public.distribuicao_excecoes e
-        WHERE e.lead_id = l.id
-          AND e.status IN ('pendente','em_analise')
-          AND e.tentativas >= _max_tent
-          AND e.updated_at > now() - interval '30 minutes'
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM public.distribuicao_excecoes e
-        WHERE e.lead_id = l.id
-          AND e.status = 'arquivada'
-          AND e.resolvida_em >= COALESCE(l.data_distribuicao, l.created_at)
-      )
-    ORDER BY l.created_at DESC
-    LIMIT 200
-  LOOP
-    _res := public.triar_e_distribuir_lead(_lead_id, 'cron');
-    IF (_res->>'ok')::boolean THEN
-      _dist := _dist + 1;
-    ELSE
-      -- [FALLBACK VELOCIDADE 12/10/2026] Roleta sem ninguém apto (falta de
-      -- check-in): vai para o mais rápido ativo no CRM nos últimos 30 min.
-      -- Ninguém ativo: o lead fica com o Marquinhos. Fora do horário da
-      -- roleta (adiado) não entra aqui: é espera intencional.
-      IF COALESCE(_res->>'motivo','') IN ('sem_corretor_na_zona','sem_corretor_elegivel','sem_corretor_ativo','zona_sem_time') THEN
-        BEGIN
-          _fb := public._fallback_velocidade(_lead_id);
-          IF (_fb->>'ok')::boolean THEN
-            _fallback := _fallback + 1;
-          ELSE
-            _falhas := _falhas + 1;
-          END IF;
-        EXCEPTION WHEN OTHERS THEN
-          _falhas := _falhas + 1;
-        END;
-      ELSE
-        _falhas := _falhas + 1;
-      END IF;
-    END IF;
-  END LOOP;
-
-  _sla := public.redistribuir_sla_webhook();
-  _redist := public.redistribuir_leads_parados();
-
-  RETURN jsonb_build_object(
-    'distribuidos', _dist,
-    'fallback_velocidade', _fallback,
-    'sem_corretor', _falhas,
-    'repassados_sla', _sla,
-    'redistribuidos', _redist,
-    'em', now()
-  );
-END;
-$function$;
-
--- ---------------------------------------------------------------------------
--- 7) Diagnóstico do GPS: por que a localização não veio.
+-- 3) Diagnóstico do GPS: por que a localização não veio.
 --    A tela já sabe o motivo (GeolocationPositionError: 1 negada, 2
 --    indisponível, 3 tempo; sem navigator.geolocation = sem suporte) e agora
 --    o manda. O banco guarda só quando a localização faltou
@@ -760,23 +478,11 @@ END;
 $function$;
 
 -- ---------------------------------------------------------------------------
--- 8) Permissões, como em produção.
---    As peças do fallback são internas: só o pg_cron (dono) e o
---    service_role. processar_distribuicao_automatica segue como em
---    20261009120300: authenticated mantém o EXECUTE para o botão "Rodar
---    distribuição" da Central (a função recusa quem não é admin na entrada).
---    As de presença, como na 0074.
+-- 4) Permissões, como em produção (o ranking é interno: só o pg_cron e o
+--    service_role; as de presença, como na 0074).
 -- ---------------------------------------------------------------------------
-REVOKE ALL ON FUNCTION public.recalcular_velocidade_contato() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.recalcular_velocidade_contato() TO service_role;
-REVOKE ALL ON FUNCTION public._dono_ativo(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public._dono_ativo(uuid) TO service_role;
 REVOKE ALL ON FUNCTION public.fallback_velocidade_ranking(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.fallback_velocidade_ranking(uuid) TO service_role;
-REVOKE ALL ON FUNCTION public._fallback_velocidade(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public._fallback_velocidade(uuid) TO service_role;
-REVOKE ALL ON FUNCTION public.processar_distribuicao_automatica() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.processar_distribuicao_automatica() TO authenticated, service_role;
 REVOKE ALL ON FUNCTION public.presenca_checkin(text, text, double precision, double precision, double precision, uuid, text)
   FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.presenca_checkin(text, text, double precision, double precision, double precision, uuid, text)
@@ -787,23 +493,11 @@ REVOKE ALL ON FUNCTION public.presenca_hoje_v1() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.presenca_hoje_v1() TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- 9) Chaves (Central de Distribuição → Configurações).
---    As três do fallback com o valor e a descrição de produção; quem já as
---    tem (produção) fica como está. A exigência de localização fica ligada,
---    como o dono decidiu (14:19 BRT): ambiente novo nasce como a produção.
---    Este UPDATE religa a exigência se ela estiver desligada (ver o
---    cabeçalho: conferir antes do deploy).
+-- 5) A exigência de localização fica ligada, como o dono decidiu (14:19 BRT):
+--    ambiente novo nasce como a produção. Este UPDATE religa a exigência se
+--    ela estiver desligada (ver o cabeçalho: conferir antes do deploy).
 --    presenca_casa_min_vendas_mes_anterior não é tocada (ver o cabeçalho).
 -- ---------------------------------------------------------------------------
-INSERT INTO public.distribuicao_settings (chave, valor, descricao) VALUES
-  ('fallback_velocidade_ativo', 'true'::jsonb,
-   'Fallback por velocidade (12/10/2026): sem corretor apto na roleta, o lead vai para o corretor ativo no CRM nos últimos fallback_velocidade_atividade_min minutos com melhor taxa de contato em até 15 min úteis. false = desligado.'),
-  ('fallback_velocidade_atividade_min', '30'::jsonb,
-   'Minutos desde a última ação no CRM (interação registrada ou alteração auditada) para o corretor contar como ativo no fallback por velocidade.'),
-  ('velocidade_janela_dias', '14'::jsonb,
-   'Janela (dias) da métrica de velocidade real de primeiro contato (WhatsApp/ligação do próprio corretor).')
-ON CONFLICT (chave) DO NOTHING;
-
 INSERT INTO public.distribuicao_settings (chave, valor, descricao) VALUES
   ('presenca_loja_exige_localizacao', 'true'::jsonb,
    'Check-in na filial só libera a roleta com a localização do celular dentro do raio da filial (vale para filial com coordenadas cadastradas).')
@@ -813,29 +507,8 @@ ON CONFLICT (chave) DO UPDATE
   WHERE public.distribuicao_settings.valor IS DISTINCT FROM EXCLUDED.valor;
 
 -- ---------------------------------------------------------------------------
--- 10) Cron de hora em hora, no minuto 7 — o de produção. O :00 é dos crons
---     pesados; no minuto 7 roda também o cadencia-encerrar (jobid 34 em
---     produção), que mexe em outras tabelas (cadência), sem disputa de linha.
---     Mesmo nome, horário e comando de produção. Já igual → não reagenda
---     (o jobid de produção fica o mesmo).
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')
-     AND NOT EXISTS (SELECT 1 FROM cron.job
-                      WHERE jobname = 'recalcular-velocidade-contato'
-                        AND schedule = '7 * * * *'
-                        AND command = 'SELECT public.recalcular_velocidade_contato();') THEN
-    PERFORM cron.unschedule(jobname) FROM cron.job WHERE jobname = 'recalcular-velocidade-contato';
-    PERFORM cron.schedule('recalcular-velocidade-contato', '7 * * * *',
-      $cron$SELECT public.recalcular_velocidade_contato();$cron$);
-  END IF;
-END
-$$;
-
--- ---------------------------------------------------------------------------
--- 11) Guarda: tabela, funções, as regras do ranking (com os filtros por dia),
---     o diagnóstico do GPS, a chave e o cron.
+-- 6) Guarda: os grants da tabela, as funções do fallback, as regras do
+--    ranking (com os filtros por dia), o diagnóstico do GPS, a chave e o cron.
 -- ---------------------------------------------------------------------------
 DO $guard$
 BEGIN

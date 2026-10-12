@@ -17,6 +17,7 @@ import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { PageHeader } from "@/components/page-header";
+import { VendoDeOutro } from "@/components/vendo-de-outro";
 import { AvisoViradaRegra65 } from "@/features/em-atendimento/aviso-virada";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -237,8 +238,12 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   // Desfecho de um toque: quem gravou vira "Registrado ✓" no card até a fila
   // se atualizar (o lead sai, ou volta em outro balde e o selo some).
   const [registrados, setRegistrados] = useState<Map<string, string | null>>(() => new Map());
+  // Lead tratado nesta tela (desfecho, WhatsApp) some na hora, sem recarregar.
+  const [tratados, setTratados] = useState<Set<string>>(() => new Set());
+  const esconder = (id: string) => setTratados((s) => new Set(s).add(id));
   const desfecho = useDesfecho({
     onRegistrado: (r) => {
+      esconder(r.leadId);
       setRegistrados((m) => new Map(m).set(r.leadId, r.proximoTexto));
       window.setTimeout(
         () =>
@@ -313,13 +318,15 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
         titulo: `WhatsApp — Fila Única · ${BUCKET_LABEL[item.bucket]}`,
       },
     );
+    esconder(item.lead.id);
+    window.setTimeout(invalidarFila, 1500);
   };
 
   // Agrupa preservando a ordem global (os itens já vêm ordenados por balde).
   const grupos = fila
     ? BUCKET_ORDER.map((b) => ({
         bucket: b,
-        itens: fila.itens.filter((i) => i.bucket === b),
+        itens: fila.itens.filter((i) => i.bucket === b && !tratados.has(i.lead.id)),
       })).filter((g) => g.itens.length > 0)
     : [];
 
@@ -327,17 +334,12 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
     <div className="space-y-3 md:space-y-4">
       <AvisoViradaRegra65 />
       {outro && (
-        <p
-          className="flex flex-wrap items-center gap-2 text-xs md:text-sm"
+        <VendoDeOutro
+          oQue="a fila"
+          nome={nomeDoAlvo ?? "outro corretor"}
+          voltarPara="/fila"
           data-testid="fila-de-outro"
-        >
-          <span>
-            Vendo a fila de <b>{nomeDoAlvo}</b>
-          </span>
-          <Link to="/fila" className="text-primary hover:underline">
-            voltar para a minha
-          </Link>
-        </p>
+        />
       )}
       {/* Topo da Central de Comando como no vídeo de lançamento (identidade
           Lançamento): o módulo no título; embaixo, o card "Fila Única" (o
