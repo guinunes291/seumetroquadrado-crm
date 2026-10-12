@@ -69,6 +69,8 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  agruparFiliais,
+  descricaoRoletaFilial,
   motivoInaptidaoLabel,
   participacaoPercentual,
   proximoDaVez,
@@ -84,8 +86,10 @@ import {
   useMarcarPresencaAdmin,
   useNomesPerfis,
   useRecebidosSemana,
+  useRoletas,
   useRoletasPorCorretor,
   useVendasMesAnterior,
+  useZonasRoletas,
   type ElegibilidadeLinha,
   type RoletaDoCorretor,
 } from "./queries";
@@ -176,6 +180,8 @@ function RoletaTabPadrao({
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
   const nomesQ = useNomesPerfis();
   const outrasRoletasQ = useRoletasPorCorretor();
+  const roletasQ = useRoletas();
+  const mapaQ = useZonasRoletas();
   const gerenciar = useGerenciarParticipante();
   const presencaAdmin = useMarcarPresencaAdmin();
   const escoar = useEscoarEstoque(slug);
@@ -199,6 +205,19 @@ function RoletaTabPadrao({
   const ehPlantao = slug === "plantao";
   const ehMarquinhos = slug === "marquinhos";
   const ehLanding = slug === "landing";
+  const roleta = roletasQ.data?.find((r) => r.slug === slug);
+  // Roletas por filial (12/10/2026): a descrição diz as zonas da filial e com
+  // quem a zona alterna (o mapa vem do banco). Campanha de equipe fixa: a
+  // campanha manda — acabou o corte por zona de 03/10.
+  const filiais = useMemo(() => agruparFiliais(mapaQ.data ?? []), [mapaQ.data]);
+  const filialDaRoleta = filiais.find((f) => f.roletaSlug === slug);
+  const descricao = filialDaRoleta
+    ? `${descricaoRoletaFilial(filialDaRoleta, filiais)} Time fixo montado pela gestão: inclua ou remova corretores aqui — a região de atuação deles acompanha.`
+    : roleta?.tipo === "campanha"
+      ? roleta.equipe_fixa
+        ? "A campanha manda: quem está na equipe recebe, de qualquer zona (ponderado por faixa A/B/C). Repasse por SLA e transferência ficam entre a equipe."
+        : "Campanha comum: o lead com zona vai para a roleta da filial da zona; a campanha fica como rótulo. Só o lead sem zona é sorteado aqui."
+      : null;
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -214,7 +233,8 @@ function RoletaTabPadrao({
             {!ehPlantao &&
               !ehMarquinhos &&
               !ehLanding &&
-              "Participação manual: quem está aqui entra no rodízio desta fila. Toda inclusão, pausa e remoção fica auditada."}
+              (descricao ??
+                "Participação manual: quem está aqui entra no rodízio desta fila. Toda inclusão, pausa e remoção fica auditada.")}
           </p>
           {!somenteLeitura && (
             <div className="flex flex-wrap items-center gap-2">

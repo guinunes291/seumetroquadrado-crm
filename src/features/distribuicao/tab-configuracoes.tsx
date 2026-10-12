@@ -59,21 +59,21 @@ export function TabConfiguracoes() {
               chave="zona_estrita"
               padrao
               label="Zona estrita: corretor só recebe lead da própria região"
-              hint="Região = participação nas roletas de zona (aba Corretores). Desligado volta aos desvios antigos: lead de uma zona pode ir para corretor de outra."
+              hint="Região = as filiais em que o corretor está (aba Corretores): as zonas delas. Lead de campanha de equipe fixa vai para a equipe, de qualquer zona. Desligado volta aos desvios antigos: lead de uma zona pode ir para corretor de outra."
             />
             {/* _distribuir_lead_v3 (20261012120000): chave ausente = ligada. */}
             <SettingBooleano
               chave="marquinhos_antes_da_zona"
               padrao
               label="Lead do Marquinhos vai primeiro para a Roleta Marquinhos (da zona dele)"
-              hint="Com zona estrita: recebe quem da Roleta Marquinhos atende a zona do lead; sem ninguém apto ali, vai para o time da zona. Desligado: o lead do bot vai direto para a roleta da zona."
+              hint="Com zona estrita: recebe quem da Roleta Marquinhos atende a zona do lead; sem ninguém apto ali, vai para a roleta da filial da zona. Desligado: o lead do bot vai direto para a roleta da filial."
             />
             {/* _vez_unica_ativa() (20261017120000): chave ausente = ligada. */}
             <SettingBooleano
               chave="vez_unica_por_zona"
               padrao
-              label="A vez é uma só: o mesmo corretor não é o 1º da fila em mais de uma zona"
-              hint="Agendados do SDR e roletas de zona. Quem é o 1º em duas zonas fica com a mais movimentada (leads dos últimos 30 dias); na outra, a vez passa ao próximo. Desligado: cada zona com a própria fila, mesmo repetindo o 1º."
+              label="A vez é uma só: o mesmo corretor não é o 1º da fila em mais de uma zona ou filial"
+              hint="Por zona nos Agendados do SDR e por filial nas roletas de filial. Quem é o 1º em duas fica com a mais movimentada (leads dos últimos 30 dias); na outra, a vez passa ao próximo. Desligado: cada fila com o próprio 1º, mesmo repetindo."
             />
             {/* presenca_checkin (20261013120000): chave ausente = 3. */}
             <SettingNumero
