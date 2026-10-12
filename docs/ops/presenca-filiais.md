@@ -528,15 +528,18 @@ presente); o check-in deles em `/presenca` registra onde estão.
 
 ### Estado em produção (12/10/2026, tarde)
 
+**Aplicado em 12/10/2026, ~17:56 BRT** (registro abaixo, em "Registro da
+aplicação da 0080–0082").
+
 | O quê                                                       | Em produção                                                 | No repositório                  |
 | ----------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------- |
 | Fallback por velocidade (tabela, 3 funções, cron)           | desde 12/10, por SQL direto (§8c)                           | `0080` (#284), igual à produção |
 | `processar_distribuicao_automatica` reescrita               | desde 12/10, por SQL direto                                 | `0080` (#284), igual à produção |
 | `_fallback_velocidade` com dono inativo + `_dono_ativo`     | desde ~15:27 de 12/10, por SQL direto                       | `0081` (#286), igual à produção |
 | `_reatribuir_se_dono_inativo`, `registrar_volta_campanha`   | desde ~15:27 de 12/10, por SQL direto                       | `0081` (#286), igual à produção |
-| Regras de presença no fallback (D4, D5, destrave — §8c)     | **ainda não** — entram com a `0082`                         | `0082`                          |
-| `falha_localizacao` (coluna, parâmetro, chave nos retornos) | **ainda não** — entra com a `0082`                          | `0082`                          |
-| `REVOKE` de anon/authenticated em `corretor_velocidade`     | **ainda não** — entra com a `0082`                          | `0082`                          |
+| Regras de presença no fallback (D4, D5, destrave — §8c)     | desde 12/10 ~17:56, pela `0082`                             | `0082`                          |
+| `falha_localizacao` (coluna, parâmetro, chave nos retornos) | desde 12/10 ~17:56, pela `0082`                             | `0082`                          |
+| `REVOKE` de anon/authenticated em `corretor_velocidade`     | desde 12/10 ~17:56, pela `0082`                             | `0082`                          |
 | `presenca_loja_exige_localizacao = true`                    | desde 12/10 14:19 (com `audit_log`)                         | `0082`                          |
 | `presenca_casa_min_vendas_mes_anterior = 0`                 | só 12/10; o cron one-shot devolve 3 em 13/10 00:00 BRT (§5) | não (fica `3`, de propósito)    |
 
@@ -626,6 +629,44 @@ Os md5 "depois" foram medidos no harness: um banco montado só até a `0081`
 aplicada por cima (duas vezes: é idempotente). Tirando os acréscimos da
 `0082`, o texto de cada função alterada dá exatamente o md5 "antes" de
 produção.
+
+### Registro da aplicação da 0080–0082 (12/10/2026)
+
+Feito pelo orquestrador desta leva, depois do merge do #287 (`b5b65547`),
+pela ferramenta de banco do Lovable. Horários de Brasília.
+
+1. **17:52 — conferência antes do merge** (só SELECT). Os dez md5 iguais aos
+   "antes" da tabela acima; exigência `true`; cron 45 igual; último registro
+   do drizzle = id 82 (`0079`); `0080` e `0081` ainda sem registro.
+2. **~17:55 — `0080` e `0081` registradas sem reexecutar.** Ids 83
+   (`fdeed8bd…`, `created_at` 1792422000000) e 84 (`12312d9b…`,
+   1792508400000), com `WHERE NOT EXISTS` pelo hash (a outra conversa podia
+   registrar ao mesmo tempo). Por que sem reexecutar: produção já tinha tudo
+   o que elas fazem — md5 das funções (17:26 e 17:52), ACLs (só
+   `service_role` nas internas; `authenticated` em
+   `processar_distribuicao_automatica`), as 8 colunas de
+   `corretor_velocidade`, as três chaves e o cron 45. Rodá-las de novo só
+   tomaria lock em `processar_distribuicao_automatica` no meio do cron de 5 em
+   5 minutos, para nada.
+3. **~17:56 — `0082` aplicada numa transação só**, com `SET LOCAL
+lock_timeout = '5s'`: o texto do arquivo sem os comentários de topo (os
+   de dentro das funções, que entram no md5, ficaram) e, no fim da mesma
+   transação, um bloco que confere o md5 das dez funções e aborta tudo se um
+   só divergir. Esse bloco foi testado antes no harness: com um caractere
+   trocado no ranking, a transação inteira voltou. Em produção passou de
+   primeira.
+4. **17:57 — conferência depois:** os md5 "depois" da tabela acima, todos
+   iguais; `corretor_velocidade` sem SELECT para anon/authenticated; a
+   coluna `falha_localizacao` criada; `presenca_hoje_v1` com `precisao_m`;
+   `presenca_checkin` só a de 7 argumentos, com EXECUTE para authenticated.
+   `0082` registrada: id 85 (`54350eab…`, `created_at` 1792594800000).
+
+**O que isso mudou no dia 12/10.** Os três check-ins do dia estavam liberados
+(Priscila e Graziele em casa, com o mínimo 0; Lucas na Liberdade às 14:05,
+**sem localização** — passou porque a exigência só foi ligada às 14:19, e a
+regra vale no momento do check-in). A única entrega do fallback no dia
+(13:20) foi para um corretor **sem check-in**; com a `0082`, esse lead teria
+ficado com o Marquinhos.
 
 ## 7. Conferências do dia a dia
 
