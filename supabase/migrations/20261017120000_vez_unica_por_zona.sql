@@ -13,12 +13,17 @@
 -- de zona também pode ser o 1º nas duas ao mesmo tempo.
 --
 -- A regra (a mesma conta no motor e na tela):
---   1. As zonas são olhadas da mais movimentada para a menos (leads entregues
---      na zona nos últimos 30 dias, por qualquer roleta; empate: Norte, Sul,
---      Leste, Oeste, Centro, Grande SP) — _vez_unica_zonas_ordem. O volume
---      total, e não o da família, para a ordem não virar a cada visita do
---      SDR (3 por mês com zona) — o que faria a vez de um corretor pular de
---      zona a cada lead.
+--   1. As zonas são olhadas da mais movimentada para a menos: leads entregues
+--      na zona nos 30 dias ANTERIORES AO COMEÇO DESTA SEMANA, pelos motores
+--      que gravam o contexto da decisão (contexto->>'zona' do log: roletas de
+--      zona, Marquinhos, Agendados do SDR e campanha comum pelo v3; as
+--      campanhas de equipe fixa ficam fora, porque distribuir_lead_ponderado
+--      não grava contexto); empate: Norte, Sul, Leste, Oeste, Centro, Grande
+--      SP — _vez_unica_zonas_ordem. É o volume de todos esses motores, e não
+--      só o da família, e a janela é congelada por semana: as entregas desta
+--      semana não contam, então a ordem não muda dentro da semana (com a
+--      janela móvel, num empate cada entrega virava a ordem e a vez de um
+--      corretor pulava de zona a cada lead).
 --   2. Zona a zona, o 1º é o primeiro da fila do motor que ainda não é o 1º
 --      de uma zona anterior — _vez_unica_cabecas. Quem já é o 1º de uma zona
 --      mais movimentada sai da fila das outras enquanto a vez dele não chega
@@ -59,8 +64,13 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- 1) A ordem em que as zonas são olhadas: da mais movimentada para a menos
---    (leads entregues na zona nos últimos 30 dias, pelo contexto da decisão,
---    qualquer roleta). Empate: a ordem canônica das zonas.
+--    (leads entregues na zona nos 30 dias anteriores ao começo desta semana,
+--    pelo contexto da decisão — só os motores que o gravam contam: v3 (zona,
+--    Marquinhos, campanha comum), SDR; distribuir_lead_ponderado, das
+--    campanhas de equipe fixa, não grava e fica fora). A janela é congelada
+--    por semana: as entregas desta semana não contam e a ordem não muda
+--    dentro da semana (com a janela móvel, num empate cada entrega virava a
+--    ordem). Empate: a ordem canônica das zonas.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public._vez_unica_zonas_ordem()
 RETURNS TABLE(zona text, roleta_slug text, ordem integer)
@@ -73,7 +83,8 @@ AS $$
     SELECT c.contexto ->> 'zona' AS zona, count(*)::int AS leads
       FROM public.distribution_log dl
       JOIN public.distribuicao_log_contexto c ON c.log_id = dl.id
-     WHERE dl.created_at > now() - interval '30 days'
+     WHERE dl.created_at >= date_trunc('week', now()) - interval '30 days'
+       AND dl.created_at < date_trunc('week', now())
        AND dl.resultado = 'sucesso'
        AND c.contexto ? 'zona'
      GROUP BY 1
@@ -93,12 +104,17 @@ $$;
 --    + a vez única: recebe as cabeças já decididas (_cabecas, de
 --    _vez_unica_cabecas; NULL = calcula) e tira da fila quem é o 1º de uma
 --    zona anterior. Coluna nova vez_em: em que zona está a vez de quem saiu.
---    A assinatura muda (4º parâmetro, coluna nova): DROP + CREATE.
+--    _elig_pronta: a régua já calculada por quem chamou (NULL = calcula) —
+--    _vez_unica_cabecas calcula a do SDR uma vez, não uma por zona.
+--    A assinatura muda (4º e 5º parâmetros, coluna nova): DROP das anteriores
+--    (3 e 4 parâmetros) + CREATE.
 -- ---------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS public._roleta_fila_prevista(text, text, text);
+DROP FUNCTION IF EXISTS public._roleta_fila_prevista(text, text, text, jsonb);
 
 CREATE OR REPLACE FUNCTION public._roleta_fila_prevista(
-  _slug text, _zona text DEFAULT NULL, _regua text DEFAULT NULL, _cabecas jsonb DEFAULT NULL)
+  _slug text, _zona text DEFAULT NULL, _regua text DEFAULT NULL, _cabecas jsonb DEFAULT NULL,
+  _elig_pronta jsonb DEFAULT NULL)
 RETURNS TABLE(corretor_id uuid, nome text, posicao integer, apto boolean, motivos text[], vez_em text)
 LANGUAGE plpgsql
 STABLE
@@ -138,8 +154,11 @@ BEGIN
     RETURN;
   END IF;
 
-  -- A régua de cada motor.
-  IF _r.tipo = 'sdr' OR _regua = 'sdr' THEN
+  -- A régua de cada motor (ou a já calculada por quem chamou: a do SDR não
+  -- depende da zona, e _vez_unica_cabecas a calcula uma vez, não uma por zona).
+  IF _elig_pronta IS NOT NULL THEN
+    _elig := _elig_pronta;
+  ELSIF _r.tipo = 'sdr' OR _regua = 'sdr' THEN
     SELECT jsonb_agg(jsonb_build_object(
              'corretor_id', e.corretor_id, 'nome', e.nome,
              'apto', e.apto, 'motivos', to_jsonb(e.motivos)))
@@ -304,6 +323,8 @@ $$;
 --    recebe as cabeças decididas até ali). _ate_zona: para ANTES dessa zona —
 --    o motor só precisa das zonas anteriores à do lead. forcado: a regra
 --    pularia todo mundo e o 1º é alguém que já é o 1º de outra zona.
+--    A régua do SDR não depende da zona: calculada uma vez e passada a cada
+--    fila (na família 'zona' cada roleta tem a própria régua: fica com ela).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public._vez_unica_cabecas(_familia text, _ate_zona text DEFAULT NULL)
 RETURNS TABLE(zona text, ordem integer, corretor_id uuid, forcado boolean)
@@ -319,6 +340,7 @@ DECLARE
   _slug    text;
   _cabeca  uuid;
   _forcado boolean;
+  _elig    jsonb;
 BEGIN
   IF _familia NOT IN ('sdr', 'zona') THEN
     RETURN;
@@ -327,6 +349,15 @@ BEGIN
   IF _ate_zona IS NOT NULL
      AND NOT EXISTS (SELECT 1 FROM public.zonas_roletas zr WHERE zr.zona = _ate_zona) THEN
     RETURN;
+  END IF;
+
+  -- A régua do SDR, uma vez (o mesmo jsonb que _roleta_fila_prevista monta).
+  IF _familia = 'sdr' THEN
+    SELECT coalesce(jsonb_agg(jsonb_build_object(
+             'corretor_id', e.corretor_id, 'nome', e.nome,
+             'apto', e.apto, 'motivos', to_jsonb(e.motivos))), '[]'::jsonb)
+      INTO _elig
+      FROM public._elegibilidade_roleta_sdr('agendados-sdr', NULL, NULL) e;
   END IF;
 
   FOR _z IN
@@ -338,7 +369,7 @@ BEGIN
     _slug := CASE WHEN _familia = 'sdr' THEN 'agendados-sdr' ELSE _z.roleta_slug END;
     _cabeca := NULL;
     SELECT f.corretor_id INTO _cabeca
-      FROM public._roleta_fila_prevista(_slug, _z.zona, NULL, _cab) f
+      FROM public._roleta_fila_prevista(_slug, _z.zona, NULL, _cab, _elig) f
      WHERE f.posicao = 1;
     _forcado := _cabeca IS NOT NULL AND EXISTS (
       SELECT 1 FROM jsonb_to_recordset(_cab) AS c(corretor_id uuid)
@@ -387,7 +418,8 @@ $$;
 -- 5) Os motores. Mesmo corpo de 20261014120000 (_distribuir_lead_sdr) e de
 --    20261012120000 (_distribuir_lead_v3) + o bloco [VEZ ÚNICA] antes da
 --    escolha (e três chaves no contexto da decisão: vez_unica,
---    vez_em_outra_zona, vez_unica_forcada).
+--    vez_em_outra_zona, vez_unica_forcada). No v3, o rodízio por cursor
+--    ganha o lock por roleta ('roleta_rodizio:') que o SDR e o SWRR já têm.
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public._distribuir_lead_sdr(_lead_id uuid, _motivo text, _inicio timestamp with time zone DEFAULT NULL::timestamp with time zone, _fim timestamp with time zone DEFAULT NULL::timestamp with time zone, _gatilho text DEFAULT 'sdr'::text)
@@ -427,7 +459,8 @@ DECLARE
   -- [VEZ ÚNICA] (0078) A vez é uma só: quem já é o 1º da fila de uma zona
   -- mais movimentada não é o 1º desta. _vez_fora: quem saiu dos candidatos
   -- por isso (e em que zona está a vez dele); _vez_forcada: a regra pularia
-  -- todo mundo, então a fila ficou como estava.
+  -- todo mundo, então a fila ficou como estava (e ninguém saiu: _vez_fora
+  -- volta a vazio).
   _vez_unica boolean := false;
   _vez_fora_ids uuid[] := ARRAY[]::uuid[];
   _vez_fora jsonb := '[]'::jsonb;
@@ -537,6 +570,7 @@ BEGIN
                                  WHERE NOT (x = ANY(_vez_fora_ids)));
           ELSE
             _vez_forcada := true;
+            _vez_fora := '[]'::jsonb;
           END IF;
         END IF;
       END IF;
@@ -779,7 +813,8 @@ DECLARE
   -- [VEZ ÚNICA] (0078) A vez é uma só: quem já é o 1º da fila de uma zona
   -- mais movimentada não é o 1º desta. _vez_fora: quem saiu dos candidatos
   -- por isso (e em que zona está a vez dele); _vez_forcada: a regra pularia
-  -- todo mundo, então a fila ficou como estava.
+  -- todo mundo, então a fila ficou como estava (e ninguém saiu: _vez_fora
+  -- volta a vazio).
   _vez_unica boolean := false;
   _vez_fora_ids uuid[] := ARRAY[]::uuid[];
   _vez_fora jsonb := '[]'::jsonb;
@@ -1048,6 +1083,7 @@ BEGIN
                                WHERE NOT (x = ANY(_vez_fora_ids)));
         ELSE
           _vez_forcada := true;
+          _vez_fora := '[]'::jsonb;
         END IF;
       END IF;
     END IF;
@@ -1085,6 +1121,11 @@ BEGIN
       _regra := 'ponderado_velocidade' ||
                 COALESCE(':faixa' || _faixa_vencedor, '');
     ELSE
+      -- Serializa o rodízio por roleta (como o SDR 'roleta_sdr:' e o SWRR
+      -- 'roleta_swrr:' já fazem): sem isto, o SKIP LOCKED esvazia a fila quando
+      -- a vez única deixou um só candidato e outro lead da zona está sendo
+      -- entregue na mesma hora — e a vez "segura" o lead por um ciclo do cron.
+      PERFORM pg_advisory_xact_lock(hashtext('roleta_rodizio:' || _r.id::text));
       -- Rodízio por cursor: apto há mais tempo sem receber NESTA roleta,
       -- com lock no cursor para concorrência entre webhook/cron/manual.
       -- [V2] É também a mecânica da esteira BASE (rodízio puro, o piso).
@@ -1542,8 +1583,8 @@ REVOKE ALL ON FUNCTION public._vez_unica_cabecas_json(text, text) FROM PUBLIC, a
 GRANT EXECUTE ON FUNCTION public._vez_unica_cabecas_json(text, text) TO service_role;
 REVOKE ALL ON FUNCTION public._vez_unica_tomados(text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public._vez_unica_tomados(text, text) TO service_role;
-REVOKE ALL ON FUNCTION public._roleta_fila_prevista(text, text, text, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public._roleta_fila_prevista(text, text, text, jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public._roleta_fila_prevista(text, text, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._roleta_fila_prevista(text, text, text, jsonb, jsonb) TO service_role;
 
 REVOKE ALL ON FUNCTION public.roletas_filas_zona_v1(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.roletas_filas_zona_v1(text) TO authenticated, service_role;
@@ -1562,10 +1603,11 @@ BEGIN
   IF (SELECT count(*) FROM public._vez_unica_zonas_ordem()) <> (SELECT count(*) FROM public.zonas_roletas) THEN
     RAISE EXCEPTION 'vez única: a ordem das zonas não cobre todas as zonas';
   END IF;
-  IF to_regprocedure('public._roleta_fila_prevista(text, text, text)') IS NOT NULL THEN
-    RAISE EXCEPTION 'vez única: a _roleta_fila_prevista antiga (3 parâmetros) ainda existe';
+  IF to_regprocedure('public._roleta_fila_prevista(text, text, text)') IS NOT NULL
+     OR to_regprocedure('public._roleta_fila_prevista(text, text, text, jsonb)') IS NOT NULL THEN
+    RAISE EXCEPTION 'vez única: uma _roleta_fila_prevista antiga (3 ou 4 parâmetros) ainda existe';
   END IF;
-  IF to_regprocedure('public._roleta_fila_prevista(text, text, text, jsonb)') IS NULL
+  IF to_regprocedure('public._roleta_fila_prevista(text, text, text, jsonb, jsonb)') IS NULL
      OR to_regprocedure('public._vez_unica_cabecas(text, text)') IS NULL
      OR to_regprocedure('public._vez_unica_tomados(text, text)') IS NULL THEN
     RAISE EXCEPTION 'vez única: função ausente';
@@ -1578,6 +1620,7 @@ BEGIN
     SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = '_distribuir_lead_v3'
        AND p.prosrc LIKE '%_vez_unica_tomados(''zona''%'
+       AND p.prosrc LIKE '%roleta_rodizio:%'
   ) THEN
     RAISE EXCEPTION 'vez única: motor sem a regra';
   END IF;

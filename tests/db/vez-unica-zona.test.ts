@@ -7,8 +7,9 @@
  * Leste". Vale para os Agendados do SDR e para as roletas de zona.
  *
  * A regra: as zonas são olhadas da mais movimentada (leads entregues na zona
- * nos últimos 30 dias, por qualquer roleta) para a menos, com a ordem canônica
- * no empate; zona a zona,
+ * nos 30 dias anteriores ao começo desta semana, pelos motores que gravam o
+ * contexto da decisão — janela congelada: a ordem não muda dentro da semana)
+ * para a menos, com a ordem canônica no empate; zona a zona,
  * o 1º é o primeiro da fila que ainda não é o 1º de uma zona anterior. Quem
  * já é o 1º de uma zona anterior sai da fila das outras ("vez no Sul"). Se a
  * regra pulasse todo mundo, a fila fica como estava: a vez nunca segura o
@@ -179,15 +180,66 @@ async function visitaDoSdr(zona: string): Promise<Entrega> {
   }
 }
 
-/** Lead da zona pela roleta da zona (_distribuir_lead_v3): quem recebeu. */
-async function leadDaZona(zona: string): Promise<{ corretor_id: string | null; lead_id: string }> {
+/** Lead da zona ainda sem dono; `tentaram`: quem já teve o lead (redistribuição). */
+async function novoLeadDaZona(zona: string, tentaram: string[] = []): Promise<string> {
   const id = await criarLead(c, { telefone: novoTelefone() });
   await comoSuperuser(c);
-  await c.query(`UPDATE public.leads SET zona = $2 WHERE id = $1`, [id, zona]);
+  await c.query(
+    `UPDATE public.leads SET zona = $2, corretores_que_tentaram = $3::uuid[] WHERE id = $1`,
+    [id, zona, tentaram],
+  );
+  return id;
+}
+
+/** Lead da zona pela roleta da zona (_distribuir_lead_v3): quem recebeu. */
+async function leadDaZona(
+  zona: string,
+  tentaram: string[] = [],
+): Promise<{ corretor_id: string | null; lead_id: string }> {
+  const id = await novoLeadDaZona(zona, tentaram);
   await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste')`, [id]);
   const dono = (await c.query(`SELECT corretor_id FROM public.leads WHERE id = $1`, [id])).rows[0]
     .corretor_id as string | null;
   return { corretor_id: dono, lead_id: id };
+}
+
+type Decisao = { ok: boolean; corretor_id?: string | null; motivo?: string; regra?: string };
+
+/**
+ * Dois leads da mesma zona entregues ao mesmo tempo, em duas conexões: A
+ * entrega l1 e segura a transação; B entrega l2 enquanto isso. Diz se B ficou
+ * esperando o COMMIT de A (o rodízio serializado) ou terminou antes.
+ */
+async function corrida(l1: string, l2: string) {
+  const a = novoClient();
+  const b = novoClient();
+  await a.connect();
+  await b.connect();
+  try {
+    await a.query("BEGIN");
+    const ra = (
+      await a.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste') AS r`, [l1])
+    ).rows[0].r as Decisao;
+    const pb = b.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste') AS r`, [l2]);
+    const bAntesDoCommit = await Promise.race([
+      pb.then(() => "terminou"),
+      new Promise<string>((r) => setTimeout(() => r("esperando"), 400)),
+    ]);
+    await a.query("COMMIT");
+    const rb = (await pb).rows[0].r as Decisao;
+    return { ra, rb, bAntesDoCommit };
+  } finally {
+    await a.end();
+    await b.end();
+  }
+}
+
+/** As zonas na ordem em que a vez única as olha. */
+async function ordemDasZonas(): Promise<string[]> {
+  await comoSuperuser(c);
+  return (
+    await c.query(`SELECT zona FROM public._vez_unica_zonas_ordem() ORDER BY ordem`)
+  ).rows.map((r) => r.zona as string);
 }
 
 /** O contexto da última decisão de sucesso de um lead. */
@@ -205,9 +257,11 @@ async function contexto(leadId: string): Promise<Record<string, unknown>> {
 }
 
 /**
- * Leads recentes entregues na zona (qualquer roleta), para ela ficar a mais
- * movimentada. É o volume TOTAL que ordena as zonas: na prova, cada cenário
- * seeda o movimento para a ordem não virar com as próprias entregas.
+ * Leads entregues na zona na semana passada (8 dias atrás: dentro dos 30 dias
+ * anteriores ao começo desta semana), para ela ficar a mais movimentada. É o
+ * volume TOTAL que ordena as zonas, e a janela é congelada por semana: as
+ * entregas que a própria prova faz (desta semana) não contam. Cada cenário
+ * seeda o movimento que quer.
  */
 async function movimentar(zona: string, n: number) {
   await comoSuperuser(c);
@@ -218,7 +272,7 @@ async function movimentar(zona: string, n: number) {
       `INSERT INTO public.distribution_log
          (lead_id, corretor_id, tipo, motivo, roleta_slug, regra_aplicada, resultado, created_at)
        VALUES ($1, $2, 'automatica', 'teste vez única', $3, 'rodizio_menos_recente', 'sucesso',
-               now() - interval '1 day')
+               now() - interval '8 days')
        RETURNING id`,
       [id, ana.id, `zona-${zona.toLowerCase()}`],
     );
@@ -303,8 +357,30 @@ afterAll(async () => {
 });
 
 describe("Agendados do SDR", () => {
+  it("a ordem das zonas não vira dentro da semana: no empate, Igor fica com o Sul e recebe a 2ª e a 6ª visita", async () => {
+    // Sul = Leste em volume (semana passada). Empate: a ordem canônica, Sul
+    // antes de Leste, e Igor (o mais antigo nas duas) fica com o Sul. As
+    // entregas desta semana não contam: a ordem é a mesma antes de cada lead.
+    // Com a janela móvel, a 1ª visita do Leste virava a ordem e a vez do Igor
+    // pulava de zona a cada lead.
+    await zerarCursores();
+    await movimentar("Sul", 2);
+    await movimentar("Leste", 2);
+    const ordem = await ordemDasZonas();
+    expect(ordem.slice(0, 2)).toEqual(["Sul", "Leste"]);
+
+    const recebeu: string[] = [];
+    for (const zona of ["Leste", "Sul", "Leste", "Sul", "Leste", "Sul"]) {
+      expect(await ordemDasZonas()).toEqual(ordem);
+      recebeu.push((await visitaDoSdr(zona)).corretor_id);
+    }
+    expect(recebeu).toEqual([gra.id, igor.id, gra.id, ana.id, gra.id, igor.id]);
+    expect(await ordemDasZonas()).toEqual(ordem);
+  });
+
   it("quem é o 1º em duas zonas fica com a mais movimentada; na outra a vez passa ao próximo — e o motor segue a tela", async () => {
     // O Sul é a zona mais movimentada: Igor fica com o Sul.
+    await zerarCursores();
     await movimentar("Sul", 3);
     const sul = roleta(await filas("Sul"), "agendados-sdr");
     expect(sul.vez_unica).toBe(true);
@@ -416,7 +492,11 @@ describe("Agendados do SDR", () => {
       expect(ids(sul.fora)).not.toContain(igor.id);
       const s = await visitaDoSdr("Sul");
       expect(s.corretor_id).toBe(igor.id);
-      expect(await contexto(s.lead_id!)).toMatchObject({ vez_unica_forcada: true });
+      // Forçado: ninguém saiu — o contexto não lista o Igor como fora.
+      expect(await contexto(s.lead_id!)).toMatchObject({
+        vez_unica_forcada: true,
+        vez_em_outra_zona: [],
+      });
     } finally {
       await participar("agendados-sdr", ana, 4);
     }
@@ -477,6 +557,55 @@ describe("roletas de zona", () => {
     expect(ids(roleta(await filas("Leste"), "zona-leste").fila)).toEqual([igor.id, gra.id]);
     expect(ids(roleta(await filas("Sul"), "zona-sul").fila)).toEqual([ana.id]);
     expect((await leadDaZona("Sul")).corretor_id).toBe(ana.id);
+  });
+
+  it("dois leads da zona ao mesmo tempo: o rodízio espera o outro, e a vez única não deixa a fila vazia", async () => {
+    // Sul mais movimentado: Igor é o 1º no Sul; no Leste a fila é só a Gra.
+    // Sem o lock por roleta, o SKIP LOCKED do 2º lead pulava a Gra (presa
+    // pelo 1º) e, com o Igor fora pela vez, não achava ninguém: o lead ficava
+    // preso por um ciclo do cron.
+    await zerarCursores();
+    await movimentar("Sul", 10);
+    const leste = roleta(await filas("Leste"), "zona-leste");
+    expect(ids(leste.fila)).toEqual([gra.id]);
+    expect(ids(leste.fora)).toEqual([igor.id]);
+
+    const l1 = await novoLeadDaZona("Leste");
+    const l2 = await novoLeadDaZona("Leste");
+    const { ra, rb, bAntesDoCommit } = await corrida(l1, l2);
+    expect(bAntesDoCommit).toBe("esperando");
+    expect(ra.corretor_id).toBe(gra.id);
+    expect(rb).toMatchObject({ ok: true, corretor_id: gra.id });
+    await comoSuperuser(c);
+    const donos = await c.query(
+      `SELECT corretor_id FROM public.leads WHERE id = ANY($1::uuid[]) ORDER BY id`,
+      [[l1, l2]],
+    );
+    expect(donos.rows.map((r) => r.corretor_id)).toEqual([gra.id, gra.id]);
+    const presos = await c.query(
+      `SELECT count(*)::int AS n FROM public.distribuicao_excecoes WHERE lead_id = ANY($1::uuid[])`,
+      [[l1, l2]],
+    );
+    expect(presos.rows[0].n).toBe(0);
+  });
+
+  it("redistribuição: quem já teve o lead sai antes da vez única; se sobrar só o tomado, forçado", async () => {
+    await zerarCursores();
+    await movimentar("Sul", 30);
+    const leste = roleta(await filas("Leste"), "zona-leste");
+    expect(ids(leste.fila)).toEqual([gra.id]);
+    expect(ids(leste.fora)).toEqual([igor.id]);
+
+    // A Gra já teve o lead: sobra só o Igor, que está com a vez no Sul — a
+    // regra não segura o lead: forçado, e ninguém listado como fora.
+    const l = await leadDaZona("Leste", [gra.id]);
+    expect(l.corretor_id).toBe(igor.id);
+    expect(await contexto(l.lead_id)).toMatchObject({
+      vez_unica: true,
+      vez_unica_forcada: true,
+      excluidos_por_tentativa: [gra.id],
+      vez_em_outra_zona: [],
+    });
   });
 
   it("Marquinhos e campanhas ficam fora da regra; ler as filas não mexe em cursor nenhum", async () => {

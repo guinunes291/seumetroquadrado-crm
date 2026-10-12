@@ -36,23 +36,36 @@ export function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0] || nome;
 }
 
+/** Partículas que não são sobrenome: "Ana de Souza" desempata por S., não D. */
+const PARTICULAS = new Set(["de", "da", "do", "das", "dos", "e"]);
+
 /**
  * O primeiro nome de cada um; quando ele se repete na mesma lista, a inicial
- * do sobrenome desempata ("Ana C." e "Ana R." — visto no Centro, 11/10).
+ * do sobrenome desempata ("Ana C." e "Ana R." — visto no Centro, 11/10),
+ * pulando as partículas; se a inicial também repete, o sobrenome inteiro
+ * ("Ana Silva · Ana Souza"). Nome de um token só fica como está.
  */
 export function nomesCurtos(nomes: string[]): string[] {
-  const repetidos = new Set<string>();
-  const vistos = new Set<string>();
-  for (const n of nomes) {
-    const p = primeiroNome(n);
-    if (vistos.has(p)) repetidos.add(p);
-    vistos.add(p);
-  }
-  return nomes.map((n) => {
-    const partes = n.trim().split(/\s+/);
-    const p = partes[0] || n;
-    const inicial = partes[1]?.[0];
-    return repetidos.has(p) && inicial ? `${p} ${inicial.toUpperCase()}.` : p;
+  const tokens = nomes.map((n) => n.trim().split(/\s+/).filter(Boolean));
+  const primeiro = (i: number) => tokens[i][0] ?? nomes[i];
+  const sobrenome = (i: number) => tokens[i].slice(1).find((t) => !PARTICULAS.has(t.toLowerCase()));
+  const contar = (chaves: (string | null)[]) => {
+    const m = new Map<string, number>();
+    for (const k of chaves) if (k !== null) m.set(k, (m.get(k) ?? 0) + 1);
+    return m;
+  };
+  const primeiros = contar(nomes.map((_, i) => primeiro(i)));
+  const inicial = (i: number) => {
+    const s = sobrenome(i);
+    return (primeiros.get(primeiro(i)) ?? 0) > 1 && s
+      ? `${primeiro(i)} ${s[0].toUpperCase()}`
+      : null;
+  };
+  const iniciais = contar(nomes.map((_, i) => inicial(i)));
+  return nomes.map((_, i) => {
+    const k = inicial(i);
+    if (k === null) return primeiro(i);
+    return (iniciais.get(k) ?? 0) > 1 ? `${primeiro(i)} ${sobrenome(i)}` : `${k}.`;
   });
 }
 
@@ -138,6 +151,8 @@ export function textoMinhaPosicao(p: MinhaPosicao): TextoPosicao {
 }
 
 export type GrupoFora = {
+  /** Única na lista (motivo, ou motivo + zona da vez): a chave do React. */
+  chave: string;
   motivo: string;
   rotulo: string;
   /** As filas, sem repetir a mesma roleta em zonas diferentes. */
@@ -160,6 +175,7 @@ export function agruparFora(ps: MinhaPosicao[]): GrupoFora[] {
     const vez = motivo === "vez_em_outra_zona" && p.vez_em ? p.vez_em : null;
     const chave = vez ? `${motivo}:${vez}` : motivo;
     const g = grupos.get(chave) ?? {
+      chave,
       motivo,
       rotulo: vez
         ? `Sua vez agora é ${emZona(vez)}`

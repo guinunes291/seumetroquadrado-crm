@@ -154,6 +154,20 @@ describe("o que a fila diz (puro)", () => {
     expect(filaEmLinha(r)).toBe("1º Ana C. · 2º Andrew · 3º Ana R.");
   });
 
+  it("nome repetido: a partícula não é sobrenome, e inicial repetida vira o sobrenome inteiro", () => {
+    // "Ana de Souza" desempata por S., não por D.
+    expect(nomesCurtos(["Ana de Souza", "Ana Caroline Lima"])).toEqual(["Ana S.", "Ana C."]);
+    expect(nomesCurtos(["João dos Santos", "João Pedro"])).toEqual(["João S.", "João P."]);
+    // A inicial também coincide: o sobrenome inteiro, só entre esses.
+    expect(nomesCurtos(["Maria da Silva", "Maria Souza", "Maria Costa"])).toEqual([
+      "Maria Silva",
+      "Maria Souza",
+      "Maria C.",
+    ]);
+    // Nome de um token só fica como está; sem repetição, nada muda.
+    expect(nomesCurtos(["Ana", "Ana Silva", "Bruno de Paula"])).toEqual(["Ana", "Ana S.", "Bruno"]);
+  });
+
   it("a ordem do painel: a fila do SDR primeiro", () => {
     expect(ordenarFilas(LESTE.roletas).map((r) => r.papel)).toEqual(["sdr", "zona", "campanha"]);
   });
@@ -248,6 +262,7 @@ describe("o que a fila diz (puro)", () => {
     ]);
     expect(g).toEqual([
       {
+        chave: "vez_em_outra_zona:Sul",
         motivo: "vez_em_outra_zona",
         rotulo: "Sua vez agora é no Sul",
         filas: ["Agendados do SDR · Leste", "Roleta Zona Leste"],
@@ -378,6 +393,36 @@ describe("FilaZonaCard (SDR e gestão)", () => {
     expect(window.localStorage.getItem("smq:roleta-zona")).toBe("Grande SP");
   });
 
+  it("a fila do SDR com a vez única diz que a vez é uma só", async () => {
+    window.localStorage.setItem("smq:roleta-zona", "Leste");
+    estado.filas.mockResolvedValue({
+      ...LESTE,
+      roletas: [
+        roleta({
+          slug: "agendados-sdr",
+          nome: "Agendados do SDR",
+          papel: "sdr",
+          exige_presenca: false,
+          vez_unica: true,
+          fila: [p(1, "Graziele Gomes")],
+          fora: [
+            {
+              corretor_id: "id-igor",
+              nome: "Igor Nigro",
+              motivos: ["vez_em_outra_zona"],
+              vez_em: "Sul",
+            },
+          ],
+        }),
+      ],
+    });
+    montar(<FilaZonaCard />);
+    const card = screen.getByRole("region", { name: "Roleta" });
+    await waitFor(() => expect(within(card).getAllByTestId("fila-pessoa")).toHaveLength(1));
+    expect(card.textContent).toContain("A vez é uma só");
+    expect(card.textContent).toContain("Fora agora: Igor (vez no Sul).");
+  });
+
   it("zona sem ninguém do time do SDR: diz que a visita vai para o time da zona", async () => {
     window.localStorage.setItem("smq:roleta-zona", "Grande SP");
     estado.filas.mockResolvedValue({
@@ -469,6 +514,53 @@ describe("MinhasPosicoesRoletas (Central de Comando do corretor)", () => {
     expect(fora.textContent).toContain("Sua vez agora é no Sul");
     expect(fora.textContent).toContain("Agendados do SDR · Leste");
     expect(within(card).queryByText("Fazer o check-in de hoje")).toBeNull();
+  });
+
+  it("a vez em duas zonas diferentes: dois grupos, cada um com a própria chave", async () => {
+    // key={g.motivo} repetia "vez_em_outra_zona" nos dois grupos (aviso do
+    // React e risco de misturar as linhas): a chave é motivo + zona da vez.
+    estado.minhas.mockResolvedValue([
+      {
+        slug: "agendados-sdr",
+        nome: "Agendados do SDR",
+        papel: "sdr",
+        zona: "Leste",
+        mecanica: "rodizio",
+        posicao: null,
+        total: 1,
+        apto: false,
+        motivos: ["vez_em_outra_zona"],
+        vez_em: "Sul",
+      },
+      {
+        slug: "zona-oeste",
+        nome: "Roleta Zona Oeste",
+        papel: "zona",
+        zona: "Oeste",
+        mecanica: "rodizio",
+        posicao: null,
+        total: 2,
+        apto: false,
+        motivos: ["vez_em_outra_zona"],
+        vez_em: "Leste",
+      },
+    ] satisfies MinhaPosicao[]);
+    const erro = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      montar(<MinhasPosicoesRoletas />);
+      const card = screen.getByRole("region", { name: "Sua vez nas roletas" });
+      await waitFor(() => expect(within(card).getAllByTestId("fora-grupo")).toHaveLength(2));
+      const grupos = within(card)
+        .getAllByTestId("fora-grupo")
+        .map((g) => g.textContent);
+      expect(grupos[0]).toContain("Sua vez agora é no Sul");
+      expect(grupos[0]).toContain("Agendados do SDR · Leste");
+      expect(grupos[1]).toContain("Sua vez agora é no Leste");
+      expect(grupos[1]).toContain("Roleta Zona Oeste");
+      expect(erro.mock.calls.flat().map(String).join(" ")).not.toMatch(/same key/);
+    } finally {
+      erro.mockRestore();
+    }
   });
 
   it("sem roleta nenhuma, diz quem monta as filas", async () => {

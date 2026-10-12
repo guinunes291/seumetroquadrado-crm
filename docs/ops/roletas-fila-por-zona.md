@@ -64,13 +64,13 @@ se tiver, a resposta traz `fora_do_horario`).
 
 ## 5. Peças no banco
 
-| Função                                                           | Quem chama                    | O quê                                                                                                   |
-| ---------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `roletas_filas_zona_v1(_zona)`                                   | SDR, admin, gestor, superint. | Todas as roletas de uma zona (`NULL` = lead sem zona), com nomes, a fila e quem está fora com o motivo. |
-| `minhas_posicoes_roletas_v1()`                                   | quem está logado              | A posição do próprio corretor em cada roleta de que participa, por zona que atende.                     |
-| `_roleta_fila_prevista(slug, zona, regua, cabecas)`              | só o banco                    | A fila prevista de uma roleta numa zona (já sem quem é o 1º de outra zona, §8).                         |
-| `_fila_swrr`, `_roleta_fila_mecanica`, `_roleta_fora_do_horario` | só o banco                    | Peças da previsão.                                                                                      |
-| `_vez_unica_*` (§8)                                              | só o banco                    | A ordem das zonas, as cabeças de cada família e quem já é o 1º de uma zona anterior.                    |
+| Função                                                           | Quem chama                    | O quê                                                                                                                          |
+| ---------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `roletas_filas_zona_v1(_zona)`                                   | SDR, admin, gestor, superint. | Todas as roletas de uma zona (`NULL` = lead sem zona), com nomes, a fila e quem está fora com o motivo.                        |
+| `minhas_posicoes_roletas_v1()`                                   | quem está logado              | A posição do próprio corretor em cada roleta de que participa, por zona que atende.                                            |
+| `_roleta_fila_prevista(slug, zona, regua, cabecas, elig)`        | só o banco                    | A fila prevista de uma roleta numa zona (já sem quem é o 1º de outra zona, §8; `elig` = a régua já calculada por quem chamou). |
+| `_fila_swrr`, `_roleta_fila_mecanica`, `_roleta_fora_do_horario` | só o banco                    | Peças da previsão.                                                                                                             |
+| `_vez_unica_*` (§8)                                              | só o banco                    | A ordem das zonas, as cabeças de cada família e quem já é o 1º de uma zona anterior.                                           |
 
 Corretor sem zona no perfil: fora das filas filtradas por zona (a zona
 estrita só sorteia quem atende a zona do lead). Na fila do SDR aparece "Sem
@@ -78,14 +78,15 @@ zona no perfil"; a gestão define a região na Central de Distribuição.
 
 ## 6. Como foi conferido
 
-- `tests/db/roletas-fila-zona.test.ts` (10 testes): para a roleta da zona, a
+- `tests/db/roletas-fila-zona.test.ts` (11 testes): para a roleta da zona, a
   fila do SDR com peso semanal e a campanha de equipe fixa, a fila prevista
   ANTES bate com a ordem em que o motor real entrega os leads DEPOIS (no
   ponderado, a ordem da primeira vez numa volta inteira). Também: filtro de
   zona no Marquinhos e nas campanhas, reserva do SDR, campanha comum fora da
   zona, acesso por papel, o corretor sem nomes de colegas, e nenhuma escrita.
-- `tests/roletas-fila-zona.test.tsx` (12 testes): textos, troca de zona,
-  reserva e o painel do corretor com o atalho do check-in.
+- `tests/roletas-fila-zona.test.tsx` (20 testes): textos, nomes curtos, troca
+  de zona, reserva, a vez única no cartão e o painel do corretor com o atalho
+  do check-in e um grupo por zona da vez.
 
 ## 6b. Correção 0077 — só a participação ativa
 
@@ -138,11 +139,16 @@ roletas de zona também pode ser o 1º nas duas ao mesmo tempo.
 **A regra** (a mesma conta no motor e na tela, migration `20261017120000`):
 
 1. As zonas são olhadas da mais movimentada para a menos: leads entregues na
-   zona nos últimos 30 dias, por qualquer roleta (`contexto->>'zona'` do log);
-   empate pela ordem Norte, Sul, Leste, Oeste, Centro, Grande SP
-   (`_vez_unica_zonas_ordem`). É o volume total, e não o da família, para a
-   ordem não virar a cada visita do SDR (3 por mês com zona) e a vez de um
-   corretor não pular de zona a cada lead.
+   zona nos 30 dias anteriores ao começo desta semana pelos motores que gravam
+   o contexto da decisão (`contexto->>'zona'` do log: roletas de zona,
+   Marquinhos, Agendados do SDR e campanha comum pelo v3; as campanhas de
+   equipe fixa ficam fora, porque `distribuir_lead_ponderado` não grava
+   contexto); empate pela ordem Norte, Sul, Leste, Oeste, Centro, Grande SP
+   (`_vez_unica_zonas_ordem`). É o volume de todos esses motores, e não só o
+   da família, e a janela é congelada por semana: as entregas desta semana não
+   contam, então a ordem não muda dentro da semana. (Com a janela móvel dos
+   "últimos 30 dias", num empate cada entrega virava a ordem e a vez de um
+   corretor pulava de zona a cada lead — visto na revisão da 0078.)
 2. Zona a zona, o 1º é o primeiro da fila do motor que ainda não é o 1º de uma
    zona anterior (`_vez_unica_cabecas`). Quem já é o 1º de uma zona mais
    movimentada sai da fila das outras enquanto a vez dele não chega. Na tela:
@@ -153,15 +159,25 @@ roletas de zona também pode ser o 1º nas duas ao mesmo tempo.
 
 Quem é o 1º em duas zonas fica com a mais movimentada porque é lá que o lead
 chega primeiro; depois que ele recebe, o cursor anda e a conta refaz sozinha.
-Só o 1º lugar muda; as posições seguintes são a ordem do motor sem ele.
+Quem é o 1º de uma zona anterior sai da fila inteira desta zona, em qualquer
+posição em que estivesse; a fila mostrada é a ordem do motor sem essas
+pessoas (o 2º da ordem do motor pode virar o 1º aqui, e assim por diante).
 
 **No motor.** `_distribuir_lead_sdr` (passo 2) e `_distribuir_lead_v3` (só
 `tipo = 'zona'`) chamam `_vez_unica_tomados(família, zona)` — as cabeças das
 zonas anteriores à do lead — e tiram esses corretores dos candidatos antes do
 rodízio ou do ponderado (no ponderado, eles não entram na rodada: o cursor
-deles não anda por um lead que não era deles). O contexto da decisão grava
-`vez_unica`, `vez_em_outra_zona` (quem saiu e onde está a vez dele) e
-`vez_unica_forcada`.
+deles não anda por um lead que não era deles). A ordem dos filtros: primeiro
+sai quem já teve o lead (`corretores_que_tentaram`, a redistribuição nunca
+devolve ao mesmo), depois a vez única — se sobrar só quem está com a vez em
+outra zona, é forçado. O contexto da decisão grava `vez_unica`,
+`vez_em_outra_zona` (quem saiu e onde está a vez dele; no forçado, `[]`,
+porque ninguém saiu) e `vez_unica_forcada`. No v3, o rodízio por cursor passa
+a ser serializado por roleta (`pg_advisory_xact_lock('roleta_rodizio:…')`,
+como o SDR e o ponderado já faziam): sem isso, dois leads da mesma zona na
+mesma hora deixavam o 2º sem corretor quando a vez única tinha reduzido a
+fila a uma pessoa (o `SKIP LOCKED` pulava quem o 1º lead segurava), e o lead
+esperava um ciclo do cron.
 
 **Chave.** `distribuicao_settings.vez_unica_por_zona` (ausente = ligada;
 Central de Distribuição → Configurações). Desligada, motor e tela voltam ao
@@ -169,12 +185,19 @@ comportamento anterior.
 
 **Custo.** As cabeças de cada família são calculadas uma vez por chamada das
 duas portas (`roletas_filas_zona_v1`, `minhas_posicoes_roletas_v1`) e
-passadas a cada fila; o motor calcula só as zonas anteriores à do lead.
+passadas a cada fila; o motor calcula só as zonas anteriores à do lead. A
+régua do SDR (`_elegibilidade_roleta_sdr`) não depende da zona: as cabeças
+do SDR a calculam uma vez e a passam a cada fila (`_roleta_fila_prevista`, 5º
+parâmetro), em vez de uma por zona.
 
-**Como foi conferido** (`tests/db/vez-unica-zona.test.ts`, 7 testes): Igor
-(Sul e Leste), Ana (Sul) e Gra (Leste). Com o Sul mais movimentado, Igor é o
-1º no Sul e "vez no Sul" no Leste, e o motor entrega a visita do Leste à Gra e
-a do Sul ao Igor; com o Leste mais movimentado, o contrário; o mesmo com a
-regra semanal (ponderado); só o Igor no Sul = forçado (recebe mesmo assim);
-chave desligada = Igor 1º nas duas; roletas de zona (motor v3) idem; Marquinhos
-fora da regra; ler as filas não mexe em cursor.
+**Como foi conferido** (`tests/db/vez-unica-zona.test.ts`, 10 testes): Igor
+(Sul e Leste), Ana (Sul) e Gra (Leste). Sul = Leste em volume e seis visitas
+alternadas: a ordem das zonas é a mesma antes de cada lead e Igor recebe a 2ª
+e a 6ª. Com o Sul mais movimentado, Igor é o 1º no Sul e "vez no Sul" no
+Leste, e o motor entrega a visita do Leste à Gra e a do Sul ao Igor; com o
+Leste mais movimentado, o contrário; o mesmo com a regra semanal (ponderado);
+só o Igor no Sul = forçado (recebe mesmo assim, com `vez_em_outra_zona: []`);
+chave desligada = Igor 1º nas duas; roletas de zona (motor v3) idem; dois
+leads da zona ao mesmo tempo em duas conexões: o 2º espera o COMMIT do 1º e
+os dois vão para a Gra; redistribuição com a Gra já tentada: Igor, forçado;
+Marquinhos fora da regra; ler as filas não mexe em cursor.
