@@ -26,7 +26,9 @@ import { origemLabel } from "@/lib/origem";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { useLeadDetail, type LeadDetail } from "@/features/leads/use-lead-detail";
 
-function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
+/** Um campo do primeiro contato (rótulo em caixa alta, valor numa linha).
+ *  Exportado: o modo Volume de Atender monta o cartão no mesmo molde. */
+export function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div className="min-w-0">
       <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">

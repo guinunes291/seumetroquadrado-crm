@@ -75,6 +75,13 @@ describe("item 2.7a — os modos que sobraram, uma porta", () => {
   it("a Consulta age em 1 clique como a lista: peek, WhatsApp e ligar", () => {
     expect(consulta).toContain("<LeadPeekDrawer");
     expect(consulta).toContain("abrirWhatsApp(");
-    expect(consulta).toMatch(/href=\{`tel:\$\{lead\.telefone/);
+    // Fase 2 do padrão Lançamento (decisão do dono, 12/10/2026): Ligar disca
+    // pelo 3C Plus (useLigarLead, que recua para o tel: sem integração) — o
+    // mesmo da Fila Única. Antes era um <a href="tel:"> direto.
+    expect(consulta).toContain("useLigarLead()");
+    expect(consulta).toMatch(
+      /ligar\(\{ id: lead\.id, nome: lead\.nome, telefone: lead\.telefone \}\)/,
+    );
+    expect(consulta).not.toMatch(/href=\{`tel:/);
   });
 });

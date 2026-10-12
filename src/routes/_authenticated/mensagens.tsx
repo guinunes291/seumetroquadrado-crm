@@ -10,11 +10,15 @@ export const Route = createFileRoute("/_authenticated/mensagens")({
 });
 
 function MensagensPage() {
+  // No desktop a página ocupa a altura da tela (menos o header de 4rem e o
+  // respiro de 2rem em cima e embaixo do shell): a lista e a thread crescem
+  // até o fim e só elas rolam — o composer fica sempre à vista. A nota do
+  // modo simulado mora no tooltip do Enviar.
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col md:h-[calc(100dvh-8rem)] md:min-h-[560px]">
       <PageHeader
         title="Mensagens"
-        description="A conversa de WhatsApp de cada lead, num lugar só — em modo simulado: cada envio registra na conversa e abre o WhatsApp com o texto pronto."
+        description="A conversa de WhatsApp de cada lead, num lugar só."
       />
       <CentralMensagens />
     </div>
