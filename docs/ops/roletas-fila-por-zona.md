@@ -208,3 +208,6 @@ chave desligada = Igor 1º nas duas; roletas de zona (motor v3) idem; dois
 leads da zona ao mesmo tempo em duas conexões: o 2º espera o COMMIT do 1º e
 os dois vão para a Gra; redistribuição com a Gra já tentada: Igor, forçado;
 Marquinhos fora da regra; ler as filas não mexe em cursor.
+
+**Em produção** desde 12/10/2026 (0078, junto com a 0079 das roletas por
+filial; ver `docs/ops/roletas-por-filial.md` §8).
