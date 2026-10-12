@@ -1,9 +1,9 @@
 // Estudo semanal obrigatório do Meu Funil — às quintas-feiras.
 //
-// Ordem da abertura da quinta (corretor): onboarding → ESTUDO DO FUNIL → metas
-// do dia. O estudo vem antes das metas de propósito: quem acabou de ver que
-// precisa de 12 conversas para 1 agendamento declara a meta de agendamentos
-// sabendo o que ela custa.
+// Ordem da abertura da quinta (corretor): onboarding → check-in → ESTUDO DO
+// FUNIL → metas do dia. O estudo vem antes das metas de propósito: quem
+// acabou de ver que precisa de 12 conversas para 1 agendamento declara a meta
+// de agendamentos sabendo o que ela custa.
 //
 // Na quinta é bloqueante: a única saída é concluir o estudo, que só libera depois de SEGUNDOS_MINIMOS_ESTUDO (3 min) com a
 // tela aberta e visível e com um foco escolhido.
@@ -41,6 +41,7 @@ import {
   useDia,
   useEstudoFunilPendente,
 } from "@/features/meu-funil/use-estudo-pendente";
+import { useCheckinObrigatorioPendente } from "@/features/presenca/use-checkin-obrigatorio";
 
 /** Segundos com a aba VISÍVEL desde que `ativo` virou true. */
 function useSegundosVisiveis(ativo: boolean, chave: string): number {
@@ -81,7 +82,10 @@ export function MeuFunilGlobal() {
   const onboardingPendente =
     isCorretor && !!onboardingQ.data && onboardingQ.data.concluido_em === null;
 
-  const aberto = pendente === true && !onboardingPendente;
+  // O check-in do dia vem antes do estudo (erro na leitura = não espera).
+  const checkinPendente = useCheckinObrigatorioPendente();
+
+  const aberto = pendente === true && !onboardingPendente && checkinPendente === false;
   const segundos = useSegundosVisiveis(aberto, `smq:meu-funil:segundos:${uid}:${dia}`);
   const faltam = Math.max(0, SEGUNDOS_MINIMOS_ESTUDO - segundos);
 

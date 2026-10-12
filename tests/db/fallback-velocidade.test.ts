@@ -5,7 +5,11 @@
  * após isso, escolha o mais rápido entre eles".
  *
  * Elenco (corretores com telefone, todos na Barra Funda, que atende a Sul;
- * NINGUÉM com check-in, então a roleta nunca tem apto):
+ * todos com check-in "Em casa" RECUSADO pelo mínimo de vendas, então a
+ * roleta nunca tem apto). Por que o check-in: desde a 0082 (decisão do dono
+ * de 12/10, à tarde) o fallback só vale para quem fez o check-in de hoje —
+ * e o "Em casa" sincero, mesmo recusado pelas vendas, vale. Quem não fez
+ * check-in, foi barrado pelo GPS etc.: presenca-fallback-velocidade.test.ts.
  *   Rápida: score de velocidade alto
  *   Lento:  score baixo
  *   Ociosa: score mais alto de todos, mas sem ação no CRM há mais de 30 min
@@ -24,6 +28,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   comoSuperuser,
+  comoUsuario,
   criarLead,
   criarUsuario,
   darRegiao,
@@ -103,6 +108,7 @@ beforeAll(async () => {
   await setting("percentual_minimo_trabalhado", 0);
   await setting("zona_estrita", true);
   await setting("fallback_velocidade_atividade_min", 30);
+  await setting("presenca_casa_min_vendas_mes_anterior", 3);
 
   admin = await criarUsuario(c, { nome: "Ada Admin", papel: "admin" });
   rapida = await criarUsuario(c, { nome: "Rita Rápida", papel: "corretor" });
@@ -117,6 +123,14 @@ beforeAll(async () => {
     ]);
   }
   for (const u of [rapida, lento, ociosa]) await darRegiao(c, u.id, ["Sul"]);
+  // "Em casa" sem as 3 vendas do mês anterior: fora da roleta, dentro do
+  // fallback (o check-in de hoje é a condição desde a 0082).
+  for (const u of [rapida, lento, ociosa]) {
+    await comoUsuario(c, u.id);
+    const r = await c.query(`SELECT public.presenca_checkin('casa') AS s`);
+    expect(r.rows[0].s.checkin.apto_roleta).toBe(false);
+    expect(r.rows[0].s.checkin.motivo).toBe("casa_abaixo_minimo_vendas");
+  }
 });
 
 afterAll(async () => {
@@ -135,7 +149,7 @@ afterAll(async () => {
 });
 
 describe("fallback por velocidade", () => {
-  it("a roleta sozinha não entrega: ninguém fez check-in", async () => {
+  it("a roleta sozinha não entrega: ninguém apto (em casa, sem o mínimo de vendas)", async () => {
     const lead = await leadSul("Sem check-in");
     await comoSuperuser(c);
     const r = await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'teste') AS r`, [
@@ -273,5 +287,42 @@ describe("métrica de velocidade real", () => {
     expect(v.rows[0].contatados).toBe(1);
     expect(v.rows[0].contatados_15min).toBe(1);
     expect(Number(v.rows[0].pct_15min)).toBeCloseTo(33.3, 1);
+  });
+});
+
+describe("a volta pela campanha com o dono inativo (0081) também exige o check-in (0082)", () => {
+  it("dono bloqueado, ninguém apto: o fallback entrega a quem fez o check-in, nunca ao mais rápido sem check-in", async () => {
+    // Sílvio: o mais rápido de todos e ativo no CRM agora, mas sem check-in
+    // hoje. Amanda: a dona do lead, bloqueada (o caso da Lucimar, 12/10).
+    const silvio = await criarUsuario(c, { nome: "Sílvio Sem Check-in", papel: "corretor" });
+    const amanda = await criarUsuario(c, { nome: "Amanda Bloqueada", papel: "corretor" });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.profiles SET telefone = '11977770099' WHERE id = $1`, [silvio.id]);
+    await darRegiao(c, silvio.id, ["Sul"]);
+    await velocidade(silvio, 99);
+    await velocidade(rapida, 80);
+    await velocidade(lento, 5);
+    await agiuHa(silvio, 1);
+    await agiuHa(rapida, 1);
+
+    const lead = await criarLead(c, { nome: "Volta da Lucimar", corretorId: amanda.id });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET zona = 'Sul' WHERE id = $1`, [lead]);
+    await c.query(
+      `UPDATE public.profiles SET ativo = false, status_conta = 'bloqueada' WHERE id = $1`,
+      [amanda.id],
+    );
+
+    // No ranking de produção (antes da 0082), o Sílvio estaria no topo.
+    const ranking = await c.query(
+      `SELECT corretor_id FROM public.fallback_velocidade_ranking($1::uuid)`,
+      [lead],
+    );
+    expect(ranking.rows.map((x) => x.corretor_id)).not.toContain(silvio.id);
+
+    const r = await c.query(`SELECT public._reatribuir_se_dono_inativo($1::uuid) AS r`, [lead]);
+    expect(r.rows[0].r.ok).toBe(true);
+    expect(r.rows[0].r.via).toBe("fallback_velocidade");
+    expect(await dono(lead)).toBe(rapida.id);
   });
 });

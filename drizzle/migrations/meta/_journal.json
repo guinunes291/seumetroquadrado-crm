@@ -575,6 +575,13 @@
       "when": 1792508400000,
       "tag": "0081_volta_dono_inativo",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1792594800000,
+      "tag": "0082_presenca_exigida_fallback_velocidade",
+      "breakpoints": true
     }
   ]
 }

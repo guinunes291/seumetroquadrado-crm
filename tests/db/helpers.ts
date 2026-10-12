@@ -209,6 +209,17 @@ export async function limparDados(c: Client): Promise<void> {
   // 20261018120000) é estado de distribuição, não seed: sem zerar, a filial da
   // vez da Leste num arquivo dependeria dos leads entregues pelos anteriores.
   await c.query(`UPDATE public.zonas_roletas SET ultimo_lead_em = NULL`);
+  // A exigência de localização no check-in da filial está LIGADA em produção
+  // desde 12/10/2026 (decisão do dono; 20261019120000 a registra, e o replay
+  // nasce ligado). Os fixtures de presença dos outros arquivos fazem o
+  // check-in na filial sem mandar localização — com a chave ligada, seriam
+  // barrados (sem_localizacao) e ninguém ficaria apto. Volta ao padrão dos
+  // testes aqui; quem testa a exigência liga a chave no próprio arquivo
+  // (presenca-filial, fallback-velocidade).
+  await c.query(
+    `UPDATE public.distribuicao_settings SET valor = 'false'::jsonb
+      WHERE chave = 'presenca_loja_exige_localizacao' AND valor IS DISTINCT FROM 'false'::jsonb`,
+  );
 }
 
 /**
