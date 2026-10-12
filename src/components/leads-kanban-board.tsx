@@ -13,18 +13,21 @@ import {
   ArrowClockwise,
   ArrowRight,
   ArrowsHorizontal,
-  CalendarDots,
   Envelope,
   Phone,
   Prohibit,
-  Question,
   Warning,
   WarningCircle,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { usePointerDnd } from "@/features/pipeline/use-pointer-dnd";
-import { computeStageMetrics, formatVgvCompact } from "@/features/pipeline/stage-metrics";
+import {
+  computeStageMetrics,
+  formatVgvCompact,
+  somarSinaisDoFunil,
+} from "@/features/pipeline/stage-metrics";
+import { ResumoDoFunil, SinaisDaColuna } from "@/features/pipeline/resumo-do-funil";
 import {
   FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
@@ -170,6 +173,18 @@ type KanbanBoardProps = {
   corretorId?: string;
   /** Subconjunto de colunas (ex.: fase do funil); ausente = quadro completo. */
   stages?: LeadStatus[];
+  /**
+   * Busca controlada por quem monta o quadro: o /pipeline põe o campo na linha
+   * das abas (padrão Lançamento). Quando vem, o quadro não desenha o próprio
+   * campo — sem ela (pílula Kanban de /leads), o campo continua aqui dentro.
+   */
+  busca?: string;
+  /**
+   * Os quatro números do topo (VGV no funil · follow-ups vencidos · sem
+   * próxima ação · parados 7+ dias), somados do snapshot que o quadro já
+   * carrega. Opt-in: é o topo do /pipeline; a pílula de /leads não muda.
+   */
+  resumo?: boolean;
 };
 
 /**
@@ -177,11 +192,17 @@ type KanbanBoardProps = {
  * uma das visões (toggle Lista/Kanban) dentro de `/leads` — consolidação Fase 1.
  * A rota `/kanban` permanece como redirect de compatibilidade.
  */
-export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardProps = {}) {
+export function KanbanBoard({
+  initialSearch,
+  corretorId,
+  stages,
+  busca,
+  resumo = false,
+}: KanbanBoardProps = {}) {
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
   const [search, setSearch] = useState(initialSearch ?? "");
-  const debouncedSearch = useDebounce(search.trim(), 300);
+  const debouncedSearch = useDebounce((busca ?? search).trim(), 300);
   // Filtrar ALL_COLUMNS (e não mapear o prop) preserva a ordem canônica do
   // funil independente da ordem em que `stages` chegar.
   const columns = useMemo(
@@ -517,6 +538,21 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
     return temVgv ? soma : null;
   }, [snapshotRows]);
   const vgvTotalLabel = formatVgvCompact(vgvTotal);
+  // Os sinais do topo somam as MESMAS linhas das colunas visíveis — o número
+  // do topo é sempre a soma do que as colunas mostram.
+  const sinaisDoFunil = useMemo(
+    () =>
+      somarSinaisDoFunil(
+        snapshotRows.map((row) => ({
+          etapa: String(row.etapa),
+          quantidade: row.quantidade,
+          followups_vencidos: row.followups_vencidos,
+          sem_proxima_acao: row.sem_proxima_acao,
+          parados_ha_7_dias: row.parados_ha_7_dias,
+        })),
+      ),
+    [snapshotRows],
+  );
 
   const toggleColapso = (id: LeadStatus) => {
     setColapsadas((atual) => {
@@ -552,14 +588,17 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {announcement}
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p id="kanban-instructions" className="text-sm text-muted-foreground">
-          Arraste os cards entre as colunas. Pelo teclado ou toque, use o menu “Mudar etapa do lead”
-          em cada card.
-        </p>
-        <div className="flex w-full flex-col gap-1 sm:w-auto sm:items-end">
-          {/* Só aparece com o snapshot v3 aplicado (a v2 não traz `vgv`). */}
-          {vgvTotalLabel && (
+      {/* Instrução para leitor de tela (padrão Lançamento: nada de parágrafo
+          de manual na tela). O quadro segue apontando para ela. */}
+      <p id="kanban-instructions" className="sr-only">
+        Arraste os cards entre as colunas. Pelo teclado ou toque, use o menu “Mudar etapa do lead”
+        em cada card.
+      </p>
+      {busca === undefined && (
+        <div className="flex flex-col gap-1 sm:items-end">
+          {/* Só aparece com o snapshot v3 aplicado (a v2 não traz `vgv`). Com
+              o resumo, o VGV já é o primeiro número do topo. */}
+          {!resumo && vgvTotalLabel && (
             <span
               className="text-xs font-medium tabular-nums text-gold-700 dark:text-gold-400"
               title="Soma do VGV potencial das etapas ativas do funil"
@@ -575,7 +614,16 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
             className="min-h-11 w-full sm:w-64"
           />
         </div>
-      </div>
+      )}
+
+      {resumo && !leadsError && (
+        <ResumoDoFunil
+          vgvLabel={vgvTotalLabel}
+          sinais={sinaisDoFunil}
+          rotuloDaEtapa={(etapa) => LEAD_STATUS_LABEL[etapa as LeadStatus] ?? etapa}
+          loading={snapshotQuery.isLoading}
+        />
+      )}
 
       <div className="md:hidden">
         <ResponsiveTabs
@@ -706,46 +754,22 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                       )}
                     </h2>
                     <div className="flex items-center gap-1">
-                      {(() => {
-                        // Sinais agregados do snapshot: dão o diagnóstico da
-                        // etapa sem precisar paginar a coluna inteira.
-                        const snap = snapshotByStage.get(col.id);
-                        const vencidos = Number(snap?.followups_vencidos ?? 0);
-                        const semAcao = Number(snap?.sem_proxima_acao ?? 0);
-                        const parados = Number(snap?.parados_ha_7_dias ?? 0);
-                        return (
-                          <>
-                            {vencidos > 0 && (
-                              <Badge
-                                variant="secondary"
-                                className="gap-0.5 bg-destructive/15 text-[10px] text-destructive"
-                                title={`${vencidos} follow-up(s) vencido(s) nesta etapa`}
-                              >
-                                <CalendarDots className="h-3 w-3" /> {vencidos}
-                              </Badge>
-                            )}
-                            {semAcao > 0 && (
-                              <Badge
-                                variant="secondary"
-                                className="gap-0.5 bg-muted text-[10px] text-muted-foreground"
-                                title={`${semAcao} lead(s) sem próxima ação registrada`}
-                              >
-                                <Question className="h-3 w-3" /> {semAcao}
-                              </Badge>
-                            )}
-                            {parados > 0 && (
-                              <Badge
-                                variant="secondary"
-                                className="gap-0.5 bg-warning/15 text-[10px] text-warning"
-                                title={`${parados} lead(s) parados há 7+ dias nesta etapa`}
-                              >
-                                <WarningCircle className="h-3 w-3" /> {parados}
-                              </Badge>
-                            )}
-                          </>
-                        );
-                      })()}
-                      <span className="px-1 font-display text-sm font-semibold tabular-nums text-muted-foreground">
+                      {/* A contagem da etapa; o VGV potencial e a conversão
+                          acumulada (vs. a etapa anterior) ficam na dica — o
+                          VGV somado de todas as colunas fica no topo. */}
+                      <span
+                        className="px-1 font-display text-sm font-semibold tabular-nums text-muted-foreground"
+                        title={
+                          [
+                            vgvLabel ? `VGV ${vgvLabel}` : null,
+                            metrics?.conversaoPct != null
+                              ? `conv. ${metrics.conversaoPct.toLocaleString("pt-BR")}% vs. a etapa anterior`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || undefined
+                        }
+                      >
                         <AnimatedNumber value={quantidade} />
                       </span>
                       <Button
@@ -760,26 +784,13 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                       </Button>
                     </div>
                   </div>
-                  {/* Economia da etapa: VGV potencial + conversão acumulada. */}
-                  {(vgvLabel || metrics?.conversaoPct != null) && (
-                    <div className="flex items-center justify-between gap-1 px-1 pb-1.5 text-[11px] text-muted-foreground tabular-nums">
-                      {vgvLabel ? (
-                        <span
-                          className="font-medium text-gold-700 dark:text-gold-400"
-                          title="VGV potencial dos leads desta etapa"
-                        >
-                          {vgvLabel}
-                        </span>
-                      ) : (
-                        <span />
-                      )}
-                      {metrics?.conversaoPct != null && (
-                        <span title="Leads nesta etapa ou além, vs. a etapa anterior (funil acumulado)">
-                          conv. {metrics.conversaoPct.toLocaleString("pt-BR")}%
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {/* Sinais agregados do snapshot, em texto miúdo sob o nome:
+                      o diagnóstico da etapa sem paginar a coluna inteira. */}
+                  <SinaisDaColuna
+                    vencidos={Number(snapshotByStage.get(col.id)?.followups_vencidos ?? 0)}
+                    semAcao={Number(snapshotByStage.get(col.id)?.sem_proxima_acao ?? 0)}
+                    parados={Number(snapshotByStage.get(col.id)?.parados_ha_7_dias ?? 0)}
+                  />
                   <div className="space-y-2 min-h-[100px]">
                     {items.map((lead) => (
                       <Card
