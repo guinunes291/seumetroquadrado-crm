@@ -11,7 +11,7 @@ import {
   formatPhoneBR,
 } from "@/lib/masks";
 import { isValidBrazilPhone, isValidCPF, isValidEmail, onlyDigits } from "@/lib/validators";
-import { mesmaConstrutora, chaveConstrutora } from "@/lib/construtoras";
+import { mesmaConstrutoraExata, chaveConstrutora } from "@/lib/construtoras";
 import { slugify } from "@/lib/projetos";
 import { useConstrutorasParceiras } from "@/features/projetos/use-construtoras-parceiras";
 import {
@@ -167,7 +167,7 @@ export function RegistrarVendaDialog() {
       const k = chaveConstrutora(nome);
       if (!k || vistos.has(k)) return;
       // Variações de nome da mesma parceira ("Cury Construtora") não duplicam.
-      if (lista.some((x) => mesmaConstrutora(nome, x))) return;
+      if (lista.some((x) => mesmaConstrutoraExata(nome, x))) return;
       vistos.add(k);
       lista.push(nome);
     };
@@ -188,7 +188,7 @@ export function RegistrarVendaDialog() {
   const projetosDaConstrutora = useMemo(() => {
     const f = chaveConstrutora(filtroProjeto);
     return projetos
-      .filter((p) => mesmaConstrutora(p.construtora, construtora))
+      .filter((p) => mesmaConstrutoraExata(p.construtora, construtora))
       .filter((p) => !f || chaveConstrutora(p.nome).includes(f));
   }, [projetos, construtora, filtroProjeto]);
 
@@ -246,7 +246,7 @@ export function RegistrarVendaDialog() {
     const atual = projetos.find((p) => p.id === l.projeto_id);
     if (atual?.construtora) {
       setConstrutora(
-        construtoras.find((c) => mesmaConstrutora(atual.construtora, c)) ?? atual.construtora,
+        construtoras.find((c) => mesmaConstrutoraExata(atual.construtora, c)) ?? atual.construtora,
       );
       setProjeto(atual);
     }
@@ -483,7 +483,7 @@ export function RegistrarVendaDialog() {
                   <button
                     key={c}
                     onClick={() => {
-                      if (!mesmaConstrutora(c, construtora)) {
+                      if (!mesmaConstrutoraExata(c, construtora)) {
                         setProjeto(null);
                         setProjetoManual("");
                       }
