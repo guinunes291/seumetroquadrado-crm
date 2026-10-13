@@ -11,7 +11,7 @@ import {
   formatPhoneBR,
 } from "@/lib/masks";
 import { isValidBrazilPhone, isValidCPF, isValidEmail, onlyDigits } from "@/lib/validators";
-import { mesmaConstrutora, chaveConstrutora } from "@/lib/construtoras";
+import { mesmaConstrutora, mesmaConstrutoraExata, chaveConstrutora } from "@/lib/construtoras";
 import { slugify } from "@/lib/projetos";
 import { useConstrutorasParceiras } from "@/features/projetos/use-construtoras-parceiras";
 import {
@@ -188,7 +188,7 @@ export function RegistrarVendaDialog() {
   const projetosDaConstrutora = useMemo(() => {
     const f = chaveConstrutora(filtroProjeto);
     return projetos
-      .filter((p) => mesmaConstrutora(p.construtora, construtora))
+      .filter((p) => mesmaConstrutoraExata(p.construtora, construtora))
       .filter((p) => !f || chaveConstrutora(p.nome).includes(f));
   }, [projetos, construtora, filtroProjeto]);
 
