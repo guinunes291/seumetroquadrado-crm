@@ -20,7 +20,13 @@ const TETO_LINHAS = 1000;
 
 export type ComTotal<T> = { rows: T[]; total: number };
 
-export type LeadRef = { id: string; nome: string; telefone: string | null } | null;
+export type LeadRef = {
+  id: string;
+  nome: string;
+  telefone: string | null;
+  projeto_nome?: string | null;
+  projeto?: { nome: string } | null;
+} | null;
 
 // ---------------------------------------------------------------------------
 // Corretores (id → nome) — para resolver o responsável em qualquer lista.
@@ -160,7 +166,7 @@ export function useAnalisesNominais(range: Range, corretor: string | null, enabl
       let q = supabase
         .from("analises_credito")
         .select(
-          "id, lead_id, corretor_id, status, observacoes, created_at, updated_at, lead:leads(id, nome, telefone)",
+          "id, lead_id, corretor_id, status, observacoes, created_at, updated_at, lead:leads(id, nome, telefone, projeto_nome, projeto:projetos(nome))",
           { count: "exact" },
         )
         .order("updated_at", { ascending: false })
@@ -194,7 +200,7 @@ export type AgendamentoNominal = {
 };
 
 const AGENDAMENTO_SELECT =
-  "id, lead_id, corretor_id, tipo, status, data_inicio, created_at, realizado_em, lead:leads(id, nome, telefone)";
+  "id, lead_id, corretor_id, tipo, status, data_inicio, created_at, realizado_em, lead:leads(id, nome, telefone, projeto_nome, projeto:projetos(nome))";
 
 /** Agendamentos CRIADOS no período (mesma régua do KPI "Agendamentos"). */
 export function useAgendamentosNominais(range: Range, corretor: string | null, enabled = true) {
