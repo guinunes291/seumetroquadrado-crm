@@ -16,7 +16,9 @@
 //
 // Com a exigência de localização ligada, tocar numa filial pede confirmação
 // ("Você está dentro da loja X agora?"): um toque "para ver" fora da loja
-// vira check-in barrado e tira das roletas e do reforço no dia.
+// vira check-in barrado e tira das roletas e do reforço no dia. Com um
+// check-in valendo (o voluntário), a pergunta também diz o que o toque
+// encerra — o plantão confirmado pela gestão, a liberação —, como o aviso.
 //
 // Enquanto está na tela, relê a presença (15 s, ao voltar para a aba e para a
 // janela): o check-in feito no celular, o "Confirmar no plantão" da gestão ou
@@ -90,6 +92,7 @@ import {
 } from "./checkin-obrigatorio";
 import {
   BotoesAviso,
+  CaixaEncerra,
   CorpoAviso,
   PainelIncluirLocalizacao,
   ResgateAqui,
@@ -99,6 +102,7 @@ import {
   avisoAntesDoCheckin,
   decidirToqueFilial,
   encerraDoVisto,
+  fraseEncerra,
   previaDasFiliais,
   textoNovaTentativa,
   type Previa,
@@ -655,6 +659,7 @@ export function CheckinObrigatorioGlobal() {
           <ConfirmarNaLoja
             tituloRef={tituloRef}
             filial={confirmar}
+            encerra={fraseEncerra(encerraDoVisto(p.checkin))}
             computador={computador}
             carregando={escolha === confirmar.slug}
             ocupado={ocupado}
@@ -844,10 +849,16 @@ function devolverFoco(antes: Element | null, origem: PedidoCheckin["origem"]) {
 
 type TituloRef = React.RefObject<HTMLHeadingElement | null>;
 
-/** "Você está dentro da loja X agora?" — antes do check-in na filial. */
+/**
+ * "Você está dentro da loja X agora?" — antes do check-in na filial. Com um
+ * check-in valendo (o voluntário, para trocar), diz o que o toque encerra: sem
+ * leitura incluída a troca passa por aqui, não pelo aviso, e o plantão
+ * confirmado pela gestão (ou a liberação) sumiria sem ninguém avisar.
+ */
 function ConfirmarNaLoja({
   tituloRef,
   filial,
+  encerra,
   computador,
   carregando,
   ocupado,
@@ -856,6 +867,8 @@ function ConfirmarNaLoja({
 }: {
   tituloRef: TituloRef;
   filial: FilialOpcao;
+  /** "Isso também encerra…" (fraseEncerra); null sem check-in valendo. */
+  encerra: string | null;
   computador: boolean;
   carregando: boolean;
   ocupado: boolean;
@@ -875,6 +888,7 @@ function ConfirmarNaLoja({
         </DialogTitle>
         <DialogDescription className="text-foreground/90">{pergunta.detalhe}</DialogDescription>
       </DialogHeader>
+      {encerra && <CaixaEncerra texto={encerra} testId="confirmar-checkin-encerra" />}
       {computador && (
         <p className="flex items-start gap-1.5 text-xs text-warning">
           <MapPinSimpleArea className="mt-0.5 h-4 w-4 shrink-0" />

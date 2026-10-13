@@ -237,6 +237,26 @@ export function encerraDoVisto(c: CheckinAtual | null): EncerraValido | null {
   return { tipo: "valendo", local: rotuloLocal(c.modo, c.filial_nome) };
 }
 
+/**
+ * "Isso também encerra o plantão na Barra Funda confirmado pela gestão." — o
+ * custo de um check-in novo com outro valendo. O aviso antes do check-in e a
+ * pergunta "Estou na loja" (diálogo e card) dizem a MESMA frase: sem leitura
+ * incluída, a troca passa pela pergunta, e a confirmação da gestão sumiria
+ * sem aviso nenhum antes do toque.
+ */
+export function fraseEncerra(e: EncerraValido | null): string | null {
+  switch (e?.tipo) {
+    case "gestao_loja":
+      return `Isso também encerra o plantão na ${e.filial} confirmado pela gestão.`;
+    case "liberado":
+      return "Isso também encerra a liberação da gestão de hoje.";
+    case "valendo":
+      return `Isso também encerra o seu check-in de agora (${e.local}), que está valendo.`;
+    default:
+      return null;
+  }
+}
+
 export type TextosAviso = {
   titulo: string;
   orientacao: string | null;
@@ -287,19 +307,11 @@ export function avisoAntesDoCheckin(i: {
     : `Se fizer o check-in na filial ${i.filial} agora, ele fica barrado: você fica fora das roletas e do reforço hoje. ` +
       "O reforço só volta com um check-in na loja que valha (ou se a gestão liberar você); escolher Em casa depois não devolve. " +
       "As visitas marcadas pelo SDR continuam chegando.";
-  const encerra =
-    i.encerra?.tipo === "gestao_loja"
-      ? `Isso também encerra o plantão na ${i.encerra.filial} confirmado pela gestão.`
-      : i.encerra?.tipo === "liberado"
-        ? "Isso também encerra a liberação da gestão de hoje."
-        : i.encerra?.tipo === "valendo"
-          ? `Isso também encerra o seu check-in de agora (${i.encerra.local}), que está valendo.`
-          : null;
   return {
     titulo,
     orientacao,
     consequencia,
-    encerra,
+    encerra: fraseEncerra(i.encerra),
     dica:
       fora && !aproximada
         ? "Está dentro da loja e o celular não confirma? Peça ao gestor para confirmar no plantão."

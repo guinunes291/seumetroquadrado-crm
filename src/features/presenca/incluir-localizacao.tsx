@@ -203,18 +203,27 @@ export function BotoesAviso({
   );
 }
 
+/**
+ * "Isso também encerra…" (fraseEncerra): a caixa amarela do aviso antes do
+ * check-in e da pergunta "Estou na loja" (diálogo e card) — a mesma caixa nos
+ * dois, para o custo de trocar o check-in que vale ter uma cara só.
+ */
+export function CaixaEncerra({ texto, testId }: { texto: string; testId: string }) {
+  return (
+    <p
+      className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
+      data-testid={testId}
+    >
+      {texto}
+    </p>
+  );
+}
+
 /** O corpo do aviso (orientação, consequência, o que encerra, dica, resgate). */
 export function CorpoAviso({ textos }: { textos: TextosAviso }) {
   return (
     <>
-      {textos.encerra && (
-        <p
-          className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
-          data-testid="aviso-checkin-encerra"
-        >
-          {textos.encerra}
-        </p>
-      )}
+      {textos.encerra && <CaixaEncerra texto={textos.encerra} testId="aviso-checkin-encerra" />}
       {textos.dica && <p className="text-xs text-muted-foreground">{textos.dica}</p>}
       {textos.resgate && (
         <p className="flex items-start gap-1.5 text-sm font-medium text-success">

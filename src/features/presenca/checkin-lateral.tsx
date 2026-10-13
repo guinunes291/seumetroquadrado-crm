@@ -14,8 +14,10 @@
 //
 // Mora no chunk do shell (/_authenticated), presente em toda tela: importa só
 // o pequeno — a leitura da presença que o shell já faz (useCheckinObrigatorio,
-// sem releitura: nenhuma consulta nova, nenhum intervalo) e as funções puras
-// de presenca-derive. Nada do card, da prévia da localização nem do Dialog.
+// sem releitura: nenhuma consulta nova, nem por intervalo nem por foco; o
+// único intervalo é o relógio do dia de useDiaSaoPaulo, de 60 s e sem rede,
+// que vira o dia à meia-noite) e as funções puras de presenca-derive. Nada do
+// card, da prévia da localização nem do Dialog.
 //
 // Sem aria-live: o toast e a região única do diálogo já anunciam o que muda.
 // O estado é sempre TEXTO (a cor da bolinha nunca é a única pista). Os ids

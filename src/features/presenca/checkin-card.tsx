@@ -41,12 +41,14 @@ import { cn } from "@/lib/utils";
 import {
   AvisoAntesDoCheckinInline,
   BotoesAviso,
+  CaixaEncerra,
   PainelIncluirLocalizacao,
 } from "./incluir-localizacao";
 import {
   avisoAntesDoCheckin,
   decidirToqueFilial,
   encerraDoVisto,
+  fraseEncerra,
   previaDasFiliais,
   rotuloDaFilialNaPrevia,
   textoNovaTentativa,
@@ -433,6 +435,7 @@ export function CheckinCard({ className }: { className?: string }) {
         {confirmar ? (
           <ConfirmarFilial
             filial={confirmar.filial}
+            encerra={fraseEncerra(encerraDoVisto(p.checkin))}
             carregando={escolha === confirmar.filial.slug}
             disabled={ocupado}
             computador={computador}
@@ -539,10 +542,12 @@ export function CheckinCard({ className }: { className?: string }) {
 
 /**
  * "Você está dentro da loja X agora?" — o passo antes do check-in na filial
- * com a exigência ligada (no card; o diálogo tem o seu, com o título).
+ * com a exigência ligada (no card; o diálogo tem o seu, com o título). Com um
+ * check-in valendo, diz o que o toque encerra (a mesma caixa do aviso).
  */
 export function ConfirmarFilial({
   filial,
+  encerra,
   carregando,
   disabled,
   computador,
@@ -550,6 +555,8 @@ export function ConfirmarFilial({
   onVoltar,
 }: {
   filial: FilialOpcao;
+  /** "Isso também encerra…" (fraseEncerra); null sem check-in valendo. */
+  encerra: string | null;
   carregando: boolean;
   disabled: boolean;
   computador: boolean;
@@ -569,6 +576,7 @@ export function ConfirmarFilial({
           </p>
         )}
       </div>
+      {encerra && <CaixaEncerra texto={encerra} testId="confirmar-checkin-encerra" />}
       <BotoesConfirmarFilial
         carregando={carregando}
         disabled={disabled}

@@ -14,6 +14,7 @@ import {
   dentroDoRaio,
   distanciaMetros,
   encerraDoVisto,
+  fraseEncerra,
   precisaoComoBanco,
   previaDasFiliais,
   rotuloDaFilialNaPrevia,
@@ -401,6 +402,11 @@ describe("o aviso antes do check-in", () => {
     expect(encerraDoVisto(c({ apto_roleta: false }))).toBeNull();
     expect(encerraDoVisto(c({ encerrado_em: "2026-10-13T18:00:00Z" }))).toBeNull();
     expect(encerraDoVisto(null)).toBeNull();
+    // A pergunta "Estou na loja" diz a mesma frase do aviso (fraseEncerra).
+    expect(fraseEncerra(encerraDoVisto(c({ origem: "gestao" })))).toBe(
+      "Isso também encerra o plantão na Barra Funda confirmado pela gestão.",
+    );
+    expect(fraseEncerra(null)).toBeNull();
 
     expect(
       avisoAntesDoCheckin({

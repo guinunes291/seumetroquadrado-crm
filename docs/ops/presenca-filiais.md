@@ -170,16 +170,16 @@ No diálogo é uma tela; no card, aparece no lugar das opções. O foco vai para
 
 - **Título:** _"Você está a 6,1 km da filial Liberdade"_; com a leitura aproximada, _"A localização deste aparelho é aproximada (±5 km)"_ (mais _"Ligue a localização precisa do celular e inclua de novo."_, ou o aviso do computador); sem localização, _"Sem a localização, o check-in na filial Belém fica barrado"_, com o passo a passo da falha.
 - **Consequência:** _"Se fizer o check-in na filial Liberdade agora, ele fica barrado: você fica fora das roletas e do reforço hoje. O reforço só volta com um check-in na loja que valha (ou se a gestão liberar você); escolher Em casa depois não devolve. As visitas marcadas pelo SDR continuam chegando."_ Já barrado hoje e fora das roletas agora: _"Se fizer o check-in na filial Liberdade agora, ele também fica barrado: você continua fora das roletas e do reforço hoje."_. (No card, quem foi barrado e está no "Em casa" que vale — nas roletas, sem o reforço — vê o texto padrão, nunca o "continua fora das roletas".)
-- **O que encerra** (só com um check-in valendo): _"Isso também encerra o plantão na Barra Funda confirmado pela gestão."_, _"Isso também encerra a liberação da gestão de hoje."_ ou _"Isso também encerra o seu check-in de agora (Barra Funda), que está valendo."_.
+- **O que encerra** (só com um check-in valendo): _"Isso também encerra o plantão na Barra Funda confirmado pela gestão."_, _"Isso também encerra a liberação da gestão de hoje."_ ou _"Isso também encerra o seu check-in de agora (Barra Funda), que está valendo."_. Sem leitura incluída, a troca passa pela pergunta _"Você está dentro da loja Liberdade agora?"_, e ela mostra a mesma frase, na mesma caixa amarela (no diálogo e no card).
 - **Dica** (fora, leitura precisa): _"Está dentro da loja e o celular não confirma? Peça ao gestor para confirmar no plantão."_.
 - **Resgate**, quando a leitura precisa diz que ele está noutra filial: _"Pela localização, você está na filial Barra Funda."_.
 
 Botões, nesta ordem: **Fazer check-in na Barra Funda** (o resgate: o caminho direto dessa filial, com a mesma leitura), **Voltar** (às opções, com a prévia), **Incluir minha localização de novo** (no sem localização, **Incluir minha localização**: volta às opções e relê; **não** faz check-in depois) e o link **Fazer o check-in na filial Liberdade assim mesmo**, que lê a posição **de novo** (`maximumAge 0`) e deixa o banco decidir.
 
-**Enquanto confere.** Os botões travam e aparece _"Conferindo a localização…"_ (no "Em casa", _"Registrando o check-in…"_). Para o leitor de tela:
+**Enquanto confere.** Os botões travam e aparece _"Conferindo a localização…"_: cobre a leitura do GPS no toque e a releitura da presença que espera por ela. _"Registrando o check-in…"_ aparece no "Em casa" e quando a RPC vai com a localização já incluída (o direto, o resgate e o refazer com a leitura do pedido da faixa ou do bloco). Para o leitor de tela:
 
 - o foco vai para o título de cada tela nova, nunca para uma filial (um Enter solto não faz check-in);
-- uma região `aria-live`, sempre montada, troca só o texto: primeiro o "Conferindo…", depois o motivo do barrado ou do recusado.
+- uma região `aria-live`, sempre montada, troca só o texto (é a única do diálogo: o painel do **Incluir minha localização** fala por ela): _"Lendo a localização…"_ enquanto o GPS lê para a prévia; depois, o anúncio da leitura (_"Localização incluída: você está na filial Barra Funda."_, a filial mais perto ou a falha); no aviso antes do check-in, o título dele; durante o check-in, o "Conferindo…" (ou o "Registrando…"); por fim, o motivo do barrado, com a linha da tentativa (_"2ª tentativa às 09:42: …"_), ou do recusado.
 
 **Depois do check-in:**
 
@@ -201,7 +201,7 @@ Botões, nesta ordem: **Fazer check-in na Barra Funda** (o resgate: o caminho di
 
 Um check-in de outro aparelho que não liberou também fecha o diálogo das opções, sem verde; a faixa passa a avisar.
 
-Antes de **qualquer** check-in daqui (filial, Em casa, Tentar de novo, Estou em casa), a tela relê a presença na hora. Se o check-in de hoje já liberou a roleta, fecha sem chamar `presenca_checkin`, porque refazer encerraria a confirmação da gestão e gravaria um barrado novo.
+Antes de **qualquer** check-in daqui (filial, Em casa, Tentar de novo, Estou em casa), a tela relê a presença na hora (na filial, depois da resposta do GPS lido no toque). Se o check-in de hoje já liberou a roleta, fecha sem chamar `presenca_checkin`, porque refazer encerraria a confirmação da gestão e gravaria um barrado novo.
 
 **O card de /presenca e Meu Perfil.** É o mesmo check-in, com um cabeçalho que mostra a situação do dia:
 
@@ -221,13 +221,13 @@ Abaixo do cabeçalho:
 
 Depois do check-in sai um toast: verde quando liberou, ou amarelo _"Check-in registrado: Barra Funda. Você está fora da roleta."_ com o motivo.
 
-O card tem a mesma proteção do diálogo. Antes de qualquer check-in, relê a presença na hora. Se o check-in de hoje já liberou a roleta e o corretor não estava vendo isso quando tocou, o card **não** chama a RPC. Ele avisa _"Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão)."_ (ou _"Você já está na roleta hoje: Barra Funda."_, _"Você já está na roleta hoje: liberado pela gestão."_, _"Você já está na roleta hoje: Em casa."_), fecha a confirmação e mostra o que vale agora. Tocar de novo a filial em que ele já está na roleta dá o mesmo aviso. Se ele já via o check-in valendo e escolheu outra filial ou "Em casa", é troca de propósito, e o check-in segue.
+O card tem a mesma proteção do diálogo. Antes de qualquer check-in, relê a presença na hora (na filial, depois da resposta do GPS lido no toque). Se o check-in de hoje já liberou a roleta e o corretor não estava vendo isso quando tocou, o card **não** chama a RPC. Ele avisa _"Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão)."_ (ou _"Você já está na roleta hoje: Barra Funda."_, _"Você já está na roleta hoje: liberado pela gestão."_, _"Você já está na roleta hoje: Em casa."_), fecha a confirmação e mostra o que vale agora. Tocar de novo a filial em que ele já está na roleta dá o mesmo aviso. Se ele já via o check-in valendo e escolheu outra filial ou "Em casa", é troca de propósito, e o check-in segue.
 
 No barrado sem localização, o card diz _"Está na loja? Inclua a localização para ser liberado."_ com o botão **Incluir localização**: lê o GPS antes e refaz na mesma filial; se falhar, nada é gravado e o cabeçalho mostra o passo a passo novo e a linha da tentativa (_"2ª tentativa às 09:42: …"_). Nesse estado o botão **Incluir minha localização** (a prévia, que não grava) sai do card: dois botões quase iguais, só um gravando, confundiriam. Um pedido do bloco da barra lateral (ou da faixa) feito em /presenca ou /meu-perfil é atendido pelo card: ele rola até o card e põe o foco no título _"Check-in de hoje"_ (nunca dois check-ins na tela). Nessas telas o **Incluir localização** do bloco **não** lê o GPS (a leitura seria jogada fora): quem lê é o botão do card, no toque dele. Quando o aviso do card sai (o check-in, **Incluir de novo**), o foco volta ao título do card.
 
 Enquanto mostra um barrado, o card relê sozinho: a cada 15 s, quando a aba volta a ficar visível e quando a janela ganha o foco. Quando a gestão confirma no plantão ou o interruptor libera, ele sai do "fora da roleta" sem recarregar a página e para de reler. Uma releitura com erro mantém o último dado, sem trocar o card pela tela de erro.
 
-**A faixa do topo.** Aparece fora de /presenca e /meu-perfil, inclusive em /modo-visita, onde o diálogo não abre.
+**A faixa do topo.** Aparece fora de /presenca e /meu-perfil, inclusive em /modo-visita, onde o diálogo **obrigatório** não abre (o voluntário, pedido pela faixa ou pelo bloco, abre e é fechável).
 
 - Barrado fora do raio (check-in aberto numa filial que a localização barrou): _"Seu check-in em Barra Funda não valeu: a localização não confirmou a loja. Chegou à loja? Refaça o check-in."_, com o botão **Refazer check-in** (leva a /presenca).
 - Barrado **sem localização** (desde 13/10/2026): _"Seu check-in em Barra Funda ficou sem a localização e não vale para as roletas. Está na loja? Inclua a localização para ser liberado."_, com **Incluir localização** e o link **Refazer check-in** (/presenca). **Incluir localização** lê o GPS **no toque** (o navegador só mostra o pedido de permissão de dentro do gesto) e manda a leitura junto no pedido: o diálogo abre (voluntário) no barrado e refaz na mesma filial com essa leitura — liberou, verde e a faixa some; barrou de novo, o diálogo fica no barrado com o motivo. Se a gestão já confirmou antes, só o aviso _"Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão)."_ (ou, se a tela ainda não sabia, a releitura antes da RPC fecha com o verde da gestão); nos dois casos a leitura do toque é descartada e nada é gravado. A faixa nunca chama a RPC.
@@ -357,7 +357,9 @@ busca achar só a avenida (não o número), a tela avisa; nesse caso, no Google
 Maps, botão direito na porta da loja → clique nos números → cole no campo.
 
 No check-in **na filial**, o celular informa a localização **só naquele
-momento** e quando o corretor toca **Incluir minha localização** — só na
+momento** (no toque de Estou na loja, da filial, de Tentar de novo ou de
+Incluir localização: o navegador só mostra o pedido de permissão de dentro do
+gesto) e quando o corretor toca **Incluir minha localização** — só na
 tela: nada vai ao servidor, a distância é calculada no aparelho e serve de
 prévia (§2, "Incluir minha localização"). No check-in, o banco calcula a
 **distância até a loja** e descarta a coordenada (a tabela não tem
@@ -584,6 +586,16 @@ SELECT slug FROM public.roletas
  WHERE tipo IS DISTINCT FROM 'sdr' AND NOT exigir_presenca;              -- nenhuma
 SELECT has_function_privilege('anon', 'public.marcar_presenca(boolean)', 'EXECUTE');  -- false
 ```
+
+4. **Conferência manual do GPS no toque** (13/10/2026), num celular de
+   verdade:
+   - fazer no **domínio publicado**, não na prévia do Lovable: a prévia roda
+     num iframe, e o navegador pode negar a geolocalização sem nem perguntar;
+   - o pedido de permissão aparece **no toque** (Estou na loja, Tentar de
+     novo, Incluir localização da faixa e do bloco), no Android (Chrome) e no
+     iPhone (Safari, com "Permitir uma vez");
+   - **Trocar** pelo menu do celular (☰ → bloco de check-in): o menu fecha e
+     o diálogo abre com o foco no título.
 
 ### Estado em produção (11/10/2026)
 

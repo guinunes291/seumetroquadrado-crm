@@ -1033,6 +1033,43 @@ describe("a faixa do topo no barrado sem localização", () => {
     await waitFor(() => expect(faixa()).toBeNull());
     expect(chamadasCheckin()).toEqual([]);
   });
+  it("a leitura do toque da faixa FALHA (permissão negada): o diálogo abre no barrado, nenhuma RPC, o motivo muda para o da falha, a linha da 2ª tentativa e o Sentry da tentativa", async () => {
+    geolocalizacao(negada);
+    banco.atual = minha(barradoSemGps());
+    montarShell();
+    const f = await screen.findByTestId("faixa-checkin-barrado");
+    fireEvent.click(within(f).getByRole("button", { name: "Incluir localização" }));
+    // A leitura sai no toque da faixa (o navegador só pede de dentro do gesto).
+    expect(gps()).toHaveBeenCalledTimes(1);
+    expect(leiturasGps()[0].maximumAge).toBe(0);
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    expect(d).toHaveAttribute("data-modo", "voluntario");
+    // O motivo do check-in barrado (sem o porquê) vira o da falha nova: o cadeado.
+    await waitFor(() =>
+      expect(within(d).getByTestId("checkin-barrado-motivo")).toHaveTextContent("cadeado"),
+    );
+    expect(within(d).getByTestId("checkin-barrado-motivo")).not.toHaveTextContent(
+      "Sem a localização do celular não dá para confirmar",
+    );
+    // O toque fez alguma coisa: a linha da tentativa, na tela e na região viva.
+    expect(within(d).getByTestId("checkin-nova-tentativa").textContent).toMatch(
+      /^2ª tentativa às \d{2}:\d{2}: o navegador bloqueou a localização\.$/,
+    );
+    expect(regiao()).toHaveTextContent(/2ª tentativa às \d{2}:\d{2}/);
+    // Uma tentativa de check-in: conta no diagnóstico de "todo mundo barrado".
+    expect(estado.capture).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "geolocalizacao:negada" }),
+      "presenca.checkin",
+      true,
+    );
+    // Nada gravado, e o diálogo usou a leitura do toque (não pediu de novo
+    // fora do gesto). O "Incluir localização" do barrado continua lá.
+    await new Promise((r) => setTimeout(r, 30));
+    expect(chamadasCheckin()).toEqual([]);
+    expect(gps()).toHaveBeenCalledTimes(1);
+    expect(within(d).getByRole("button", { name: "Incluir localização" })).toBeEnabled();
+  });
+
   it("o GPS sai DENTRO do clique da faixa, antes de o diálogo montar (chunk lazy); ao montar, o diálogo refaz com essa leitura", async () => {
     banco.atual = minha(barradoSemGps());
     banco.resposta = () => minha(checkin({ id: "k2" }));
@@ -1159,6 +1196,39 @@ describe("o GPS no toque e a releitura depois da leitura", () => {
     await waitFor(() => expect(dialogo()).toBeNull());
     expect(estado.toast.success).toHaveBeenCalledWith(VERDE_GESTAO);
     expect(chamadasCheckin()).toEqual([]);
+  });
+
+  it("diálogo no barrado fora: 'Tentar de novo' chama o GPS DENTRO do clique, a releitura ESPERA o GPS — a gestão que confirma enquanto ele lê é vista e nada é rebaixado", async () => {
+    banco.atual = minha(barradoFora());
+    const responder = gpsPreso();
+    montar();
+    await waitFor(() => expect(leiturasPresenca()).toBeGreaterThan(0));
+    act(() => pedirCheckin({ acao: "abrir", origem: "lateral" }));
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    expect(await within(d).findByTestId("checkin-barrado-motivo")).toHaveTextContent(
+      "A localização deste aparelho ficou a 6,1 km da filial Barra Funda.",
+    );
+    // A leitura da abertura do pedido já voltou.
+    await new Promise((r) => setTimeout(r, 30));
+    expect(gps()).not.toHaveBeenCalled();
+    const antes = leiturasPresenca();
+    fireEvent.click(within(d).getByRole("button", { name: "Tentar de novo" }));
+    // Sem await: a leitura saiu no próprio clique, e na hora (nada da posição antiga).
+    expect(gps()).toHaveBeenCalledTimes(1);
+    expect(leiturasGps()[0].maximumAge).toBe(0);
+    await new Promise((r) => setTimeout(r, 30));
+    // O GPS ainda lendo: a releitura não saiu (sairia cedo demais).
+    expect(leiturasPresenca()).toBe(antes);
+    expect(regiao()).toHaveTextContent("Conferindo a localização…");
+    // A gestão confirma no plantão enquanto o GPS lê; o GPS responde de longe.
+    banco.atual = minha(confirmadoPelaGestao());
+    await responder(LONGE);
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(chamadasCheckin()).toEqual([]);
+    expect(estado.toast.success).toHaveBeenCalledWith(VERDE_GESTAO);
+    // Uma releitura só, depois da resposta do GPS; nenhuma segunda leitura do GPS.
+    expect(leiturasPresenca()).toBe(antes + 1);
+    expect(gps()).toHaveBeenCalledTimes(1);
   });
 
   it("card no barrado fora: refazer espera o GPS antes de reler — a gestão que confirma no meio não é rebaixada", async () => {

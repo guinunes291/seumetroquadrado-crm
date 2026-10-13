@@ -341,6 +341,65 @@ describe("o diálogo voluntário (Trocar, Fazer check-in)", () => {
     expect(chamadasCheckin()).toEqual([]);
   });
 
+  it("sem a leitura incluída, a troca passa pela pergunta: com o plantão confirmado pela gestão (ou a liberação) valendo, ela diz o que o toque encerra, na mesma caixa do aviso; sem check-in valendo, não", async () => {
+    banco.atual = minha(confirmadoPelaGestao());
+    const r = montar();
+    await leituraFeita();
+    pedir();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(d).getByRole("button", { name: /^Liberdade/ }));
+    expect(
+      await screen.findByRole("heading", { name: "Você está dentro da loja Liberdade agora?" }),
+    ).toBeInTheDocument();
+    const caixa = screen.getByTestId("confirmar-checkin-encerra");
+    expect(caixa).toHaveTextContent(
+      "Isso também encerra o plantão na Barra Funda confirmado pela gestão.",
+    );
+    // A caixa amarela do aviso ("aviso-checkin-encerra"), não um texto solto.
+    expect(caixa.className).toContain("border-warning/40");
+    expect(caixa.className).toContain("bg-warning/10");
+    // A pergunta não leu nada nem gravou nada.
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(chamadasCheckin()).toEqual([]);
+    r.unmount();
+
+    // A liberação da gestão (o interruptor) valendo: a pergunta diz que encerra.
+    banco.atual = minha(
+      checkin({
+        id: "k8",
+        modo: "liberado_gestao",
+        filial_slug: null,
+        filial_nome: null,
+        origem: "gestao",
+        localizacao: null,
+      }),
+    );
+    const r2 = montar();
+    await leituraFeita();
+    pedir();
+    fireEvent.click(
+      within(await screen.findByTestId("checkin-obrigatorio-dialog")).getByRole("button", {
+        name: /^Belém/,
+      }),
+    );
+    expect(await screen.findByTestId("confirmar-checkin-encerra")).toHaveTextContent(
+      "Isso também encerra a liberação da gestão de hoje.",
+    );
+    r2.unmount();
+
+    // Sem check-in hoje (o obrigatório): nada a encerrar, nenhuma caixa.
+    banco.atual = minha();
+    montar();
+    fireEvent.click(
+      within(await screen.findByTestId("checkin-obrigatorio-dialog")).getByRole("button", {
+        name: /^Liberdade/,
+      }),
+    );
+    await screen.findByRole("button", { name: "Estou na loja" });
+    expect(screen.queryByTestId("confirmar-checkin-encerra")).toBeNull();
+    expect(chamadasCheckin()).toEqual([]);
+  });
+
   it("/modo-visita sem check-in: o pedido abre o voluntário e o X fecha; em /presenca o diálogo não abre (o card atende)", async () => {
     banco.atual = minha();
     estado.pathname = "/modo-visita";
