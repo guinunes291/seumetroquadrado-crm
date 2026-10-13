@@ -496,8 +496,16 @@ export function usePresencaHoje(enabled: boolean) {
 /** A gestão faz o check-in do corretor numa filial (vale como confirmado). */
 export function useCheckinPelaGestao() {
   const invalidar = useInvalidarPresenca();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (args: { corretorId: string; filial: string; nome: string }) => {
+      // A gestão não confirma a si mesma: para o banco, o check-in com o
+      // próprio id é o do corretor (sem coordenada → barrado "sem
+      // localização", fora das roletas e do reforço). O próprio check-in é
+      // pelo card, com a localização do celular.
+      if (user && args.corretorId === user.id) {
+        throw new Error("o seu check-in é pelo card de check-in, com a localização do celular");
+      }
       const { error } = await supabasePendente.rpc("presenca_checkin", {
         _modo: "loja",
         _filial: args.filial,

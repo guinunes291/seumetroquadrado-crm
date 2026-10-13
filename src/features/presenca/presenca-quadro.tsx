@@ -3,6 +3,13 @@
 // confirmam o check-in de alguém numa filial (o corretor sem celular no
 // plantão); superintendente só lê.
 //
+// A própria linha (gestor que também é corretor): sem "Confirmar no plantão".
+// A gestão não confirma a si mesma — o banco trata esse check-in como o do
+// próprio corretor (presenca_checkin: _por_gestao só quando o alvo é OUTRA
+// pessoa) e, sem coordenada, com a exigência ligada ele saía BARRADO "sem
+// localização": fora das roletas e do reforço no dia. No lugar, "Meu
+// check-in" leva ao card de check-in da página, com a localização do celular.
+//
 // Barrado pela localização: fica na coluna da filial que escolheu, com o
 // porquê no selo, mas fora do número do cabeçalho (o selo "N barrados" ao
 // lado) — a soma das colunas bate com o tile "No plantão (filiais)". Quem foi
@@ -30,6 +37,7 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useAuth } from "@/hooks/use-auth";
 import {
   diaSaoPauloHoje,
   useCheckinPelaGestao,
@@ -47,6 +55,7 @@ import {
   type ColunaQuadro,
   type PresencaHojeRow,
 } from "./presenca-derive";
+import { pedirCheckin } from "./use-checkin-obrigatorio";
 
 const hora = (iso: string | null) =>
   iso
@@ -206,6 +215,9 @@ function LinhaCorretor({
   foraDoReforco: boolean;
 }) {
   const checkin = useCheckinPelaGestao();
+  const { user } = useAuth();
+  // A própria linha: a gestão não confirma a si mesma (ver o topo do arquivo).
+  const propria = !!user && r.corretor_id === user.id;
   const aberto = r.modo !== null && r.encerrado_em === null;
   // Barrado pela localização: o selo já diz a distância (ou "sem localização").
   const status = statusRoletaLinha(r);
@@ -224,7 +236,10 @@ function LinhaCorretor({
         <AvatarFallback className="text-xs">{iniciais(r.nome)}</AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{r.nome}</p>
+        <p className="truncate text-sm font-medium">
+          {r.nome}
+          {propria && <span className="font-normal text-muted-foreground"> (você)</span>}
+        </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
           {status ? (
             <StatusBadge intent={status.intent}>{status.texto}</StatusBadge>
@@ -244,7 +259,19 @@ function LinhaCorretor({
           {evidencia && <StatusBadge intent={evidencia.intent}>{evidencia.texto}</StatusBadge>}
         </div>
       </div>
-      {podeOperar && filiais.length > 0 && (
+      {podeOperar && propria ? (
+        // O card de check-in da página atende o pedido (rola até ele e foca):
+        // é lá que o celular confere a localização.
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0"
+          title="O seu check-in é pelo card de check-in, com a localização do celular"
+          onClick={() => pedirCheckin({ acao: "abrir", origem: "quadro" })}
+        >
+          Meu check-in
+        </Button>
+      ) : podeOperar && filiais.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -271,7 +298,7 @@ function LinhaCorretor({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
+      ) : null}
     </div>
   );
 }

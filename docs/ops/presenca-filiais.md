@@ -293,6 +293,7 @@ O bloco da barra lateral e a faixa abrem o **mesmo** diálogo do check-in, em mo
 - O selo da linha diz o porquê: _"Barrado: a 5,8 km da filial"_ ou _"Barrado: sem localização (permissão negada)"_. Com a precisão acima de 1 km (coluna `precisao_m` de `presenca_hoje_v1`, desde a `0082`), aparece _"Barrado: localização imprecisa (±5 km)"_ no lugar da distância.
 - Quem foi barrado e trocou para casa ganha o selo _"fora do reforço hoje"_.
 - O menu **Confirmar no plantão** faz o check-in do corretor numa filial, com o toast _"{Nome}: check-in confirmado pela gestão."_.
+- Na **própria linha** (gestor que também é corretor) não há o menu: a linha ganha _"(você)"_ ao lado do nome e o botão **Meu check-in**, que leva ao card de check-in da página (rola até ele e foca o título). Desde 13/10/2026 — antes, "Confirmar no plantão" na própria linha virava o check-in do próprio corretor sem coordenada e saía **barrado "sem localização"** (fora das roletas e do reforço no dia).
 
 <!-- /TELA -->
 
@@ -514,6 +515,14 @@ celular).
   vendas do mês anterior e evidência de localização de cada um.
 - **Confirmar no plantão** (admin e gestor, menu ⋮ do corretor): faz o
   check-in por ele numa filial — para quem está na loja sem celular.
+  **Nunca na própria linha** (desde 13/10/2026): a gestão não confirma a si
+  mesma. Para o banco, `presenca_checkin` com o próprio id é o check-in do
+  próprio corretor (`_por_gestao` só quando o alvo é outra pessoa) — sem
+  coordenada, com a exigência ligada, saía barrado "sem localização". A
+  própria linha mostra **Meu check-in**, que leva ao card (a localização do
+  celular), e `useCheckinPelaGestao` recusa o próprio id antes de chamar o
+  banco (_"Falha no check-in: o seu check-in é pelo card de check-in, com a
+  localização do celular"_).
 - **Interruptor de presença da Central** (aba Corretores/Filas): continua
   furando a regra de propósito (é decisão da gestão), mas agora fica registrado
   como **"Liberado pela gestão"**, com quem liberou. Ligado, vale como
