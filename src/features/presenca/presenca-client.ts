@@ -2,7 +2,7 @@
 // Toda escrita passa por RPC: o banco aplica a regra do plantão e trava o
 // UPDATE direto em profiles.presente.
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { isMissingBackendObject } from "@/lib/supabase-errors";
 import {
   AVISO_FORA_DO_REFORCO,
+  leituraValida,
   motivoPresencaLabel,
   nomeDoMes,
   parseMinhaPresenca,
@@ -101,6 +102,14 @@ export function ehComputador(): boolean {
 
 export type Localizacao = { lat: number; lng: number; precisao: number | null };
 
+/**
+ * A leitura que a tela conferiu ("Incluir minha localização"): vai à RPC tal
+ * como foi conferida, para a prévia e o banco olharem a MESMA posição.
+ * `lidaEm` = Date.now() quando o aparelho respondeu (a leitura é sempre com
+ * maximumAge 0, então a posição é daquele instante).
+ */
+export type LeituraIncluida = Localizacao & { lidaEm: number };
+
 /** O que o celular respondeu: a posição, ou por que não veio. */
 export type LeituraLocalizacao =
   ({ ok: true } & Localizacao) | { ok: false; falha: FalhaLocalizacao };
@@ -155,6 +164,22 @@ export function obterLocalizacao(
   });
 }
 
+/**
+ * GPS agora (maximumAge 0): o "Incluir minha localização" e o "Incluir
+ * localização" do barrado. Não muda o formato de obterLocalizacao (os testes
+ * dela travam o retorno): o `lidaEm` nasce aqui, no resolve.
+ */
+export async function lerLocalizacaoAgora(): Promise<
+  { ok: true; leitura: LeituraIncluida } | { ok: false; falha: FalhaLocalizacao }
+> {
+  const l = await obterLocalizacao(10_000, { maximumAge: 0 });
+  if (!l.ok) return { ok: false, falha: l.falha };
+  return {
+    ok: true,
+    leitura: { lat: l.lat, lng: l.lng, precisao: l.precisao, lidaEm: Date.now() },
+  };
+}
+
 function useInvalidarPresenca() {
   const qc = useQueryClient();
   return () => {
@@ -169,6 +194,8 @@ function useInvalidarPresenca() {
 export type ResultadoCheckin = {
   presenca: MinhaPresenca;
   falhaLocalizacao: FalhaLocalizacao | null;
+  /** A RPC foi com a leitura que a tela conferiu (sem ler o GPS de novo). */
+  usouLeituraIncluida?: boolean;
 };
 
 /** O texto que explica por que o check-in não liberou a roleta (null = liberou). */
@@ -227,15 +254,37 @@ function toastDoCheckin(r: ResultadoCheckin, avisarRecusa: boolean, barradoHoje:
   }
 }
 
-/** A falha de localização vai para o Sentry (diagnóstico de "todo mundo barrado"). */
-function registrarFalhaLocalizacao(falha: FalhaLocalizacao) {
+function capturar(mensagem: string, mecanismo: string) {
   void import("@/lib/error-tracking-browser")
-    .then((m) =>
-      m.captureClientError(new Error(`geolocalizacao:${falha}`), "presenca.checkin", true),
-    )
+    .then((m) => m.captureClientError(new Error(mensagem), mecanismo, true))
     .catch(() => {
       /* sem rastreamento: o check-in segue igual */
     });
+}
+
+/**
+ * A falha de localização vai para o Sentry. `checkin` (uma tentativa de
+ * check-in, inclusive o "Incluir localização" do barrado) → o diagnóstico de
+ * "todo mundo barrado" (`geolocalizacao:<falha>` / presenca.checkin), como
+ * sempre. `previa` (o "Incluir minha localização", que não grava nada) →
+ * prefixo e mecanismo próprios, para não contaminar aquela conta. Só o tipo
+ * da falha: nunca a posição.
+ */
+export function registrarFalhaLocalizacao(
+  falha: FalhaLocalizacao | "aproximada",
+  origem: "checkin" | "previa" = "checkin",
+): void {
+  if (origem === "previa") capturar(`geolocalizacao-previa:${falha}`, "presenca.previa");
+  else capturar(`geolocalizacao:${falha}`, "presenca.checkin");
+}
+
+/**
+ * A prévia disse "dentro" e o banco, com a MESMA leitura, não confirmou: a
+ * prova em produção de que o espelho da regra (localizacao-previa.ts) se
+ * afastou do banco. Só o estado devolvido — sem coordenada, sem distância.
+ */
+export function registrarPreviaDivergente(localizacao: string): void {
+  capturar(`presenca:previa_divergente:dentro:${localizacao}`, "presenca.previa");
 }
 
 export type ArgsCheckin = {
@@ -245,6 +294,14 @@ export type ArgsCheckin = {
   novaLeitura?: boolean;
   /** Houve um check-in na filial barrado hoje (o verde avisa do reforço). */
   barradoHoje?: boolean;
+  /**
+   * A leitura que a tela já conferiu: vai à RPC sem ler o GPS de novo (no
+   * iPhone, nada de segundo pedido de permissão). Vencida, é ignorada e o GPS
+   * é lido agora (maximumAge 0).
+   */
+  leitura?: LeituraIncluida;
+  /** A prévia disse "dentro" com esta leitura (só para o diagnóstico de divergência). */
+  previaDentro?: boolean;
 };
 
 /**
@@ -261,9 +318,20 @@ export function useCheckin({
   const invalidar = useInvalidarPresenca();
   return useMutation({
     mutationFn: async (args: ArgsCheckin): Promise<ResultadoCheckin> => {
-      const leitura =
-        args.modo === "loja"
-          ? await obterLocalizacao(undefined, args.novaLeitura ? { maximumAge: 0 } : undefined)
+      // A leitura conferida na tela, se ainda vale: a RPC recebe exatamente a
+      // posição que a prévia olhou. Vencida (ou sem ela), lê agora — com
+      // maximumAge 0 se a tela tinha uma (não reaproveita a mesma velha).
+      const usa =
+        args.modo === "loja" && args.leitura && leituraValida(args.leitura, Date.now())
+          ? args.leitura
+          : null;
+      const leitura: LeituraLocalizacao | null = usa
+        ? { ok: true, lat: usa.lat, lng: usa.lng, precisao: usa.precisao }
+        : args.modo === "loja"
+          ? await obterLocalizacao(
+              undefined,
+              args.novaLeitura || args.leitura ? { maximumAge: 0 } : undefined,
+            )
           : null;
       const geo = leitura?.ok ? leitura : null;
       const falha = leitura && !leitura.ok ? leitura.falha : null;
@@ -284,7 +352,11 @@ export function useCheckin({
         ({ data, error } = await supabasePendente.rpc("presenca_checkin", base));
       }
       if (error) throw error;
-      return { presenca: parseMinhaPresenca(data), falhaLocalizacao: falha };
+      return {
+        presenca: parseMinhaPresenca(data),
+        falhaLocalizacao: falha,
+        usouLeituraIncluida: !!usa,
+      };
     },
     onSuccess: (r, args) => {
       // A RPC não devolve as filiais — preserva as que já estavam no cache.
@@ -294,6 +366,15 @@ export function useCheckin({
       }));
       invalidar();
       toastDoCheckin(r, avisarRecusa, !!args.barradoHoje);
+      // A prévia disse "dentro" e o banco, com a mesma leitura, barrou.
+      const loc = r.presenca.checkin?.localizacao;
+      if (
+        args.previaDentro &&
+        r.usouLeituraIncluida &&
+        (loc === "fora_do_raio" || loc === "sem_localizacao")
+      ) {
+        registrarPreviaDivergente(loc);
+      }
     },
     onError: (e: Error) => {
       if (avisarErro) toast.error(`Não foi possível fazer o check-in: ${e.message}`);
@@ -407,20 +488,41 @@ export type FilialRow = {
   ordem: number;
 };
 
+const chaveFiliais = [...PRESENCA_KEY, "filiais"] as const;
+
+async function lerFiliais(): Promise<FilialRow[]> {
+  const { data, error } = await supabasePendente
+    .from("filiais")
+    .select("id, slug, nome, endereco, latitude, longitude, raio_metros, ativa, ordem")
+    .order("ordem")
+    .order("nome");
+  if (error) throw error;
+  return data ?? [];
+}
+
 export function useFiliais(enabled = true) {
   return useQuery({
-    queryKey: [...PRESENCA_KEY, "filiais"],
+    queryKey: chaveFiliais,
     enabled,
-    queryFn: async (): Promise<FilialRow[]> => {
-      const { data, error } = await supabasePendente
-        .from("filiais")
-        .select("id, slug, nome, endereco, latitude, longitude, raio_metros, ativa, ordem")
-        .order("ordem")
-        .order("nome");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: lerFiliais,
   });
+}
+
+/**
+ * As coordenadas das filiais AGORA, para a prévia do "Incluir minha
+ * localização" (a gestão pode ter mudado o pino): só no toque, nunca ao abrir
+ * a tela. Sem rede, o cache (ou null: a tela diz que as distâncias não
+ * carregaram). Nunca rejeita.
+ */
+export function useBuscarFiliais(): () => Promise<FilialRow[] | null> {
+  const qc = useQueryClient();
+  return useCallback(
+    () =>
+      qc
+        .fetchQuery({ queryKey: chaveFiliais, queryFn: lerFiliais, staleTime: 0, retry: false })
+        .catch(() => qc.getQueryData<FilialRow[]>(chaveFiliais) ?? null),
+    [qc],
+  );
 }
 
 export function useSalvarFilial() {

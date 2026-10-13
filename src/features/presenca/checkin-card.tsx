@@ -16,8 +16,17 @@
 // confirmação e gravaria um barrado novo. E enquanto o card mostra um
 // check-in barrado pela localização, relê sozinho (15 s, aba e janela): o
 // "Confirmar no plantão" da gestão tira o card do "fora da roleta".
+//
+// "Incluir minha localização" (13/10/2026): o mesmo painel do diálogo, entre
+// a pergunta e as opções — lê o GPS ANTES da escolha e mostra a distância até
+// cada filial. Tocar a filial onde ele está faz o check-in direto com a mesma
+// leitura; tocar uma longe mostra o aviso no lugar das opções, sem RPC. No
+// barrado sem localização, "Incluir localização" lê o GPS antes de refazer
+// (se falhar, nada é gravado). O card também atende o pedido de check-in da
+// barra lateral nesta tela (rola até aqui e põe o foco no título) — sem hook
+// de router: o card só existe em /presenca e /meu-perfil.
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CircleNotch, House, MapPinSimpleArea, SignOut, Storefront } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -30,46 +39,63 @@ import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
+  AvisoAntesDoCheckinInline,
+  BotoesAviso,
+  PainelIncluirLocalizacao,
+} from "./incluir-localizacao";
+import {
+  avisoAntesDoCheckin,
+  decidirToqueFilial,
+  encerraDoVisto,
+  previaDasFiliais,
+  rotuloDaFilialNaPrevia,
+  type Previa,
+  type RotuloPrevia,
+} from "./localizacao-previa";
+import {
   ehComputador,
+  lerLocalizacaoAgora,
+  registrarFalhaLocalizacao,
   useBuscarPresencaFresca,
   useCheckin,
   useCheckinsDoDia,
   useEncerrarPresenca,
   useMinhaPresenca,
+  type LeituraIncluida,
 } from "./presenca-client";
 import {
+  AVISO_COMPUTADOR,
   avisoJaNaRoleta,
   avisoLocalizacao,
   barradosSemDestrave,
-  checkinAptoAberto,
   DICA_FORA_DA_FILIAL,
   enderecoCurto,
+  jaNaRoletaSemSaber,
+  leituraValida,
   localizacaoLabel,
   nomeDoMes,
   perguntaConfirmarFilial,
   precisaRefazerCheckin,
   situacaoHoje,
-  type CheckinAtual,
   type FalhaLocalizacao,
   type FilialOpcao,
   type MinhaPresenca,
+  type Visto,
 } from "./presenca-derive";
+import { useLocalizacaoIncluida } from "./use-localizacao-incluida";
+import { atenderPedidoCheckin, pedidoVigente, usePedidoCheckin } from "./use-checkin-obrigatorio";
 
-/** O check-in de hoje que o corretor via no card quando tocou a opção. */
-type Visto = Pick<CheckinAtual, "id" | "apto_roleta" | "encerrado_em"> | null;
+// Movido para presenca-derive (o diálogo também usa); continua exportado daqui.
+export { AVISO_COMPUTADOR } from "./presenca-derive";
 
-/**
- * A presença relida agora traz um check-in de hoje que liberou a roleta e que
- * o corretor NÃO estava vendo quando tocou? Então ele decidiu por uma tela
- * velha (o barrado, o "Em casa" fora da roleta): nada a refazer. Se ele já
- * via esse mesmo check-in valendo, a troca é de propósito (mudou de filial,
- * foi para casa) e segue.
- */
-function jaNaRoletaSemSaber(fresca: MinhaPresenca | null, visto: Visto): CheckinAtual | null {
-  const c = fresca?.checkin ?? null;
-  if (!c || !checkinAptoAberto(fresca)) return null;
-  const via = !!visto && visto.id === c.id && visto.apto_roleta && visto.encerrado_em === null;
-  return via ? null : c;
+/** O usuário pediu menos movimento? (jsdom e navegadores velhos não têm matchMedia.) */
+function reduzMovimento(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
 }
 
 export function CheckinCard({ className }: { className?: string }) {
@@ -93,6 +119,46 @@ export function CheckinCard({ className }: { className?: string }) {
   // Filial tocada esperando o "Estou na loja" (com a exigência ligada), e o
   // check-in que o card mostrava no toque.
   const [confirmar, setConfirmar] = useState<{ filial: FilialOpcao; visto: Visto } | null>(null);
+  // Filial tocada que a prévia diz que barraria: o aviso no lugar das opções.
+  const [aviso, setAviso] = useState<{
+    filial: FilialOpcao;
+    visto: Visto;
+    variante: "fora" | "sem_localizacao";
+  } | null>(null);
+  // A leitura do "Incluir minha localização": deste card, some ao sair da tela.
+  const loc = useLocalizacaoIncluida();
+  const pedido = usePedidoCheckin();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const tituloRef = useRef<HTMLDivElement>(null);
+  const avisoTituloRef = useRef<HTMLParagraphElement>(null);
+
+  // O pedido de check-in da barra lateral nesta tela: o card atende (rola até
+  // aqui e põe o foco no título) — nunca dois check-ins na tela.
+  const temDados = !!q.data;
+  useEffect(() => {
+    if (!pedido || !temDados || !pedidoVigente(pedido, Date.now())) return;
+    atenderPedidoCheckin(pedido.id);
+    cardRef.current?.scrollIntoView?.({
+      block: "start",
+      behavior: reduzMovimento() ? "auto" : "smooth",
+    });
+    tituloRef.current?.focus({ preventScroll: true });
+  }, [pedido, temDados]);
+
+  // O aviso apareceu: o foco vai para o título dele (o botão tocado sumiu).
+  const comAviso = !!aviso;
+  useEffect(() => {
+    if (comAviso) avisoTituloRef.current?.focus();
+  }, [comAviso]);
+
+  const filiais = q.data?.filiais;
+  const previa: Previa | null = useMemo(
+    () =>
+      loc.estado.fase === "incluida" && loc.estado.coordenadas && filiais
+        ? previaDasFiliais(loc.estado.leitura, filiais, loc.estado.coordenadas)
+        : null,
+    [loc.estado, filiais],
+  );
 
   if (q.isLoading) return <Skeleton className={cn("h-72 w-full", className)} />;
   // Só sem nenhum dado: a releitura do barrado que falha (rede) mantém o card
@@ -118,7 +184,18 @@ export function CheckinCard({ className }: { className?: string }) {
   const evidencia =
     aberto?.modo === "loja" ? localizacaoLabel(aberto.localizacao, aberto.distancia_m) : null;
 
-  const registrar = async (modo: "loja" | "casa", filial: string | undefined, visto: Visto) => {
+  const lendo = loc.estado.fase === "lendo";
+  const barradoSemLocalizacao =
+    precisaRefazerCheckin(p) && p.checkin?.motivo === "sem_localizacao" ? p.checkin : null;
+  const nomes = Object.fromEntries(p.filiais.map((f) => [f.slug, f.nome]));
+  const temCoordenadas = p.filiais.some((f) => f.tem_coordenadas);
+
+  const registrar = async (
+    modo: "loja" | "casa",
+    filial: string | undefined,
+    visto: Visto,
+    opts: { leitura?: LeituraIncluida; previaDentro?: boolean; novaLeitura?: boolean } = {},
+  ) => {
     setEscolha(filial ?? modo);
     // A presença de agora (sem cache): se o check-in de hoje já liberou a
     // roleta sem o corretor saber, avisa e não refaz. Falha na leitura não
@@ -129,23 +206,69 @@ export function CheckinCard({ className }: { className?: string }) {
       toast.info(avisoJaNaRoleta(jaVale));
       setEscolha(null);
       setConfirmar(null);
+      setAviso(null);
+      return;
+    }
+    // A leitura venceu durante a espera: nada de RPC com posição velha — a
+    // pergunta dessa filial, como antes do "Incluir".
+    if (opts.leitura && !leituraValida(opts.leitura, Date.now())) {
+      const f = p.filiais.find((x) => x.slug === filial);
+      setEscolha(null);
+      setAviso(null);
+      if (f) setConfirmar({ filial: f, visto });
       return;
     }
     checkin.mutate(
-      // Refazendo depois de barrado: lê a posição agora, não a de 1 min atrás.
-      { modo, filial, novaLeitura: modo === "loja" && precisaRefazerCheckin(p), barradoHoje },
+      {
+        modo,
+        filial,
+        // Refazendo depois de barrado (ou o "assim mesmo"): lê a posição
+        // agora, não a de 1 min atrás.
+        novaLeitura: opts.novaLeitura ?? (modo === "loja" && precisaRefazerCheckin(p)),
+        leitura: opts.leitura,
+        previaDentro: opts.previaDentro,
+        barradoHoje,
+      },
       {
         onSuccess: (r) => setFalha({ id: r.presenca.checkin?.id ?? "", falha: r.falhaLocalizacao }),
         onSettled: () => {
           setEscolha(null);
           setConfirmar(null);
+          setAviso(null);
         },
       },
     );
   };
 
-  // Com a exigência ligada, a filial pede confirmação: um toque "para ver"
-  // fora da loja vira check-in barrado e tira das roletas e do reforço.
+  /** A prévia disse "dentro" desta filial? */
+  const previaDentro = (slug: string) => previa?.porFilial[slug]?.tipo === "dentro";
+
+  /** O toque numa filial (ou no resgate): direto com a leitura, a pergunta ou o aviso. */
+  const tocarFilial = (f: FilialOpcao, visto: Visto) => {
+    const leitura = loc.leituraValidaAgora();
+    const decisao = decidirToqueFilial({
+      exige: p.exige_localizacao,
+      filial: f,
+      leitura,
+      falhaRecente: loc.falhaRecenteAgora(),
+      previa: leitura ? previa : null,
+    });
+    if (decisao === "direto") {
+      return void registrar("loja", f.slug, visto, {
+        leitura: leitura ?? undefined,
+        previaDentro: previaDentro(f.slug),
+      });
+    }
+    if (decisao === "confirmar") {
+      setAviso(null);
+      return setConfirmar({ filial: f, visto });
+    }
+    setAviso({ filial: f, visto, variante: decisao === "aviso_fora" ? "fora" : "sem_localizacao" });
+  };
+
+  // Com a exigência ligada, a filial pede confirmação (ou o aviso, com a
+  // prévia): um toque "para ver" fora da loja vira check-in barrado e tira
+  // das roletas e do reforço.
   const escolher = (modo: "loja" | "casa", filial?: string) => {
     // Já na roleta nesta filial (GPS ou a gestão confirmando no plantão):
     // refazer só arriscaria rebaixar o check-in que vale.
@@ -160,28 +283,98 @@ export function CheckinCard({ className }: { className?: string }) {
     }
     const visto: Visto = p.checkin;
     const f = modo === "loja" ? p.filiais.find((x) => x.slug === filial) : undefined;
-    if (f && p.exige_localizacao) return setConfirmar({ filial: f, visto });
+    if (f) return tocarFilial(f, visto);
     void registrar(modo, filial, visto);
   };
 
+  /**
+   * Barrado sem localização: lê o GPS ANTES de refazer. Se falhar, nada é
+   * gravado (sem barrado repetido) e o cabeçalho mostra o passo a passo da
+   * falha nova; se der, refaz na mesma filial com essa leitura.
+   */
+  const incluirLocalizacao = async (slug: string) => {
+    const c = p.checkin;
+    if (!c) return;
+    setEscolha(slug);
+    const r = await lerLocalizacaoAgora();
+    if (!r.ok) {
+      // Uma tentativa de check-in: conta no diagnóstico de "todo mundo barrado".
+      registrarFalhaLocalizacao(r.falha);
+      setFalha({ id: c.id, falha: r.falha });
+      setEscolha(null);
+      return;
+    }
+    await registrar("loja", slug, c, { leitura: r.leitura });
+  };
+
+  const leituraAgora = loc.leituraValidaAgora();
+  const aquiFora = (slug: string) =>
+    leituraAgora && previa?.aqui && previa.aqui !== slug && !previa.aproximada
+      ? { slug: previa.aqui, nome: nomes[previa.aqui] ?? previa.aqui }
+      : null;
+  const textosAviso = aviso
+    ? avisoAntesDoCheckin({
+        variante: aviso.variante,
+        filial: aviso.filial.nome,
+        conferencia: previa?.porFilial[aviso.filial.slug] ?? null,
+        previa,
+        falha: loc.estado.fase === "falhou" ? loc.estado.falha : null,
+        computador,
+        jaBarrado: barradoHoje || precisaRefazerCheckin(p),
+        encerra: encerraDoVisto(p.checkin),
+        aqui: aquiFora(aviso.filial.slug),
+      })
+    : null;
+
   return (
-    <Card className={className}>
+    <Card ref={cardRef} className={className}>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle
+          ref={tituloRef}
+          tabIndex={-1}
+          className="flex items-center gap-2 text-base outline-none"
+        >
           <Storefront className="h-5 w-5 text-primary" /> Check-in de hoje
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div
-          role="status"
-          className={cn("rounded-lg border px-4 py-3", INTENT_BADGE_BORDERED[sit.intent])}
-        >
-          <p className="font-semibold">{sit.titulo}</p>
-          {sit.detalhe && <p className="mt-0.5 text-sm text-foreground/80">{sit.detalhe}</p>}
-          {evidencia && (
-            <StatusBadge intent={evidencia.intent} className="mt-2">
-              {evidencia.texto}
-            </StatusBadge>
+        <div className="space-y-2">
+          <div
+            role="status"
+            className={cn("rounded-lg border px-4 py-3", INTENT_BADGE_BORDERED[sit.intent])}
+          >
+            <p className="font-semibold">{sit.titulo}</p>
+            {sit.detalhe && <p className="mt-0.5 text-sm text-foreground/80">{sit.detalhe}</p>}
+            {evidencia && (
+              <StatusBadge intent={evidencia.intent} className="mt-2">
+                {evidencia.texto}
+              </StatusBadge>
+            )}
+          </div>
+          {barradoSemLocalizacao?.filial_slug && (
+            <div
+              className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+              data-testid="card-incluir-localizacao-barrado"
+            >
+              <p className="text-sm">Está na loja? Inclua a localização para ser liberado.</p>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0"
+                disabled={ocupado}
+                onClick={() => {
+                  const slug = barradoSemLocalizacao.filial_slug;
+                  if (slug) void incluirLocalizacao(slug);
+                }}
+              >
+                {escolha === barradoSemLocalizacao.filial_slug ? (
+                  <CircleNotch className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <MapPinSimpleArea className="mr-1.5 h-4 w-4" />
+                )}
+                Incluir localização
+              </Button>
+            </div>
           )}
         </div>
 
@@ -191,20 +384,79 @@ export function CheckinCard({ className }: { className?: string }) {
             carregando={escolha === confirmar.filial.slug}
             disabled={ocupado}
             computador={computador}
-            onConfirmar={() => void registrar("loja", confirmar.filial.slug, confirmar.visto)}
+            // Depois de um barrado, a posição é lida na hora; sem barrado, vai
+            // a leitura do painel, se ainda vale.
+            onConfirmar={() => {
+              const leitura = precisaRefazerCheckin(p)
+                ? undefined
+                : (loc.leituraValidaAgora() ?? undefined);
+              void registrar("loja", confirmar.filial.slug, confirmar.visto, {
+                leitura,
+                previaDentro: !!leitura && previaDentro(confirmar.filial.slug),
+              });
+            }}
             onVoltar={() => setConfirmar(null)}
           />
         ) : (
           <div>
             <p className="mb-2 text-sm font-medium">Onde você está trabalhando hoje?</p>
-            <OpcoesCheckin
-              p={p}
-              escolha={escolha}
-              disabled={ocupado}
-              onEscolher={escolher}
-              className="lg:grid-cols-4"
-            />
-            <p className="mt-2 text-xs text-muted-foreground">{DICA_FORA_DA_FILIAL}</p>
+            {temCoordenadas && (
+              <div className="mb-3">
+                <PainelIncluirLocalizacao
+                  estado={loc.estado}
+                  previa={previa}
+                  nomes={nomes}
+                  computador={computador}
+                  desabilitado={ocupado}
+                  regiaoPropria
+                  // Com o aviso na tela, a região diz o título dele (os botões são os do aviso).
+                  anuncio={textosAviso?.titulo}
+                  controlesOcultos={!!aviso}
+                  onIncluir={() => void loc.incluir()}
+                  onCancelar={loc.cancelar}
+                />
+              </div>
+            )}
+            {aviso && textosAviso ? (
+              <AvisoAntesDoCheckinInline textos={textosAviso} tituloRef={avisoTituloRef}>
+                <BotoesAviso
+                  variante={aviso.variante}
+                  filial={aviso.filial}
+                  aqui={aquiFora(aviso.filial.slug)}
+                  escolha={escolha}
+                  disabled={ocupado}
+                  onResgate={() => {
+                    const aqui = aquiFora(aviso.filial.slug);
+                    const f = aqui && p.filiais.find((x) => x.slug === aqui.slug);
+                    if (f) tocarFilial(f, aviso.visto);
+                  }}
+                  onVoltar={() => {
+                    setAviso(null);
+                    tituloRef.current?.focus({ preventScroll: true });
+                  }}
+                  onIncluir={() => {
+                    // Volta às opções e relê; nada de check-in depois.
+                    setAviso(null);
+                    void loc.incluir();
+                  }}
+                  onAssimMesmo={() =>
+                    void registrar("loja", aviso.filial.slug, aviso.visto, { novaLeitura: true })
+                  }
+                />
+              </AvisoAntesDoCheckinInline>
+            ) : (
+              <>
+                <OpcoesCheckin
+                  p={p}
+                  previa={previa}
+                  escolha={escolha}
+                  disabled={ocupado || lendo}
+                  onEscolher={escolher}
+                  className="lg:grid-cols-4"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">{DICA_FORA_DA_FILIAL}</p>
+              </>
+            )}
           </div>
         )}
 
@@ -271,10 +523,6 @@ export function ConfirmarFilial({
   );
 }
 
-/** No computador, a localização costuma vir do Wi-Fi ou do IP (km de erro). */
-export const AVISO_COMPUTADOR =
-  "No computador a localização costuma falhar: se puder, faça o check-in pelo celular.";
-
 /** [Voltar] [Estou na loja] — o card e o diálogo usam os mesmos. */
 export function BotoesConfirmarFilial({
   carregando,
@@ -316,12 +564,19 @@ export function OpcoesCheckin({
   disabled,
   onEscolher,
   className,
+  previa,
 }: {
   p: MinhaPresenca;
   escolha: string | null;
   disabled: boolean;
   onEscolher: (modo: "loja" | "casa", filial?: string) => void;
   className?: string;
+  /**
+   * A prévia do "Incluir minha localização": a distância no lugar do endereço
+   * e "Você está aqui" em destaque. Sem ela, as opções ficam como sempre. A
+   * ordem nunca muda (nada sai de baixo do dedo).
+   */
+  previa?: Previa | null;
 }) {
   const aberto = p.checkin && !p.checkin.encerrado_em && p.checkin.apto_roleta ? p.checkin : null;
   return (
@@ -330,6 +585,7 @@ export function OpcoesCheckin({
         <OpcaoFilial
           key={f.slug}
           filial={f}
+          rotulo={previa ? rotuloDaFilialNaPrevia(previa, f.slug) : null}
           selecionada={aberto?.modo === "loja" && aberto.filial_slug === f.slug}
           carregando={escolha === f.slug}
           disabled={disabled}
@@ -356,6 +612,8 @@ function OpcaoBotao({
   disabled,
   onClick,
   aviso,
+  aqui,
+  sucesso,
 }: {
   icone: React.ReactNode;
   titulo: string;
@@ -365,6 +623,10 @@ function OpcaoBotao({
   disabled: boolean;
   onClick: () => void;
   aviso?: boolean;
+  /** "Você está aqui" (a prévia): o destaque em verde. */
+  aqui?: boolean;
+  /** O detalhe em verde (dentro do raio). */
+  sucesso?: boolean;
 }) {
   return (
     <button
@@ -376,7 +638,10 @@ function OpcaoBotao({
         "flex min-h-[84px] flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
         "hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "disabled:cursor-not-allowed disabled:opacity-60",
-        selecionada && "border-primary bg-primary/10 ring-1 ring-primary",
+        // O check-in que vale manda na borda; senão, o "Você está aqui".
+        selecionada
+          ? "border-primary bg-primary/10 ring-1 ring-primary"
+          : aqui && "border-success bg-success/10 ring-1 ring-success",
       )}
     >
       <span className="flex items-center gap-1.5 font-medium">
@@ -384,7 +649,12 @@ function OpcaoBotao({
         {titulo}
       </span>
       {detalhe && (
-        <span className={cn("text-xs", aviso ? "text-warning" : "text-muted-foreground")}>
+        <span
+          className={cn(
+            "text-xs",
+            aviso ? "text-warning" : aqui || sucesso ? "text-success" : "text-muted-foreground",
+          )}
+        >
           {carregando ? "Confirmando…" : detalhe}
         </span>
       )}
@@ -394,16 +664,21 @@ function OpcaoBotao({
 
 function OpcaoFilial(props: {
   filial: FilialOpcao;
+  /** O rótulo da prévia (null = o endereço, como sempre). */
+  rotulo: RotuloPrevia | null;
   selecionada: boolean;
   carregando: boolean;
   disabled: boolean;
   onClick: () => void;
 }) {
+  const { rotulo } = props;
   return (
     <OpcaoBotao
       icone={<Storefront className="h-4 w-4 text-primary" />}
       titulo={props.filial.nome}
-      detalhe={enderecoCurto(props.filial.endereco) ?? "Plantão: libera a roleta"}
+      detalhe={rotulo?.texto ?? enderecoCurto(props.filial.endereco) ?? "Plantão: libera a roleta"}
+      aqui={rotulo?.aqui}
+      sucesso={rotulo?.intent === "success"}
       selecionada={props.selecionada}
       carregando={props.carregando}
       disabled={props.disabled}

@@ -10,6 +10,14 @@
 // Enquanto mostra o barrado, relê a presença (15 s, aba e janela): quando a
 // gestão confirmar no plantão (ou o interruptor liberar), a faixa some
 // sozinha — e não empurra o corretor para refazer um check-in que já vale.
+//
+// Barrado SEM localização (13/10/2026): o celular não informou a posição, e
+// "Refazer check-in" em /presenca obrigava a escolher a filial de novo. A
+// faixa ganha "Incluir localização", que só PEDE (pedirCheckin): o diálogo
+// abre no barrado, lê o GPS ANTES e refaz na mesma filial — se a leitura
+// falhar, nada é gravado. A faixa nunca chama a RPC, e nem lê o GPS: o pedido
+// não amarra nada pesado ao chunk do shell. O barrado FORA da filial e a faixa
+// de quem não fez (ou encerrou) o check-in continuam como antes.
 
 import { Link, useLocation } from "@tanstack/react-router";
 import { MapPinSimpleArea, Storefront } from "@phosphor-icons/react";
@@ -18,6 +26,7 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { TELAS_COM_CARD_CHECKIN } from "./checkin-obrigatorio";
 import { useMinhaPresenca } from "./presenca-client";
 import { precisaCheckin, precisaRefazerCheckin } from "./presenca-derive";
+import { pedirCheckin } from "./use-checkin-obrigatorio";
 
 export function CheckinPendenteBanner() {
   const { isCorretor, loading } = useUserRoles();
@@ -33,11 +42,15 @@ export function CheckinPendenteBanner() {
   if (!barrado && !precisaCheckin(q.data)) return null;
   if (telaComCard) return null;
 
-  const encerrado = !!q.data?.checkin?.encerrado_em;
+  const c = q.data?.checkin;
+  const filial = c?.filial_nome ?? "uma filial";
+  const encerrado = !!c?.encerrado_em;
+  const semLocalizacao = barrado && c?.motivo === "sem_localizacao";
   return (
     <div
       className="mb-4 flex flex-col gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
       data-testid={barrado ? "faixa-checkin-barrado" : "faixa-checkin"}
+      data-motivo={barrado ? (c?.motivo ?? undefined) : undefined}
     >
       <div className="flex items-start gap-2 text-sm">
         {barrado ? (
@@ -45,12 +58,16 @@ export function CheckinPendenteBanner() {
         ) : (
           <Storefront className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
         )}
-        {barrado ? (
+        {semLocalizacao ? (
           <span>
             <strong>
-              Seu check-in em {q.data?.checkin?.filial_nome ?? "uma filial"} não valeu: a
-              localização não confirmou a loja.
+              Seu check-in em {filial} ficou sem a localização e não vale para as roletas.
             </strong>{" "}
+            Está na loja? Inclua a localização para ser liberado.
+          </span>
+        ) : barrado ? (
+          <span>
+            <strong>Seu check-in em {filial} não valeu: a localização não confirmou a loja.</strong>{" "}
             Chegou à loja? Refaça o check-in.
           </span>
         ) : (
@@ -62,9 +79,25 @@ export function CheckinPendenteBanner() {
           </span>
         )}
       </div>
-      <Button asChild size="sm" className="shrink-0">
-        <Link to="/presenca">{barrado ? "Refazer check-in" : "Fazer check-in"}</Link>
-      </Button>
+      {semLocalizacao ? (
+        // O diálogo atende o pedido: abre no barrado, lê o GPS e refaz. O
+        // link continua para quem prefere escolher outra filial em /presenca.
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => pedirCheckin({ acao: "incluir-localizacao", origem: "faixa" })}
+          >
+            Incluir localização
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/presenca">Refazer check-in</Link>
+          </Button>
+        </div>
+      ) : (
+        <Button asChild size="sm" className="shrink-0">
+          <Link to="/presenca">{barrado ? "Refazer check-in" : "Fazer check-in"}</Link>
+        </Button>
+      )}
     </div>
   );
 }

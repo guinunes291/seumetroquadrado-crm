@@ -375,11 +375,15 @@ export function situacaoHoje(
   };
 }
 
-/** O aviso de localização sob as opções do check-in (card e diálogo obrigatório). */
+/**
+ * O aviso de localização sob as opções do check-in (card e diálogo). Desde
+ * 13/10/2026 o celular também lê a posição quando o corretor toca "Incluir
+ * minha localização" — só na tela, como prévia; quem decide é o banco.
+ */
 export function avisoLocalizacao(exige: boolean): string {
   return exige
-    ? "Na filial, a localização do celular é conferida no momento do check-in: o check-in só vale de dentro da loja. Em casa, a localização nunca é pedida."
-    : "Na filial, o celular informa a localização só no momento do check-in, para confirmar o plantão. Em casa, a localização nunca é pedida.";
+    ? "Na filial, a localização do celular é conferida quando você toca em Incluir minha localização e no momento do check-in: o check-in só vale de dentro da loja. Em casa, a localização nunca é pedida."
+    : "Na filial, o celular informa a localização só quando você toca em Incluir minha localização ou faz o check-in, para confirmar o plantão. Em casa, a localização nunca é pedida.";
 }
 
 /** A dica sob as opções: quem não está numa filial não tem por que escolher uma. */
@@ -413,6 +417,214 @@ export function avisoJaNaRoleta(c: Pick<CheckinAtual, "modo" | "filial_nome" | "
 export function checkinAptoAberto(p: MinhaPresenca | null | undefined): boolean {
   const c = p?.checkin;
   return !!c && c.encerrado_em === null && c.apto_roleta;
+}
+
+/** O check-in de hoje que o corretor via na tela quando tocou a opção. */
+export type Visto = Pick<CheckinAtual, "id" | "apto_roleta" | "encerrado_em"> | null;
+
+/**
+ * A presença relida agora traz um check-in de hoje que liberou a roleta e que
+ * o corretor NÃO estava vendo quando tocou? Então ele decidiu por uma tela
+ * velha (o barrado, o "Em casa" fora da roleta): nada a refazer. Se ele já
+ * via esse mesmo check-in valendo, a troca é de propósito (mudou de filial,
+ * foi para casa) e segue. (Movida do card: o diálogo voluntário usa a mesma.)
+ */
+export function jaNaRoletaSemSaber(
+  fresca: MinhaPresenca | null,
+  visto: Visto,
+): CheckinAtual | null {
+  const c = fresca?.checkin ?? null;
+  if (!c || !checkinAptoAberto(fresca)) return null;
+  const via = !!visto && visto.id === c.id && visto.apto_roleta && visto.encerrado_em === null;
+  return via ? null : c;
+}
+
+/** No computador, a localização costuma vir do Wi-Fi ou do IP (km de erro). */
+export const AVISO_COMPUTADOR =
+  "No computador a localização costuma falhar: se puder, faça o check-in pelo celular.";
+
+// ---------------------------------------------------------------------------
+// "Incluir minha localização" e o bloco de check-in da barra lateral
+// (13/10/2026). Só o pequeno mora aqui (este arquivo vai no chunk do shell);
+// a prévia das distâncias fica em localizacao-previa.ts, nos chunks lazy.
+// ---------------------------------------------------------------------------
+
+/**
+ * Quanto vale a leitura do "Incluir minha localização": o mesmo maximumAge
+ * que o check-in já aceita. Vencida, a tela só volta ao fluxo de antes (a
+ * pergunta e a leitura na hora) — nunca bloqueia.
+ */
+export const VALIDADE_LEITURA_MS = 60_000;
+
+/** Vale agora? Relógio que volta (agora < lidaEm) = vencida. */
+export function leituraValida(l: { lidaEm: number } | null | undefined, agora: number): boolean {
+  return !!l && agora >= l.lidaEm && agora - l.lidaEm <= VALIDADE_LEITURA_MS;
+}
+
+const fmtHoraSaoPaulo = new Intl.DateTimeFormat("pt-BR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+
+/** "09:31" em São Paulo; inválida → null. Aceita ISO ou epoch ms. */
+export function horaSaoPaulo(v: string | number | null | undefined): string | null {
+  if (v == null || v === "") return null;
+  const d = new Date(v);
+  if (!Number.isFinite(d.getTime())) return null;
+  return fmtHoraSaoPaulo.format(d);
+}
+
+/** O que o bloco da barra lateral e a faixa pedem ao diálogo. */
+export type AcaoPedidoCheckin = "abrir" | "incluir-localizacao";
+
+/** O bloco de check-in da barra lateral: onde e como está hoje, e a ação. */
+export type BlocoCheckin = {
+  chave:
+    | "erro"
+    | "carregando"
+    | "sem_checkin"
+    | "encerrado"
+    | "na_roleta"
+    | "fora_vendas"
+    | "fora_roleta"
+    | "barrado_sem_localizacao"
+    | "barrado_fora";
+  /** "Barra Funda · 09:31". */
+  linha: string | null;
+  /** "Nas roletas". Sempre texto: a cor nunca é a única pista. */
+  estado: string;
+  intent: Intent;
+  acao:
+    | {
+        tipo: "pedido";
+        acao: AcaoPedidoCheckin;
+        rotulo: "Fazer check-in" | "Trocar" | "Refazer check-in" | "Incluir localização";
+      }
+    // Erro na leitura: o link para /presenca (o card tenta de novo).
+    | { tipo: "link"; rotulo: "Abrir check-in" }
+    | null;
+};
+
+/**
+ * O bloco de check-in da barra lateral, avaliado NESTA ordem (a primeira que
+ * bater). `pendente === null` cobre a virada do dia: o cache é de ontem e a
+ * releitura ainda não voltou — "Lendo o check-in…" em vez do check-in velho.
+ */
+export function blocoCheckinLateral(i: {
+  presenca: MinhaPresenca | undefined;
+  pendente: boolean | null;
+  erro: boolean;
+}): BlocoCheckin {
+  if (i.erro) {
+    return {
+      chave: "erro",
+      linha: null,
+      estado: "Não deu para ler o check-in",
+      intent: "neutral",
+      acao: { tipo: "link", rotulo: "Abrir check-in" },
+    };
+  }
+  const p = i.presenca;
+  if (!p || i.pendente === null) {
+    return {
+      chave: "carregando",
+      linha: null,
+      estado: "Lendo o check-in…",
+      intent: "neutral",
+      acao: null,
+    };
+  }
+  const c = p.checkin;
+  if (!c) {
+    return {
+      chave: "sem_checkin",
+      linha: "Sem check-in hoje",
+      estado: "Fora das roletas",
+      intent: "warning",
+      acao: { tipo: "pedido", acao: "abrir", rotulo: "Fazer check-in" },
+    };
+  }
+  const local = rotuloLocal(c.modo, c.filial_nome);
+  const hh = horaSaoPaulo(c.criado_em);
+  const linha = hh ? `${local} · ${hh}` : local;
+  if (c.encerrado_em) {
+    const saiu = horaSaoPaulo(c.encerrado_em);
+    return {
+      chave: "encerrado",
+      linha: saiu ? `${local} · saiu às ${saiu}` : local,
+      estado: "Presença encerrada",
+      intent: "neutral",
+      acao: { tipo: "pedido", acao: "abrir", rotulo: "Fazer check-in" },
+    };
+  }
+  if (precisaRefazerCheckin(p) && c.motivo === "sem_localizacao") {
+    return {
+      chave: "barrado_sem_localizacao",
+      linha,
+      estado: "Barrado: sem localização",
+      intent: "danger",
+      acao: { tipo: "pedido", acao: "incluir-localizacao", rotulo: "Incluir localização" },
+    };
+  }
+  if (precisaRefazerCheckin(p)) {
+    return {
+      chave: "barrado_fora",
+      linha,
+      estado: precisaoAproximada(c.precisao_m)
+        ? "Barrado: localização aproximada"
+        : c.distancia_m != null
+          ? `Barrado: a ${distanciaLabel(c.distancia_m)} da loja`
+          : "Barrado: longe da loja",
+      intent: "danger",
+      acao: { tipo: "pedido", acao: "abrir", rotulo: "Refazer check-in" },
+    };
+  }
+  if (c.apto_roleta && p.presente) {
+    return {
+      chave: "na_roleta",
+      // "Liberado pela gestão · 09:31" (rotuloLocal já diz isso para o liberado).
+      linha,
+      estado:
+        c.modo === "loja" && c.origem === "gestao"
+          ? "Nas roletas · confirmado pela gestão"
+          : "Nas roletas",
+      intent: "success",
+      acao: { tipo: "pedido", acao: "abrir", rotulo: "Trocar" },
+    };
+  }
+  if (c.modo === "casa" && c.motivo === "casa_abaixo_minimo_vendas") {
+    return {
+      chave: "fora_vendas",
+      linha,
+      estado: `Fora das roletas: ${p.vendas_mes_anterior} de ${p.vendas_minimas} vendas`,
+      intent: "warning",
+      acao: { tipo: "pedido", acao: "abrir", rotulo: "Trocar" },
+    };
+  }
+  return {
+    chave: "fora_roleta",
+    linha,
+    estado: "Fora das roletas",
+    intent: "warning",
+    acao: { tipo: "pedido", acao: "abrir", rotulo: "Trocar" },
+  };
+}
+
+/**
+ * A caixa do diálogo voluntário quando o check-in que vale veio da gestão:
+ * trocar substitui a confirmação (ou a liberação) — o corretor precisa saber
+ * antes de tocar. null nos outros casos (inclusive barrado ou encerrado).
+ */
+export function avisoTrocaDoValido(c: CheckinAtual | null): string | null {
+  if (!c || c.encerrado_em !== null || !c.apto_roleta) return null;
+  if (c.modo === "loja" && c.origem === "gestao") {
+    return `Seu plantão na ${c.filial_nome ?? "filial"} foi confirmado pela gestão. Um check-in novo substitui essa confirmação.`;
+  }
+  if (c.modo === "liberado_gestao") {
+    return "Você foi liberado pela gestão hoje. Um check-in novo substitui essa liberação.";
+  }
+  return null;
 }
 
 /** Faixa no topo do CRM: só para corretor sem check-in aberto hoje. */

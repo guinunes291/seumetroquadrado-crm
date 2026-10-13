@@ -7,7 +7,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useMinhaPresenca } from "./presenca-client";
 import { checkinObrigatorioPendente } from "./checkin-obrigatorio";
-import type { MinhaPresenca } from "./presenca-derive";
+import type { AcaoPedidoCheckin, MinhaPresenca } from "./presenca-derive";
 
 const fmtDia = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Sao_Paulo",
@@ -72,6 +72,11 @@ export function useCheckinObrigatorio({ releitura = false }: { releitura?: boole
   dia: string;
   uid: string;
   presenca: MinhaPresenca | undefined;
+  /**
+   * A leitura falhou e não há dado de hoje (a mesma conta que libera o
+   * obrigatório): o bloco da barra lateral diz "Não deu para ler o check-in".
+   */
+  erroLeitura: boolean;
 } {
   const { user } = useAuth();
   const { isCorretor, loading } = useUserRoles();
@@ -105,19 +110,20 @@ export function useCheckinObrigatorio({ releitura = false }: { releitura?: boole
     void refetch({ cancelRefetch: false }).finally(() => setRelendo(false));
   }, [desatualizado, relidoEm, dia, refetch]);
 
+  // Só libera a falha sem dado de hoje (a PRIMEIRA leitura, ou a releitura
+  // da virada do dia). Uma releitura que falha com o dado de hoje já lido
+  // (a de 15 s do diálogo, uma invalidação) mantém o que ele disse: um
+  // soluço da rede não fecha o diálogo obrigatório.
+  const erroLeitura = q.isError && (!q.data || desatualizado);
   const pendente = checkinObrigatorioPendente({
     carregando: !uid || loading,
     ehCorretor: isCorretor,
-    // Só libera a falha sem dado de hoje (a PRIMEIRA leitura, ou a releitura
-    // da virada do dia). Uma releitura que falha com o dado de hoje já lido
-    // (a de 15 s do diálogo, uma invalidação) mantém o que ele disse: um
-    // soluço da rede não fecha o diálogo obrigatório.
-    erro: q.isError && (!q.data || desatualizado),
+    erro: erroLeitura,
     presenca: q.data,
     aguardandoReleitura: desatualizado && (relidoEm !== dia || relendo),
     liberadoPorFalha: liberado,
   });
-  return { pendente, dia, uid, presenca: q.data };
+  return { pendente, dia, uid, presenca: q.data, erroLeitura };
 }
 
 // O diálogo na tela. Depois de um check-in que não liberou a roleta, o banco
@@ -152,4 +158,86 @@ export function useCheckinObrigatorioPendente(): boolean | null {
     () => false,
   );
   return aberto ? true : pendente;
+}
+
+// ---------------------------------------------------------------------------
+// Pedido de check-in (13/10/2026): o bloco da barra lateral e a faixa do topo
+// pedem, o diálogo (ou o card, em /presenca e /meu-perfil) atende. Nenhum dos
+// dois chama a RPC. Um estado de módulo, no mesmo padrão do diálogo acima: o
+// pedido não se perde se o chunk do diálogo ainda não montou (ele lê ao
+// montar), e vence em 15 s (um pedido esquecido não abre nada horas depois).
+// ---------------------------------------------------------------------------
+
+export type PedidoCheckin = {
+  id: number;
+  acao: AcaoPedidoCheckin;
+  origem: "lateral" | "faixa";
+  em: number;
+};
+
+/** Quanto tempo um pedido espera quem o atenda (o treino decidir, a presença chegar). */
+export const VALIDADE_PEDIDO_MS = 15_000;
+
+let pedido: PedidoCheckin | null = null;
+let ultimoPedidoId = 0;
+// Quando foi o último pedido, mesmo já atendido: o Sheet do celular fecha
+// DEPOIS de o diálogo abrir e devolveria o foco ao ☰ por cima dele.
+let ultimoPedidoEm: number | null = null;
+const ouvintesPedido = new Set<() => void>();
+
+function avisarPedido() {
+  for (const avisar of ouvintesPedido) avisar();
+}
+
+/** O bloco da barra lateral e a faixa pedem; quem atende é o diálogo ou o card. */
+export function pedirCheckin(p: { acao: AcaoPedidoCheckin; origem: "lateral" | "faixa" }): void {
+  ultimoPedidoId += 1;
+  const em = Date.now();
+  pedido = { id: ultimoPedidoId, acao: p.acao, origem: p.origem, em };
+  ultimoPedidoEm = em;
+  avisarPedido();
+}
+
+/** Limpa só se for o mesmo pedido (um mais novo, feito no meio, fica). */
+export function atenderPedidoCheckin(id: number): void {
+  if (!pedido || pedido.id !== id) return;
+  pedido = null;
+  avisarPedido();
+}
+
+/** Ainda vale? Até 15 s; relógio que volta (agora < em) = vencido. */
+export function pedidoVigente(p: PedidoCheckin, agora: number): boolean {
+  const d = agora - p.em;
+  return d >= 0 && d <= VALIDADE_PEDIDO_MS;
+}
+
+/** Houve um pedido nos últimos 2 s (atendido ou não)? O Sheet não devolve o foco ao ☰. */
+export function houvePedidoCheckinRecente(agora = Date.now(), janelaMs = 2_000): boolean {
+  if (ultimoPedidoEm === null) return false;
+  const d = agora - ultimoPedidoEm;
+  return d >= 0 && d <= janelaMs;
+}
+
+function assinarPedido(avisar: () => void) {
+  ouvintesPedido.add(avisar);
+  return () => {
+    ouvintesPedido.delete(avisar);
+  };
+}
+
+/** O pedido de check-in em aberto (ou null). */
+export function usePedidoCheckin(): PedidoCheckin | null {
+  return useSyncExternalStore(
+    assinarPedido,
+    () => pedido,
+    () => null,
+  );
+}
+
+/** Só testes: zera o pedido entre um teste e outro. */
+export function _reiniciarPedidoCheckin(): void {
+  pedido = null;
+  ultimoPedidoId = 0;
+  ultimoPedidoEm = null;
+  avisarPedido();
 }

@@ -167,10 +167,13 @@ export const SISTEMAS: Sistema[] = [
     destaque: true,
     // Check-in de presença (2026-10-13): é o começo do dia — o corretor diz em
     // que filial está (ou se está em casa) antes de abrir a Fila. Fica SEM
-    // seção de propósito: a Central já tem as 4 que o corretor pode ver
-    // (regra dos 2 menus). A porta é o check-in obrigatório ao abrir o CRM
-    // (desde 12/10/2026), a faixa "faça seu check-in" no topo, o ⌘K e o Meu
-    // Perfil. Ver docs/ops/presenca-filiais.md.
+    // seção de propósito: a Central já tem as 4 que o corretor pode ver (regra
+    // dos 2 menus). As portas: o check-in obrigatório ao abrir o CRM (desde
+    // 12/10/2026); o bloco fixo de check-in no rodapé da barra lateral (desde
+    // 13/10/2026 — onde e como está hoje, com Fazer check-in/Trocar, que abrem o
+    // mesmo diálogo em qualquer tela; é painel de estado, não seção nem módulo, e
+    // não conta na regra dos 2 menus); a faixa do topo; o ⌘K e o Meu Perfil. Ver
+    // docs/ops/presenca-filiais.md.
     dominioExtra: ["/presenca"],
     // Fila Única é a porta do módulo (2026-09-12): a página Hoje foi retirada
     // — a fila absorveu o que ela respondia (próxima ação, SLA, follow-ups) e

@@ -4,7 +4,7 @@
 // (presenca_checkin); aqui só se decide quando o diálogo abre e o que ele faz
 // com o resultado.
 
-import type { MinhaPresenca } from "./presenca-derive";
+import { blocoCheckinLateral, type MinhaPresenca } from "./presenca-derive";
 
 /** Telas que já mostram o card de check-in: nem faixa nem diálogo por cima. */
 export const TELAS_COM_CARD_CHECKIN = ["/presenca", "/meu-perfil"];
@@ -68,4 +68,71 @@ export function desfechoCheckin(p: MinhaPresenca): DesfechoCheckin {
     return "barrado";
   }
   return "recusado";
+}
+
+// ---------------------------------------------------------------------------
+// Diálogo voluntário (13/10/2026): o mesmo diálogo, aberto pelo bloco da barra
+// lateral ou pela faixa do topo para trocar ou refazer o check-in. Nunca
+// prende: fecha com ESC, X ou clique fora.
+// ---------------------------------------------------------------------------
+
+/** Obrigatório (falta o check-in de hoje) ou voluntário (pedido pelo corretor). */
+export type ModoDialogo = "obrigatorio" | "voluntario";
+
+/**
+ * Fecha com ESC/X/fora? O obrigatório prende (menos o recusado: ele disse a
+ * verdade e o CRM está liberado); o voluntário nunca — a não ser que, com ele
+ * aberto, o dia vire e o check-in de hoje passe a faltar (`deveAbrir`).
+ */
+export function dialogoBloqueante(i: {
+  modo: ModoDialogo;
+  deveAbrir: boolean;
+  tela: string;
+}): boolean {
+  return (i.modo === "obrigatorio" || i.deveAbrir) && i.tela !== "recusado";
+}
+
+/**
+ * O que o diálogo faz com um pedido de check-in (bloco lateral, faixa):
+ * - descartar: venceu, o treino do onboarding está na tela (AGENTS.md: nada
+ *   abre por cima do treino) ou o diálogo já está aberto;
+ * - card: /presenca e /meu-perfil já têm o card, que atende (rola e foca) —
+ *   nunca dois check-ins na tela;
+ * - esperar: o treino ainda não decidiu ou a presença ainda não chegou (a
+ *   virada do dia); o pedido vale 15 s;
+ * - abrir.
+ */
+export type DestinoPedido = "esperar" | "descartar" | "card" | "abrir";
+
+export function destinoDoPedido(i: {
+  vigente: boolean;
+  pathname: string;
+  treinoDecidido: boolean;
+  treinoAberto: boolean;
+  /** pendente !== null && !!presenca */
+  presencaPronta: boolean;
+  dialogoAberto: boolean;
+}): DestinoPedido {
+  if (!i.vigente) return "descartar";
+  if (TELAS_COM_CARD_CHECKIN.some((r) => i.pathname.startsWith(r))) return "card";
+  if (i.treinoAberto) return "descartar";
+  if (i.dialogoAberto) return "descartar";
+  if (!i.treinoDecidido || !i.presencaPronta) return "esperar";
+  return "abrir";
+}
+
+/**
+ * A descrição do diálogo na tela das opções. No voluntário, diz onde o
+ * corretor está agora (o mesmo texto do bloco da barra lateral) antes de ele
+ * trocar.
+ */
+export function descricaoDoDialogo(p: MinhaPresenca, modo: ModoDialogo): string {
+  if (modo === "obrigatorio") return "Para usar o CRM hoje, diga onde você está.";
+  const b = blocoCheckinLateral({ presenca: p, pendente: false, erro: false });
+  if (b.chave === "sem_checkin") return "Diga onde você está para entrar nas roletas.";
+  if (b.chave === "encerrado") {
+    return `Agora: ${b.linha} — presença encerrada. Escolha onde você está para voltar às roletas.`;
+  }
+  const estadoMin = b.estado.charAt(0).toLowerCase() + b.estado.slice(1);
+  return `Agora: ${b.linha} — ${estadoMin}. Para trocar, escolha onde você está.`;
 }
