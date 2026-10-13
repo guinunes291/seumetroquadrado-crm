@@ -582,6 +582,20 @@
       "when": 1792594800000,
       "tag": "0082_presenca_exigida_fallback_velocidade",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1792681200000,
+      "tag": "0083_roletas_simples",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1792767600000,
+      "tag": "0084_marquinhos_automatica",
+      "breakpoints": true
     }
   ]
 }

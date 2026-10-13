@@ -684,12 +684,12 @@ describe("a região por filial (aba Corretores)", () => {
   });
 });
 
-describe("campanhas por filial: a válvula para receber lead de outras zonas", () => {
+describe("campanhas: a equipe recebe lead de qualquer zona (sem filial desde 13/10)", () => {
   let cao: UsuarioTeste;
   let dan: UsuarioTeste;
   let slug: string;
 
-  it("a campanha de equipe fixa, dona de uma filial, entrega a quem está nela de qualquer zona", async () => {
+  it("a campanha entrega a quem está na equipe, de qualquer zona", async () => {
     cao = await criarUsuario(c, { nome: "Cao Campanha" });
     dan = await criarUsuario(c, { nome: "Dan Fora" });
     await comoSuperuser(c);
@@ -703,7 +703,8 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
     await darRegiao(c, dan.id, ["Oeste"]);
     for (const u of [cao, dan]) await checkin(u);
 
-    // A gestão cria a campanha com a filial dona e põe Bia e Cao (Barra Funda).
+    // A gestão cria a campanha (a tela antiga ainda manda a filial: o banco a
+    // ignora desde as roletas simples, 13/10) e põe Bia e Cao (Barra Funda).
     await comoUsuario(c, admin.id);
     const criada = (
       await c.query(
@@ -712,7 +713,7 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
     ).rows[0].r as { roleta: { slug: string; filial_id: string | null } };
     slug = criada.roleta.slug;
     roletasCriadas.push(slug);
-    expect(criada.roleta.filial_id).not.toBeNull();
+    expect(criada.roleta.filial_id).toBeNull();
     await c.query(`SELECT public.gerenciar_participante_roleta($1, $2, 'incluir', 'teste')`, [
       slug,
       bia.id,
@@ -771,27 +772,24 @@ describe("campanhas por filial: a válvula para receber lead de outras zonas", (
     ).toBe("SMQZ1");
   });
 
-  it("a campanha aparece nas zonas da filial dona, com a equipe inteira; no corretor, uma fila só", async () => {
+  it("a campanha, sem filial, aparece em todas as zonas com a equipe inteira; no corretor, uma fila só", async () => {
     const oeste = roleta(await filas("Oeste"), slug);
-    expect(oeste.filial).toEqual({ slug: "barra-funda", nome: "Barra Funda" });
+    expect(oeste.filial).toBeUndefined();
     expect(ids(oeste.fila).sort()).toEqual([bia.id, cao.id].sort());
-    expect((await filas("Leste")).roletas.some((r) => r.slug === slug)).toBe(false);
+    expect((await filas("Leste")).roletas.some((r) => r.slug === slug)).toBe(true);
     const m = await minhas(bia);
     const linhas = m.filter((x) => x.slug === slug);
     expect(linhas).toHaveLength(1);
-    expect(linhas[0]).toMatchObject({ zona: null, apto: true, filial: "Barra Funda" });
+    expect(linhas[0]).toMatchObject({ zona: null, apto: true });
   });
 
-  it("a filial da campanha muda pela RPC; a roleta de filial não troca de filial", async () => {
+  it("a campanha não tem filial: a RPC aceita o pedido (tela antiga) e a filial fica vazia; a roleta de filial não troca de filial", async () => {
     await comoUsuario(c, admin.id);
     const r = (
       await c.query(`SELECT public.atualizar_roleta($1, _filial_slug => 'liberdade') AS r`, [slug])
-    ).rows[0].r as { roleta: { filial_id: string } };
-    await comoSuperuser(c);
-    const lib = (await c.query(`SELECT id FROM public.filiais WHERE slug = 'liberdade'`)).rows[0]
-      .id;
-    expect(r.roleta.filial_id).toBe(lib);
-    await comoUsuario(c, admin.id);
+    ).rows[0].r as { roleta: { filial_id: string | null; equipe_fixa: boolean } };
+    expect(r.roleta.filial_id).toBeNull();
+    expect(r.roleta.equipe_fixa).toBe(true);
     expect(
       await errCode(
         c.query(`SELECT public.atualizar_roleta('filial-belem', _filial_slug => 'liberdade')`),
@@ -887,14 +885,15 @@ describe("correções da revisão (12/10)", () => {
     }
   });
 
-  it("só campanha de EQUIPE FIXA libera a região; participante de campanha comum não", async () => {
+  it("não há mais campanha comum: criada como comum, nasce de equipe fixa e libera a região só de quem está nela", async () => {
     await comoUsuario(c, admin.id);
     const comum = (
       await c.query(
         `SELECT public.criar_roleta_campanha('Teste Comum Filial', NULL, NULL, false, 'barra-funda') AS r`,
       )
-    ).rows[0].r as { roleta: { slug: string } };
+    ).rows[0].r as { roleta: { slug: string; equipe_fixa: boolean } };
     roletasCriadas.push(comum.roleta.slug);
+    expect(comum.roleta.equipe_fixa).toBe(true);
     await c.query(`SELECT public.gerenciar_participante_roleta($1, $2, 'incluir', 'teste')`, [
       comum.roleta.slug,
       bia.id,
@@ -906,11 +905,21 @@ describe("correções da revisão (12/10)", () => {
       `UPDATE public.leads SET zona = 'Leste', roleta_slug = $2, corretor_id = $3 WHERE id = $1`,
       [id, comum.roleta.slug, lia.id],
     );
-    // Bia (Barra Funda) não atende a Leste; estar na campanha comum não libera.
+    // Bia (Barra Funda) não atende a Leste, mas está na campanha: recebe. Fé,
+    // também só da Barra Funda e fora da campanha, continua barrada.
+    const fora = await criarUsuario(c, { nome: "Fé Fora" });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.profiles SET telefone = '11977779999', ativo = true WHERE id = $1`, [
+      fora.id,
+    ]);
+    await darRegiao(c, fora.id, ["Oeste"]);
     await comoUsuario(c, admin.id);
     expect(
-      await errCode(c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, bia.id])),
+      await errCode(c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, fora.id])),
     ).toBe("SMQZ1");
+    expect(
+      await errCode(c.query(`SELECT public.transferir_leads(ARRAY[$1::uuid], $2)`, [id, bia.id])),
+    ).toBeNull();
     await comoSuperuser(c);
   });
 });

@@ -4,9 +4,9 @@
  *
  * Assinaturas/regras descobertas no banco vivo (pg_get_functiondef):
  *  - triar_e_distribuir_lead(_lead_id uuid, _gatilho text) RETURNS jsonb —
- *    gate admin/gestor quando auth.uid() não é NULL; origem 'facebook' roteia
- *    para a roleta 'plantao' (distribuicao_config), critério
- *    'automatica_presenca' (pct trabalhado ≥ 90 — carteira vazia passa).
+ *    gate admin/gestor quando auth.uid() não é NULL; lead 'facebook' sem zona
+ *    entra no rodízio entre as filiais (roletas simples, 13/10/2026: o
+ *    Plantão saiu) — aqui só a Barra Funda tem time, então é ela.
  *  - transicionar_lead(p_lead_id, p_novo_status, p_motivo, p_proxima_acao,
  *    p_proximo_followup, p_motivo_categoria) RETURNS leads. REGRA DESCOBERTA
  *    para 'agendado' (e demais status ativos): NÃO exige follow-up futuro
@@ -208,9 +208,9 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
   });
 
   it("2. admin distribui (triar_e_distribuir_lead): corretor atribuído e distribution_log registrado", async () => {
-    // Monta a roleta 'plantao' (destino da origem facebook) com só o corretor J1.
+    // Monta o time da Barra Funda (rodízio do lead sem zona) com só o corretor J1.
     await comoUsuario(c, admin.id);
-    await c.query(`SELECT public.gerenciar_participante_roleta('plantao', $1::uuid, 'incluir')`, [
+    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
       corretorJ1.id,
     ]);
     await comoUsuario(c, corretorJ1.id);
@@ -223,7 +223,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     const res = r.rows[0].res as Record<string, unknown>;
     expect(res.ok).toBe(true);
     expect(res.corretor_id).toBe(corretorJ1.id);
-    expect(res.roleta).toBe("plantao");
+    expect(res.roleta).toBe("filial-barra-funda");
 
     const lead = await leadRow(leadId);
     expect(lead.status).toBe("aguardando_atendimento");
@@ -240,7 +240,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     expect(log.rows[0]).toMatchObject({
       corretor_id: corretorJ1.id,
       tipo: "automatica",
-      roleta_slug: "plantao",
+      roleta_slug: "filial-barra-funda",
       resultado: "sucesso",
       distribuido_por_id: admin.id,
     });
@@ -547,14 +547,14 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
   let leadId: string;
   let tarefaVencida: string;
 
-  it("1. lead facebook distribuído para o corretor J2 (troca de participante na roleta plantao)", async () => {
+  it("1. lead facebook distribuído para o corretor J2 (troca de participante na roleta da Barra Funda)", async () => {
     // J1 sai da roleta; J2 entra e marca presença — o repasse na perda (mais
     // adiante) não terá NINGUÉM elegível além de quem já tentou.
     await comoUsuario(c, admin.id);
-    await c.query(`SELECT public.gerenciar_participante_roleta('plantao', $1::uuid, 'remover')`, [
+    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'remover')`, [
       corretorJ1.id,
     ]);
-    await c.query(`SELECT public.gerenciar_participante_roleta('plantao', $1::uuid, 'incluir')`, [
+    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
       corretorJ2.id,
     ]);
     await comoUsuario(c, corretorJ2.id);

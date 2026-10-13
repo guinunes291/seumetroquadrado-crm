@@ -14,8 +14,8 @@
  *      zona é a da filial que a atende;
  *   2. Agendados do SDR com a regra semanal (ponderado pelo peso da semana);
  *   3. campanha de equipe fixa (ponderado por faixa A/B/C), a equipe inteira,
- *      de qualquer zona (decisão do dono, 12/10/2026); campanha comum manda o
- *      lead com zona para a filial da zona;
+ *      de qualquer zona (decisão do dono, 12/10/2026); desde as roletas
+ *      simples (13/10) não há mais campanha comum nem filial dona;
  *   4. Marquinhos filtrado pela zona; zona sem ninguém do time do SDR mostra a
  *      reserva (time da filial da vez pela régua do SDR, sem presença);
  *   5. acesso: SDR e gestão veem nomes; corretor só a própria posição; ler a
@@ -410,13 +410,14 @@ describe("campanhas (Facebook Ads)", () => {
     expect(vencedores).toContain(otto.id);
   });
 
-  it("campanha comum: lead com zona segue a roleta da zona; a fila dela é só a de lead sem zona", async () => {
+  it("não há mais campanha comum: pedida sem equipe fixa, nasce de equipe fixa e aparece em toda zona", async () => {
+    // Roletas simples (13/10/2026): o gatilho força equipe fixa e sem filial.
     await criarRoleta("teste-fila-comum", "Teste Campanha Comum", { equipeFixa: false });
     await participar("teste-fila-comum", lara, { tier: "B" });
     await participar("teste-fila-comum", otto, { tier: "B" });
 
     const leste = await filas(sdr, "Leste");
-    expect(leste.roletas.map((r) => r.slug)).not.toContain("teste-fila-comum");
+    expect(ids(roleta(leste, "teste-fila-comum").fila).sort()).toEqual([lara.id, otto.id].sort());
 
     const semZona = await filas(sdr, null);
     const camp = roleta(semZona, "teste-fila-comum");

@@ -2,9 +2,12 @@
  * MOTOR DE DISTRIBUIÇÃO v3 — roleta, elegibilidade, exceções e concorrência.
  *
  * Peças descobertas no banco vivo:
- *  - Tabelas: roletas (seed: landing, plantao, marquinhos, ...),
+ *  - Tabelas: roletas (seed: filiais, campanhas, marquinhos, agendados-sdr;
+ *    plantao/landing/base desligadas desde 13/10/2026 — roletas simples),
  *    roleta_participantes (cursor ultimo_lead_em + tier/wrr),
- *    distribuicao_config (origem -> roleta_slug; 'site' -> 'landing'),
+ *    distribuicao_config (origem -> roleta_slug; desde 13/10 só 'chatbot' ->
+ *    'marquinhos': lead sem zona das outras origens entra no rodízio entre
+ *    as filiais — aqui só a Barra Funda tem time, então é ela),
  *    distribuicao_settings (get_dist_setting), distribuicao_excecoes,
  *    distribution_log + distribuicao_log_contexto.
  *  - RPCs: triar_e_distribuir_lead(_lead_id,_gatilho) [gate admin-only
@@ -80,12 +83,13 @@ beforeAll(async () => {
     [corretorA.id, corretorB.id, admin.id],
   );
 
-  // Admin monta a roleta 'landing' (seed; criterio 'manual', exige presença).
+  // Admin monta o time da Barra Funda (criterio 'manual', exige presença): o
+  // lead 'site' sem zona entra no rodízio das filiais e só ela tem time.
   await comoUsuario(c, admin.id);
-  await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`, [
+  await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
     corretorA.id,
   ]);
-  await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`, [
+  await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
     corretorB.id,
   ]);
 
@@ -104,7 +108,7 @@ beforeAll(async () => {
               WHEN $1::uuid THEN now() - interval '2 hours'
               ELSE now() - interval '1 hour' END
        FROM public.roletas r
-      WHERE r.id = rp.roleta_id AND r.slug = 'landing'`,
+      WHERE r.id = rp.roleta_id AND r.slug = 'filial-barra-funda'`,
     [corretorA.id],
   );
 });
@@ -115,7 +119,7 @@ afterAll(async () => {
   await pool.end();
 });
 
-describe("triagem e atribuição inicial (roleta landing via origem 'site')", () => {
+describe("triagem e atribuição inicial (lead 'site' sem zona → rodízio das filiais)", () => {
   let leadId: string;
 
   it("admin dispara triar_e_distribuir_lead: lead novo vai ao corretor há mais tempo sem receber e o guard de status NÃO bloqueia", async () => {
@@ -134,7 +138,7 @@ describe("triagem e atribuição inicial (roleta landing via origem 'site')", ()
     // exceção 'falha_tecnica' (ok:false) — ok:true prova o carve-out.
     expect(res.ok).toBe(true);
     expect(res.corretor_id).toBe(corretorA.id);
-    expect(res.roleta).toBe("landing");
+    expect(res.roleta).toBe("filial-barra-funda");
     expect(res.regra).toBe("rodizio_menos_recente");
 
     const lead = await leadAtual(leadId);
@@ -164,7 +168,7 @@ describe("triagem e atribuição inicial (roleta landing via origem 'site')", ()
     expect(log.rows[0]).toMatchObject({
       corretor_id: corretorA.id,
       tipo: "automatica",
-      roleta_slug: "landing",
+      roleta_slug: "filial-barra-funda",
       regra_aplicada: "rodizio_menos_recente",
       resultado: "sucesso",
       distribuido_por_id: admin.id,
@@ -177,7 +181,7 @@ describe("triagem e atribuição inicial (roleta landing via origem 'site')", ()
     );
     expect(ctx.rows).toHaveLength(1);
     const contexto = ctx.rows[0].contexto;
-    expect(contexto.roleta).toBe("landing");
+    expect(contexto.roleta).toBe("filial-barra-funda");
     expect(contexto.gatilho).toBe("teste_inicial");
     expect(contexto.regra).toBe("rodizio_menos_recente");
     expect(contexto.percentual_minimo).toBe(90); // veio de distribuicao_settings
@@ -192,7 +196,7 @@ describe("triagem e atribuição inicial (roleta landing via origem 'site')", ()
       `SELECT rp.ultimo_lead_em > now() - interval '5 minutes' AS avancou
          FROM public.roleta_participantes rp
          JOIN public.roletas r ON r.id = rp.roleta_id
-        WHERE r.slug = 'landing' AND rp.corretor_id = $1`,
+        WHERE r.slug = 'filial-barra-funda' AND rp.corretor_id = $1`,
       [corretorA.id],
     );
     expect(rp.rows[0].avancou).toBe(true);
@@ -284,7 +288,7 @@ describe("fila de exceções (lead nunca se perde)", () => {
       lead_id: leadSemElegiveis,
       motivo: "sem_corretor_elegivel",
       status: "pendente",
-      roleta_slug: "landing",
+      roleta_slug: "filial-barra-funda",
       tentativas: 1,
     });
     // O contexto explica POR QUE cada um ficou de fora (ausente_hoje).
@@ -334,7 +338,7 @@ describe("fila de exceções (lead nunca se perde)", () => {
     ).toBe("P0001");
     expect(
       await errCode(
-        c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`, [
+        c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
           corretorA.id,
         ]),
       ),
@@ -351,7 +355,7 @@ describe("fila de exceções (lead nunca se perde)", () => {
     ).toBe("42501");
     expect(
       await errCode(
-        c.query(`SELECT public.distribuir_lead_ponderado($1::uuid, 'landing')`, [leadSemElegiveis]),
+        c.query(`SELECT public.distribuir_lead_ponderado($1::uuid, 'filial-barra-funda')`, [leadSemElegiveis]),
       ),
     ).toBe("42501");
 
@@ -411,20 +415,20 @@ describe("elegibilidade: pausa fura a vez no rodízio", () => {
     expect(
       await errCode(
         c.query(
-          `SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'pausar', 'passado', NULL, now() - interval '1 hour')`,
+          `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'pausar', 'passado', NULL, now() - interval '1 hour')`,
           [corretorA.id],
         ),
       ),
     ).toBe("P0001");
 
     await c.query(
-      `SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'pausar', 'almoço', NULL, now() + interval '1 day')`,
+      `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'pausar', 'almoço', NULL, now() + interval '1 day')`,
       [corretorA.id],
     );
 
     await comoSuperuser(c);
     const eleg = await c.query(
-      `SELECT apto, pausado, motivos FROM public._elegibilidade_roleta('landing', $1::uuid)`,
+      `SELECT apto, pausado, motivos FROM public._elegibilidade_roleta('filial-barra-funda', $1::uuid)`,
       [corretorA.id],
     );
     expect(eleg.rows[0].apto).toBe(false);
@@ -438,12 +442,12 @@ describe("elegibilidade: pausa fura a vez no rodízio", () => {
 
     // Reativa A e ele volta a ser apto.
     await comoUsuario(c, admin.id);
-    await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'reativar')`, [
+    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'reativar')`, [
       corretorA.id,
     ]);
     await comoSuperuser(c);
     const eleg2 = await c.query(
-      `SELECT apto FROM public._elegibilidade_roleta('landing', $1::uuid)`,
+      `SELECT apto FROM public._elegibilidade_roleta('filial-barra-funda', $1::uuid)`,
       [corretorA.id],
     );
     expect(eleg2.rows[0].apto).toBe(true);
