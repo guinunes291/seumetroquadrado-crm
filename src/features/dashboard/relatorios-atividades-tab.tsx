@@ -51,6 +51,7 @@ import {
 import { ANALISE_STATUS_LABEL, type AnaliseStatus } from "@/features/leads/analise-credito";
 import { motivoPerdaLabel } from "@/lib/leads";
 import { ExportarPdfButton } from "@/features/dashboard/exportar-pdf-button";
+import { PorProjetoCard, linhasPorProjeto } from "@/features/dashboard/relatorios-por-projeto";
 import type { DocumentoRelatorio } from "@/features/dashboard/relatorios-pdf";
 
 type RelatoriosPdf = typeof import("@/features/dashboard/relatorios-pdf");
@@ -122,6 +123,25 @@ export function RelatoriosAtividadesTab({
       titulo: "Relatório de Atividades",
       periodo: pdf.periodoLabelPdf(range),
       blocos: [
+        {
+          titulo: "Visitas, análises e agendamentos por projeto",
+          sub: "empreendimento do cliente",
+          html: pdf.tabelaPdf(
+            ["Empreendimento", "Agendamentos", "Visitas", "Visitas realizadas", "Análises", "Aprovadas"],
+            linhasPorProjeto(
+              agendamentosQ.data?.rows ?? [],
+              visitasQ.data?.rows ?? [],
+              analises,
+            ).map((r) => [
+              r.projeto,
+              String(r.agendamentos),
+              String(r.visitas),
+              String(r.visitasRealizadas),
+              String(r.analises),
+              String(r.analisesAprovadas),
+            ]),
+          ),
+        },
         {
           titulo: "Agendamentos criados",
           sub: `${(agendamentosQ.data?.total ?? 0).toLocaleString("pt-BR")} no período`,
@@ -197,6 +217,12 @@ export function RelatoriosAtividadesTab({
           }
         />
       </div>
+      <PorProjetoCard
+        agendamentos={agendamentosQ.data?.rows ?? []}
+        visitas={visitasQ.data?.rows ?? []}
+        analises={analises}
+        loading={agendamentosQ.isLoading || visitasQ.isLoading || analisesQ.isLoading}
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Agendamentos criados no período */}
         <Card>
