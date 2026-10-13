@@ -145,7 +145,9 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
                               }
                               aria-label={`Presença de ${c.nome}`}
                               aria-describedby={
-                                c.id === user?.id && !c.presente
+                                // A mesma condição do aviso abaixo (só fora da
+                                // leitura): nunca apontar para um id ausente.
+                                c.id === user?.id && !c.presente && !somenteLeitura
                                   ? `presenca-propria-${c.id}`
                                   : undefined
                               }

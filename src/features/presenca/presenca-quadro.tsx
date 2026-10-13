@@ -247,7 +247,15 @@ function LinhaCorretor({
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
           {status ? (
-            <StatusBadge intent={status.intent}>{status.texto}</StatusBadge>
+            // O selo quebra linha: "Barrado: sem localização (permissão
+            // negada)" tem ~280 px e, sem quebrar, vazava do card (no celular
+            // a tela rolava de lado; em 768/1280 saía cortado).
+            <StatusBadge
+              intent={status.intent}
+              className="whitespace-normal [overflow-wrap:anywhere]"
+            >
+              {status.texto}
+            </StatusBadge>
           ) : r.encerrado_em ? (
             <span>Saiu às {hora(r.encerrado_em)}</span>
           ) : null}

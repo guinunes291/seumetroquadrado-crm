@@ -552,7 +552,10 @@ describe("quadro da gestão", () => {
     const barra = await screen.findByTestId("contagem-filial:barra-funda");
     expect(barra).toHaveTextContent(/^1\s*1 barrado$/);
     expect(screen.getByTestId("contagem-filial:liberdade")).toHaveTextContent(/^0$/);
-    expect(screen.getByText("Barrado: sem localização (permissão negada)")).toBeInTheDocument();
+    const selo = screen.getByText("Barrado: sem localização (permissão negada)");
+    // Quebra linha (~280 px): sem isso, vazava do card e a tela rolava de lado.
+    expect(selo.className).toContain("whitespace-normal");
+    expect(selo.className).not.toContain("whitespace-nowrap");
     // Tile e colunas batem: 1 no plantão, 1 fora da conta.
     expect(screen.getByText("Fora da conta: 1 barrado pela localização")).toBeInTheDocument();
 

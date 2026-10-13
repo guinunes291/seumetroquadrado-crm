@@ -385,4 +385,15 @@ describe("aba Corretores: o interruptor de presença na própria linha", () => {
     fireEvent.click(propria);
     expect(estado.presenca).toHaveBeenCalledWith({ corretorId: "eu", presente: false });
   });
+
+  it("em leitura (gestor que não é admin), a própria linha ausente fica travada sem apontar para um aviso que não existe", async () => {
+    estado.corretores.mockResolvedValue([corretor("eu", "Ingrid Queiroz", false)]);
+    estado.mapa.mockResolvedValue(MAPA);
+    montar(<TabCorretores somenteLeitura />);
+
+    const propria = await screen.findByRole("switch", { name: "Presença de Ingrid Queiroz" });
+    expect(propria).toBeDisabled();
+    expect(propria).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/Você: o seu check-in é pelo Check-in da barra lateral/)).toBeNull();
+  });
 });

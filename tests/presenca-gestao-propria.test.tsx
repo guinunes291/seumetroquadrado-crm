@@ -22,6 +22,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: estado.rpc }
 vi.mock("@/integrations/supabase/pendentes", () => ({ supabasePendente: { rpc: estado.rpc } }));
 
 import { useMarcarPresencaAdmin } from "@/features/distribuicao/queries";
+import { acaoPresencaDaGestao } from "@/lib/distribuicao";
 
 afterEach(() => {
   cleanup();
@@ -69,6 +70,33 @@ describe("useMarcarPresencaAdmin: a gestão não se liga nas roletas", () => {
       expect(estado.toast.success).toHaveBeenCalledWith(
         "Na roleta hoje — registrado como liberado pela gestão.",
       ),
+    );
+  });
+});
+
+describe("acaoPresencaDaGestao: o item de presença do menu da linha na aba da roleta", () => {
+  it("presente → 'Marcar ausente', inclusive a própria linha (encerrar o dia vale)", () => {
+    expect(acaoPresencaDaGestao({ corretor_id: "eu", presente: true }, "eu")).toBe(
+      "marcar_ausente",
+    );
+    expect(acaoPresencaDaGestao({ corretor_id: "rafa", presente: true }, "eu")).toBe(
+      "marcar_ausente",
+    );
+  });
+
+  it("ausente → 'Marcar presente hoje', menos na própria linha (a gestão não se liga)", () => {
+    expect(acaoPresencaDaGestao({ corretor_id: "eu", presente: false }, "eu")).toBeNull();
+    expect(acaoPresencaDaGestao({ corretor_id: "rafa", presente: false }, "eu")).toBe(
+      "marcar_presente",
+    );
+  });
+
+  it("sem usuário (sessão carregando): nenhuma linha é tratada como própria", () => {
+    expect(acaoPresencaDaGestao({ corretor_id: "eu", presente: false }, undefined)).toBe(
+      "marcar_presente",
+    );
+    expect(acaoPresencaDaGestao({ corretor_id: "eu", presente: false }, null)).toBe(
+      "marcar_presente",
     );
   });
 });

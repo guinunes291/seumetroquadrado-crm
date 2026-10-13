@@ -70,6 +70,7 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  acaoPresencaDaGestao,
   agruparFiliais,
   descricaoRoletaFilial,
   motivoInaptidaoLabel,
@@ -461,16 +462,17 @@ function RoletaTabPadrao({
                                   !escopoEquipe &&
                                   // A gestão não se marca presente (decisão do
                                   // dono, 13/10/2026); marcar-se ausente vale.
-                                  !(l.corretor_id === user?.id && !l.presente) && (
+                                  acaoPresencaDaGestao(l, user?.id) !== null && (
                                     <DropdownMenuItem
                                       onClick={() =>
                                         presencaAdmin.mutate({
                                           corretorId: l.corretor_id,
-                                          presente: !l.presente,
+                                          presente:
+                                            acaoPresencaDaGestao(l, user?.id) === "marcar_presente",
                                         })
                                       }
                                     >
-                                      {l.presente ? (
+                                      {acaoPresencaDaGestao(l, user?.id) === "marcar_ausente" ? (
                                         <>
                                           <UserMinus className="mr-2 h-4 w-4" /> Marcar ausente
                                         </>
