@@ -86,12 +86,14 @@ beforeAll(async () => {
   // Admin monta o time da Barra Funda (criterio 'manual', exige presença): o
   // lead 'site' sem zona entra no rodízio das filiais e só ela tem time.
   await comoUsuario(c, admin.id);
-  await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
-    corretorA.id,
-  ]);
-  await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
-    corretorB.id,
-  ]);
+  await c.query(
+    `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`,
+    [corretorA.id],
+  );
+  await c.query(
+    `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`,
+    [corretorB.id],
+  );
 
   // Cada corretor faz o próprio check-in numa filial (RPC real do app; desde
   // 20261013120000 marcar_presenca(true) sozinho não marca presença).
@@ -338,9 +340,10 @@ describe("fila de exceções (lead nunca se perde)", () => {
     ).toBe("P0001");
     expect(
       await errCode(
-        c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
-          corretorA.id,
-        ]),
+        c.query(
+          `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`,
+          [corretorA.id],
+        ),
       ),
     ).toBe("P0001");
     expect(
@@ -355,7 +358,9 @@ describe("fila de exceções (lead nunca se perde)", () => {
     ).toBe("42501");
     expect(
       await errCode(
-        c.query(`SELECT public.distribuir_lead_ponderado($1::uuid, 'filial-barra-funda')`, [leadSemElegiveis]),
+        c.query(`SELECT public.distribuir_lead_ponderado($1::uuid, 'filial-barra-funda')`, [
+          leadSemElegiveis,
+        ]),
       ),
     ).toBe("42501");
 
@@ -442,9 +447,10 @@ describe("elegibilidade: pausa fura a vez no rodízio", () => {
 
     // Reativa A e ele volta a ser apto.
     await comoUsuario(c, admin.id);
-    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'reativar')`, [
-      corretorA.id,
-    ]);
+    await c.query(
+      `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'reativar')`,
+      [corretorA.id],
+    );
     await comoSuperuser(c);
     const eleg2 = await c.query(
       `SELECT apto FROM public._elegibilidade_roleta('filial-barra-funda', $1::uuid)`,

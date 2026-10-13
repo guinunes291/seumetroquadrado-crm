@@ -216,7 +216,9 @@ afterAll(async () => {
     }
   }
   await c.query(`DELETE FROM public.roleta_participantes`);
-  await c.query(`UPDATE public.roletas SET horario_inicio = NULL, horario_fim = NULL WHERE slug = 'marquinhos'`);
+  await c.query(
+    `UPDATE public.roletas SET horario_inicio = NULL, horario_fim = NULL WHERE slug = 'marquinhos'`,
+  );
   await zerarCursores();
   if (roletasCriadas.length > 0) {
     await c.query(`DELETE FROM public.roletas WHERE slug = ANY($1::text[])`, [roletasCriadas]);
@@ -347,7 +349,8 @@ describe("o rodízio do lead sem zona", () => {
     // ainda saem certos (cursores NULL); do 4º em diante as filiais empatam e
     // a primeira da ordem ganhava sempre — BF, Lib, Belém, BF, BF.
     const ids: string[] = [];
-    for (let i = 0; i < 5; i++) ids.push(await criarLead(c, { telefone: novoTelefone(), origem: "site" }));
+    for (let i = 0; i < 5; i++)
+      ids.push(await criarLead(c, { telefone: novoTelefone(), origem: "site" }));
     await comoSuperuser(c);
     await c.query("BEGIN");
     try {
@@ -559,7 +562,9 @@ describe("as RPCs da Central", () => {
     await comoUsuario(c, admin.id);
     expect(
       await errCode(
-        c.query(`SELECT public.atualizar_distribuicao_config('site'::public.lead_origem, 'plantao')`),
+        c.query(
+          `SELECT public.atualizar_distribuicao_config('site'::public.lead_origem, 'plantao')`,
+        ),
       ),
     ).toBe("22023");
     expect(
@@ -576,9 +581,7 @@ describe("as RPCs da Central", () => {
         ),
       ),
     ).toBeNull();
-    expect(
-      await errCode(c.query(`SELECT public.atualizar_roleta('plantao', true)`)),
-    ).toBe("22023");
+    expect(await errCode(c.query(`SELECT public.atualizar_roleta('plantao', true)`))).toBe("22023");
     await comoSuperuser(c);
   });
 
@@ -586,10 +589,8 @@ describe("as RPCs da Central", () => {
     // Bela também na Barra Funda: duas filiais, uma pessoa.
     await darRegiao(c, bela.id, ["Oeste", "Grande SP"]);
     await comoUsuario(c, admin.id);
-    const p = (await c.query(`SELECT public.painel_distribuicao_resumo() AS p`)).rows[0].p as Record<
-      string,
-      unknown
-    >;
+    const p = (await c.query(`SELECT public.painel_distribuicao_resumo() AS p`)).rows[0]
+      .p as Record<string, unknown>;
     await comoSuperuser(c);
     expect(p.aptos_filiais).toBe(3);
     expect(p.aptos_plantao).toBe(p.aptos_filiais);

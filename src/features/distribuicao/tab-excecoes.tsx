@@ -39,9 +39,9 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   EXCECAO_STATUS_LABEL,
+  familiaDaRoleta,
   motivoExcecaoLabel,
   roletaLabel,
-  ROLETA_LABEL,
 } from "@/lib/distribuicao";
 import { Constants } from "@/integrations/supabase/types";
 import {
@@ -49,6 +49,7 @@ import {
   useExcecoes,
   useNomesPerfis,
   useResolverExcecao,
+  useRoletas,
   type ExcecaoLinha,
 } from "./queries";
 import {
@@ -194,6 +195,15 @@ function ResolverExcecaoDialog({
   const [acao, setAcao] = useState<string>("reprocessar");
   const [corretorId, setCorretorId] = useState("");
   const [roleta, setRoleta] = useState("");
+  // Só as roletas ativas das quatro famílias, menos o SDR (que tem motor
+  // próprio, pela Pré-venda): Plantão, Landing, Base e as zona-* estão
+  // desligadas desde 13/10/2026 — mandar o lead para elas só o devolveria ao
+  // rodízio. Do banco, não de uma lista fixa: as campanhas entram.
+  const roletasQ = useRoletas();
+  const destinos = (roletasQ.data ?? []).filter((r) => {
+    const f = familiaDaRoleta(r);
+    return r.ativo && f !== null && f !== "sdr";
+  });
   const [origem, setOrigem] = useState("");
   const [excecaoZona, setExcecaoZona] = useState<ExcecaoForaDaRegiao>(EXCECAO_ZONA_VAZIA);
   const corretoresQ = useCorretoresDisponiveis(!!alvo);
@@ -282,15 +292,11 @@ function ResolverExcecaoDialog({
                   <SelectValue placeholder="Selecione a roleta" />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* As zona-* (antigas) estão desligadas desde as roletas por
-                      filial (12/10/2026): mandar lead para elas só gera outra exceção. */}
-                  {Object.entries(ROLETA_LABEL)
-                    .filter(([slug]) => !slug.startsWith("zona-"))
-                    .map(([slug, label]) => (
-                      <SelectItem key={slug} value={slug}>
-                        {label}
-                      </SelectItem>
-                    ))}
+                  {destinos.map((r) => (
+                    <SelectItem key={r.slug} value={r.slug}>
+                      {roletaLabel(r.slug, r.nome)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -232,7 +232,11 @@ describe("a régua", () => {
       const porId = new Map(r.map((x) => [x.corretor_id, x]));
       expect(porId.get(vend[0].id)).toMatchObject({ vendas: 2, posicao: 1, resultado: "dentro" });
       expect(porId.get(vend[1].id)).toMatchObject({ vendas: 1, posicao: 2, resultado: "dentro" });
-      expect(porId.get(vend[2].id)).toMatchObject({ vendas: 0, posicao: null, resultado: "sem_venda" });
+      expect(porId.get(vend[2].id)).toMatchObject({
+        vendas: 0,
+        posicao: null,
+        resultado: "sem_venda",
+      });
       expect(porId.has(vend[3].id)).toBe(false);
     } finally {
       await c.query(`UPDATE public.profiles SET ativo = true WHERE id = $1`, [vend[3].id]);
@@ -372,10 +376,9 @@ describe("a gestão e a regra", () => {
     await gerenciar(admin, vend[5], "remover"); // bloqueia quem nem estava
     expect(
       await errCode(
-        c.query(
-          `SELECT public.gerenciar_participante_roleta('marquinhos', $1::uuid, 'reativar')`,
-          [vend[5].id],
-        ),
+        c.query(`SELECT public.gerenciar_participante_roleta('marquinhos', $1::uuid, 'reativar')`, [
+          vend[5].id,
+        ]),
       ),
     ).toBeNull();
     expect(await time()).toEqual(ids([vend[0], vend[1]]));

@@ -210,9 +210,10 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
   it("2. admin distribui (triar_e_distribuir_lead): corretor atribuído e distribution_log registrado", async () => {
     // Monta o time da Barra Funda (rodízio do lead sem zona) com só o corretor J1.
     await comoUsuario(c, admin.id);
-    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
-      corretorJ1.id,
-    ]);
+    await c.query(
+      `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`,
+      [corretorJ1.id],
+    );
     await comoUsuario(c, corretorJ1.id);
     await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
 
@@ -551,12 +552,14 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
     // J1 sai da roleta; J2 entra e marca presença — o repasse na perda (mais
     // adiante) não terá NINGUÉM elegível além de quem já tentou.
     await comoUsuario(c, admin.id);
-    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'remover')`, [
-      corretorJ1.id,
-    ]);
-    await c.query(`SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`, [
-      corretorJ2.id,
-    ]);
+    await c.query(
+      `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'remover')`,
+      [corretorJ1.id],
+    );
+    await c.query(
+      `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`,
+      [corretorJ2.id],
+    );
     await comoUsuario(c, corretorJ2.id);
     await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
 

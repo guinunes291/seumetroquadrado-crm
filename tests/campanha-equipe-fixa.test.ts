@@ -80,9 +80,13 @@ describe("UI — gestão de campanha na Central (consolidação de 27/08)", () =
     expect(page).not.toContain("crypto.getRandomValues");
   });
 
-  it("equipe fixa é editada pela RPC atualizar_roleta na aba Filas", () => {
-    expect(props).toContain("equipeFixa: v");
+  // Roletas simples (13/10/2026): toda campanha é equipe fixa (o gatilho do
+  // banco força) — o interruptor sumiu e a criação já manda true.
+  it("campanha é sempre equipe fixa: sem interruptor na aba Roletas, criação manda true", () => {
+    expect(props).not.toContain("equipeFixa: v");
+    expect(props).not.toContain("Equipe fixa");
     expect(props).toContain("useAtualizarRoleta");
+    expect(read("src/features/distribuicao/queries.ts")).toContain("_equipe_fixa: true");
   });
 
   it("o painel de Campanhas virou leitura: sem escrita direta em roletas/participantes", () => {

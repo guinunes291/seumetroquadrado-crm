@@ -18,13 +18,16 @@ import {
 // o link antigo abre a roleta da filial que herdou a zona (Oeste, Norte e Sul
 // → Barra Funda; Centro e Leste → Liberdade; Grande SP → Belém). A Leste é
 // atendida por duas lojas; o link cai na Liberdade, a primeira da ordem.
+//
+// Roletas simples (13/10/2026): Plantão, Landing e Base saíram — o link antigo
+// abre a aba Roletas no grupo padrão (Campanhas).
 const TAB_LEGADO: Record<string, string | undefined> = {
   zonas: undefined,
   origem: undefined,
-  plantao: "plantao",
+  plantao: undefined,
   marquinhos: "marquinhos",
-  landing: "landing",
-  base: "base",
+  landing: undefined,
+  base: undefined,
   "zona-norte": "filial-barra-funda",
   "zona-sul": "filial-barra-funda",
   "zona-oeste": "filial-barra-funda",

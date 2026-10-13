@@ -128,6 +128,10 @@ describe("UI: fim do SQL direto nas superfícies antigas", () => {
       "src/features/distribuicao/tab-filas.tsx",
       "src/features/distribuicao/fila-propriedades.tsx",
       "src/features/distribuicao/tab-corretores.tsx",
+      // Roletas simples (13/10/2026): o quadro e a Marquinhos automática.
+      "src/features/distribuicao/quadro-roletas.tsx",
+      "src/features/distribuicao/filiais-editor.tsx",
+      "src/features/distribuicao/roleta-tab.tsx",
     ]) {
       const src = read(arquivo);
       expect(src).not.toMatch(
@@ -179,8 +183,13 @@ describe("UI: rota com compatibilidade de links antigos", () => {
   it("?tab=zonas/origem e ?tab=<slug de roleta> (alertas do banco) caem na aba Filas", () => {
     const rota = read("src/routes/_authenticated/distribuicao.tsx");
     expect(rota).toContain("TAB_LEGADO");
-    for (const legado of ["zonas", "origem", "plantao", "zona-norte", "base"]) {
-      expect(rota).toContain(`${JSON.stringify(legado)}`);
+    for (const legado of ["zonas", "origem", "plantao", "landing", "zona-norte", "base"]) {
+      expect(rota).toMatch(new RegExp(`^\\s+"?${legado}"?: `, "m"));
+    }
+    // Roletas simples (13/10/2026): Plantão, Landing e Base desligadas — o
+    // link antigo abre a aba Roletas no grupo padrão, não a roleta morta.
+    for (const morta of ["plantao", "landing", "base"]) {
+      expect(rota).toMatch(new RegExp(`^\\s+${morta}: undefined,`, "m"));
     }
     expect(rota).toContain('{ tab: "filas", fila:');
     // Roletas por filial (12/10/2026): o link da roleta de zona antiga abre a
@@ -193,7 +202,7 @@ describe("UI: rota com compatibilidade de links antigos", () => {
 
 describe("vocabulário (unit real)", () => {
   it("roletaLabel: nome do banco vence; base tem label; slug cru continua o fallback", () => {
-    expect(roletaLabel("base")).toBe("Roleta Base");
+    expect(roletaLabel("base")).toBe("Roleta Base (antiga)");
     expect(roletaLabel("qualquer-slug", "Nome do Banco")).toBe("Nome do Banco");
     expect(roletaLabel("qualquer-slug")).toBe("qualquer-slug");
     // Roletas por filial (12/10/2026): a roleta de zona antiga é histórico, e

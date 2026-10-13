@@ -34,10 +34,12 @@ export type RoletaZonaLegadaSlug =
   "zona-norte" | "zona-sul" | "zona-leste" | "zona-oeste" | "zona-centro" | "zona-grande-sp";
 
 export const ROLETA_LABEL: Record<RoletaSlug | RoletaFilialSlug | RoletaZonaLegadaSlug, string> = {
-  plantao: "Roleta Plantão",
+  // Plantão, Landing e Base saíram em 13/10/2026 (roletas simples): ficam só
+  // para o histórico ler "(antiga)".
+  plantao: "Roleta Plantão (antiga)",
   marquinhos: "Roleta Marquinhos",
-  landing: "Roleta Landing Page",
-  base: "Roleta Base",
+  landing: "Roleta Landing Page (antiga)",
+  base: "Roleta Base (antiga)",
   "agendados-sdr": "Agendados do SDR",
   "filial-barra-funda": "Roleta Barra Funda",
   "filial-liberdade": "Roleta Liberdade",
@@ -183,23 +185,41 @@ export function frasesAlternancia(filiais: readonly FilialRoleta[]): string[] {
   });
 }
 
-/** As campanhas em seções por filial dona (ordem das filiais); as sem filial
- *  — ou com filial desconhecida — no fim ("Campanhas · sem filial"). */
-export function secoesDeCampanhas<T extends { filial_id: string | null }>(
-  campanhas: readonly T[],
-  filiais: readonly { id: string; nome: string; ordem: number }[],
-): Array<{ chave: string; titulo: string; filas: T[] }> {
-  const secoes: Array<{ chave: string; titulo: string; filas: T[] }> = [];
-  for (const f of [...filiais].sort((a, b) => a.ordem - b.ordem)) {
-    const filas = campanhas.filter((c) => c.filial_id === f.id);
-    if (filas.length > 0) secoes.push({ chave: f.id, titulo: `Campanhas · ${f.nome}`, filas });
-  }
-  const ids = new Set(filiais.map((f) => f.id));
-  const soltas = campanhas.filter((c) => !c.filial_id || !ids.has(c.filial_id));
-  if (soltas.length > 0) {
-    secoes.push({ chave: "sem-filial", titulo: "Campanhas · sem filial", filas: soltas });
-  }
-  return secoes;
+// ---------------------------------------------------------------------------
+// As quatro roletas (decisão do dono, 13/10/2026: "precisamos apenas dessas
+// roletas no sistema"). Toda roleta do banco cai numa família pelo tipo; o
+// que não cai (Plantão, Landing e Base, desligadas) é "antiga" e some das
+// telas de operação — fica só no histórico.
+// ---------------------------------------------------------------------------
+export type FamiliaRoleta = "campanha" | "filial" | "sdr" | "marquinhos";
+
+/** Na ordem do pedido do dono. */
+export const FAMILIAS_ROLETA: readonly FamiliaRoleta[] = [
+  "campanha",
+  "filial",
+  "sdr",
+  "marquinhos",
+];
+
+export const FAMILIA_ROLETA_LABEL: Record<FamiliaRoleta, string> = {
+  campanha: "Campanhas Facebook Ads",
+  filial: "Filiais",
+  sdr: "SDR",
+  marquinhos: "Marquinhos",
+};
+
+/** A família da roleta; null = roleta antiga (fora das quatro). A roleta de
+ *  filial é a de tipo 'zona' COM filial (as zona-* antigas não têm). */
+export function familiaDaRoleta(r: {
+  slug: string;
+  tipo: string;
+  filial_id?: string | null;
+}): FamiliaRoleta | null {
+  if (r.slug === "marquinhos") return "marquinhos";
+  if (r.tipo === "campanha") return "campanha";
+  if (r.tipo === "sdr") return "sdr";
+  if (r.tipo === "zona" && (r.filial_id === undefined || r.filial_id !== null)) return "filial";
+  return null;
 }
 
 /** A descrição da roleta de filial na Central: as zonas e quem alterna. */
@@ -351,6 +371,11 @@ export const GATILHO_LABEL: Record<string, string> = {
   manual_roleta: "Roleta manual (lista de leads)",
   manual_criacao: "Criação manual de lead",
   reprocesso: "Reprocessamento",
+  // Roletas simples (13/10/2026).
+  estoque: "Estoque (pelas filiais)",
+  campanha_equipe_sem_apto: "Campanha sem ninguém apto → rodízio das filiais",
+  campanha_equipe_fixa_sem_zona: "Campanha sem ninguém apto → filial da zona",
+  fallback_velocidade: "Fallback por velocidade",
   teste: "Teste",
 };
 

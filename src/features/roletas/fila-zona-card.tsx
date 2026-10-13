@@ -150,17 +150,8 @@ function OutraFila({ r }: { r: FilaRoleta }) {
             check-in
           </Badge>
         )}
-        {r.papel === "campanha" && r.equipe_fixa && (
-          <Badge variant="outline" className="h-5 text-[10px] font-normal">
-            equipe fixa
-          </Badge>
-        )}
-        {/* A filial dona da campanha: rótulo (a equipe recebe de qualquer zona). */}
-        {r.papel === "campanha" && r.filial && (
-          <Badge variant="outline" className="h-5 text-[10px] font-normal">
-            {r.filial.nome}
-          </Badge>
-        )}
+        {/* Desde as roletas simples (13/10/2026) toda campanha é da equipe, de
+            qualquer zona e filial: sem selo de "equipe fixa" nem de filial. */}
       </p>
       <p className="text-xs text-foreground/90">
         {r.fila.length > 0 ? filaEmLinha(r) : "Ninguém apto agora: o lead espera."}

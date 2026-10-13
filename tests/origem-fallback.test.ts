@@ -121,11 +121,16 @@ describe("UI — uma aba de Filas para todas as roletas", () => {
     expect(cc).not.toContain('TabsTrigger value="landing"');
   });
 
-  it("a aba Filas cobre as roletas de origem (grupo Sistema, com a base) via seletor", () => {
+  // Roletas simples (13/10/2026): sem o grupo Sistema — a aba Roletas tem as
+  // quatro famílias do dono, e Plantão/Landing/Base (desligadas) não aparecem.
+  it("a aba Roletas cobre as quatro famílias via seletor; sem grupo Sistema", () => {
     const tab = read("src/features/distribuicao/tab-filas.tsx");
-    for (const slug of ["plantao", "marquinhos", "landing", "base"]) {
-      expect(tab).toContain(`"${slug}"`);
-    }
+    expect(tab).toContain("FAMILIAS_ROLETA");
+    expect(tab).toContain("familiaDaRoleta");
     expect(tab).toContain("RoletaTab");
+    expect(tab).not.toContain("ORDEM_SISTEMA");
+    for (const slug of ["plantao", "landing", "base"]) {
+      expect(tab).not.toContain(`"${slug}"`);
+    }
   });
 });

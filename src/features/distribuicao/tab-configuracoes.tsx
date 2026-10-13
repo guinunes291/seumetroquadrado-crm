@@ -1,5 +1,8 @@
 // Aba Configurações (admin) — parâmetros GERAIS da distribuição: % mínimo,
 // statuses, tempos, mapeamento origem→roleta e funcionamento das roletas.
+// Desde as roletas simples (13/10/2026) só existem quatro roletas: a tabela
+// de funcionamento lista só elas e a origem vai para a Marquinhos ou para as
+// filiais (o banco recusa o resto).
 // Os parâmetros da Política de Distribuição v2 (SLA, faixas, posse, teto,
 // feature flag) vivem na aba Política. Toda alteração é auditada
 // (audit_log via RPCs admin).
@@ -23,7 +26,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PRESENCA_OBRIGATORIA_HINT, presencaObrigatoria, roletaLabel } from "@/lib/distribuicao";
+import {
+  PRESENCA_OBRIGATORIA_HINT,
+  familiaDaRoleta,
+  presencaObrigatoria,
+  roletaLabel,
+} from "@/lib/distribuicao";
 import {
   useAtualizarConfigOrigem,
   useAtualizarRoleta,
@@ -38,7 +46,8 @@ import {
 } from "./setting-fields";
 import { origemLabel } from "@/lib/origem";
 
-const SEM_ROLETA = "__nenhuma__";
+/** Origem sem roleta própria = as filiais (zona do lead; sem zona, o rodízio). */
+const SEM_ROLETA = "__filiais__";
 
 export function TabConfiguracoes() {
   const roletasQ = useRoletas();
@@ -59,7 +68,7 @@ export function TabConfiguracoes() {
               chave="zona_estrita"
               padrao
               label="Zona estrita: corretor só recebe lead da própria região"
-              hint="Região = as filiais em que o corretor está (aba Corretores): as zonas delas. Lead de campanha de equipe fixa vai para a equipe, de qualquer zona. Desligado volta aos desvios antigos: lead de uma zona pode ir para corretor de outra."
+              hint="Região = as filiais em que o corretor está (quadro Quem está em qual roleta): as zonas delas. Lead de campanha vai para a equipe, de qualquer zona. Desligado volta aos desvios antigos: lead de uma zona pode ir para corretor de outra."
             />
             {/* _distribuir_lead_v3 (20261012120000): chave ausente = ligada. */}
             <SettingBooleano
@@ -90,15 +99,15 @@ export function TabConfiguracoes() {
             />
             <SettingNumero
               chave="percentual_minimo_trabalhado"
-              label="Percentual mínimo de leads trabalhados (Roleta Plantão)"
-              hint="Abaixo disso o corretor fica temporariamente fora da roleta até regularizar."
+              label="Percentual mínimo de leads trabalhados (valia só para o Plantão)"
+              hint="Sem efeito desde 13/10/2026: só a Roleta Plantão (desligada) usava este critério."
               min={0}
               sufixo="%"
             />
             <SettingNumero
               chave="limite_diario_default"
               label="Limite diário padrão de leads por corretor (por roleta)"
-              hint="Pode ser sobrescrito por corretor na própria roleta."
+              hint="Pode ser sobrescrito por corretor na própria roleta. O estoque não conta nesta cota."
               sufixo="leads/dia"
             />
             <SettingNumero
@@ -115,8 +124,8 @@ export function TabConfiguracoes() {
             />
             <SettingBooleano
               chave="permitir_inclusao_manual"
-              label="Gestor pode incluir corretores na Roleta Marquinhos"
-              hint="Desligado: apenas administradores incluem."
+              label="Gestor pode incluir corretores na Roleta Marquinhos (só com a regra automática desligada)"
+              hint="Com a regra automática (Política) ligada, o time é o top em vendas e só o admin devolve alguém à regra."
             />
             <SettingBooleano
               chave="cota_conta_redistribuicao"
@@ -164,48 +173,57 @@ export function TabConfiguracoes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(roletasQ.data ?? []).map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{roletaLabel(r.slug, r.nome)}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={r.ativo}
-                        onCheckedChange={(v) => atualizarRoleta.mutate({ slug: r.slug, ativo: v })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={r.exigir_presenca}
-                        disabled={presencaObrigatoria(r)}
-                        title={presencaObrigatoria(r) ? PRESENCA_OBRIGATORIA_HINT : undefined}
-                        onCheckedChange={(v) =>
-                          atualizarRoleta.mutate({ slug: r.slug, exigirPresenca: v })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <HorarioRoletaCell roleta={r} />
-                    </TableCell>
-                    <TableCell>
-                      <label className="flex items-center gap-2 text-xs">
+                {/* As quatro famílias; Plantão, Landing, Base e as zona-* antigas
+                    ficam de fora (desligadas, só no histórico). */}
+                {(roletasQ.data ?? [])
+                  .filter(
+                    (r) =>
+                      familiaDaRoleta(r) !== null && (r.ativo || r.tipo !== "zona" || r.filial_id),
+                  )
+                  .map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{roletaLabel(r.slug, r.nome)}</TableCell>
+                      <TableCell>
                         <Switch
-                          checked={r.permitir_fora_horario}
+                          checked={r.ativo}
                           onCheckedChange={(v) =>
-                            atualizarRoleta.mutate({ slug: r.slug, permitirForaHorario: v })
+                            atualizarRoleta.mutate({ slug: r.slug, ativo: v })
                           }
                         />
-                        distribuir mesmo assim
-                      </label>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={r.exigir_presenca}
+                          disabled={presencaObrigatoria(r)}
+                          title={presencaObrigatoria(r) ? PRESENCA_OBRIGATORIA_HINT : undefined}
+                          onCheckedChange={(v) =>
+                            atualizarRoleta.mutate({ slug: r.slug, exigirPresenca: v })
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <HorarioRoletaCell roleta={r} />
+                      </TableCell>
+                      <TableCell>
+                        <label className="flex items-center gap-2 text-xs">
+                          <Switch
+                            checked={r.permitir_fora_horario}
+                            onCheckedChange={(v) =>
+                              atualizarRoleta.mutate({ slug: r.slug, permitirForaHorario: v })
+                            }
+                          />
+                          distribuir mesmo assim
+                        </label>
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           )}
           <p className="mt-2 text-xs text-muted-foreground">
             Sem horário definido = 24h. Com horário e "distribuir mesmo assim" desligado, o lead
             espera a próxima janela (o cron re-tenta a cada minuto). Participantes e propriedades de
-            cada fila (equipe fixa, projeto, token de campanha) ficam na aba Filas.
+            cada roleta (projeto e token de campanha) ficam na aba Roletas.
           </p>
         </CardContent>
       </Card>
@@ -247,13 +265,17 @@ export function TabConfiguracoes() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* Todas as roletas do banco — campanha e base incluídas. */}
-                          {(roletasQ.data ?? []).map((r) => (
-                            <SelectItem key={r.slug} value={r.slug}>
-                              {roletaLabel(r.slug, r.nome)}
+                          {/* Só dois destinos desde 13/10/2026 (o banco recusa o
+                              resto): campanha entra pelo token dela. */}
+                          <SelectItem value={SEM_ROLETA}>
+                            Filiais (zona do lead; sem zona, rodízio)
+                          </SelectItem>
+                          <SelectItem value="marquinhos">Roleta Marquinhos</SelectItem>
+                          {c.roleta_slug && c.roleta_slug !== "marquinhos" && (
+                            <SelectItem value={c.roleta_slug} disabled>
+                              {roletaLabel(c.roleta_slug)}
                             </SelectItem>
-                          ))}
-                          <SelectItem value={SEM_ROLETA}>Nenhuma (vai para exceção)</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </TableCell>

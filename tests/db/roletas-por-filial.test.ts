@@ -909,9 +909,10 @@ describe("correções da revisão (12/10)", () => {
     // também só da Barra Funda e fora da campanha, continua barrada.
     const fora = await criarUsuario(c, { nome: "Fé Fora" });
     await comoSuperuser(c);
-    await c.query(`UPDATE public.profiles SET telefone = '11977779999', ativo = true WHERE id = $1`, [
-      fora.id,
-    ]);
+    await c.query(
+      `UPDATE public.profiles SET telefone = '11977779999', ativo = true WHERE id = $1`,
+      [fora.id],
+    );
     await darRegiao(c, fora.id, ["Oeste"]);
     await comoUsuario(c, admin.id);
     expect(

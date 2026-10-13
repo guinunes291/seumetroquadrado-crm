@@ -54,6 +54,11 @@ export const CHAVES_COBERTAS: string[] = [
   "disjuntor_wip",
   // Aba Política (permanência semanal na roleta do SDR)
   ...CHAVES_ROLETA_SDR,
+  // Aba Política (Roleta Marquinhos automática, 13/10/2026). O status das
+  // vendas e o "desde" ficam em Outras chaves (raramente mudam).
+  "marquinhos_regra_ativa",
+  "marquinhos_top_n",
+  "marquinhos_janela_dias",
 ];
 
 /** Flag do motor v2 — muda o comportamento de PRODUÇÃO, então liga/desliga
@@ -364,7 +369,7 @@ export function TabPolitica() {
             <p className="text-xs text-muted-foreground">
               Quem converte na semana (sábado a sexta) recebe agendados do SDR na semana seguinte;
               quem não converte fica pausado. Apuração no sábado 08:00, aviso na quarta 18:00.
-              Removido manualmente nunca volta pela regra. Placar ao vivo em Filas → SDR.
+              Removido manualmente nunca volta pela regra. Placar ao vivo em Roletas → SDR.
             </p>
             <div className="grid gap-3 lg:grid-cols-2">
               <SettingBooleano
@@ -431,6 +436,42 @@ export function TabPolitica() {
                 hint="Sem a meta, quem tem esse número de vendas ou mais recebe como meta batida. 0 = nunca."
                 min={0}
                 sufixo="vendas"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">
+              Roleta Marquinhos — automática (top em vendas)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              O time da Marquinhos são os corretores com mais vendas assinadas na janela (pendente
+              ou aprovada, sem distrato; empate pelo valor). Apuração todo dia às 06:50; quem a
+              gestão bloqueia não volta pela regra. Ranking ao vivo em Roletas → Marquinhos.
+            </p>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <SettingBooleano
+                chave="marquinhos_regra_ativa"
+                label="Regra automática ligada"
+                hint="Desligada, a apuração não roda e o time da Marquinhos volta a ser montado à mão."
+              />
+              <SettingNumero
+                chave="marquinhos_top_n"
+                label="Quantos entram"
+                hint="Os N com mais vendas. Padrão 6."
+                min={0}
+                sufixo="corretores"
+              />
+              <SettingNumero
+                chave="marquinhos_janela_dias"
+                label="Janela das vendas"
+                hint="Contada até hoje (inclusive). Padrão 30."
+                min={1}
+                sufixo="dias"
               />
             </div>
           </CardContent>

@@ -1,7 +1,8 @@
 // Painel de campanhas — SOMENTE LEITURA: métricas ao vivo por equipe e
-// histórico de tiers. Toda a GESTÃO de campanha (criar, equipe, equipe fixa,
-// projeto, token de webhook, recálculo de tiers) vive na Central de
-// Distribuição (aba Filas) — um lugar só, com escrita via RPC auditada.
+// histórico de tiers. Toda a GESTÃO de campanha (criar, equipe, projeto,
+// token de webhook, recálculo de tiers) vive na Central de Distribuição (aba
+// Roletas) — um lugar só, com escrita via RPC auditada. Desde 13/10/2026 toda
+// campanha é da equipe, de qualquer zona e filial (não há "equipe fixa").
 // Este arquivo não escreve em roletas nem em roleta_participantes.
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -138,8 +139,8 @@ export function CampanhasPage() {
       </div>
       <p className="-mt-4 text-sm text-muted-foreground">
         Acompanhamento das campanhas: equipe, tiers e resultados nas janelas. Criar campanha, montar
-        equipe, equipe fixa, projeto e token de webhook ficam na Central de Distribuição (aba
-        Filas), com toda mudança auditada.
+        equipe, projeto e token de webhook ficam na Central de Distribuição (aba Roletas), com toda
+        mudança auditada.
       </p>
 
       <Card>
@@ -149,7 +150,6 @@ export function CampanhasPage() {
               <TableRow>
                 <TableHead>Campanha</TableHead>
                 <TableHead>Projeto vinculado</TableHead>
-                <TableHead>Equipe fixa</TableHead>
                 <TableHead>Pesos (A/B/C)</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -183,13 +183,6 @@ export function CampanhasPage() {
                       <span className="text-muted-foreground">Sem projeto vinculado</span>
                     )}
                   </TableCell>
-                  <TableCell className="align-top text-sm">
-                    {r.equipe_fixa ? (
-                      <Badge variant="secondary">Sempre neste time</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">Respeita zonas</span>
-                    )}
-                  </TableCell>
                   <TableCell className="align-top text-sm tabular-nums">
                     {r.peso_tier_a}/{r.peso_tier_b}/{r.peso_tier_c}
                   </TableCell>
@@ -206,7 +199,7 @@ export function CampanhasPage() {
                     <EmptyState
                       icon={Radio}
                       title="Nenhuma campanha ainda."
-                      description="Crie campanhas na Central de Distribuição (aba Filas)."
+                      description="Crie campanhas na Central de Distribuição (aba Roletas)."
                     />
                   </TableCell>
                 </TableRow>
@@ -279,7 +272,7 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
           <DialogTitle>Equipe · {roleta.nome}</DialogTitle>
           <DialogDescription>
             Só quem estiver aqui, ativo e presente recebe leads dessa campanha. Para incluir,
-            remover ou ajustar limite, use a Central de Distribuição (aba Filas).
+            remover ou ajustar limite, use a Central de Distribuição (aba Roletas).
           </DialogDescription>
         </DialogHeader>
 

@@ -161,7 +161,8 @@ describe("estoque pelas filiais", () => {
     expect(zonasDuo).toHaveLength(2);
     expect(zonasLu).toHaveLength(2);
     for (const z of zonasAna) expect([null, "Oeste", "Norte", "Sul"]).toContain(z);
-    for (const z of zonasDuo) expect([null, "Oeste", "Norte", "Sul", "Leste", "Grande SP"]).toContain(z);
+    for (const z of zonasDuo)
+      expect([null, "Oeste", "Norte", "Sul", "Leste", "Grande SP"]).toContain(z);
     for (const z of zonasLu) expect([null, "Centro", "Leste"]).toContain(z);
   });
 
@@ -234,8 +235,9 @@ describe("estoque pelas filiais", () => {
     expect(todas.distribuidos).toBe(3);
 
     await estoque(null, 3);
-    const so = (await c.query(`SELECT public.distribuir_estoque_roleta('filial-liberdade', 5) AS r`))
-      .rows[0].r as Record<string, unknown>;
+    const so = (
+      await c.query(`SELECT public.distribuir_estoque_roleta('filial-liberdade', 5) AS r`)
+    ).rows[0].r as Record<string, unknown>;
     expect(so.roletas).toEqual(["filial-liberdade"]);
     expect((await recebidos(lu)).length).toBeGreaterThanOrEqual(3);
   });

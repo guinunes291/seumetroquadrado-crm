@@ -389,7 +389,7 @@ export function CorretoresPage() {
                 to="/distribuicao"
                 search={{ tab: "corretores" }}
                 className="text-xs text-primary hover:underline"
-                title="Gerenciar zonas e elegibilidade na Central de Distribuição"
+                title="Ver e mudar em quais roletas ele está (Central de Distribuição → Quem está em qual roleta)"
               >
                 Gerenciar
               </Link>

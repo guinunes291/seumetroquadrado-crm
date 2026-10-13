@@ -1,9 +1,9 @@
 // Central de Distribuição — página /distribuicao, o lugar ÚNICO de
 // configuração da distribuição. Dashboard de saúde + abas: visão geral,
-// filas (todas as roletas: zonas, sistema, base e campanhas), corretores
-// (presença, zonas, vínculo, onboarding), a vez por zona (quem recebe o
-// próximo lead de cada roleta), exceções, histórico, política (parâmetros do
-// motor v2, admin), configurações (admin) e auditoria.
+// roletas (as quatro: campanhas Facebook Ads, filiais, SDR e Marquinhos —
+// decisão do dono, 13/10/2026), quem está em qual roleta (o quadro por
+// corretor), a vez por zona, exceções, histórico, política (admin),
+// configurações (admin) e auditoria.
 
 import { lazy, Suspense } from "react";
 import { useNavigate } from "@tanstack/react-router";
@@ -13,12 +13,12 @@ import { toast } from "sonner";
 import {
   Alarm,
   CalendarDots,
-  Globe,
   Lightning,
   Percent,
   Play,
   Robot,
   ShieldWarning,
+  Storefront,
   Tray,
   UsersThree,
   Warning,
@@ -117,7 +117,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
     <div>
       <PageHeader
         title="Central de Distribuição"
-        description="Toda a configuração da distribuição num lugar só: filas (zonas, sistema, base e campanhas), corretores, exceções, histórico, política do motor v2 e regras — tudo auditável."
+        description="Só quatro roletas — Campanhas Facebook Ads, Filiais, SDR e Marquinhos — e quem está em cada uma, num lugar só, com exceções, histórico e regras auditáveis."
         actions={
           somenteLeitura ? undefined : (
             <>
@@ -182,12 +182,13 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           onClick={() => setTab("historico")}
         />
         <StatTile
-          title="Aptos · Plantão"
-          value={r?.aptos_plantao ?? "—"}
-          icon={UsersThree}
-          intent={(r?.aptos_plantao ?? 0) === 0 ? "danger" : "info"}
+          title="Aptos · Filiais"
+          value={r ? (r.aptos_filiais ?? r.aptos_plantao) : "—"}
+          icon={Storefront}
+          intent={(r?.aptos_filiais ?? r?.aptos_plantao ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
-          onClick={() => setTab("filas")}
+          onClick={() => setTab("corretores")}
+          hint="pessoas com check-in, em alguma filial"
         />
         <StatTile
           title="Aptos · Marquinhos"
@@ -198,12 +199,13 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           onClick={() => setTab("filas")}
         />
         <StatTile
-          title="Aptos · Landing"
-          value={r?.aptos_landing ?? "—"}
-          icon={Globe}
-          intent={(r?.aptos_landing ?? 0) === 0 ? "danger" : "info"}
+          title="Time do SDR"
+          value={r?.time_sdr ?? "—"}
+          icon={UsersThree}
+          intent={(r?.time_sdr ?? 1) === 0 ? "danger" : "info"}
           loading={loading}
           onClick={() => setTab("filas")}
+          hint="recebe por agenda livre"
         />
         <StatTile
           title="Parados (régua de horas)"
@@ -219,15 +221,15 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           icon={Percent}
           intent={(r?.pct_medio_trabalhado ?? 100) < 90 ? "warning" : "success"}
           loading={loading}
-          hint="participantes do plantão"
+          hint="participantes das filiais"
         />
       </StatGrid>
 
       <Tabs value={activeTab} onValueChange={setTab} className="space-y-4">
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
-          <TabsTrigger value="filas">Filas</TabsTrigger>
-          <TabsTrigger value="corretores">Corretores</TabsTrigger>
+          <TabsTrigger value="filas">Roletas</TabsTrigger>
+          <TabsTrigger value="corretores">Quem está em qual roleta</TabsTrigger>
           <TabsTrigger value="vez">A vez por zona</TabsTrigger>
           <TabsTrigger value="excecoes">
             Exceções
@@ -257,7 +259,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         </TabsContent>
         <TabsContent value="corretores">
           <Suspense fallback={<Skeleton className="h-72 w-full rounded-2xl" />}>
-            <TabCorretores somenteLeitura={somenteLeitura} />
+            <TabCorretores somenteLeitura={somenteLeitura} escopoEquipe={escopoEquipe} />
           </Suspense>
         </TabsContent>
         <TabsContent value="vez">
@@ -289,7 +291,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
       {somenteLeitura && (
         <p className="mt-4 text-xs text-muted-foreground">
           {escopoEquipe
-            ? "Como gestor, você monta a equipe das filas (incluir, pausar e remover) apenas com corretores do seu time. As demais configurações da distribuição são de administradores."
+            ? "Como gestor, você monta a equipe das roletas (incluir, pausar e remover) apenas com corretores do seu time. As demais configurações da distribuição são de administradores."
             : "Acesso somente leitura — as ações de distribuição são exclusivas de administradores."}
         </p>
       )}
