@@ -222,7 +222,11 @@ describe("card de check-in (/presenca, Meu Perfil)", () => {
       ),
     );
     expect(chamadasCheckin()).toHaveLength(0);
-    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    // Desde 13/10 a leitura do GPS sai no toque de "Estou na loja" (o
+    // navegador só mostra o pedido de permissão de dentro do gesto — decisão
+    // do dono, "Pedir localização no check-in") e corre junto com a releitura;
+    // como a gestão já confirmou, ela é descartada: nada é gravado.
+    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
     // A confirmação some e o card mostra o que vale agora.
     expect(screen.queryByRole("button", { name: "Estou na loja" })).toBeNull();
     expect(await screen.findByText("Barra Funda — na roleta")).toBeInTheDocument();

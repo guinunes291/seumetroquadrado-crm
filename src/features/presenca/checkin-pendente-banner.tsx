@@ -26,7 +26,7 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { TELAS_COM_CARD_CHECKIN } from "./checkin-obrigatorio";
 import { useMinhaPresenca } from "./presenca-client";
 import { precisaCheckin, precisaRefazerCheckin } from "./presenca-derive";
-import { pedirCheckin } from "./use-checkin-obrigatorio";
+import { pedirCheckinNoToque } from "./use-checkin-obrigatorio";
 
 export function CheckinPendenteBanner() {
   const { isCorretor, loading } = useUserRoles();
@@ -83,10 +83,7 @@ export function CheckinPendenteBanner() {
         // O diálogo atende o pedido: abre no barrado, lê o GPS e refaz. O
         // link continua para quem prefere escolher outra filial em /presenca.
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => pedirCheckin({ acao: "incluir-localizacao", origem: "faixa" })}
-          >
+          <Button size="sm" onClick={() => pedirCheckinNoToque("incluir-localizacao", "faixa")}>
             Incluir localização
           </Button>
           <Button asChild size="sm" variant="ghost">

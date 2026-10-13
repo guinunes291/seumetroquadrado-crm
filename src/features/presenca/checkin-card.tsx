@@ -54,6 +54,7 @@ import {
 } from "./localizacao-previa";
 import {
   ehComputador,
+  iniciarLeituraDoCheckin,
   lerLocalizacaoAgora,
   registrarFalhaLocalizacao,
   useBuscarPresencaFresca,
@@ -197,6 +198,13 @@ export function CheckinCard({ className }: { className?: string }) {
     opts: { leitura?: LeituraIncluida; previaDentro?: boolean; novaLeitura?: boolean } = {},
   ) => {
     setEscolha(filial ?? modo);
+    // Refazendo depois de barrado (ou o "assim mesmo"): lê a posição agora,
+    // não a de 1 min atrás.
+    const novaLeitura = opts.novaLeitura ?? (modo === "loja" && precisaRefazerCheckin(p));
+    // O GPS sai AGORA, ainda dentro do toque (o navegador mostra o pedido de
+    // permissão), e a releitura abaixo corre junto. Sem leitura incluída que
+    // valha; se a releitura mostrar que já vale, a leitura é descartada.
+    const leituraNoToque = iniciarLeituraDoCheckin({ modo, leitura: opts.leitura, novaLeitura });
     // A presença de agora (sem cache): se o check-in de hoje já liberou a
     // roleta sem o corretor saber, avisa e não refaz. Falha na leitura não
     // impede o check-in.
@@ -222,10 +230,9 @@ export function CheckinCard({ className }: { className?: string }) {
       {
         modo,
         filial,
-        // Refazendo depois de barrado (ou o "assim mesmo"): lê a posição
-        // agora, não a de 1 min atrás.
-        novaLeitura: opts.novaLeitura ?? (modo === "loja" && precisaRefazerCheckin(p)),
+        novaLeitura,
         leitura: opts.leitura,
+        leituraNoToque,
         previaDentro: opts.previaDentro,
         barradoHoje,
       },

@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
-import { useMinhaPresenca } from "./presenca-client";
+import { lerLocalizacaoAgora, useMinhaPresenca } from "./presenca-client";
 import { checkinObrigatorioPendente } from "./checkin-obrigatorio";
 import type { AcaoPedidoCheckin, MinhaPresenca } from "./presenca-derive";
 
@@ -173,6 +173,13 @@ export type PedidoCheckin = {
   acao: AcaoPedidoCheckin;
   origem: "lateral" | "faixa";
   em: number;
+  /**
+   * "Incluir localização": a leitura do GPS que já saiu NO TOQUE da faixa ou
+   * do bloco. O diálogo só monta (lazy) e refaz depois — de dentro de um
+   * efeito, fora do gesto, o navegador pode não mostrar o pedido de permissão
+   * (decisão do dono, 13/10: "Pedir localização no check-in").
+   */
+  leitura?: ReturnType<typeof lerLocalizacaoAgora>;
 };
 
 /** Quanto tempo um pedido espera quem o atenda (o treino decidir, a presença chegar). */
@@ -190,12 +197,28 @@ function avisarPedido() {
 }
 
 /** O bloco da barra lateral e a faixa pedem; quem atende é o diálogo ou o card. */
-export function pedirCheckin(p: { acao: AcaoPedidoCheckin; origem: "lateral" | "faixa" }): void {
+export function pedirCheckin(p: {
+  acao: AcaoPedidoCheckin;
+  origem: "lateral" | "faixa";
+  leitura?: PedidoCheckin["leitura"];
+}): void {
   ultimoPedidoId += 1;
   const em = Date.now();
-  pedido = { id: ultimoPedidoId, acao: p.acao, origem: p.origem, em };
+  pedido = { id: ultimoPedidoId, acao: p.acao, origem: p.origem, em, leitura: p.leitura };
   ultimoPedidoEm = em;
   avisarPedido();
+}
+
+/**
+ * O pedido de quem toca um botão: com "Incluir localização", a leitura do GPS
+ * sai AGORA, ainda dentro do toque, e vai junto no pedido.
+ */
+export function pedirCheckinNoToque(acao: AcaoPedidoCheckin, origem: "lateral" | "faixa"): void {
+  pedirCheckin({
+    acao,
+    origem,
+    leitura: acao === "incluir-localizacao" ? lerLocalizacaoAgora() : undefined,
+  });
 }
 
 /** Limpa só se for o mesmo pedido (um mais novo, feito no meio, fica). */

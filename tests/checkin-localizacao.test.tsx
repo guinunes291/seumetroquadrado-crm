@@ -1003,7 +1003,10 @@ describe("a faixa do topo no barrado sem localização", () => {
     await new Promise((res) => setTimeout(res, 30));
     expect(dialogo()).toBeNull();
     expect(chamadasCheckin()).toEqual([]);
-    expect(gps()).not.toHaveBeenCalled();
+    // A leitura do GPS sai no toque da faixa (o navegador só mostra o pedido
+    // de permissão de dentro do gesto — "Pedir localização no check-in", dono,
+    // 13/10) e é descartada: nada é gravado e a confirmação da gestão fica.
+    expect(gps()).toHaveBeenCalledTimes(1);
     r.unmount();
 
     // A faixa ainda mostrava o barrado (a releitura dela não tinha passado):

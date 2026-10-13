@@ -302,7 +302,36 @@ export type ArgsCheckin = {
   leitura?: LeituraIncluida;
   /** A prévia disse "dentro" com esta leitura (só para o diagnóstico de divergência). */
   previaDentro?: boolean;
+  /**
+   * A leitura do GPS que já saiu NO TOQUE (iniciarLeituraDoCheckin), antes de a
+   * tela esperar a releitura da presença: o navegador só mostra o pedido de
+   * permissão de dentro do gesto do usuário. Ignorada se `leitura` ainda vale.
+   */
+  leituraNoToque?: Promise<LeituraLocalizacao>;
 };
+
+/** Este check-in vai precisar ler o GPS (filial sem leitura incluída que ainda vale)? */
+function precisaLerNoToque(args: Pick<ArgsCheckin, "modo" | "leitura">): boolean {
+  return args.modo === "loja" && !(args.leitura && leituraValida(args.leitura, Date.now()));
+}
+
+/** maximumAge 0 para "Tentar de novo" e para quem tinha uma leitura (vencida). */
+function opcoesDaLeitura(args: Pick<ArgsCheckin, "novaLeitura" | "leitura">) {
+  return args.novaLeitura || args.leitura ? { maximumAge: 0 } : undefined;
+}
+
+/**
+ * Começa a leitura do GPS AGORA, de dentro do toque, para o check-in que vai
+ * ser feito depois de uma espera (a releitura da presença). Devolve undefined
+ * quando o check-in não precisa ler (Em casa, ou leitura incluída que vale) —
+ * então nada é pedido ao navegador. Se a espera mostrar que o check-in não vai
+ * acontecer (a gestão já liberou), a leitura é só descartada: nada é gravado.
+ */
+export function iniciarLeituraDoCheckin(
+  args: Pick<ArgsCheckin, "modo" | "leitura" | "novaLeitura">,
+): Promise<LeituraLocalizacao> | undefined {
+  return precisaLerNoToque(args) ? obterLocalizacao(undefined, opcoesDaLeitura(args)) : undefined;
+}
 
 /**
  * O check-in do próprio corretor. `avisarRecusa: false` para quem mostra o
@@ -316,11 +345,12 @@ export function useCheckin({
   const qc = useQueryClient();
   const { user } = useAuth();
   const invalidar = useInvalidarPresenca();
-  return useMutation({
+  const m = useMutation({
     mutationFn: async (args: ArgsCheckin): Promise<ResultadoCheckin> => {
       // A leitura conferida na tela, se ainda vale: a RPC recebe exatamente a
-      // posição que a prévia olhou. Vencida (ou sem ela), lê agora — com
-      // maximumAge 0 se a tela tinha uma (não reaproveita a mesma velha).
+      // posição que a prévia olhou. Vencida (ou sem ela), usa a leitura que já
+      // saiu no toque (leituraNoToque) ou lê agora — com maximumAge 0 se a
+      // tela tinha uma (não reaproveita a mesma velha).
       const usa =
         args.modo === "loja" && args.leitura && leituraValida(args.leitura, Date.now())
           ? args.leitura
@@ -328,10 +358,7 @@ export function useCheckin({
       const leitura: LeituraLocalizacao | null = usa
         ? { ok: true, lat: usa.lat, lng: usa.lng, precisao: usa.precisao }
         : args.modo === "loja"
-          ? await obterLocalizacao(
-              undefined,
-              args.novaLeitura || args.leitura ? { maximumAge: 0 } : undefined,
-            )
+          ? await (args.leituraNoToque ?? obterLocalizacao(undefined, opcoesDaLeitura(args)))
           : null;
       const geo = leitura?.ok ? leitura : null;
       const falha = leitura && !leitura.ok ? leitura.falha : null;
@@ -380,6 +407,23 @@ export function useCheckin({
       if (avisarErro) toast.error(`Não foi possível fazer o check-in: ${e.message}`);
     },
   });
+  // O pedido de localização sai NO TOQUE do botão (antes de qualquer espera):
+  // assim o navegador mostra o aviso "Permitir localização" em vez de bloquear
+  // (decisão do dono, 13/10 — "Pedir localização no check-in"). Quem chama e
+  // ainda vai esperar alguma coisa antes do mutate (o diálogo e o card releem a
+  // presença) começa a leitura ele mesmo, com iniciarLeituraDoCheckin, e passa
+  // em leituraNoToque. Com uma leitura incluída que ainda vale, nada é lido.
+  const comLeitura = (args: ArgsCheckin): ArgsCheckin =>
+    args.leituraNoToque || !precisaLerNoToque(args)
+      ? args
+      : { ...args, leituraNoToque: obterLocalizacao(undefined, opcoesDaLeitura(args)) };
+  return {
+    ...m,
+    mutate: (args: ArgsCheckin, opts?: Parameters<typeof m.mutate>[1]) =>
+      m.mutate(comLeitura(args), opts),
+    mutateAsync: (args: ArgsCheckin, opts?: Parameters<typeof m.mutateAsync>[1]) =>
+      m.mutateAsync(comLeitura(args), opts),
+  };
 }
 
 /** "Sair": encerra a presença e tira da roleta (marcar_presenca(false)). */

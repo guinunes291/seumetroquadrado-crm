@@ -29,7 +29,7 @@ import { INTENT_DOT } from "@/lib/status-tones";
 import { cn } from "@/lib/utils";
 import { useEstadoTreino } from "@/features/onboarding/treino-estado";
 import { blocoCheckinLateral, type AcaoPedidoCheckin } from "./presenca-derive";
-import { pedirCheckin, useCheckinObrigatorio } from "./use-checkin-obrigatorio";
+import { pedirCheckinNoToque, useCheckinObrigatorio } from "./use-checkin-obrigatorio";
 
 // Fundo navy da barra: sem dourado (o dourado é raro, só no item ativo).
 const CLASSES_BOTAO =
@@ -59,7 +59,7 @@ export function CheckinLateral({
   const pedir = (a: AcaoPedidoCheckin) => {
     // Fecha o Sheet do celular ANTES: o diálogo (ou o card) recebe o foco.
     onNavigate?.();
-    pedirCheckin({ acao: a, origem: "lateral" });
+    pedirCheckinNoToque(a, "lateral");
   };
 
   const bolinha = (classe: string) => (

@@ -103,6 +103,7 @@ import {
 import {
   avisarNaRoletaDeFora,
   ehComputador,
+  iniciarLeituraDoCheckin,
   lerLocalizacaoAgora,
   motivoDoResultado,
   registrarFalhaLocalizacao,
@@ -138,6 +139,7 @@ import {
   useCheckinObrigatorio,
   usePedidoCheckin,
   VALIDADE_PEDIDO_MS,
+  type PedidoCheckin,
 } from "./use-checkin-obrigatorio";
 
 type Tela = "opcoes" | "confirmar" | "aviso" | "barrado" | "recusado";
@@ -198,7 +200,10 @@ export function CheckinObrigatorioGlobal() {
   // A localização barrou um check-in daqui: o reforço não volta com "Em casa".
   const [houveBarrado, setHouveBarrado] = useState(false);
   // O pedido "Incluir localização" (faixa, bloco) abre no barrado e refaz.
-  const [refazerAoAbrir, setRefazerAoAbrir] = useState<string | null>(null);
+  const [refazerAoAbrir, setRefazerAoAbrir] = useState<{
+    slug: string;
+    leitura?: PedidoCheckin["leitura"];
+  } | null>(null);
   // Reavalia um pedido que está esperando (o treino decidir, a presença chegar).
   const [tick, setTick] = useState(0);
   // O verde do check-in vindo de fora sai uma vez só por check-in.
@@ -319,7 +324,7 @@ export function CheckinObrigatorioGlobal() {
         c.motivo === "sem_localizacao" &&
         c.filial_slug
       ) {
-        setRefazerAoAbrir(c.filial_slug);
+        setRefazerAoAbrir({ slug: c.filial_slug, leitura: pedido.leitura });
       }
     }
     setAtivo(true);
@@ -368,6 +373,14 @@ export function CheckinObrigatorioGlobal() {
     setEscolha(filial ?? modoCheckin);
     setViaLeitura(!!opts.leitura);
     setErro(null);
+    // O GPS sai AGORA, ainda dentro do toque (o navegador mostra o pedido de
+    // permissão), e a releitura abaixo corre junto. Sem leitura incluída que
+    // valha; se a releitura mostrar que já vale, a leitura é descartada.
+    const leituraNoToque = iniciarLeituraDoCheckin({
+      modo: modoCheckin,
+      leitura: opts.leitura,
+      novaLeitura: opts.novaLeitura,
+    });
     // Antes de qualquer check-in, a presença de agora: se o de hoje já
     // liberou a roleta sem ele ver (feito no celular, confirmado pela gestão),
     // fecha sem chamar a RPC — refazer aqui encerraria a confirmação.
@@ -393,6 +406,7 @@ export function CheckinObrigatorioGlobal() {
         filial,
         novaLeitura: opts.novaLeitura,
         leitura: opts.leitura,
+        leituraNoToque,
         previaDentro: opts.previaDentro,
         barradoHoje: houveBarrado,
       },
@@ -466,11 +480,13 @@ export function CheckinObrigatorioGlobal() {
    * filial com essa leitura — já barrado, um barrado novo não custa nada a
    * mais e dá à gestão a distância nova.
    */
-  const refazerComLocalizacao = async (slug: string) => {
+  const refazerComLocalizacao = async (slug: string, leituraDoToque?: PedidoCheckin["leitura"]) => {
     const visto: Visto = p?.checkin ?? null;
     setEscolha(slug);
     setErro(null);
-    const r = await lerLocalizacaoAgora();
+    // A do toque da faixa/bloco, se veio no pedido; senão lê agora (o botão
+    // do próprio barrado chama daqui de dentro do toque).
+    const r = await (leituraDoToque ?? lerLocalizacaoAgora());
     if (!r.ok) {
       // Uma tentativa de check-in: conta no diagnóstico de "todo mundo barrado".
       registrarFalhaLocalizacao(r.falha);
@@ -502,9 +518,9 @@ export function CheckinObrigatorioGlobal() {
   // função nova a cada render é de propósito — o pedido zera na 1ª vez).
   useEffect(() => {
     if (refazerAoAbrir && ativo && tela === "barrado" && !ocupado) {
-      const slug = refazerAoAbrir;
+      const { slug, leitura } = refazerAoAbrir;
       setRefazerAoAbrir(null);
-      void refazerComLocalizacao(slug);
+      void refazerComLocalizacao(slug, leitura);
     }
   }, [refazerAoAbrir, ativo, tela, ocupado, refazerComLocalizacao]);
 
