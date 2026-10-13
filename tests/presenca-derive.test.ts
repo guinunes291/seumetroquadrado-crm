@@ -38,6 +38,15 @@ import {
   type MinhaPresenca,
   type PresencaHojeRow,
 } from "@/features/presenca/presenca-derive";
+// "Incluir minha localização" e o bloco de check-in da barra lateral (13/10/2026).
+import {
+  avisoTrocaDoValido,
+  blocoCheckinLateral,
+  horaSaoPaulo,
+  jaNaRoletaSemSaber,
+  leituraValida,
+  VALIDADE_LEITURA_MS,
+} from "@/features/presenca/presenca-derive";
 
 const FILIAIS = [
   { slug: "barra-funda", nome: "Barra Funda" },
@@ -721,5 +730,227 @@ describe("avisoJaNaRoleta: o toque que não refaz o check-in diz de onde ele vei
     expect(avisoJaNaRoleta({ modo: "casa", filial_nome: null, origem: "corretor" })).toBe(
       "Você já está na roleta hoje: Em casa.",
     );
+  });
+});
+
+describe("a leitura do 'Incluir minha localização' vale 60 s", () => {
+  it("60 000 ms vale, 60 001 não; relógio que volta não vale", () => {
+    expect(VALIDADE_LEITURA_MS).toBe(60_000);
+    expect(leituraValida({ lidaEm: 1_000 }, 1_000)).toBe(true);
+    expect(leituraValida({ lidaEm: 1_000 }, 61_000)).toBe(true);
+    expect(leituraValida({ lidaEm: 1_000 }, 61_001)).toBe(false);
+    expect(leituraValida({ lidaEm: 1_000 }, 999)).toBe(false);
+    expect(leituraValida(null, 1_000)).toBe(false);
+    expect(leituraValida(undefined, 1_000)).toBe(false);
+  });
+});
+
+describe("horaSaoPaulo", () => {
+  it("ISO ou epoch ms → 'HH:MM' em São Paulo; inválida → null", () => {
+    expect(horaSaoPaulo("2026-10-13T12:31:00Z")).toBe("09:31");
+    expect(horaSaoPaulo(Date.parse("2026-10-13T21:02:00Z"))).toBe("18:02");
+    expect(horaSaoPaulo("ontem")).toBeNull();
+    expect(horaSaoPaulo("")).toBeNull();
+    expect(horaSaoPaulo(null)).toBeNull();
+    expect(horaSaoPaulo(undefined)).toBeNull();
+  });
+});
+
+describe("o bloco de check-in da barra lateral", () => {
+  const bloco = (
+    p: MinhaPresenca | undefined,
+    over: { pendente?: boolean | null; erro?: boolean } = {},
+  ) => blocoCheckinLateral({ presenca: p, pendente: false, erro: false, ...over });
+  const pedido = (acao: "abrir" | "incluir-localizacao", rotulo: string) => ({
+    tipo: "pedido",
+    acao,
+    rotulo,
+  });
+
+  it("erro na leitura: o link para /presenca", () => {
+    expect(bloco(undefined, { erro: true })).toEqual({
+      chave: "erro",
+      linha: null,
+      estado: "Não deu para ler o check-in",
+      intent: "neutral",
+      acao: { tipo: "link", rotulo: "Abrir check-in" },
+    });
+  });
+
+  it("carregando (sem presença, ou a virada do dia com pendente null): sem ação", () => {
+    const carregando = {
+      chave: "carregando",
+      linha: null,
+      estado: "Lendo o check-in…",
+      intent: "neutral",
+      acao: null,
+    };
+    expect(bloco(undefined)).toEqual(carregando);
+    expect(bloco(presenca({ checkin: checkin() }), { pendente: null })).toEqual(carregando);
+  });
+
+  it("sem check-in hoje: Fazer check-in", () => {
+    expect(bloco(presenca(), { pendente: true })).toEqual({
+      chave: "sem_checkin",
+      linha: "Sem check-in hoje",
+      estado: "Fora das roletas",
+      intent: "warning",
+      acao: pedido("abrir", "Fazer check-in"),
+    });
+  });
+
+  it("presença encerrada: a hora da saída e Fazer check-in", () => {
+    expect(bloco(presenca({ checkin: checkin({ encerrado_em: "2026-10-13T21:02:00Z" }) }))).toEqual(
+      {
+        chave: "encerrado",
+        linha: "Barra Funda · saiu às 18:02",
+        estado: "Presença encerrada",
+        intent: "neutral",
+        acao: pedido("abrir", "Fazer check-in"),
+      },
+    );
+  });
+
+  it("barrado sem localização: Incluir localização", () => {
+    const c = checkin({
+      apto_roleta: false,
+      motivo: "sem_localizacao",
+      localizacao: "sem_localizacao",
+    });
+    expect(bloco(presenca({ checkin: c }))).toEqual({
+      chave: "barrado_sem_localizacao",
+      linha: "Barra Funda · 08:02",
+      estado: "Barrado: sem localização",
+      intent: "danger",
+      acao: pedido("incluir-localizacao", "Incluir localização"),
+    });
+  });
+
+  it("barrado fora: a distância (ou aproximada, ou longe) e Refazer check-in", () => {
+    const fora = (over: Partial<NonNullable<MinhaPresenca["checkin"]>>) =>
+      bloco(
+        presenca({
+          checkin: checkin({
+            apto_roleta: false,
+            motivo: "fora_da_filial",
+            localizacao: "fora_do_raio",
+            ...over,
+          }),
+        }),
+      );
+    expect(fora({ distancia_m: 5830 })).toEqual({
+      chave: "barrado_fora",
+      linha: "Barra Funda · 08:02",
+      estado: "Barrado: a 5,8 km da loja",
+      intent: "danger",
+      acao: pedido("abrir", "Refazer check-in"),
+    });
+    expect(fora({ distancia_m: 8363, precisao_m: 5000 }).estado).toBe(
+      "Barrado: localização aproximada",
+    );
+    expect(fora({ distancia_m: null }).estado).toBe("Barrado: longe da loja");
+  });
+
+  it("nas roletas: Trocar (com 'confirmado pela gestão' e o liberado pela gestão)", () => {
+    expect(bloco(presenca({ presente: true, checkin: checkin() }))).toEqual({
+      chave: "na_roleta",
+      linha: "Barra Funda · 08:02",
+      estado: "Nas roletas",
+      intent: "success",
+      acao: pedido("abrir", "Trocar"),
+    });
+    expect(bloco(presenca({ presente: true, checkin: checkin({ origem: "gestao" }) })).estado).toBe(
+      "Nas roletas · confirmado pela gestão",
+    );
+    const liberado = bloco(
+      presenca({
+        presente: true,
+        checkin: checkin({
+          modo: "liberado_gestao",
+          filial_slug: null,
+          filial_nome: null,
+          origem: "gestao",
+        }),
+      }),
+    );
+    expect(liberado.linha).toBe("Liberado pela gestão · 08:02");
+    expect(liberado.estado).toBe("Nas roletas");
+  });
+
+  it("em casa abaixo do mínimo de vendas: quantas de quantas, e Trocar", () => {
+    const c = checkin({
+      modo: "casa",
+      filial_slug: null,
+      filial_nome: null,
+      apto_roleta: false,
+      motivo: "casa_abaixo_minimo_vendas",
+    });
+    expect(bloco(presenca({ checkin: c }))).toEqual({
+      chave: "fora_vendas",
+      linha: "Em casa · 08:02",
+      estado: "Fora das roletas: 2 de 3 vendas",
+      intent: "warning",
+      acao: pedido("abrir", "Trocar"),
+    });
+  });
+
+  it("apto sem 'presente' (raro): fora das roletas, e Trocar", () => {
+    expect(bloco(presenca({ presente: false, checkin: checkin() }))).toEqual({
+      chave: "fora_roleta",
+      linha: "Barra Funda · 08:02",
+      estado: "Fora das roletas",
+      intent: "warning",
+      acao: pedido("abrir", "Trocar"),
+    });
+  });
+});
+
+describe("jaNaRoletaSemSaber (movida do card): o toque por uma tela velha não refaz", () => {
+  it("visto null + apto → o de agora; mesmo id apto → null; visto barrado + fresca apta → o de agora; fresca null → null", () => {
+    const apto = checkin({ id: "k1" });
+    const fresca = presenca({ presente: true, checkin: apto });
+    expect(jaNaRoletaSemSaber(fresca, null)).toEqual(apto);
+    expect(
+      jaNaRoletaSemSaber(fresca, { id: "k1", apto_roleta: true, encerrado_em: null }),
+    ).toBeNull();
+    expect(
+      jaNaRoletaSemSaber(fresca, { id: "k0", apto_roleta: false, encerrado_em: null }),
+    ).toEqual(apto);
+    expect(jaNaRoletaSemSaber(null, null)).toBeNull();
+  });
+});
+
+describe("avisoTrocaDoValido: o voluntário avisa quando a troca substitui a gestão", () => {
+  it("plantão confirmado pela gestão, liberado pela gestão; GPS e barrado → null", () => {
+    expect(avisoTrocaDoValido(checkin({ origem: "gestao" }))).toBe(
+      "Seu plantão na Barra Funda foi confirmado pela gestão. Um check-in novo substitui essa confirmação.",
+    );
+    expect(
+      avisoTrocaDoValido(
+        checkin({
+          modo: "liberado_gestao",
+          filial_slug: null,
+          filial_nome: null,
+          origem: "gestao",
+        }),
+      ),
+    ).toBe("Você foi liberado pela gestão hoje. Um check-in novo substitui essa liberação.");
+    expect(avisoTrocaDoValido(checkin())).toBeNull();
+    expect(
+      avisoTrocaDoValido(
+        checkin({ origem: "gestao", apto_roleta: false, motivo: "fora_da_filial" }),
+      ),
+    ).toBeNull();
+    expect(avisoTrocaDoValido(null)).toBeNull();
+  });
+});
+
+describe("avisoLocalizacao com o 'Incluir minha localização'", () => {
+  it("ligada menciona o botão e mantém a conferência; desligada não fala em conferir", () => {
+    expect(avisoLocalizacao(true)).toContain("Incluir minha localização");
+    expect(avisoLocalizacao(true)).toContain("a localização do celular é conferida");
+    expect(avisoLocalizacao(true)).toContain("só vale de dentro da loja");
+    expect(avisoLocalizacao(false)).toContain("Incluir minha localização");
+    expect(avisoLocalizacao(false)).not.toContain("conferida");
   });
 });

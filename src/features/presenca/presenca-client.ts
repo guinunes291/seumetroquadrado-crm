@@ -2,7 +2,7 @@
 // Toda escrita passa por RPC: o banco aplica a regra do plantão e trava o
 // UPDATE direto em profiles.presente.
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { isMissingBackendObject } from "@/lib/supabase-errors";
 import {
   AVISO_FORA_DO_REFORCO,
+  leituraValida,
   motivoPresencaLabel,
   nomeDoMes,
   parseMinhaPresenca,
@@ -101,9 +102,24 @@ export function ehComputador(): boolean {
 
 export type Localizacao = { lat: number; lng: number; precisao: number | null };
 
+/**
+ * A leitura que a tela conferiu ("Incluir minha localização"): vai à RPC tal
+ * como foi conferida, para a prévia e o banco olharem a MESMA posição.
+ * `lidaEm` = Date.now() quando o aparelho respondeu (a leitura é sempre com
+ * maximumAge 0, então a posição é daquele instante).
+ */
+export type LeituraIncluida = Localizacao & { lidaEm: number };
+
 /** O que o celular respondeu: a posição, ou por que não veio. */
 export type LeituraLocalizacao =
   ({ ok: true } & Localizacao) | { ok: false; falha: FalhaLocalizacao };
+
+/**
+ * A leitura do GPS que saiu no toque do check-in, com a hora em que o aparelho
+ * respondeu (`lidaEm`): a RPC só a usa se ainda vale (60 s). Uma resposta que
+ * ficou esperando a rede voltar não vai ao banco como se fosse de agora.
+ */
+export type LeituraDoToque = LeituraLocalizacao & { lidaEm: number };
 
 /** GeolocationPositionError.code → o que dizer ao corretor. */
 export function falhaDoCodigo(code: number | undefined): FalhaLocalizacao {
@@ -155,6 +171,22 @@ export function obterLocalizacao(
   });
 }
 
+/**
+ * GPS agora (maximumAge 0): o "Incluir minha localização" e o "Incluir
+ * localização" do barrado. Não muda o formato de obterLocalizacao (os testes
+ * dela travam o retorno): o `lidaEm` nasce aqui, no resolve.
+ */
+export async function lerLocalizacaoAgora(): Promise<
+  { ok: true; leitura: LeituraIncluida } | { ok: false; falha: FalhaLocalizacao }
+> {
+  const l = await obterLocalizacao(10_000, { maximumAge: 0 });
+  if (!l.ok) return { ok: false, falha: l.falha };
+  return {
+    ok: true,
+    leitura: { lat: l.lat, lng: l.lng, precisao: l.precisao, lidaEm: Date.now() },
+  };
+}
+
 function useInvalidarPresenca() {
   const qc = useQueryClient();
   return () => {
@@ -169,6 +201,8 @@ function useInvalidarPresenca() {
 export type ResultadoCheckin = {
   presenca: MinhaPresenca;
   falhaLocalizacao: FalhaLocalizacao | null;
+  /** A RPC foi com a leitura que a tela conferiu (sem ler o GPS de novo). */
+  usouLeituraIncluida?: boolean;
 };
 
 /** O texto que explica por que o check-in não liberou a roleta (null = liberou). */
@@ -227,15 +261,37 @@ function toastDoCheckin(r: ResultadoCheckin, avisarRecusa: boolean, barradoHoje:
   }
 }
 
-/** A falha de localização vai para o Sentry (diagnóstico de "todo mundo barrado"). */
-function registrarFalhaLocalizacao(falha: FalhaLocalizacao) {
+function capturar(mensagem: string, mecanismo: string) {
   void import("@/lib/error-tracking-browser")
-    .then((m) =>
-      m.captureClientError(new Error(`geolocalizacao:${falha}`), "presenca.checkin", true),
-    )
+    .then((m) => m.captureClientError(new Error(mensagem), mecanismo, true))
     .catch(() => {
       /* sem rastreamento: o check-in segue igual */
     });
+}
+
+/**
+ * A falha de localização vai para o Sentry. `checkin` (uma tentativa de
+ * check-in, inclusive o "Incluir localização" do barrado) → o diagnóstico de
+ * "todo mundo barrado" (`geolocalizacao:<falha>` / presenca.checkin), como
+ * sempre. `previa` (o "Incluir minha localização", que não grava nada) →
+ * prefixo e mecanismo próprios, para não contaminar aquela conta. Só o tipo
+ * da falha: nunca a posição.
+ */
+export function registrarFalhaLocalizacao(
+  falha: FalhaLocalizacao | "aproximada",
+  origem: "checkin" | "previa" = "checkin",
+): void {
+  if (origem === "previa") capturar(`geolocalizacao-previa:${falha}`, "presenca.previa");
+  else capturar(`geolocalizacao:${falha}`, "presenca.checkin");
+}
+
+/**
+ * A prévia disse "dentro" e o banco, com a MESMA leitura, não confirmou: a
+ * prova em produção de que o espelho da regra (localizacao-previa.ts) se
+ * afastou do banco. Só o estado devolvido — sem coordenada, sem distância.
+ */
+export function registrarPreviaDivergente(localizacao: string): void {
+  capturar(`presenca:previa_divergente:dentro:${localizacao}`, "presenca.previa");
 }
 
 export type ArgsCheckin = {
@@ -245,7 +301,64 @@ export type ArgsCheckin = {
   novaLeitura?: boolean;
   /** Houve um check-in na filial barrado hoje (o verde avisa do reforço). */
   barradoHoje?: boolean;
+  /**
+   * A leitura que a tela já conferiu: vai à RPC sem ler o GPS de novo (no
+   * iPhone, nada de segundo pedido de permissão). Vencida, é ignorada e o GPS
+   * é lido agora (maximumAge 0).
+   */
+  leitura?: LeituraIncluida;
+  /** A prévia disse "dentro" com esta leitura (só para o diagnóstico de divergência). */
+  previaDentro?: boolean;
+  /**
+   * A leitura do GPS que já saiu NO TOQUE (iniciarLeituraDoCheckin): o
+   * navegador só mostra o pedido de permissão de dentro do gesto do usuário.
+   * Ignorada se `leitura` ainda vale; vencida (mais de 60 s desde a resposta),
+   * é descartada e o GPS é lido de novo (maximumAge 0).
+   */
+  leituraNoToque?: Promise<LeituraDoToque>;
 };
+
+/** Este check-in vai precisar ler o GPS (filial sem leitura incluída que ainda vale)? */
+function precisaLerNoToque(args: Pick<ArgsCheckin, "modo" | "leitura">): boolean {
+  return args.modo === "loja" && !(args.leitura && leituraValida(args.leitura, Date.now()));
+}
+
+/** maximumAge 0 para "Tentar de novo" e para quem tinha uma leitura (vencida). */
+function opcoesDaLeitura(args: Pick<ArgsCheckin, "novaLeitura" | "leitura">) {
+  return args.novaLeitura || args.leitura ? { maximumAge: 0 } : undefined;
+}
+
+/** Lê o GPS e data a resposta (a hora em que o aparelho respondeu). */
+function lerDatada(opcoes?: { maximumAge?: number }): Promise<LeituraDoToque> {
+  return obterLocalizacao(undefined, opcoes).then((l) => ({ ...l, lidaEm: Date.now() }));
+}
+
+/**
+ * Começa a leitura do GPS AGORA, de dentro do toque, para o check-in que vai
+ * ser feito depois de uma espera. Devolve undefined quando o check-in não
+ * precisa ler (Em casa, ou leitura incluída que vale) — então nada é pedido ao
+ * navegador. Quem chama ESPERA esta leitura e só depois relê a presença: se a
+ * releitura mostrar que o check-in não vai acontecer (a gestão confirmou
+ * enquanto o GPS lia), a leitura é só descartada e nada é gravado.
+ */
+export function iniciarLeituraDoCheckin(
+  args: Pick<ArgsCheckin, "modo" | "leitura" | "novaLeitura">,
+): Promise<LeituraDoToque> | undefined {
+  return precisaLerNoToque(args) ? lerDatada(opcoesDaLeitura(args)) : undefined;
+}
+
+/**
+ * A leitura que vai à RPC quando não há leitura incluída que valha: a do toque,
+ * se ainda vale; vencida (a releitura da presença ficou parada esperando a
+ * rede, por exemplo), é descartada e o GPS é lido agora com maximumAge 0 —
+ * nada de posição de minutos (ou horas) atrás no banco.
+ */
+async function leituraParaARpc(args: ArgsCheckin): Promise<LeituraLocalizacao> {
+  if (!args.leituraNoToque) return obterLocalizacao(undefined, opcoesDaLeitura(args));
+  const doToque = await args.leituraNoToque;
+  if (leituraValida(doToque, Date.now())) return doToque;
+  return obterLocalizacao(undefined, { maximumAge: 0 });
+}
 
 /**
  * O check-in do próprio corretor. `avisarRecusa: false` para quem mostra o
@@ -260,13 +373,23 @@ export function useCheckin({
   const { user } = useAuth();
   const invalidar = useInvalidarPresenca();
   const m = useMutation({
-    mutationFn: async (
-      args: ArgsCheckin & { _leitura?: Promise<LeituraLocalizacao> },
-    ): Promise<ResultadoCheckin> => {
-      const leitura =
-        args.modo === "loja"
-          ? await (args._leitura ??
-              obterLocalizacao(undefined, args.novaLeitura ? { maximumAge: 0 } : undefined))
+    // As variáveis levam a posição (a leitura conferida, a do toque): a
+    // mutação sai do cache assim que ninguém mais a observa (o diálogo fecha,
+    // o card termina o check-in) — nada de posição guardada por 5 min.
+    gcTime: 0,
+    mutationFn: async (args: ArgsCheckin): Promise<ResultadoCheckin> => {
+      // A leitura conferida na tela, se ainda vale: a RPC recebe exatamente a
+      // posição que a prévia olhou. Vencida (ou sem ela), usa a leitura que já
+      // saiu no toque (leituraNoToque), se ainda vale, ou lê agora — com
+      // maximumAge 0 se a tela tinha uma (não reaproveita a mesma velha).
+      const usa =
+        args.modo === "loja" && args.leitura && leituraValida(args.leitura, Date.now())
+          ? args.leitura
+          : null;
+      const leitura: LeituraLocalizacao | null = usa
+        ? { ok: true, lat: usa.lat, lng: usa.lng, precisao: usa.precisao }
+        : args.modo === "loja"
+          ? await leituraParaARpc(args)
           : null;
       const geo = leitura?.ok ? leitura : null;
       const falha = leitura && !leitura.ok ? leitura.falha : null;
@@ -287,7 +410,11 @@ export function useCheckin({
         ({ data, error } = await supabasePendente.rpc("presenca_checkin", base));
       }
       if (error) throw error;
-      return { presenca: parseMinhaPresenca(data), falhaLocalizacao: falha };
+      return {
+        presenca: parseMinhaPresenca(data),
+        falhaLocalizacao: falha,
+        usouLeituraIncluida: !!usa,
+      };
     },
     onSuccess: (r, args) => {
       // A RPC não devolve as filiais — preserva as que já estavam no cache.
@@ -297,20 +424,32 @@ export function useCheckin({
       }));
       invalidar();
       toastDoCheckin(r, avisarRecusa, !!args.barradoHoje);
+      // A prévia disse "dentro" e o banco, com a mesma leitura, barrou.
+      const loc = r.presenca.checkin?.localizacao;
+      if (
+        args.previaDentro &&
+        r.usouLeituraIncluida &&
+        (loc === "fora_do_raio" || loc === "sem_localizacao")
+      ) {
+        registrarPreviaDivergente(loc);
+      }
     },
     onError: (e: Error) => {
       if (avisarErro) toast.error(`Não foi possível fazer o check-in: ${e.message}`);
     },
   });
   // O pedido de localização sai NO TOQUE do botão (antes de qualquer espera):
-  // assim o navegador mostra o aviso "Permitir localização" em vez de bloquear.
-  const comLeitura = (args: ArgsCheckin) =>
-    args.modo === "loja"
-      ? {
-          ...args,
-          _leitura: obterLocalizacao(undefined, args.novaLeitura ? { maximumAge: 0 } : undefined),
-        }
-      : args;
+  // assim o navegador mostra o aviso "Permitir localização" em vez de bloquear
+  // (decisão do dono, 13/10 — "Pedir localização no check-in"). Quem chama e
+  // ainda vai esperar alguma coisa antes do mutate (o diálogo e o card releem a
+  // presença) começa a leitura ele mesmo, com iniciarLeituraDoCheckin, ESPERA a
+  // resposta, relê a presença só depois (a gestão que confirmou enquanto o GPS
+  // lia não é rebaixada) e passa a leitura em leituraNoToque. Com uma leitura
+  // incluída que ainda vale, nada é lido.
+  const comLeitura = (args: ArgsCheckin): ArgsCheckin =>
+    args.leituraNoToque || !precisaLerNoToque(args)
+      ? args
+      : { ...args, leituraNoToque: lerDatada(opcoesDaLeitura(args)) };
   return {
     ...m,
     mutate: (args: ArgsCheckin, opts?: Parameters<typeof m.mutate>[1]) =>
@@ -357,8 +496,18 @@ export function usePresencaHoje(enabled: boolean) {
 /** A gestão faz o check-in do corretor numa filial (vale como confirmado). */
 export function useCheckinPelaGestao() {
   const invalidar = useInvalidarPresenca();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (args: { corretorId: string; filial: string; nome: string }) => {
+      // A gestão não confirma a si mesma: para o banco, o check-in com o
+      // próprio id é o do corretor (sem coordenada → barrado "sem
+      // localização", fora das roletas e do reforço). O próprio check-in é
+      // pelo card, com a localização do celular.
+      if (user && args.corretorId === user.id) {
+        throw new Error(
+          "seu check-in é pelo Check-in de hoje (ou pelo Check-in da barra lateral), com a localização do celular",
+        );
+      }
       const { error } = await supabasePendente.rpc("presenca_checkin", {
         _modo: "loja",
         _filial: args.filial,
@@ -426,20 +575,41 @@ export type FilialRow = {
   ordem: number;
 };
 
+const chaveFiliais = [...PRESENCA_KEY, "filiais"] as const;
+
+async function lerFiliais(): Promise<FilialRow[]> {
+  const { data, error } = await supabasePendente
+    .from("filiais")
+    .select("id, slug, nome, endereco, latitude, longitude, raio_metros, ativa, ordem")
+    .order("ordem")
+    .order("nome");
+  if (error) throw error;
+  return data ?? [];
+}
+
 export function useFiliais(enabled = true) {
   return useQuery({
-    queryKey: [...PRESENCA_KEY, "filiais"],
+    queryKey: chaveFiliais,
     enabled,
-    queryFn: async (): Promise<FilialRow[]> => {
-      const { data, error } = await supabasePendente
-        .from("filiais")
-        .select("id, slug, nome, endereco, latitude, longitude, raio_metros, ativa, ordem")
-        .order("ordem")
-        .order("nome");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: lerFiliais,
   });
+}
+
+/**
+ * As coordenadas das filiais AGORA, para a prévia do "Incluir minha
+ * localização" (a gestão pode ter mudado o pino): só no toque, nunca ao abrir
+ * a tela. Sem rede, o cache (ou null: a tela diz que as distâncias não
+ * carregaram). Nunca rejeita.
+ */
+export function useBuscarFiliais(): () => Promise<FilialRow[] | null> {
+  const qc = useQueryClient();
+  return useCallback(
+    () =>
+      qc
+        .fetchQuery({ queryKey: chaveFiliais, queryFn: lerFiliais, staleTime: 0, retry: false })
+        .catch(() => qc.getQueryData<FilialRow[]>(chaveFiliais) ?? null),
+    [qc],
+  );
 }
 
 export function useSalvarFilial() {

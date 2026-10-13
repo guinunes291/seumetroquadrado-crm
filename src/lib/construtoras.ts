@@ -98,3 +98,13 @@ export function parceiraDoProjetoOuNome<T extends { nome: string }>(
   const parceira = parceiras.find((p) => mesmaConstrutora(nome, p.nome)) ?? null;
   return { parceira, inferidaPeloNome: parceira != null };
 }
+
+/** Mesma construtora por núcleo IGUAL (sem continência): "Cury Construtora" = "Cury",
+ *  mas "Plano" ≠ "Plano & Plano". Usado onde a lista tem de ser só daquela construtora. */
+export function mesmaConstrutoraExata(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const x = nucleo(a);
+  return !!x && x === nucleo(b);
+}

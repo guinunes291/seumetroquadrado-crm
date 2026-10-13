@@ -58,6 +58,20 @@ export const INTENT_DOT: Record<Intent, string> = {
   neutral: "bg-ardosia-400",
 };
 
+/**
+ * Bolinha sobre a superfície navy da barra lateral (nos dois temas): os tons
+ * claros da escala, os mesmos do tema escuro. Os tokens --success/--warning/
+ * --destructive do tema claro são escuros e ficam em ~2,5:1 sobre o navy;
+ * estes passam de 6:1.
+ */
+export const INTENT_DOT_NAVY: Record<Intent, string> = {
+  success: "bg-exito-400",
+  warning: "bg-aviso-400",
+  danger: "bg-perigo-400",
+  info: "bg-azul-400",
+  neutral: "bg-ardosia-400",
+};
+
 // ---------------------------------------------------------------------------
 // Hues nominais (categorias sem juízo de valor)
 // ---------------------------------------------------------------------------

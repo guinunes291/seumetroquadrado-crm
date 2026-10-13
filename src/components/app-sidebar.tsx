@@ -32,6 +32,8 @@ import { useFlagsNav } from "@/features/academia/use-flags-nav";
 import { useFaseDaJornada } from "@/features/nav/contexto-jornada";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
+import { CheckinLateral } from "@/features/presenca/checkin-lateral";
+import { houvePedidoCheckinRecente } from "@/features/presenca/use-checkin-obrigatorio";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -419,6 +421,14 @@ function SidebarContent({
             ) : (
               <ul>{renderModulo(configuracoes)}</ul>
             ))}
+          {/* Check-in de hoje (13/10/2026): painel de ESTADO do corretor, não
+            seção nem módulo — fica fora da regra dos 2 menus. Os botões só
+            pedem; o diálogo (ou o card de /presenca) faz o check-in. */}
+          {isCorretor && (
+            <div className={collapsed ? "py-1" : "px-1 pb-1"}>
+              <CheckinLateral collapsed={collapsed} onNavigate={onNavigate} />
+            </div>
+          )}
           {collapsed ? (
             <>
               {menuDaPessoa}
@@ -468,11 +478,27 @@ export function MobileSidebar() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir menu">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Abrir menu"
+          // O diálogo do check-in aberto pelo Sheet devolve o foco aqui ao fechar.
+          data-gatilho-menu=""
+        >
           <List className="h-5 w-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">
+      <SheetContent
+        side="left"
+        className="p-0 w-72 bg-sidebar border-sidebar-border"
+        // O check-in pedido pela barra lateral fecha o Sheet DEPOIS de o
+        // diálogo abrir (ou de o card receber o foco): devolver o foco ao ☰
+        // o tiraria de lá.
+        onCloseAutoFocus={(e) => {
+          if (houvePedidoCheckinRecente()) e.preventDefault();
+        }}
+      >
         <SidebarContent onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>

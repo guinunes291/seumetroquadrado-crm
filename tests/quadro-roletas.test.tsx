@@ -306,6 +306,12 @@ vi.mock("@/features/distribuicao/queries", () => ({
   }),
 }));
 
+// Quem olha é uma gestora que não está na lista (a própria linha tem a regra
+// da presença, coberta em roletas-por-filial-telas).
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: { id: "gestora" }, session: null, loading: false }),
+}));
+
 vi.mock("@/features/distribuicao/roleta-sdr-semanal-queries", () => ({
   useRoletaSdrConfig: () => ({ data: estado.sdrCfg }),
 }));
@@ -513,7 +519,10 @@ describe("QuadroRoletas — gestão sem ser admin", () => {
     expect(ana.textContent).toContain("Cury Leopoldina");
 
     expect(screen.queryByRole("button", { name: /^Filial de/ })).toBeNull();
-    expect(screen.queryByRole("switch", { name: /^Presença de/ })).toBeNull();
+    // A presença aparece, mas travada (só o admin liga/desliga a dos outros).
+    const presencas = screen.getAllByRole("switch", { name: /^Presença de/ });
+    expect(presencas).toHaveLength(3);
+    for (const s of presencas) expect(s).toBeDisabled();
     expect(within(ana).getByText("Barra Funda · Norte, Sul, Oeste")).toBeTruthy();
   });
 

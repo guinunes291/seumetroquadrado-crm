@@ -12,6 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, MagnifyingGlass, UserMinus } from "@phosphor-icons/react";
+import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -87,6 +88,7 @@ export function QuadroRoletas({
   const presenca = useMarcarPresencaAdmin();
   const atualizar = useAtualizarCorretorDistribuicao();
   const gerenciar = useGerenciarParticipante();
+  const { user } = useAuth();
   const [filtro, setFiltro] = useState<FiltroQuadro>(FILTRO_QUADRO_PADRAO);
 
   const filiais = useMemo(() => agruparFiliais(mapaQ.data ?? []), [mapaQ.data]);
@@ -283,22 +285,42 @@ export function QuadroRoletas({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {!somenteLeitura && (
-                              <Switch
-                                checked={c.presente}
-                                disabled={presenca.isPending}
-                                onCheckedChange={(v) =>
-                                  presenca.mutate({ corretorId: c.id, presente: v })
-                                }
-                                aria-label={`Presença de ${c.nome}`}
-                              />
-                            )}
+                            <Switch
+                              checked={c.presente}
+                              // A própria linha: a gestão não liga a si mesma
+                              // (decisão do dono, 13/10/2026) — só desliga.
+                              disabled={
+                                somenteLeitura ||
+                                presenca.isPending ||
+                                (c.id === user?.id && !c.presente)
+                              }
+                              onCheckedChange={(v) =>
+                                presenca.mutate({ corretorId: c.id, presente: v })
+                              }
+                              aria-label={`Presença de ${c.nome}`}
+                              aria-describedby={
+                                // A mesma condição do aviso abaixo (só fora da
+                                // leitura): nunca apontar para um id ausente.
+                                c.id === user?.id && !c.presente && !somenteLeitura
+                                  ? `presenca-propria-${c.id}`
+                                  : undefined
+                              }
+                            />
                             {c.presente ? (
                               <StatusBadge intent="success">Presente</StatusBadge>
                             ) : (
                               <StatusBadge intent="neutral">Ausente</StatusBadge>
                             )}
                           </div>
+                          {c.id === user?.id && !c.presente && !somenteLeitura && (
+                            <p
+                              id={`presenca-propria-${c.id}`}
+                              className="mt-1 max-w-[16rem] text-xs text-muted-foreground"
+                            >
+                              Você: o seu check-in é pelo Check-in da barra lateral, com a
+                              localização do celular.
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           {somenteLeitura ? (

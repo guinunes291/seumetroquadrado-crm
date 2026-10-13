@@ -534,3 +534,19 @@ export function presencaObrigatoria(roleta: { tipo?: string | null }): boolean {
 
 export const PRESENCA_OBRIGATORIA_HINT =
   "Obrigatória em toda fila: só recebe quem fez check-in hoje (filial, ou em casa com a meta do mês anterior).";
+
+/**
+ * O item de presença do menu da linha (aba da roleta de plantão, gestão).
+ * Presente → "marcar_ausente" (inclusive a própria linha: encerrar o dia vale).
+ * Ausente → "marcar_presente", MENOS na própria linha: a gestão não se liga nas
+ * roletas (decisão do dono, 13/10/2026) — o gestor que também é corretor faz o
+ * check-in como todo corretor, com a localização. null = sem o item.
+ */
+export function acaoPresencaDaGestao(
+  linha: { corretor_id: string; presente: boolean },
+  meuId: string | null | undefined,
+): "marcar_ausente" | "marcar_presente" | null {
+  if (linha.presente) return "marcar_ausente";
+  if (meuId && linha.corretor_id === meuId) return null;
+  return "marcar_presente";
+}
