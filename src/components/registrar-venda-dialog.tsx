@@ -37,7 +37,7 @@ import { useTierNoSplit } from "@/lib/comissao-tier";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
-type LeadOption = {
+export type LeadOption = {
   id: string;
   nome: string;
   telefone: string | null;
@@ -62,21 +62,26 @@ const CAMPOS_LEAD = "id, nome, telefone, email, corretor_id, projeto_id, projeto
  * 4) demais campos da venda. Envia para aprovação da gestão, como o
  * ContractSaleDialog.
  */
-export function RegistrarVendaDialog() {
-  const [open, setOpen] = useState(false);
+export function VendaEtapasDialog({
+  open,
+  setOpen,
+  leadFixo,
+  onDone,
+}: {
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  /** Lead já escolhido (ex.: card da lista/Kanban): pula a etapa 1. */
+  leadFixo?: LeadOption | null;
+  onDone?: () => void;
+}) {
+  const etapaInicial: Etapa = leadFixo ? 2 : 1;
   const qc = useQueryClient();
   const { user } = useAuth();
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const podeVerTodos = isAdmin || isGestor || isSuperintendente;
   const podeCriarProjeto = isAdmin || isGestor;
 
-  useEffect(() => {
-    const onOpen = () => setOpen(true);
-    window.addEventListener("open-registrar-venda", onOpen);
-    return () => window.removeEventListener("open-registrar-venda", onOpen);
-  }, []);
-
-  const [etapa, setEtapa] = useState<Etapa>(1);
+  const [etapa, setEtapa] = useState<Etapa>(etapaInicial);
 
   // Etapa 1 — busca do cliente
   const [buscaTel, setBuscaTel] = useState("");
@@ -84,7 +89,7 @@ export function RegistrarVendaDialog() {
   const [buscaCpf, setBuscaCpf] = useState("");
   const [resultados, setResultados] = useState<LeadOption[] | null>(null);
   const [buscando, setBuscando] = useState(false);
-  const [lead, setLead] = useState<LeadOption | null>(null);
+  const [lead, setLead] = useState<LeadOption | null>(leadFixo ?? null);
 
   // Etapa 2 — construtora
   const [construtora, setConstrutora] = useState("");
@@ -120,12 +125,12 @@ export function RegistrarVendaDialog() {
   });
 
   const reset = () => {
-    setEtapa(1);
+    setEtapa(etapaInicial);
     setBuscaTel("");
     setBuscaEmail("");
     setBuscaCpf("");
     setResultados(null);
-    setLead(null);
+    setLead(leadFixo ?? null);
     setConstrutora("");
     setFiltroConstrutora("");
     setProjeto(null);
@@ -253,6 +258,19 @@ export function RegistrarVendaDialog() {
     setEtapa(2);
   };
 
+  // Lead vindo do card: sugere a construtora e o produto que ele já tem.
+  useEffect(() => {
+    if (!open || !leadFixo || construtora || projetos.length === 0) return;
+    const atual = projetos.find((p) => p.id === leadFixo.projeto_id);
+    if (atual?.construtora) {
+      setConstrutora(
+        construtoras.find((c) => mesmaConstrutoraExata(atual.construtora, c)) ?? atual.construtora,
+      );
+      setProjeto(atual);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, leadFixo, projetos, construtoras]);
+
   const criarProjeto = useMutation({
     mutationFn: async () => {
       const nome = novoProjetoNome.trim();
@@ -282,6 +300,11 @@ export function RegistrarVendaDialog() {
   const mut = useMutation({
     mutationFn: async () => {
       if (!lead) throw new Error("Selecione o cliente que comprou");
+      if (leadFixo && !lead.corretor_id) {
+        throw new Error(
+          'Este lead ainda não tem corretor responsável. Clique em "Iniciar atendimento" antes de registrar a venda.',
+        );
+      }
       const valorNum = parseCurrencyBRL(valor) ?? NaN;
       const split = parseSplit(percentuais);
       const erro = validarVenda({ valorVenda: valorNum, dataAssinatura, hoje: hoje(), split });
@@ -312,6 +335,11 @@ export function RegistrarVendaDialog() {
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads-para-venda"] });
+      if (lead) {
+        qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+        qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
+      }
+      onDone?.();
       reset();
       setOpen(false);
     },
@@ -332,6 +360,7 @@ export function RegistrarVendaDialog() {
           <span className="text-muted-foreground">Cliente: </span>
           <button
             className="font-medium underline-offset-2 hover:underline"
+            disabled={!!leadFixo}
             onClick={() => setEtapa(1)}
           >
             {lead.nome}
@@ -365,19 +394,6 @@ export function RegistrarVendaDialog() {
 
   return (
     <>
-      {/* Quadrado navy só com o "$" (identidade Lançamento, 2026-10): o único
-          botão preenchido do header, porque é a ação que vale dinheiro. O
-          nome aparece no tooltip e no aria-label. Pede um TooltipProvider
-          acima — o header do shell já tem. */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button size="icon" onClick={() => setOpen(true)} aria-label="Registrar venda">
-            <CurrencyDollar className="h-[18px] w-[18px]" weight="regular" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Registrar venda</TooltipContent>
-      </Tooltip>
-
       <Dialog
         open={open}
         onOpenChange={(o) => {
@@ -656,7 +672,7 @@ export function RegistrarVendaDialog() {
           )}
 
           <DialogFooter>
-            {etapa > 1 ? (
+            {etapa > etapaInicial ? (
               <Button variant="ghost" onClick={() => setEtapa((etapa - 1) as Etapa)}>
                 Voltar
               </Button>
@@ -673,6 +689,31 @@ export function RegistrarVendaDialog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+}
+
+/** Botão "$" do topo: abre o cadastro em etapas começando pela busca do cliente. */
+export function RegistrarVendaDialog() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener("open-registrar-venda", onOpen);
+    return () => window.removeEventListener("open-registrar-venda", onOpen);
+  }, []);
+  return (
+    <>
+      {/* Quadrado navy só com o "$" (identidade Lançamento, 2026-10): o único
+          botão preenchido do header, porque é a ação que vale dinheiro. */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button size="icon" onClick={() => setOpen(true)} aria-label="Registrar venda">
+            <CurrencyDollar className="h-[18px] w-[18px]" weight="regular" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Registrar venda</TooltipContent>
+      </Tooltip>
+      <VendaEtapasDialog open={open} setOpen={setOpen} />
     </>
   );
 }
