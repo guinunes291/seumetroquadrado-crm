@@ -58,6 +58,7 @@ import { CheckinObrigatorioGlobal } from "@/features/presenca/checkin-obrigatori
 import {
   _reiniciarPedidoCheckin,
   pedirCheckin,
+  pedirCheckinNoToque,
   usePedidoCheckin,
 } from "@/features/presenca/use-checkin-obrigatorio";
 import { publicarEstadoTreino } from "@/features/onboarding/treino-estado";
@@ -299,12 +300,18 @@ describe("o diálogo voluntário (Trocar, Fazer check-in)", () => {
     fireEvent.click(opcao("Belém"));
     await screen.findByRole("button", { name: "Estou na loja" });
     banco.atual = minha(confirmadoPelaGestao());
+    const gps = vi.mocked(navigator.geolocation.getCurrentPosition);
+    gps.mockClear();
     fireEvent.click(screen.getByRole("button", { name: "Estou na loja" }));
+    // A leitura sai no toque (o pedido de permissão vem do gesto)...
+    expect(gps).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(dialogo()).toBeNull());
     expect(estado.toast.success).toHaveBeenCalledWith(
       "Plantão confirmado pela gestão: Barra Funda. Você está na roleta hoje.",
     );
+    // ...e é descartada: nenhuma RPC, nenhuma segunda leitura.
     expect(chamadasCheckin()).toEqual([]);
+    expect(gps).toHaveBeenCalledTimes(1);
   });
 
   it("plantão confirmado pela gestão: a caixa avisa que a troca substitui; o aviso de uma filial longe diz que encerra a confirmação", async () => {
@@ -440,7 +447,12 @@ describe("o diálogo voluntário (Trocar, Fazer check-in)", () => {
     banco.atual = minha(semGps);
     let r = montar();
     await leituraFeita();
-    act(() => pedirCheckin({ acao: "incluir-localizacao", origem: "faixa" }));
+    const gps = vi.mocked(navigator.geolocation.getCurrentPosition);
+    // Como a faixa e o bloco pedem: o GPS lido no toque, dentro do clique.
+    act(() => {
+      pedirCheckinNoToque("incluir-localizacao", "faixa", "/fila");
+      expect(gps).toHaveBeenCalledTimes(1);
+    });
     await waitFor(() => expect(dialogo()).toBeNull());
     expect(chamadasCheckin()).toEqual([
       expect.objectContaining({
@@ -450,7 +462,7 @@ describe("o diálogo voluntário (Trocar, Fazer check-in)", () => {
         _precisao_m: 90,
       }),
     ]);
-    const gps = vi.mocked(navigator.geolocation.getCurrentPosition);
+    // O diálogo refez com a leitura do toque (nenhuma segunda leitura).
     expect(gps).toHaveBeenCalledTimes(1);
     expect((gps.mock.calls[0][2] as PositionOptions).maximumAge).toBe(0);
     expect(estado.toast.success).toHaveBeenCalledWith(
@@ -485,9 +497,10 @@ describe("o diálogo voluntário (Trocar, Fazer check-in)", () => {
     // A gestão já confirmou: "Incluir localização" só avisa, não abre.
     estado.rpc.mockClear();
     banco.atual = minha(confirmadoPelaGestao());
+    gps.mockClear();
     montar();
     await leituraFeita();
-    act(() => pedirCheckin({ acao: "incluir-localizacao", origem: "lateral" }));
+    act(() => pedirCheckinNoToque("incluir-localizacao", "lateral", "/fila"));
     await waitFor(() =>
       expect(estado.toast.info).toHaveBeenCalledWith(
         "Você já está na roleta hoje: Barra Funda (plantão confirmado pela gestão).",
@@ -495,6 +508,8 @@ describe("o diálogo voluntário (Trocar, Fazer check-in)", () => {
     );
     await espera();
     expect(dialogo()).toBeNull();
+    // A leitura do toque foi descartada: nada gravado.
+    expect(gps).toHaveBeenCalledTimes(1);
     expect(chamadasCheckin()).toEqual([]);
   });
 
@@ -511,5 +526,55 @@ describe("o diálogo voluntário (Trocar, Fazer check-in)", () => {
     );
     expect(within(alerta).queryByRole("button", { name: "Continuar sem check-in" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Continuar sem check-in" })).toBeNull();
+  });
+
+  it("o voluntário tem uma saída visível, 'Fechar' (o X do canto é pequeno); o obrigatório não", async () => {
+    montar();
+    await leituraFeita();
+    pedir();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(d).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(dialogo()).toBeNull());
+    expect(chamadasCheckin()).toEqual([]);
+    cleanup();
+
+    // Obrigatório (sem check-in hoje): prende, sem "Fechar".
+    banco.atual = minha();
+    montar();
+    const o = await screen.findByTestId("checkin-obrigatorio-dialog");
+    expect(o).toHaveAttribute("data-modo", "obrigatorio");
+    expect(within(o).queryByRole("button", { name: "Fechar" })).toBeNull();
+  });
+
+  it("'Em casa' abaixo do mínimo no voluntário: o motivo, sem 'Você já pode usar o CRM' (o CRM nunca esteve preso); no obrigatório, a frase continua", async () => {
+    montar();
+    await leituraFeita();
+    pedir();
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    banco.resposta = () =>
+      minha(
+        checkin({
+          id: "kc",
+          modo: "casa",
+          filial_slug: null,
+          filial_nome: null,
+          apto_roleta: false,
+          motivo: "casa_abaixo_minimo_vendas",
+          localizacao: null,
+        }),
+      );
+    fireEvent.click(within(d).getByRole("button", { name: /^Em casa/ }));
+    expect(await screen.findByTestId("checkin-recusado-motivo")).toBeInTheDocument();
+    expect(screen.queryByText(/Você já pode usar o CRM/)).toBeNull();
+    cleanup();
+
+    banco.atual = minha();
+    montar();
+    const o = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.click(within(o).getByRole("button", { name: /^Em casa/ }));
+    expect(await screen.findByTestId("checkin-recusado-motivo")).toBeInTheDocument();
+    expect(
+      screen.getByText("Você já pode usar o CRM: o check-in de hoje está feito."),
+    ).toBeInTheDocument();
   });
 });

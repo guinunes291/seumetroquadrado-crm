@@ -1,13 +1,16 @@
 // Bloco de check-in no rodapé da barra lateral (pedido do dono, 13/10/2026):
 // onde e como o corretor está hoje ("Barra Funda · 09:31 — Nas roletas"), com
 // a ação do momento (Fazer check-in, Trocar, Refazer check-in, Incluir
-// localização). Na barra recolhida, um ícone com a bolinha da cor do estado.
+// localização). Na barra recolhida, um ícone com a bolinha da cor do estado
+// (tons claros sobre o navy) e, além da cor, a forma (losango, quadrado).
 //
 // É painel de ESTADO, não seção nem módulo: fica fora da regra dos 2 menus.
-// E não faz check-in nenhum — toda ação PEDE (pedirCheckin) e quem atende é
-// o diálogo (em qualquer tela) ou o card (em /presenca e /meu-perfil). Assim
-// um toque no ícone nunca grava nada, e a regra de "nunca rebaixar a gestão"
-// continua num lugar só.
+// E não faz check-in nenhum — toda ação PEDE (pedirCheckinNoToque) e quem
+// atende é o diálogo (em qualquer tela) ou o card (em /presenca e
+// /meu-perfil). Assim um toque no ícone nunca grava nada, e a regra de "nunca
+// rebaixar a gestão" continua num lugar só. "Incluir localização" lê o GPS no
+// toque e manda a leitura junto no pedido (o navegador só mostra o pedido de
+// permissão de dentro do gesto); nas telas do card, não lê (o card só rola).
 //
 // Mora no chunk do shell (/_authenticated), presente em toda tela: importa só
 // o pequeno — a leitura da presença que o shell já faz (useCheckinObrigatorio,
@@ -20,12 +23,12 @@
 // Sheet, e dois blocos na página não podem repetir id.
 
 import { useId } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { MapPinSimpleArea } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUserRoles } from "@/hooks/use-auth";
-import { INTENT_DOT } from "@/lib/status-tones";
+import { INTENT_DOT_NAVY, type Intent } from "@/lib/status-tones";
 import { cn } from "@/lib/utils";
 import { useEstadoTreino } from "@/features/onboarding/treino-estado";
 import { blocoCheckinLateral, type AcaoPedidoCheckin } from "./presenca-derive";
@@ -34,6 +37,18 @@ import { pedirCheckinNoToque, useCheckinObrigatorio } from "./use-checkin-obriga
 // Fundo navy da barra: sem dourado (o dourado é raro, só no item ativo).
 const CLASSES_BOTAO =
   "mt-2 w-full min-h-11 md:min-h-8 border-claro/15 bg-transparent text-claro shadow-none hover:bg-claro/[0.06] hover:text-claro";
+
+/**
+ * No trilho recolhido, a bolinha está sozinha (sem o texto ao lado): além da
+ * cor, a forma — losango no barrado, quadrado no "fora das roletas".
+ */
+const FORMA_NO_TRILHO: Record<Intent, string> = {
+  danger: "rotate-45 rounded-[2px]",
+  warning: "rounded-[2px]",
+  success: "rounded-full",
+  info: "rounded-full",
+  neutral: "rounded-full",
+};
 
 export function CheckinLateral({
   collapsed,
@@ -46,6 +61,7 @@ export function CheckinLateral({
   const { isCorretor, loading } = useUserRoles();
   const { pendente, presenca, erroLeitura } = useCheckinObrigatorio();
   const treino = useEstadoTreino();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const idTitulo = useId();
   const idEstado = useId();
 
@@ -59,14 +75,17 @@ export function CheckinLateral({
   const pedir = (a: AcaoPedidoCheckin) => {
     // Fecha o Sheet do celular ANTES: o diálogo (ou o card) recebe o foco.
     onNavigate?.();
-    pedirCheckinNoToque(a, "lateral");
+    // "Incluir localização" lê o GPS aqui, no toque (menos em /presenca e
+    // /meu-perfil, onde o card atende e só rola até ele).
+    pedirCheckinNoToque(a, "lateral", pathname);
   };
 
-  const bolinha = (classe: string) => (
+  // Sobre o navy: os tons claros (a cor do tema claro some no fundo escuro).
+  const bolinha = (classe: string, forma = "rounded-full") => (
     <span
       aria-hidden="true"
       data-intent={b.intent}
-      className={cn("rounded-full", classe, INTENT_DOT[b.intent])}
+      className={cn(forma, classe, INTENT_DOT_NAVY[b.intent])}
     />
   );
 
@@ -79,7 +98,10 @@ export function CheckinLateral({
     const conteudo = (
       <>
         <MapPinSimpleArea className="h-5 w-5" weight="regular" />
-        {bolinha("absolute right-1.5 top-1.5 h-2.5 w-2.5 ring-2 ring-sidebar")}
+        {bolinha(
+          "absolute right-1.5 top-1.5 h-2.5 w-2.5 ring-2 ring-sidebar",
+          FORMA_NO_TRILHO[b.intent],
+        )}
       </>
     );
     return (
@@ -113,16 +135,15 @@ export function CheckinLateral({
     );
   }
 
+  // Lendo: o lugar da linha e do botão fica reservado (invisível), com as
+  // mesmas classes do bloco pronto — o rodapé não pula quando a presença chega.
+  const lendo = b.chave === "carregando";
   return (
     <section
       aria-labelledby={idTitulo}
       data-testid="checkin-lateral"
       data-chave={b.chave}
-      className={cn(
-        "rounded-lg border border-claro/10 bg-claro/[0.04] px-3 py-2.5",
-        // Lendo: a mesma altura do bloco pronto (o rodapé não pula).
-        b.chave === "carregando" && "min-h-[92px]",
-      )}
+      className="rounded-lg border border-claro/10 bg-claro/[0.04] px-3 py-2.5"
     >
       <h2
         id={idTitulo}
@@ -131,10 +152,20 @@ export function CheckinLateral({
         <MapPinSimpleArea className="h-3.5 w-3.5 shrink-0" weight="regular" aria-hidden="true" />
         Check-in
       </h2>
-      {b.linha && (
+      {b.linha ? (
         <p className="mt-1.5 truncate text-[13px] text-claro" title={b.linha}>
           {b.linha}
         </p>
+      ) : (
+        lendo && (
+          <p
+            aria-hidden="true"
+            className="invisible mt-1.5 truncate text-[13px]"
+            data-testid="checkin-lateral-reserva"
+          >
+            {"\u00a0"}
+          </p>
+        )
       )}
       <p
         id={idEstado}
@@ -154,6 +185,17 @@ export function CheckinLateral({
         >
           {acao.rotulo}
         </Button>
+      )}
+      {lendo && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            CLASSES_BOTAO,
+            "invisible",
+          )}
+          data-testid="checkin-lateral-reserva"
+        />
       )}
       {acao?.tipo === "link" && (
         // A leitura falhou: o check-in fica em /presenca (o card relê).

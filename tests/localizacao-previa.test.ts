@@ -17,7 +17,9 @@ import {
   precisaoComoBanco,
   previaDasFiliais,
   rotuloDaFilialNaPrevia,
+  TEXTO_LENDO,
   textoDaLeitura,
+  textoNovaTentativa,
   tituloFalhaLeitura,
   type CoordenadasFilial,
   type Previa,
@@ -437,8 +439,14 @@ describe("a linha sob o botão e o que a região viva anuncia", () => {
       intent: "neutral",
     });
     expect(anuncioDaLeitura({ fase: "vazia" }, null, NOMES, nao)).toBe("");
-    // Lendo: o botão mostra.
-    expect(textoDaLeitura({ fase: "lendo" }, null, nao)).toBeNull();
+    // Lendo: uma linha neutra no lugar (as opções não sobem e descem no
+    // instante em que destravam); o botão diz "Lendo a localização…".
+    expect(textoDaLeitura({ fase: "lendo" }, null, nao)).toEqual({
+      titulo: "Esperando o aparelho informar a localização…",
+      detalhe: null,
+      intent: "neutral",
+    });
+    expect(TEXTO_LENDO).toBe("Esperando o aparelho informar a localização…");
     expect(anuncioDaLeitura({ fase: "lendo" }, null, NOMES, nao)).toBe("Lendo a localização…");
 
     // Incluída ±40 m, com a Barra Funda "aqui".
@@ -525,6 +533,25 @@ describe("a linha sob o botão e o que a região viva anuncia", () => {
     expect(anuncioDaLeitura(falhou, null, NOMES, nao)).toBe("O navegador bloqueou a localização");
     expect(anuncioDaLeitura(falhou, null, NOMES, sim)).toBe(
       "Este computador não informou a localização",
+    );
+  });
+});
+
+describe("a nova tentativa do 'Incluir localização' do barrado", () => {
+  it("textoNovaTentativa: a contagem (o barrado é a 1ª), a hora de São Paulo e o motivo em minúscula", () => {
+    const em = Date.parse("2026-10-13T12:42:00Z");
+    expect(textoNovaTentativa(2, em, "negada", false)).toBe(
+      "2ª tentativa às 09:42: o navegador bloqueou a localização.",
+    );
+    expect(textoNovaTentativa(3, em, "tempo", false)).toBe(
+      "3ª tentativa às 09:42: o celular não informou a localização.",
+    );
+    expect(textoNovaTentativa(2, em, "indisponivel", true)).toBe(
+      "2ª tentativa às 09:42: este computador não informou a localização.",
+    );
+    // Duas tentativas no mesmo minuto: o texto muda mesmo assim (a contagem).
+    expect(textoNovaTentativa(2, em, "negada", false)).not.toBe(
+      textoNovaTentativa(3, em, "negada", false),
     );
   });
 });

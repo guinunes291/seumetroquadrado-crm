@@ -6,7 +6,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { lerLocalizacaoAgora, useMinhaPresenca } from "./presenca-client";
-import { checkinObrigatorioPendente } from "./checkin-obrigatorio";
+import { checkinObrigatorioPendente, telaComCardCheckin } from "./checkin-obrigatorio";
 import type { AcaoPedidoCheckin, MinhaPresenca } from "./presenca-derive";
 
 const fmtDia = new Intl.DateTimeFormat("en-CA", {
@@ -177,7 +177,9 @@ export type PedidoCheckin = {
    * "Incluir localização": a leitura do GPS que já saiu NO TOQUE da faixa ou
    * do bloco. O diálogo só monta (lazy) e refaz depois — de dentro de um
    * efeito, fora do gesto, o navegador pode não mostrar o pedido de permissão
-   * (decisão do dono, 13/10: "Pedir localização no check-in").
+   * (decisão do dono, 13/10: "Pedir localização no check-in"). A posição fica
+   * só aqui, na memória da aba, até o pedido ser atendido ou descartado
+   * (nunca em storage, URL, cache ou Sentry). Nas telas do card, não há leitura.
    */
   leitura?: ReturnType<typeof lerLocalizacaoAgora>;
 };
@@ -211,14 +213,18 @@ export function pedirCheckin(p: {
 
 /**
  * O pedido de quem toca um botão: com "Incluir localização", a leitura do GPS
- * sai AGORA, ainda dentro do toque, e vai junto no pedido.
+ * sai AGORA, ainda dentro do toque, e vai junto no pedido. Em /presenca e
+ * /meu-perfil, não: quem atende é o card, que só rola até ele (o botão do
+ * card lê o GPS no toque dele) — nada de pedido de permissão que não leva a
+ * nada nem de posição lida e jogada fora.
  */
-export function pedirCheckinNoToque(acao: AcaoPedidoCheckin, origem: "lateral" | "faixa"): void {
-  pedirCheckin({
-    acao,
-    origem,
-    leitura: acao === "incluir-localizacao" ? lerLocalizacaoAgora() : undefined,
-  });
+export function pedirCheckinNoToque(
+  acao: AcaoPedidoCheckin,
+  origem: "lateral" | "faixa",
+  pathname: string,
+): void {
+  const ler = acao === "incluir-localizacao" && !telaComCardCheckin(pathname);
+  pedirCheckin({ acao, origem, leitura: ler ? lerLocalizacaoAgora() : undefined });
 }
 
 /** Limpa só se for o mesmo pedido (um mais novo, feito no meio, fica). */

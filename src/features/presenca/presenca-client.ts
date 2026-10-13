@@ -114,6 +114,13 @@ export type LeituraIncluida = Localizacao & { lidaEm: number };
 export type LeituraLocalizacao =
   ({ ok: true } & Localizacao) | { ok: false; falha: FalhaLocalizacao };
 
+/**
+ * A leitura do GPS que saiu no toque do check-in, com a hora em que o aparelho
+ * respondeu (`lidaEm`): a RPC só a usa se ainda vale (60 s). Uma resposta que
+ * ficou esperando a rede voltar não vai ao banco como se fosse de agora.
+ */
+export type LeituraDoToque = LeituraLocalizacao & { lidaEm: number };
+
 /** GeolocationPositionError.code → o que dizer ao corretor. */
 export function falhaDoCodigo(code: number | undefined): FalhaLocalizacao {
   if (code === 1) return "negada";
@@ -303,11 +310,12 @@ export type ArgsCheckin = {
   /** A prévia disse "dentro" com esta leitura (só para o diagnóstico de divergência). */
   previaDentro?: boolean;
   /**
-   * A leitura do GPS que já saiu NO TOQUE (iniciarLeituraDoCheckin), antes de a
-   * tela esperar a releitura da presença: o navegador só mostra o pedido de
-   * permissão de dentro do gesto do usuário. Ignorada se `leitura` ainda vale.
+   * A leitura do GPS que já saiu NO TOQUE (iniciarLeituraDoCheckin): o
+   * navegador só mostra o pedido de permissão de dentro do gesto do usuário.
+   * Ignorada se `leitura` ainda vale; vencida (mais de 60 s desde a resposta),
+   * é descartada e o GPS é lido de novo (maximumAge 0).
    */
-  leituraNoToque?: Promise<LeituraLocalizacao>;
+  leituraNoToque?: Promise<LeituraDoToque>;
 };
 
 /** Este check-in vai precisar ler o GPS (filial sem leitura incluída que ainda vale)? */
@@ -320,17 +328,36 @@ function opcoesDaLeitura(args: Pick<ArgsCheckin, "novaLeitura" | "leitura">) {
   return args.novaLeitura || args.leitura ? { maximumAge: 0 } : undefined;
 }
 
+/** Lê o GPS e data a resposta (a hora em que o aparelho respondeu). */
+function lerDatada(opcoes?: { maximumAge?: number }): Promise<LeituraDoToque> {
+  return obterLocalizacao(undefined, opcoes).then((l) => ({ ...l, lidaEm: Date.now() }));
+}
+
 /**
  * Começa a leitura do GPS AGORA, de dentro do toque, para o check-in que vai
- * ser feito depois de uma espera (a releitura da presença). Devolve undefined
- * quando o check-in não precisa ler (Em casa, ou leitura incluída que vale) —
- * então nada é pedido ao navegador. Se a espera mostrar que o check-in não vai
- * acontecer (a gestão já liberou), a leitura é só descartada: nada é gravado.
+ * ser feito depois de uma espera. Devolve undefined quando o check-in não
+ * precisa ler (Em casa, ou leitura incluída que vale) — então nada é pedido ao
+ * navegador. Quem chama ESPERA esta leitura e só depois relê a presença: se a
+ * releitura mostrar que o check-in não vai acontecer (a gestão confirmou
+ * enquanto o GPS lia), a leitura é só descartada e nada é gravado.
  */
 export function iniciarLeituraDoCheckin(
   args: Pick<ArgsCheckin, "modo" | "leitura" | "novaLeitura">,
-): Promise<LeituraLocalizacao> | undefined {
-  return precisaLerNoToque(args) ? obterLocalizacao(undefined, opcoesDaLeitura(args)) : undefined;
+): Promise<LeituraDoToque> | undefined {
+  return precisaLerNoToque(args) ? lerDatada(opcoesDaLeitura(args)) : undefined;
+}
+
+/**
+ * A leitura que vai à RPC quando não há leitura incluída que valha: a do toque,
+ * se ainda vale; vencida (a releitura da presença ficou parada esperando a
+ * rede, por exemplo), é descartada e o GPS é lido agora com maximumAge 0 —
+ * nada de posição de minutos (ou horas) atrás no banco.
+ */
+async function leituraParaARpc(args: ArgsCheckin): Promise<LeituraLocalizacao> {
+  if (!args.leituraNoToque) return obterLocalizacao(undefined, opcoesDaLeitura(args));
+  const doToque = await args.leituraNoToque;
+  if (leituraValida(doToque, Date.now())) return doToque;
+  return obterLocalizacao(undefined, { maximumAge: 0 });
 }
 
 /**
@@ -346,11 +373,15 @@ export function useCheckin({
   const { user } = useAuth();
   const invalidar = useInvalidarPresenca();
   const m = useMutation({
+    // As variáveis levam a posição (a leitura conferida, a do toque): a
+    // mutação sai do cache assim que ninguém mais a observa (o diálogo fecha,
+    // o card termina o check-in) — nada de posição guardada por 5 min.
+    gcTime: 0,
     mutationFn: async (args: ArgsCheckin): Promise<ResultadoCheckin> => {
       // A leitura conferida na tela, se ainda vale: a RPC recebe exatamente a
       // posição que a prévia olhou. Vencida (ou sem ela), usa a leitura que já
-      // saiu no toque (leituraNoToque) ou lê agora — com maximumAge 0 se a
-      // tela tinha uma (não reaproveita a mesma velha).
+      // saiu no toque (leituraNoToque), se ainda vale, ou lê agora — com
+      // maximumAge 0 se a tela tinha uma (não reaproveita a mesma velha).
       const usa =
         args.modo === "loja" && args.leitura && leituraValida(args.leitura, Date.now())
           ? args.leitura
@@ -358,7 +389,7 @@ export function useCheckin({
       const leitura: LeituraLocalizacao | null = usa
         ? { ok: true, lat: usa.lat, lng: usa.lng, precisao: usa.precisao }
         : args.modo === "loja"
-          ? await (args.leituraNoToque ?? obterLocalizacao(undefined, opcoesDaLeitura(args)))
+          ? await leituraParaARpc(args)
           : null;
       const geo = leitura?.ok ? leitura : null;
       const falha = leitura && !leitura.ok ? leitura.falha : null;
@@ -411,12 +442,14 @@ export function useCheckin({
   // assim o navegador mostra o aviso "Permitir localização" em vez de bloquear
   // (decisão do dono, 13/10 — "Pedir localização no check-in"). Quem chama e
   // ainda vai esperar alguma coisa antes do mutate (o diálogo e o card releem a
-  // presença) começa a leitura ele mesmo, com iniciarLeituraDoCheckin, e passa
-  // em leituraNoToque. Com uma leitura incluída que ainda vale, nada é lido.
+  // presença) começa a leitura ele mesmo, com iniciarLeituraDoCheckin, ESPERA a
+  // resposta, relê a presença só depois (a gestão que confirmou enquanto o GPS
+  // lia não é rebaixada) e passa a leitura em leituraNoToque. Com uma leitura
+  // incluída que ainda vale, nada é lido.
   const comLeitura = (args: ArgsCheckin): ArgsCheckin =>
     args.leituraNoToque || !precisaLerNoToque(args)
       ? args
-      : { ...args, leituraNoToque: obterLocalizacao(undefined, opcoesDaLeitura(args)) };
+      : { ...args, leituraNoToque: lerDatada(opcoesDaLeitura(args)) };
   return {
     ...m,
     mutate: (args: ArgsCheckin, opts?: Parameters<typeof m.mutate>[1]) =>

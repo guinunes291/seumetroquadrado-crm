@@ -49,6 +49,7 @@ import {
   encerraDoVisto,
   previaDasFiliais,
   rotuloDaFilialNaPrevia,
+  textoNovaTentativa,
   type Previa,
   type RotuloPrevia,
 } from "./localizacao-previa";
@@ -69,6 +70,7 @@ import {
   avisoJaNaRoleta,
   avisoLocalizacao,
   barradosSemDestrave,
+  checkinAptoAberto,
   DICA_FORA_DA_FILIAL,
   enderecoCurto,
   jaNaRoletaSemSaber,
@@ -88,6 +90,13 @@ import { atenderPedidoCheckin, pedidoVigente, usePedidoCheckin } from "./use-che
 
 // Movido para presenca-derive (o diálogo também usa); continua exportado daqui.
 export { AVISO_COMPUTADOR } from "./presenca-derive";
+
+/** O elemento com o foco saiu da tela (o foco caiu no body)? */
+function focoPerdido(): boolean {
+  if (typeof document === "undefined") return false;
+  const el = document.activeElement;
+  return !el || el === document.body;
+}
 
 /** O usuário pediu menos movimento? (jsdom e navegadores velhos não têm matchMedia.) */
 function reduzMovimento(): boolean {
@@ -117,6 +126,14 @@ export function CheckinCard({ className }: { className?: string }) {
   // Por que o celular não deu a localização no último check-in daqui (só vale
   // para aquele check-in: a releitura pode trazer outro).
   const [falha, setFalha] = useState<{ id: string; falha: FalhaLocalizacao | null } | null>(null);
+  // "Incluir localização" do barrado que falhou de novo (sem RPC): a linha
+  // "2ª tentativa às 09:42: …" mostra que o toque fez alguma coisa.
+  const [tentativa, setTentativa] = useState<{
+    id: string;
+    n: number;
+    em: number;
+    falha: FalhaLocalizacao;
+  } | null>(null);
   // Filial tocada esperando o "Estou na loja" (com a exigência ligada), e o
   // check-in que o card mostrava no toque.
   const [confirmar, setConfirmar] = useState<{ filial: FilialOpcao; visto: Visto } | null>(null);
@@ -147,9 +164,14 @@ export function CheckinCard({ className }: { className?: string }) {
   }, [pedido, temDados]);
 
   // O aviso apareceu: o foco vai para o título dele (o botão tocado sumiu).
+  // Saiu (por qualquer caminho: o check-in, "Incluir de novo", o resgate) e o
+  // foco ficou no vazio (o botão tocado também sumiu): volta ao título do card.
   const comAviso = !!aviso;
+  const tinhaAviso = useRef(false);
   useEffect(() => {
     if (comAviso) avisoTituloRef.current?.focus();
+    else if (tinhaAviso.current && focoPerdido()) tituloRef.current?.focus({ preventScroll: true });
+    tinhaAviso.current = comAviso;
   }, [comAviso]);
 
   const filiais = q.data?.filiais;
@@ -202,9 +224,11 @@ export function CheckinCard({ className }: { className?: string }) {
     // não a de 1 min atrás.
     const novaLeitura = opts.novaLeitura ?? (modo === "loja" && precisaRefazerCheckin(p));
     // O GPS sai AGORA, ainda dentro do toque (o navegador mostra o pedido de
-    // permissão), e a releitura abaixo corre junto. Sem leitura incluída que
-    // valha; se a releitura mostrar que já vale, a leitura é descartada.
+    // permissão), sem leitura incluída que valha. A releitura abaixo espera a
+    // resposta: a gestão que confirma enquanto o GPS lê é vista e a leitura é
+    // descartada.
     const leituraNoToque = iniciarLeituraDoCheckin({ modo, leitura: opts.leitura, novaLeitura });
+    if (leituraNoToque) await leituraNoToque;
     // A presença de agora (sem cache): se o check-in de hoje já liberou a
     // roleta sem o corretor saber, avisa e não refaz. Falha na leitura não
     // impede o check-in.
@@ -242,6 +266,8 @@ export function CheckinCard({ className }: { className?: string }) {
           setEscolha(null);
           setConfirmar(null);
           setAviso(null);
+          // A mutação leva a posição nas variáveis: some do react-query aqui.
+          checkin.reset();
         },
       },
     );
@@ -275,8 +301,9 @@ export function CheckinCard({ className }: { className?: string }) {
 
   // Com a exigência ligada, a filial pede confirmação (ou o aviso, com a
   // prévia): um toque "para ver" fora da loja vira check-in barrado e tira
-  // das roletas e do reforço.
-  const escolher = (modo: "loja" | "casa", filial?: string) => {
+  // das roletas e do reforço. O resgate do aviso passa por aqui também, com o
+  // check-in que ele via quando tocou a filial (`visto`).
+  const escolher = (modo: "loja" | "casa", filial?: string, visto: Visto = p.checkin) => {
     // Já na roleta nesta filial (GPS ou a gestão confirmando no plantão):
     // refazer só arriscaria rebaixar o check-in que vale.
     if (
@@ -286,9 +313,9 @@ export function CheckinCard({ className }: { className?: string }) {
       aberto.filial_slug === filial
     ) {
       toast.info(avisoJaNaRoleta(aberto));
+      setAviso(null);
       return;
     }
-    const visto: Visto = p.checkin;
     const f = modo === "loja" ? p.filiais.find((x) => x.slug === filial) : undefined;
     if (f) return tocarFilial(f, visto);
     void registrar(modo, filial, visto);
@@ -308,6 +335,12 @@ export function CheckinCard({ className }: { className?: string }) {
       // Uma tentativa de check-in: conta no diagnóstico de "todo mundo barrado".
       registrarFalhaLocalizacao(r.falha);
       setFalha({ id: c.id, falha: r.falha });
+      setTentativa((t) => ({
+        id: c.id,
+        n: t && t.id === c.id ? t.n + 1 : 2,
+        em: Date.now(),
+        falha: r.falha,
+      }));
       setEscolha(null);
       return;
     }
@@ -327,11 +360,18 @@ export function CheckinCard({ className }: { className?: string }) {
         previa,
         falha: loc.estado.fase === "falhou" ? loc.estado.falha : null,
         computador,
-        jaBarrado: barradoHoje || precisaRefazerCheckin(p),
+        // "Continua fora das roletas" só se ele está fora delas agora: o
+        // "Em casa" que vale depois de um barrado está nas roletas (o
+        // reforço é que não volta).
+        jaBarrado: precisaRefazerCheckin(p) || (barradoHoje && !checkinAptoAberto(p)),
         encerra: encerraDoVisto(p.checkin),
         aqui: aquiFora(aviso.filial.slug),
       })
     : null;
+  const linhaTentativa =
+    tentativa && tentativa.id === p.checkin?.id
+      ? textoNovaTentativa(tentativa.n, tentativa.em, tentativa.falha, computador)
+      : null;
 
   return (
     <Card ref={cardRef} className={className}>
@@ -352,6 +392,11 @@ export function CheckinCard({ className }: { className?: string }) {
           >
             <p className="font-semibold">{sit.titulo}</p>
             {sit.detalhe && <p className="mt-0.5 text-sm text-foreground/80">{sit.detalhe}</p>}
+            {linhaTentativa && (
+              <p className="mt-1 text-sm font-medium" data-testid="checkin-nova-tentativa">
+                {linhaTentativa}
+              </p>
+            )}
             {evidencia && (
               <StatusBadge intent={evidencia.intent} className="mt-2">
                 {evidencia.texto}
@@ -418,7 +463,10 @@ export function CheckinCard({ className }: { className?: string }) {
                   regiaoPropria
                   // Com o aviso na tela, a região diz o título dele (os botões são os do aviso).
                   anuncio={textosAviso?.titulo}
-                  controlesOcultos={!!aviso}
+                  // No barrado sem localização, o botão que vale é o "Incluir
+                  // localização" lá de cima (refaz o check-in): um segundo,
+                  // quase igual e que não grava nada, só confundiria.
+                  controlesOcultos={!!aviso || !!barradoSemLocalizacao}
                   onIncluir={() => void loc.incluir()}
                   onCancelar={loc.cancelar}
                 />
@@ -432,10 +480,11 @@ export function CheckinCard({ className }: { className?: string }) {
                   aqui={aquiFora(aviso.filial.slug)}
                   escolha={escolha}
                   disabled={ocupado}
+                  // O resgate passa pela trava "já na roleta nesta filial":
+                  // nunca refaz (nem rebaixa) o check-in que vale lá.
                   onResgate={() => {
                     const aqui = aquiFora(aviso.filial.slug);
-                    const f = aqui && p.filiais.find((x) => x.slug === aqui.slug);
-                    if (f) tocarFilial(f, aviso.visto);
+                    if (aqui) escolher("loja", aqui.slug, aviso.visto);
                   }}
                   onVoltar={() => {
                     setAviso(null);

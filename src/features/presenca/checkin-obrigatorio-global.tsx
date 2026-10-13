@@ -21,9 +21,10 @@
 // Enquanto está na tela, relê a presença (15 s, ao voltar para a aba e para a
 // janela): o check-in feito no celular, o "Confirmar no plantão" da gestão ou
 // o interruptor fecham o diálogo com o verde. E antes de QUALQUER check-in
-// daqui, relê na hora: se o check-in de hoje já liberou a roleta, fecha sem
-// chamar a RPC — nunca rebaixa uma confirmação. (O card de /presenca e Meu
-// Perfil tem a mesma proteção.)
+// daqui, relê na hora — DEPOIS da resposta do GPS lido no toque: se o check-in
+// de hoje já liberou a roleta (inclusive enquanto o GPS lia), fecha sem chamar
+// a RPC — nunca rebaixa uma confirmação. (O card de /presenca e Meu Perfil tem
+// a mesma proteção.)
 //
 // Leitor de tela: o foco vai para o título de cada tela nova, e UMA região
 // aria-live, sempre montada, troca só o texto — "Conferindo a localização…"
@@ -47,11 +48,13 @@
 // continua sendo o banco.
 //
 // Modo voluntário (13/10/2026): o bloco da barra lateral e a faixa do topo
-// PEDEM o check-in (pedirCheckin); este diálogo atende em qualquer tela, menos
-// /presenca e /meu-perfil (o card atende lá). Voluntário nunca prende (ESC, X
-// e clique fora fecham), não fecha sozinho ao ver o check-in de hoje (é
-// justamente para trocá-lo) e só fecha com o verde quando chega um check-in
+// PEDEM o check-in (pedirCheckinNoToque; "Incluir localização" já manda a
+// leitura do GPS feita no toque); este diálogo atende em qualquer tela, menos
+// /presenca e /meu-perfil (o card atende lá). Voluntário nunca prende (ESC, X,
+// clique fora e "Fechar" fecham), não fecha sozinho ao ver o check-in de hoje
+// (é justamente para trocá-lo) e só fecha com o verde quando chega um check-in
 // que ele NÃO estava vendo. Se o dia virar com ele aberto, vira obrigatório.
+// Ao fechar, o foco volta ao botão que pediu (ou ao ☰ / ao conteúdo).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
@@ -97,6 +100,7 @@ import {
   decidirToqueFilial,
   encerraDoVisto,
   previaDasFiliais,
+  textoNovaTentativa,
   type Previa,
   type TextosAviso,
 } from "./localizacao-previa";
@@ -127,6 +131,7 @@ import {
   precisaRefazerCheckin,
   rotuloLocal,
   type CheckinAtual,
+  type FalhaLocalizacao,
   type FilialOpcao,
   type Visto,
 } from "./presenca-derive";
@@ -175,6 +180,8 @@ export function CheckinObrigatorioGlobal() {
   // A leitura do "Incluir minha localização": deste diálogo, some ao fechar.
   const loc = useLocalizacaoIncluida();
   const { limpar: limparLeitura } = loc;
+  // A mutação leva a posição nas variáveis: some do react-query ao fechar.
+  const { reset: limparMutacao } = checkin;
   const pedido = usePedidoCheckin();
 
   const deveAbrir =
@@ -215,6 +222,19 @@ export function CheckinObrigatorioGlobal() {
   const ultimoIdDaqui = useRef<string | null>(null);
   // O pedido que este diálogo já atendeu (um efeito que roda duas vezes não abre duas).
   const pedidoAtendido = useRef<number | null>(null);
+  // "Incluir localização" do barrado que falhou de novo (sem RPC): a linha
+  // "2ª tentativa às 09:42: …" mostra que o toque fez alguma coisa.
+  const [tentativa, setTentativa] = useState<{
+    id: string;
+    n: number;
+    em: number;
+    falha: FalhaLocalizacao;
+  } | null>(null);
+  // Onde estava o foco quando o pedido (bloco lateral, faixa) abriu o
+  // diálogo: ao fechar, ele volta para lá. O Dialog do Radix só devolveria o
+  // foco a um DialogTrigger (aqui não há): sem isto, cai no body. No celular,
+  // o botão tocado era do Sheet, que já saiu da tela: aí volta ao ☰.
+  const focoDoPedido = useRef<{ el: Element | null; origem: PedidoCheckin["origem"] } | null>(null);
 
   const fechar = useCallback(() => {
     setAtivo(false);
@@ -227,11 +247,13 @@ export function CheckinObrigatorioGlobal() {
     setEscolha(null);
     setRefazerAoAbrir(null);
     setViaLeitura(false);
+    setTentativa(null);
     limparLeitura();
+    limparMutacao();
     vistoNaAbertura.current = null;
     ultimoIdDaqui.current = null;
     setModo("obrigatorio");
-  }, [limparLeitura]);
+  }, [limparLeitura, limparMutacao]);
 
   // Falta o check-in de hoje: abre (ou prende). Com o voluntário aberto, é a
   // virada do dia: vira obrigatório e volta às opções, com tudo zerado.
@@ -245,6 +267,7 @@ export function CheckinObrigatorioGlobal() {
       setFezCheckin(false);
       setHouveBarrado(false);
       setRefazerAoAbrir(null);
+      setTentativa(null);
       limparLeitura();
       vistoNaAbertura.current = null;
       ultimoIdDaqui.current = null;
@@ -315,6 +338,10 @@ export function CheckinObrigatorioGlobal() {
     setModo(deveAbrir ? "obrigatorio" : "voluntario");
     vistoNaAbertura.current = c;
     ultimoIdDaqui.current = null;
+    focoDoPedido.current = {
+      el: typeof document !== "undefined" ? document.activeElement : null,
+      origem: pedido.origem,
+    };
     if (c && precisaRefazerCheckin(presenca)) {
       // Barrado: abre explicando (e com a saída certa para o motivo).
       setResultado({ presenca, falhaLocalizacao: c.falha_localizacao });
@@ -374,13 +401,15 @@ export function CheckinObrigatorioGlobal() {
     setViaLeitura(!!opts.leitura);
     setErro(null);
     // O GPS sai AGORA, ainda dentro do toque (o navegador mostra o pedido de
-    // permissão), e a releitura abaixo corre junto. Sem leitura incluída que
-    // valha; se a releitura mostrar que já vale, a leitura é descartada.
+    // permissão), sem leitura incluída que valha. A releitura abaixo espera a
+    // resposta: a gestão que confirma enquanto o GPS lê (até 10 s) é vista e
+    // a leitura é descartada. Sobra só o tempo de rede da RPC.
     const leituraNoToque = iniciarLeituraDoCheckin({
       modo: modoCheckin,
       leitura: opts.leitura,
       novaLeitura: opts.novaLeitura,
     });
+    if (leituraNoToque) await leituraNoToque;
     // Antes de qualquer check-in, a presença de agora: se o de hoje já
     // liberou a roleta sem ele ver (feito no celular, confirmado pela gestão),
     // fecha sem chamar a RPC — refazer aqui encerraria a confirmação.
@@ -491,6 +520,15 @@ export function CheckinObrigatorioGlobal() {
       // Uma tentativa de check-in: conta no diagnóstico de "todo mundo barrado".
       registrarFalhaLocalizacao(r.falha);
       setResultado((prev) => prev && { ...prev, falhaLocalizacao: r.falha });
+      const id = visto?.id;
+      if (id) {
+        setTentativa((t) => ({
+          id,
+          n: t && t.id === id ? t.n + 1 : 2,
+          em: Date.now(),
+          falha: r.falha,
+        }));
+      }
       setEscolha(null);
       return;
     }
@@ -562,6 +600,10 @@ export function CheckinObrigatorioGlobal() {
       })
     : null;
 
+  const linhaTentativa =
+    tentativa && tela === "barrado" && tentativa.id === resultado?.presenca.checkin?.id
+      ? textoNovaTentativa(tentativa.n, tentativa.em, tentativa.falha, computador)
+      : null;
   const anuncio = ocupado
     ? escolha === "casa" || viaLeitura
       ? "Registrando o check-in…"
@@ -569,7 +611,7 @@ export function CheckinObrigatorioGlobal() {
     : lendo
       ? "Lendo a localização…"
       : resultado && tela === "barrado"
-        ? (motivoDoResultado(resultado, { computador }) ?? "")
+        ? [motivoDoResultado(resultado, { computador }), linhaTentativa].filter(Boolean).join(" ")
         : resultado && tela === "recusado"
           ? (motivoDoResultado(resultado) ?? "")
           : tela === "aviso" && textosAviso
@@ -591,6 +633,17 @@ export function CheckinObrigatorioGlobal() {
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           tituloRef.current?.focus();
+        }}
+        onCloseAutoFocus={(e) => {
+          // Aberto por um pedido: o foco volta ao botão tocado (o do bloco no
+          // computador, o da faixa). Se ele saiu da tela (o Sheet do celular
+          // fechou, a faixa sumiu com o check-in), vai ao ☰ (pedido da barra
+          // lateral) ou ao conteúdo — nunca ao body.
+          const antes = focoDoPedido.current;
+          focoDoPedido.current = null;
+          if (!antes) return;
+          e.preventDefault();
+          devolverFoco(antes.el, antes.origem);
         }}
         onEscapeKeyDown={(e) => bloqueante && e.preventDefault()}
         onPointerDownOutside={(e) => bloqueante && e.preventDefault()}
@@ -626,7 +679,9 @@ export function CheckinObrigatorioGlobal() {
             aqui={aquiFora(aviso.filial.slug)}
             escolha={escolha}
             ocupado={ocupado}
-            onResgate={(slug) => tocarFilial(slug)}
+            // Pela trava "já na roleta nesta filial": nunca refaz (nem rebaixa)
+            // o check-in que vale lá.
+            onResgate={(slug) => tocarOpcao("loja", slug)}
             onVoltar={() => setAviso(null)}
             onIncluir={() => {
               // Volta às opções e relê; nada de check-in depois.
@@ -644,9 +699,10 @@ export function CheckinObrigatorioGlobal() {
             ocupado={ocupado}
             erro={erro}
             resgate={resgateBarrado}
+            tentativa={linhaTentativa}
             onTentarDeNovo={(filial) => void escolher("loja", filial, { novaLeitura: true })}
             onIncluirLocalizacao={(filial) => void refazerComLocalizacao(filial)}
-            onResgate={(slug) => tocarFilial(slug)}
+            onResgate={(slug) => tocarOpcao("loja", slug)}
             onEmCasa={() => void escolher("casa")}
             onOutraFilial={() => setResultado(null)}
             onContinuar={fechar}
@@ -656,6 +712,7 @@ export function CheckinObrigatorioGlobal() {
             tituloRef={tituloRef}
             resultado={resultado}
             houveBarrado={houveBarrado}
+            voluntario={modoNaTela === "voluntario"}
             onFechar={fechar}
           />
         ) : (
@@ -725,6 +782,18 @@ export function CheckinObrigatorioGlobal() {
                 Continuar fora das roletas
               </Button>
             )}
+            {/* Voluntário: uma saída visível (o X do canto é pequeno). */}
+            {modoNaTela === "voluntario" && !fezCheckin && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="justify-self-start text-muted-foreground"
+                disabled={ocupado}
+                onClick={fechar}
+              >
+                Fechar
+              </Button>
+            )}
           </>
         )}
         {/* O que se vê (o leitor de tela ouve a região abaixo). */}
@@ -753,6 +822,24 @@ export function CheckinObrigatorioGlobal() {
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Foca e diz se o foco ficou mesmo lá (escondido ou fora da tela, não fica). */
+function focar(el: Element | null | undefined): boolean {
+  if (!(el instanceof HTMLElement) || !el.isConnected || el === document.body) return false;
+  el.focus();
+  return document.activeElement === el;
+}
+
+/**
+ * O foco depois do diálogo aberto por um pedido: o botão tocado; se ele saiu
+ * da tela, o ☰ ("Abrir menu", de onde veio o pedido da barra lateral no
+ * celular) e, por fim, o conteúdo principal.
+ */
+function devolverFoco(antes: Element | null, origem: PedidoCheckin["origem"]) {
+  if (focar(antes)) return;
+  if (origem === "lateral" && focar(document.querySelector("[data-gatilho-menu]"))) return;
+  focar(document.getElementById("conteudo-principal"));
 }
 
 type TituloRef = React.RefObject<HTMLHeadingElement | null>;
@@ -875,6 +962,7 @@ function Barrado({
   ocupado,
   erro,
   resgate,
+  tentativa,
   onTentarDeNovo,
   onIncluirLocalizacao,
   onResgate,
@@ -890,6 +978,8 @@ function Barrado({
   erro: string | null;
   /** A leitura do painel diz que ele está noutra filial (o resgate). */
   resgate: { slug: string; nome: string } | null;
+  /** "2ª tentativa às 09:42: …" — o "Incluir localização" que falhou de novo. */
+  tentativa: string | null;
   onTentarDeNovo: (filial: string) => void;
   onIncluirLocalizacao: (filial: string) => void;
   onResgate: (slug: string) => void;
@@ -925,6 +1015,11 @@ function Barrado({
         <DialogDescription className="text-foreground/90" data-testid="checkin-barrado-motivo">
           {motivoDoResultado(resultado, { computador })}
         </DialogDescription>
+        {tentativa && (
+          <p className="text-sm font-medium" data-testid="checkin-nova-tentativa">
+            {tentativa}
+          </p>
+        )}
       </DialogHeader>
       <div
         className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
@@ -1016,11 +1111,14 @@ function Recusado({
   tituloRef,
   resultado,
   houveBarrado,
+  voluntario,
   onFechar,
 }: {
   tituloRef: TituloRef;
   resultado: ResultadoCheckin;
   houveBarrado: boolean;
+  /** No voluntário o CRM nunca esteve preso: nada a "liberar". */
+  voluntario: boolean;
   onFechar: () => void;
 }) {
   const c = resultado.presenca.checkin;
@@ -1047,9 +1145,11 @@ function Recusado({
           {AVISO_FORA_DO_REFORCO}
         </p>
       )}
-      <p className="text-sm text-muted-foreground">
-        Você já pode usar o CRM: o check-in de hoje está feito.
-      </p>
+      {!voluntario && (
+        <p className="text-sm text-muted-foreground">
+          Você já pode usar o CRM: o check-in de hoje está feito.
+        </p>
+      )}
       <DialogFooter>
         <Button type="button" onClick={onFechar}>
           Entendi

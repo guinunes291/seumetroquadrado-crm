@@ -22,6 +22,7 @@ import {
   houvePedidoCheckinRecente,
   pedidoVigente,
   pedirCheckin,
+  pedirCheckinNoToque,
   usePedidoCheckin,
   VALIDADE_PEDIDO_MS,
 } from "@/features/presenca/use-checkin-obrigatorio";
@@ -31,7 +32,8 @@ import { CheckinObrigatorioGlobal } from "@/features/presenca/checkin-obrigatori
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { publicarEstadoTreino } from "@/features/onboarding/treino-estado";
-import { INTENT_DOT } from "@/lib/status-tones";
+import { INTENT_DOT, INTENT_DOT_NAVY } from "@/lib/status-tones";
+import { CheckinCard } from "@/features/presenca/checkin-card";
 
 const tela = vi.hoisted(() => ({
   rpc: vi.fn(),
@@ -414,7 +416,7 @@ describe("o bloco de check-in na barra lateral", () => {
       leitura: () => Promise<{ data: unknown; error: unknown }>;
       linha: string | null;
       estado: string;
-      intent: keyof typeof INTENT_DOT;
+      intent: keyof typeof INTENT_DOT_NAVY;
       botao: string | null;
       link?: string;
     };
@@ -539,7 +541,11 @@ describe("o bloco de check-in na barra lateral", () => {
       const dot = bolinha(b);
       expect(dot, c.nome).toHaveAttribute("data-intent", c.intent);
       expect(dot, c.nome).toHaveAttribute("aria-hidden", "true");
-      expect(dot?.className, c.nome).toContain(INTENT_DOT[c.intent]);
+      // Sobre o navy: os tons claros (os do tema claro ficavam em ~2,5:1).
+      expect(dot?.className, c.nome).toContain(INTENT_DOT_NAVY[c.intent]);
+      if (c.intent !== "neutral") {
+        expect(dot?.className, c.nome).not.toContain(INTENT_DOT[c.intent]);
+      }
       if (c.botao) {
         const botao = within(b).getByRole("button", { name: c.botao });
         // O estado descreve a ação para o leitor de tela.
@@ -556,12 +562,24 @@ describe("o bloco de check-in na barra lateral", () => {
       r.unmount();
     }
 
-    // Lendo: o mesmo bloco, sem ação, na altura do pronto (o rodapé não pula).
+    // Lendo: o mesmo bloco, sem ação, com o lugar da linha e do botão
+    // reservado (invisível, as mesmas classes do pronto): o rodapé não pula
+    // quando a presença chega.
     banco.leitura = () => new Promise(() => {});
     montarTela(<CheckinLateral collapsed={false} />);
     const b = await screen.findByTestId("checkin-lateral");
     expect(within(b).getByText("Lendo o check-in…")).toBeInTheDocument();
-    expect(b.className).toContain("min-h-[92px]");
+    const [linha, botao] = within(b).getAllByTestId("checkin-lateral-reserva");
+    for (const r of [linha, botao]) {
+      expect(r).toHaveAttribute("aria-hidden", "true");
+      expect(r.className).toContain("invisible");
+    }
+    expect(linha.className).toContain("mt-1.5");
+    expect(linha.className).toContain("text-[13px]");
+    // O botão reservado tem a altura do de verdade (44 px no celular, 32+ no computador).
+    expect(botao.className).toContain("min-h-11");
+    expect(botao.className).toContain("md:h-8");
+    expect(botao.className).toContain("mt-2");
     expect(within(b).queryByRole("button")).toBeNull();
     expect(bolinha(b)).toHaveAttribute("data-intent", "neutral");
   });
@@ -574,7 +592,8 @@ describe("o bloco de check-in na barra lateral", () => {
     });
     const dot = bolinha(icone);
     expect(dot).toHaveAttribute("data-intent", "success");
-    expect(dot?.className).toContain(INTENT_DOT.success);
+    expect(dot?.className).toContain(INTENT_DOT_NAVY.success);
+    expect(dot?.className).toContain("rounded-full");
     expect(dot).toHaveAttribute("aria-hidden", "true");
     // Nada de bloco expandido na barra de 72 px.
     expect(screen.queryByTestId("checkin-lateral")).toBeNull();
@@ -586,6 +605,10 @@ describe("o bloco de check-in na barra lateral", () => {
       name: "Check-in: Barra Funda · 09:00, Barrado: sem localização. Abrir o check-in.",
     });
     expect(bolinha(barrado)).toHaveAttribute("data-intent", "danger");
+    // Sozinha no trilho, a bolinha também muda de forma: losango no barrado.
+    expect(bolinha(barrado)?.className).toContain("rotate-45");
+    expect(bolinha(barrado)?.className).not.toContain("rounded-full");
+    expect(bolinha(barrado)?.className).toContain(INTENT_DOT_NAVY.danger);
     fireEvent.click(barrado);
     expect(screen.getByTestId("pedido")).toHaveTextContent("abrir:lateral");
     expect(chamadasCheckin()).toEqual([]);
@@ -758,5 +781,235 @@ describe("o bloco de check-in na barra lateral", () => {
     await waitFor(() => expect(screen.queryByTestId("checkin-obrigatorio-dialog")).toBeNull());
     expect(chamadasCheckin()).toEqual([]);
     r.unmount();
+  });
+  // -------------------------------------------------------------------------
+  // O GPS no toque (o merge com a main, 13/10: "Pedir localização no
+  // check-in"): só "Incluir localização" lê, e lê DENTRO do clique — o
+  // navegador só mostra o pedido de permissão de dentro do gesto. Nas telas
+  // do card (/presenca, /meu-perfil), o bloco não lê: o card só rola.
+  // -------------------------------------------------------------------------
+
+  /** O GPS do "Corretor Teste" (dentro da Barra Funda), respondendo na hora. */
+  function comGps() {
+    const getCurrentPosition = vi.fn((ok: PositionCallback) =>
+      ok({
+        coords: { latitude: -23.518983, longitude: -46.676975, accuracy: 90 },
+      } as GeolocationPosition),
+    );
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: { getCurrentPosition },
+    });
+    return getCurrentPosition;
+  }
+  const semGpsNoNavegador = () => Reflect.deleteProperty(navigator, "geolocation");
+
+  /**
+   * O banco com check-in: presenca_minha_v1 lê `atual`; presenca_checkin grava
+   * a resposta (Barra Funda, valendo) e devolve sem as filiais, como a RPC.
+   */
+  function bancoComCheckin(inicial: ReturnType<typeof minha>) {
+    const b = { atual: inicial };
+    tela.rpc.mockImplementation((fn: string) => {
+      if (fn === "presenca_minha_v1") return Promise.resolve({ data: b.atual, error: null });
+      if (fn === "presenca_checkin") {
+        b.atual = minha(ck({ id: "k2" }));
+        return Promise.resolve({ data: { ...b.atual, filiais: [] }, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+    return b;
+  }
+
+  it("'Incluir localização' lê o GPS DENTRO do clique (maximumAge 0); Trocar, Fazer check-in, Refazer e o trilho não leem", async () => {
+    const gps = comGps();
+    try {
+      devolve(minha(semGps()));
+      let r = montarTela(<CheckinLateral collapsed={false} />);
+      const incluir = await within(await screen.findByTestId("checkin-lateral")).findByRole(
+        "button",
+        { name: "Incluir localização" },
+      );
+      expect(gps).not.toHaveBeenCalled();
+      fireEvent.click(incluir);
+      // Síncrono, ainda no clique (sem await): o pedido de permissão sai do gesto.
+      expect(gps).toHaveBeenCalledTimes(1);
+      expect((gps.mock.calls[0][2] as PositionOptions).maximumAge).toBe(0);
+      expect(screen.getByTestId("pedido")).toHaveTextContent("incluir-localizacao:lateral");
+      expect(chamadasCheckin()).toEqual([]);
+      r.unmount();
+      _reiniciarPedidoCheckin();
+
+      // As outras ações só pedem: nenhuma leitura do GPS.
+      const casos: [ReturnType<typeof minha>, string][] = [
+        [minha(ck()), "Trocar"],
+        [minha(), "Fazer check-in"],
+        [minha(fora()), "Refazer check-in"],
+      ];
+      for (const [m, nome] of casos) {
+        gps.mockClear();
+        devolve(m);
+        r = montarTela(<CheckinLateral collapsed={false} />);
+        const botao = await within(await screen.findByTestId("checkin-lateral")).findByRole(
+          "button",
+          { name: nome },
+        );
+        fireEvent.click(botao);
+        expect(screen.getByTestId("pedido"), nome).toHaveTextContent("abrir:lateral");
+        expect(gps, nome).not.toHaveBeenCalled();
+        r.unmount();
+        _reiniciarPedidoCheckin();
+      }
+
+      // O trilho (sempre "abrir"), mesmo no barrado sem localização.
+      gps.mockClear();
+      devolve(minha(semGps()));
+      montarTela(<CheckinLateral collapsed />);
+      fireEvent.click(await screen.findByRole("button", { name: /^Check-in: Barra Funda/ }));
+      expect(screen.getByTestId("pedido")).toHaveTextContent("abrir:lateral");
+      expect(gps).not.toHaveBeenCalled();
+    } finally {
+      semGpsNoNavegador();
+    }
+  });
+
+  it("trilho: a forma da bolinha também diz o estado (quadrado no 'fora das roletas', círculo nas roletas)", async () => {
+    devolve(minha());
+    montarTela(<CheckinLateral collapsed />);
+    const icone = await screen.findByRole("button", {
+      name: "Check-in: Sem check-in hoje, Fora das roletas. Abrir o check-in.",
+    });
+    const dot = bolinha(icone);
+    expect(dot).toHaveAttribute("data-intent", "warning");
+    expect(dot?.className).toContain("rounded-[2px]");
+    expect(dot?.className).not.toContain("rotate-45");
+    expect(dot?.className).toContain(INTENT_DOT_NAVY.warning);
+  });
+
+  it("bloco + diálogo: 'Incluir localização' refaz no barrado com a leitura do TOQUE (o GPS lido uma vez só no total)", async () => {
+    const gps = comGps();
+    try {
+      bancoComCheckin(minha(semGps()));
+      montarTela(
+        <>
+          <CheckinLateral collapsed={false} />
+          <CheckinObrigatorioGlobal />
+        </>,
+      );
+      fireEvent.click(await within(bloco()).findByRole("button", { name: "Incluir localização" }));
+      expect(gps).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(chamadasCheckin()).toHaveLength(1));
+      expect(chamadasCheckin()[0][1]).toMatchObject({
+        _modo: "loja",
+        _filial: "barra-funda",
+        _latitude: -23.518983,
+        _longitude: -46.676975,
+        _precisao_m: 90,
+      });
+      await waitFor(() => expect(screen.queryByTestId("checkin-obrigatorio-dialog")).toBeNull());
+      // O diálogo usou a leitura do toque: nenhuma segunda leitura.
+      expect(gps).toHaveBeenCalledTimes(1);
+    } finally {
+      semGpsNoNavegador();
+    }
+  });
+
+  it("em /presenca: 'Incluir localização' do bloco NÃO lê o GPS (o card atende e só rola); o botão do card lê uma vez e refaz", async () => {
+    const gps = comGps();
+    const rolar = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: rolar,
+    });
+    try {
+      tela.pathname = "/presenca";
+      bancoComCheckin(minha(semGps()));
+      montarTela(
+        <>
+          <CheckinLateral collapsed={false} />
+          <CheckinCard />
+          <CheckinObrigatorioGlobal />
+        </>,
+      );
+      const doCard = await screen.findByTestId("card-incluir-localizacao-barrado");
+      fireEvent.click(await within(bloco()).findByRole("button", { name: "Incluir localização" }));
+      // Nenhuma leitura (nem pedido de permissão) que seria jogada fora.
+      expect(gps).not.toHaveBeenCalled();
+      // O card atende: consome o pedido, rola até ele e põe o foco no título.
+      await waitFor(() => expect(screen.getByTestId("pedido")).toHaveTextContent("nenhum"));
+      expect(rolar).toHaveBeenCalledWith(expect.objectContaining({ block: "start" }));
+      expect(document.activeElement).toHaveTextContent("Check-in de hoje");
+      expect(screen.queryByTestId("checkin-obrigatorio-dialog")).toBeNull();
+      expect(chamadasCheckin()).toEqual([]);
+
+      // O botão do card: lê no toque dele, uma vez, e refaz.
+      fireEvent.click(within(doCard).getByRole("button", { name: "Incluir localização" }));
+      expect(gps).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(chamadasCheckin()).toHaveLength(1));
+      expect(chamadasCheckin()[0][1]).toMatchObject({
+        _filial: "barra-funda",
+        _latitude: -23.518983,
+      });
+      expect(gps).toHaveBeenCalledTimes(1);
+    } finally {
+      semGpsNoNavegador();
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    }
+  });
+
+  it("o foco volta ao fechar o diálogo aberto pelo bloco: ao botão tocado (computador); no celular, ao ☰ (o botão do Sheet já saiu da tela) — nunca ao body", async () => {
+    let r = montarTela(
+      <>
+        <CheckinLateral collapsed={false} />
+        <CheckinObrigatorioGlobal />
+      </>,
+    );
+    const trocar = await within(bloco()).findByRole("button", { name: "Trocar" });
+    // O clique de verdade foca o botão (o fireEvent não).
+    trocar.focus();
+    fireEvent.click(trocar);
+    const d = await screen.findByTestId("checkin-obrigatorio-dialog");
+    fireEvent.keyDown(d, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("checkin-obrigatorio-dialog")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trocar));
+    r.unmount();
+    _reiniciarPedidoCheckin();
+
+    // Celular: o bloco dentro do Sheet.
+    r = montarTela(
+      <>
+        <MobileSidebar />
+        <CheckinObrigatorioGlobal />
+      </>,
+    );
+    const menu = await screen.findByRole("button", { name: "Abrir menu" });
+    fireEvent.click(menu);
+    const noSheet = await screen.findByTestId("checkin-lateral");
+    const trocarSheet = await within(noSheet).findByRole("button", { name: "Trocar" });
+    trocarSheet.focus();
+    fireEvent.click(trocarSheet);
+    const d2 = await screen.findByTestId("checkin-obrigatorio-dialog");
+    expect(d2).toHaveAttribute("data-modo", "voluntario");
+    await waitFor(() => expect(trocarSheet.isConnected).toBe(false));
+    fireEvent.keyDown(d2, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("checkin-obrigatorio-dialog")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(menu));
+    r.unmount();
+  });
+
+  it("pedirCheckinNoToque: só 'incluir-localizacao' fora das telas do card lê o GPS", () => {
+    const gps = comGps();
+    try {
+      pedirCheckinNoToque("abrir", "lateral", "/fila");
+      expect(gps).not.toHaveBeenCalled();
+      pedirCheckinNoToque("incluir-localizacao", "lateral", "/presenca");
+      pedirCheckinNoToque("incluir-localizacao", "lateral", "/meu-perfil/dados");
+      expect(gps).not.toHaveBeenCalled();
+      pedirCheckinNoToque("incluir-localizacao", "faixa", "/modo-visita");
+      expect(gps).toHaveBeenCalledTimes(1);
+    } finally {
+      semGpsNoNavegador();
+    }
   });
 });

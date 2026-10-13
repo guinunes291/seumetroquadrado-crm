@@ -8,9 +8,11 @@
 // Nunca automática: só por toque (Incluir, Incluir de novo). Nada ao montar,
 // nada de watchPosition, nada de prefetch das filiais.
 //
-// Privacidade: a posição fica só neste estado React — nunca em
-// localStorage/sessionStorage, URL, cache do react-query ou Sentry (o Sentry
-// recebe só o tipo da falha).
+// Privacidade: a posição fica só na memória da aba — neste estado React e,
+// durante o check-in, nas variáveis da mutação (useCheckin), que saem do
+// cache do react-query quando o diálogo fecha ou o card termina (gcTime 0).
+// Nunca em localStorage/sessionStorage, URL ou Sentry (o Sentry recebe só o
+// tipo da falha).
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {

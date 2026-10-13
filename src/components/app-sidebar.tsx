@@ -478,7 +478,14 @@ export function MobileSidebar() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir menu">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Abrir menu"
+          // O diálogo do check-in aberto pelo Sheet devolve o foco aqui ao fechar.
+          data-gatilho-menu=""
+        >
           <List className="h-5 w-5" />
         </Button>
       </SheetTrigger>

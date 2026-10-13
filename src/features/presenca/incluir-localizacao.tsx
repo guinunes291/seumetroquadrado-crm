@@ -8,7 +8,7 @@
 // e a única RPC sai do toque numa filial — direto quando a mesma leitura está
 // folgadamente dentro, senão pela pergunta de sempre ou pelo aviso.
 
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { CheckCircle, CircleNotch, MapPinSimpleArea, Storefront } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,8 @@ export function PainelIncluirLocalizacao({
 }) {
   const lendo = estado.fase === "lendo";
   const texto = textoDaLeitura(estado, previa, { computador });
+  // "Cancelar" some ao ser tocado: o foco volta ao botão (não cai no body).
+  const botaoRef = useRef<HTMLButtonElement>(null);
   const regiao = regiaoPropria && (
     <p
       role="status"
@@ -73,6 +75,7 @@ export function PainelIncluirLocalizacao({
     <div className="space-y-2" data-testid="incluir-localizacao">
       <div className="flex items-center gap-2">
         <Button
+          ref={botaoRef}
           type="button"
           variant="outline"
           className="min-h-11 w-full"
@@ -94,8 +97,12 @@ export function PainelIncluirLocalizacao({
         {lendo && (
           <button
             type="button"
-            className="shrink-0 px-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            onClick={onCancelar}
+            // O visual de link, com o alvo de toque de 44 px no celular.
+            className="inline-flex min-h-11 shrink-0 items-center px-2 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground md:min-h-0"
+            onClick={() => {
+              onCancelar();
+              botaoRef.current?.focus();
+            }}
           >
             Cancelar
           </button>
@@ -183,7 +190,9 @@ export function BotoesAviso({
       </div>
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-60"
+        // Discreto (é o único caminho do aviso que grava um barrado), mas com o
+        // alvo de toque de 44 px no celular, como os botões de cima.
+        className="inline-flex min-h-11 items-center gap-1.5 px-2 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-60 md:min-h-0"
         disabled={disabled}
         onClick={onAssimMesmo}
       >

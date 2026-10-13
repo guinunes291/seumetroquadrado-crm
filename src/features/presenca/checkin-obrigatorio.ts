@@ -10,6 +10,15 @@ import { blocoCheckinLateral, type MinhaPresenca } from "./presenca-derive";
 export const TELAS_COM_CARD_CHECKIN = ["/presenca", "/meu-perfil"];
 
 /**
+ * Esta rota tem o card de check-in? Nela, quem atende o pedido do bloco da
+ * barra lateral é o card (rola e põe o foco no título), e por isso o toque do
+ * bloco não lê o GPS: a leitura seria jogada fora.
+ */
+export function telaComCardCheckin(pathname: string): boolean {
+  return TELAS_COM_CARD_CHECKIN.some((t) => pathname.startsWith(t));
+}
+
+/**
  * Telas de campo em tela cheia: nada obrigatório abre por cima (o card das
  * metas do dia também some nelas).
  */
@@ -114,7 +123,7 @@ export function destinoDoPedido(i: {
   dialogoAberto: boolean;
 }): DestinoPedido {
   if (!i.vigente) return "descartar";
-  if (TELAS_COM_CARD_CHECKIN.some((r) => i.pathname.startsWith(r))) return "card";
+  if (telaComCardCheckin(i.pathname)) return "card";
   if (i.treinoAberto) return "descartar";
   if (i.dialogoAberto) return "descartar";
   if (!i.treinoDecidido || !i.presencaPronta) return "esperar";

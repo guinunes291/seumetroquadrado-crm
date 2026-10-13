@@ -322,18 +322,41 @@ export function tituloFalhaLeitura(falha: FalhaLocalizacao, computador: boolean)
   }
 }
 
+/**
+ * "2ª tentativa às 09:42: o navegador bloqueou a localização." — o "Incluir
+ * localização" do barrado que falhou de novo (nada gravado): sem esta linha, a
+ * mesma falha deixa a tela igual e parece que o toque não fez nada. `n` conta
+ * o check-in barrado como a 1ª tentativa, então sempre muda a cada toque.
+ */
+export function textoNovaTentativa(
+  n: number,
+  em: number,
+  falha: FalhaLocalizacao,
+  computador: boolean,
+): string {
+  const titulo = tituloFalhaLeitura(falha, computador);
+  const motivo = titulo.charAt(0).toLowerCase() + titulo.slice(1);
+  return `${n}ª tentativa às ${horaSaoPaulo(em) ?? "agora"}: ${motivo}.`;
+}
+
 const SEM_DISTANCIAS = "mas as distâncias não carregaram agora: escolha normalmente.";
+
+/**
+ * A linha enquanto o GPS lê: ocupa o lugar da linha de antes e da que vem
+ * depois (nada pula embaixo do dedo no instante em que as opções destravam).
+ */
+export const TEXTO_LENDO = "Esperando o aparelho informar a localização…";
 
 /** "(±40 m)" — a convenção de distanciaLabel (±15 → "±20 m", ±5000 → "±5 km"). */
 const maisMenos = (precisao: number | null) =>
   precisao == null ? "" : ` (±${distanciaLabel(precisao)})`;
 
-/** A linha sob o botão "Incluir minha localização". null = o botão já mostra (lendo). */
+/** A linha sob o botão "Incluir minha localização" (lendo: uma linha neutra). */
 export function textoDaLeitura(
   e: EstadoLocalizacao,
   _previa: Previa | null,
   o: { computador: boolean },
-): { titulo: string; detalhe: string | null; intent: Intent } | null {
+): { titulo: string; detalhe: string | null; intent: Intent } {
   switch (e.fase) {
     case "vazia":
       return {
@@ -343,7 +366,7 @@ export function textoDaLeitura(
         intent: "neutral",
       };
     case "lendo":
-      return null;
+      return { titulo: TEXTO_LENDO, detalhe: null, intent: "neutral" };
     case "incluida": {
       const precisao = e.leitura.precisao;
       if (e.coordenadas === null) {
