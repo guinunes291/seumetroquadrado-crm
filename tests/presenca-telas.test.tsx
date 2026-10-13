@@ -24,6 +24,7 @@ const estado = vi.hoisted(() => ({
   checkinsDoDia: [] as Record<string, unknown>[],
   filtros: [] as [string, unknown][],
   toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() },
+  isCorretor: true,
 }));
 
 /** Uma consulta encadeável (select/eq/order) que resolve com `linhas`. */
@@ -50,7 +51,7 @@ const FILIAIS_TABELA = [
 vi.mock("sonner", () => ({ toast: estado.toast }));
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: { id: "c1" }, session: null, loading: false }),
-  useUserRoles: () => ({ isCorretor: true, loading: false }),
+  useUserRoles: () => ({ isCorretor: estado.isCorretor, loading: false }),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { rpc: estado.rpc, from: () => consulta(() => estado.checkinsDoDia) },
@@ -93,6 +94,7 @@ function minha(checkin: Record<string, unknown> | null, over: Record<string, unk
 let atual = minha(null);
 
 beforeEach(() => {
+  estado.isCorretor = true;
   atual = minha(null);
   estado.checkinsDoDia = [];
   estado.filtros = [];
@@ -632,7 +634,16 @@ describe("quadro da gestão", () => {
       const rafa = screen.getByText("Rafa").closest("div.rounded-md") as HTMLElement;
       expect(within(rafa).queryByText("(você)")).toBeNull();
 
-      fireEvent.click(within(ingrid).getByRole("button", { name: "Meu check-in" }));
+      const meu = within(ingrid).getByRole("button", { name: "Meu check-in" });
+      // Alvo de toque de 44 px no celular (o size sm; 32 px do md para cima).
+      expect(meu.className).toContain("h-11");
+      expect(meu.className).toContain("md:h-8");
+      // O porquê visível (o title não aparece no celular).
+      expect(
+        within(ingrid).getByText("Sem celular na loja? Outro gestor confirma no plantão."),
+      ).toBeInTheDocument();
+      expect(within(rafa).queryByText(/Sem celular na loja/)).toBeNull();
+      fireEvent.click(meu);
       // O card de check-in atende: rola até ele e foca o título.
       await waitFor(() => expect(rolar).toHaveBeenCalled());
       expect(document.activeElement).toHaveTextContent("Check-in de hoje");
@@ -669,7 +680,7 @@ describe("quadro da gestão", () => {
     act(() => result.current.mutate({ corretorId: "c1", filial: "barra-funda", nome: "Ingrid" }));
     await waitFor(() =>
       expect(estado.toast.error).toHaveBeenCalledWith(
-        "Falha no check-in: o seu check-in é pelo card de check-in, com a localização do celular",
+        "Falha no check-in: seu check-in é pelo Check-in de hoje (ou pelo Check-in da barra lateral), com a localização do celular",
       ),
     );
     expect(chamadasCheckin()).toHaveLength(0);
@@ -684,5 +695,20 @@ describe("quadro da gestão", () => {
     await waitFor(() =>
       expect(estado.toast.success).toHaveBeenCalledWith("Rafa: check-in confirmado pela gestão."),
     );
+  });
+  it("sem o papel corretor na sessão (papéis ainda velhos), a própria linha fica só com '(você)': sem 'Meu check-in' e sem o menu", async () => {
+    estado.isCorretor = false;
+    const hoje = [
+      linha({ nome: "Ingrid", corretor_id: "c1" }),
+      linha({ nome: "Rafa", corretor_id: "c2" }),
+    ];
+    estado.rpc.mockImplementation(async (fn: string) =>
+      fn === "presenca_hoje_v1" ? { data: hoje, error: null } : { data: null, error: null },
+    );
+    montar(<PresencaQuadro podeOperar />);
+    const ingrid = (await screen.findByText("Ingrid")).closest("div.rounded-md") as HTMLElement;
+    expect(within(ingrid).getByText("(você)")).toBeInTheDocument();
+    expect(within(ingrid).queryByRole("button")).toBeNull();
+    expect(screen.getByRole("button", { name: "Ações de presença de Rafa" })).toBeInTheDocument();
   });
 });

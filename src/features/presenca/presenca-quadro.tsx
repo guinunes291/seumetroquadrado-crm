@@ -37,7 +37,7 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import {
   diaSaoPauloHoje,
   useCheckinPelaGestao,
@@ -135,7 +135,7 @@ export function PresencaQuadro({ podeOperar }: { podeOperar: boolean }) {
         />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {colunas.map((col) => (
           <Coluna
             key={col.chave}
@@ -216,8 +216,13 @@ function LinhaCorretor({
 }) {
   const checkin = useCheckinPelaGestao();
   const { user } = useAuth();
+  const { isCorretor } = useUserRoles();
   // A própria linha: a gestão não confirma a si mesma (ver o topo do arquivo).
   const propria = !!user && r.corretor_id === user.id;
+  // "Meu check-in" só com o card de check-in na página para atender (ele só
+  // monta com o papel corretor — o quadro relê os papéis no banco a cada 60 s,
+  // a sessão não). Sem o card, a própria linha fica só com o "(você)".
+  const meuCheckin = podeOperar && propria && isCorretor;
   const aberto = r.modo !== null && r.encerrado_em === null;
   // Barrado pela localização: o selo já diz a distância (ou "sem localização").
   const status = statusRoletaLinha(r);
@@ -236,9 +241,9 @@ function LinhaCorretor({
         <AvatarFallback className="text-xs">{iniciais(r.nome)}</AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
-          {r.nome}
-          {propria && <span className="font-normal text-muted-foreground"> (você)</span>}
+        <p className="flex min-w-0 items-baseline gap-1 text-sm font-medium">
+          <span className="truncate">{r.nome}</span>
+          {propria && <span className="shrink-0 font-normal text-muted-foreground">(você)</span>}
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
           {status ? (
@@ -258,20 +263,27 @@ function LinhaCorretor({
           )}
           {evidencia && <StatusBadge intent={evidencia.intent}>{evidencia.texto}</StatusBadge>}
         </div>
+        {meuCheckin && (
+          // Na linha de baixo (e não ao lado do nome): o nome não perde largura.
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {/* O card de check-in da página atende o pedido (rola até ele e
+                foca): é lá que o celular confere a localização. */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              title="Seu check-in é no Check-in de hoje, no topo desta página, com a localização do celular."
+              onClick={() => pedirCheckin({ acao: "abrir", origem: "quadro" })}
+            >
+              Meu check-in
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              Sem celular na loja? Outro gestor confirma no plantão.
+            </span>
+          </div>
+        )}
       </div>
-      {podeOperar && propria ? (
-        // O card de check-in da página atende o pedido (rola até ele e foca):
-        // é lá que o celular confere a localização.
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 shrink-0"
-          title="O seu check-in é pelo card de check-in, com a localização do celular"
-          onClick={() => pedirCheckin({ acao: "abrir", origem: "quadro" })}
-        >
-          Meu check-in
-        </Button>
-      ) : podeOperar && filiais.length > 0 ? (
+      {podeOperar && !propria && filiais.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

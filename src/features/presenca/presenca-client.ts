@@ -504,7 +504,9 @@ export function useCheckinPelaGestao() {
       // localização", fora das roletas e do reforço). O próprio check-in é
       // pelo card, com a localização do celular.
       if (user && args.corretorId === user.id) {
-        throw new Error("o seu check-in é pelo card de check-in, com a localização do celular");
+        throw new Error(
+          "seu check-in é pelo Check-in de hoje (ou pelo Check-in da barra lateral), com a localização do celular",
+        );
       }
       const { error } = await supabasePendente.rpc("presenca_checkin", {
         _modo: "loja",
