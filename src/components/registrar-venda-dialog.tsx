@@ -3,8 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProjetosParaSelecao } from "@/lib/projetos";
 import { toast } from "sonner";
-import { CaretUpDown, Check, CurrencyDollar } from "@phosphor-icons/react";
-import { maskCurrencyBRL, parseCurrencyBRL } from "@/lib/masks";
+import { CurrencyDollar, MagnifyingGlass } from "@phosphor-icons/react";
+import { maskCPF, maskCurrencyBRL, maskPhoneBR, parseCurrencyBRL, formatPhoneBR } from "@/lib/masks";
+import { isValidBrazilPhone, isValidCPF, isValidEmail, onlyDigits } from "@/lib/validators";
+import { mesmaConstrutora, chaveConstrutora } from "@/lib/construtoras";
+import { slugify } from "@/lib/projetos";
+import { useConstrutorasParceiras } from "@/features/projetos/use-construtoras-parceiras";
 import {
   Dialog,
   DialogContent,
@@ -26,16 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
 import { EFETIVACAO_INICIAL, EfetivacaoFlagsField } from "@/components/efetivacao-flags-field";
 import { parseSplit, type SplitTexto } from "@/lib/comissoes";
