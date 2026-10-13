@@ -16,14 +16,17 @@
 //
 // Com a exigência de localização ligada, tocar numa filial pede confirmação
 // ("Você está dentro da loja X agora?"): um toque "para ver" fora da loja
-// vira check-in barrado e tira das roletas e do reforço no dia.
+// vira check-in barrado e tira das roletas e do reforço no dia. Com um
+// check-in valendo (o voluntário), a pergunta também diz o que o toque
+// encerra — o plantão confirmado pela gestão, a liberação —, como o aviso.
 //
 // Enquanto está na tela, relê a presença (15 s, ao voltar para a aba e para a
 // janela): o check-in feito no celular, o "Confirmar no plantão" da gestão ou
 // o interruptor fecham o diálogo com o verde. E antes de QUALQUER check-in
-// daqui, relê na hora: se o check-in de hoje já liberou a roleta, fecha sem
-// chamar a RPC — nunca rebaixa uma confirmação. (O card de /presenca e Meu
-// Perfil tem a mesma proteção.)
+// daqui, relê na hora — DEPOIS da resposta do GPS lido no toque: se o check-in
+// de hoje já liberou a roleta (inclusive enquanto o GPS lia), fecha sem chamar
+// a RPC — nunca rebaixa uma confirmação. (O card de /presenca e Meu Perfil tem
+// a mesma proteção.)
 //
 // Leitor de tela: o foco vai para o título de cada tela nova, e UMA região
 // aria-live, sempre montada, troca só o texto — "Conferindo a localização…"
@@ -34,11 +37,30 @@
 // - em casa abaixo do mínimo de vendas → mostra o motivo e libera o CRM (ele
 //   disse a verdade; só não entra na roleta);
 // - filial barrada pela localização (fora do raio ou sem localização) →
-//   continua aberto com o porquê e as saídas: tentar de novo, "Estou em casa"
-//   ou continuar fora das roletas. Sem armadilha.
+//   continua aberto com o porquê e as saídas: tentar de novo (sem localização:
+//   "Incluir localização", que lê o GPS ANTES e, se falhar, não grava nada),
+//   "Estou em casa" ou continuar fora das roletas. Sem armadilha.
+//
+// "Incluir minha localização" (13/10/2026): o painel acima das opções lê o
+// GPS ANTES da escolha e mostra a distância até cada filial — prévia, nada é
+// gravado. Com a leitura, tocar a filial onde ele está faz o check-in direto
+// (a MESMA leitura vai à RPC: no iPhone, nenhum segundo pedido de permissão);
+// tocar uma filial longe mostra o aviso ANTES do barrado, sem RPC; o check-in
+// só sai pelo link explícito "assim mesmo", que diz o custo. Quem decide
+// continua sendo o banco.
+//
+// Modo voluntário (13/10/2026): o bloco da barra lateral e a faixa do topo
+// PEDEM o check-in (pedirCheckinNoToque; "Incluir localização" já manda a
+// leitura do GPS feita no toque); este diálogo atende em qualquer tela, menos
+// /presenca e /meu-perfil (o card atende lá). Voluntário nunca prende (ESC, X,
+// clique fora e "Fechar" fecham), não fecha sozinho ao ver o check-in de hoje
+// (é justamente para trocá-lo) e só fecha com o verde quando chega um check-in
+// que ele NÃO estava vendo. Se o dia virar com ele aberto, vira obrigatório.
+// Ao fechar, o foco volta ao botão que pediu (ou ao ☰ / ao conteúdo).
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   ArrowCounterClockwise,
   CircleNotch,
@@ -59,44 +81,97 @@ import {
 import { mensagemDeErro } from "@/lib/mensagem-erro";
 import { cn } from "@/lib/utils";
 import { useEstadoTreino } from "@/features/onboarding/treino-estado";
+import { BotoesConfirmarFilial, OpcoesCheckin, RegraDasVendas } from "./checkin-card";
 import {
-  AVISO_COMPUTADOR,
-  BotoesConfirmarFilial,
-  OpcoesCheckin,
-  RegraDasVendas,
-} from "./checkin-card";
-import { desfechoCheckin, rotaSemCheckinObrigatorio } from "./checkin-obrigatorio";
+  descricaoDoDialogo,
+  desfechoCheckin,
+  destinoDoPedido,
+  dialogoBloqueante,
+  rotaSemCheckinObrigatorio,
+  type ModoDialogo,
+} from "./checkin-obrigatorio";
+import {
+  BotoesAviso,
+  CaixaEncerra,
+  CorpoAviso,
+  PainelIncluirLocalizacao,
+  ResgateAqui,
+} from "./incluir-localizacao";
+import {
+  anuncioDaLeitura,
+  avisoAntesDoCheckin,
+  decidirToqueFilial,
+  encerraDoVisto,
+  fraseEncerra,
+  previaDasFiliais,
+  textoNovaTentativa,
+  type Previa,
+  type TextosAviso,
+} from "./localizacao-previa";
 import {
   avisarNaRoletaDeFora,
   ehComputador,
+  iniciarLeituraDoCheckin,
+  lerLocalizacaoAgora,
   motivoDoResultado,
+  registrarFalhaLocalizacao,
   useBuscarPresencaFresca,
   useCheckin,
+  type LeituraIncluida,
   type ResultadoCheckin,
 } from "./presenca-client";
 import {
+  AVISO_COMPUTADOR,
   AVISO_FORA_DO_REFORCO,
+  avisoJaNaRoleta,
   avisoLocalizacao,
+  avisoTrocaDoValido,
   checkinAptoAberto,
   DICA_FORA_DA_FILIAL,
+  jaNaRoletaSemSaber,
+  leituraValida,
   perguntaConfirmarFilial,
   precisaoAproximada,
+  precisaRefazerCheckin,
   rotuloLocal,
   type CheckinAtual,
+  type FalhaLocalizacao,
   type FilialOpcao,
+  type Visto,
 } from "./presenca-derive";
+import { useLocalizacaoIncluida } from "./use-localizacao-incluida";
 import {
+  atenderPedidoCheckin,
   liberarCheckinPorFalha,
+  pedidoVigente,
   publicarDialogoCheckin,
   useCheckinObrigatorio,
+  usePedidoCheckin,
+  VALIDADE_PEDIDO_MS,
+  type PedidoCheckin,
 } from "./use-checkin-obrigatorio";
 
-type Tela = "opcoes" | "confirmar" | "barrado" | "recusado";
+type Tela = "opcoes" | "confirmar" | "aviso" | "barrado" | "recusado";
+
+/** O aviso antes do check-in na tela (sem RPC): a filial tocada e por quê. */
+type AvisoNaTela = { filial: FilialOpcao; variante: "fora" | "sem_localizacao" };
+
+type OpcoesEscolher = {
+  novaLeitura?: boolean;
+  /** A leitura do painel, conferida pela prévia: vai à RPC sem ler o GPS de novo. */
+  leitura?: LeituraIncluida;
+  previaDentro?: boolean;
+  /** O check-in que ele via quando tocou (o padrão: o da tela agora). */
+  visto?: Visto;
+};
 
 export function CheckinObrigatorioGlobal() {
   // Uma vez aberto, só fecha por decisão daqui: o check-in barrado já conta
   // como "fez check-in hoje", mas o diálogo precisa ficar para explicar.
   const [ativo, setAtivo] = useState(false);
+  // Obrigatório (falta o check-in de hoje) ou voluntário (pedido pelo bloco da
+  // barra lateral ou pela faixa): o voluntário nunca prende.
+  const [modo, setModo] = useState<ModoDialogo>("obrigatorio");
   // A presença lida pelo hook traz as filiais e a régua das vendas. Com o
   // diálogo na tela, ela é relida (check-in vindo de fora fecha o diálogo).
   const { pendente, dia, uid, presenca } = useCheckinObrigatorio({ releitura: ativo });
@@ -106,6 +181,12 @@ export function CheckinObrigatorioGlobal() {
   const checkin = useCheckin({ avisarRecusa: false, avisarErro: false });
   const buscarPresencaFresca = useBuscarPresencaFresca();
   const computador = ehComputador();
+  // A leitura do "Incluir minha localização": deste diálogo, some ao fechar.
+  const loc = useLocalizacaoIncluida();
+  const { limpar: limparLeitura } = loc;
+  // A mutação leva a posição nas variáveis: some do react-query ao fechar.
+  const { reset: limparMutacao } = checkin;
+  const pedido = usePedidoCheckin();
 
   const deveAbrir =
     pendente === true &&
@@ -118,30 +199,86 @@ export function CheckinObrigatorioGlobal() {
   const [resultado, setResultado] = useState<ResultadoCheckin | null>(null);
   // Filial tocada esperando o "Estou na loja".
   const [confirmar, setConfirmar] = useState<FilialOpcao | null>(null);
+  // Filial tocada que a prévia diz que barraria: o aviso, sem RPC.
+  const [aviso, setAviso] = useState<AvisoNaTela | null>(null);
   // Qual opção está em andamento (relendo a presença, o GPS, a RPC).
   const [escolha, setEscolha] = useState<string | null>(null);
+  // A RPC em curso vai com a leitura do painel (não lê o GPS): "Registrando…".
+  const [viaLeitura, setViaLeitura] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   // Já houve check-in por este diálogo (barrado volta às opções sem fechar).
   const [fezCheckin, setFezCheckin] = useState(false);
   // A localização barrou um check-in daqui: o reforço não volta com "Em casa".
   const [houveBarrado, setHouveBarrado] = useState(false);
+  // O pedido "Incluir localização" (faixa, bloco) abre no barrado e refaz.
+  const [refazerAoAbrir, setRefazerAoAbrir] = useState<{
+    slug: string;
+    leitura?: PedidoCheckin["leitura"];
+  } | null>(null);
+  // Reavalia um pedido que está esperando (o treino decidir, a presença chegar).
+  const [tick, setTick] = useState(0);
   // O verde do check-in vindo de fora sai uma vez só por check-in.
   const avisado = useRef<string | null>(null);
   const tituloRef = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    if (deveAbrir) setAtivo(true);
-  }, [deveAbrir]);
+  // No voluntário: o check-in que ele via ao abrir e o último feito daqui. Só
+  // um check-in DIFERENTE desses, que liberou a roleta, fecha com o verde.
+  const vistoNaAbertura = useRef<Visto>(null);
+  const ultimoIdDaqui = useRef<string | null>(null);
+  // O pedido que este diálogo já atendeu (um efeito que roda duas vezes não abre duas).
+  const pedidoAtendido = useRef<number | null>(null);
+  // "Incluir localização" do barrado que falhou de novo (sem RPC): a linha
+  // "2ª tentativa às 09:42: …" mostra que o toque fez alguma coisa.
+  const [tentativa, setTentativa] = useState<{
+    id: string;
+    n: number;
+    em: number;
+    falha: FalhaLocalizacao;
+  } | null>(null);
+  // Onde estava o foco quando o pedido (bloco lateral, faixa) abriu o
+  // diálogo: ao fechar, ele volta para lá. O Dialog do Radix só devolveria o
+  // foco a um DialogTrigger (aqui não há): sem isto, cai no body. No celular,
+  // o botão tocado era do Sheet, que já saiu da tela: aí volta ao ☰.
+  const focoDoPedido = useRef<{ el: Element | null; origem: PedidoCheckin["origem"] } | null>(null);
 
   const fechar = useCallback(() => {
     setAtivo(false);
     setResultado(null);
     setConfirmar(null);
+    setAviso(null);
     setErro(null);
     setFezCheckin(false);
     setHouveBarrado(false);
     setEscolha(null);
-  }, []);
+    setRefazerAoAbrir(null);
+    setViaLeitura(false);
+    setTentativa(null);
+    limparLeitura();
+    limparMutacao();
+    vistoNaAbertura.current = null;
+    ultimoIdDaqui.current = null;
+    setModo("obrigatorio");
+  }, [limparLeitura, limparMutacao]);
+
+  // Falta o check-in de hoje: abre (ou prende). Com o voluntário aberto, é a
+  // virada do dia: vira obrigatório e volta às opções, com tudo zerado.
+  useEffect(() => {
+    if (!deveAbrir) return;
+    if (modo === "voluntario") {
+      setResultado(null);
+      setConfirmar(null);
+      setAviso(null);
+      setErro(null);
+      setFezCheckin(false);
+      setHouveBarrado(false);
+      setRefazerAoAbrir(null);
+      setTentativa(null);
+      limparLeitura();
+      vistoNaAbertura.current = null;
+      ultimoIdDaqui.current = null;
+    }
+    setModo("obrigatorio");
+    setAtivo(true);
+  }, [deveAbrir, modo, limparLeitura]);
 
   /** O check-in de hoje que liberou a roleta chegou de fora: verde e fecha. */
   const fecharPorCheckinDeFora = useCallback(
@@ -158,12 +295,90 @@ export function CheckinObrigatorioGlobal() {
   const ocupado = escolha !== null || checkin.isPending;
   const p = resultado?.presenca ?? presenca;
   const aberto = (deveAbrir || ativo) && !!p;
+  // As filiais vêm da leitura da presença (a resposta da RPC não as traz).
+  const filiais = useMemo(() => presenca?.filiais ?? p?.filiais ?? [], [presenca, p]);
+  const nomes = useMemo(() => Object.fromEntries(filiais.map((f) => [f.slug, f.nome])), [filiais]);
+  const lendo = loc.estado.fase === "lendo";
+  // A prévia das distâncias (só com a leitura incluída e as coordenadas lidas).
+  const previa: Previa | null = useMemo(
+    () =>
+      loc.estado.fase === "incluida" && loc.estado.coordenadas
+        ? previaDasFiliais(loc.estado.leitura, filiais, loc.estado.coordenadas)
+        : null,
+    [loc.estado, filiais],
+  );
+
+  // Um pedido de check-in (bloco da barra lateral, faixa do topo).
+  useEffect(() => {
+    if (!pedido || pedidoAtendido.current === pedido.id) return;
+    const destino = destinoDoPedido({
+      vigente: pedidoVigente(pedido, Date.now()),
+      pathname,
+      treinoDecidido: treino.decidido,
+      treinoAberto: treino.aberto,
+      presencaPronta: pendente !== null && !!presenca,
+      dialogoAberto: aberto,
+    });
+    // /presenca e /meu-perfil: o card atende.
+    if (destino === "card") return;
+    if (destino === "esperar") {
+      // Reavalia quando o pedido vencer (se nada mudar antes).
+      const t = setTimeout(
+        () => setTick((n) => n + 1),
+        Math.max(0, pedido.em + VALIDADE_PEDIDO_MS - Date.now()) + 10,
+      );
+      return () => clearTimeout(t);
+    }
+    pedidoAtendido.current = pedido.id;
+    atenderPedidoCheckin(pedido.id);
+    if (destino === "descartar" || !presenca) return;
+    const c = presenca.checkin;
+    // "Incluir localização" com o check-in de hoje já valendo (a gestão
+    // confirmou antes do toque): nada a refazer.
+    if (pedido.acao === "incluir-localizacao" && c && checkinAptoAberto(presenca)) {
+      toast.info(avisoJaNaRoleta(c));
+      return;
+    }
+    setModo(deveAbrir ? "obrigatorio" : "voluntario");
+    vistoNaAbertura.current = c;
+    ultimoIdDaqui.current = null;
+    focoDoPedido.current = {
+      el: typeof document !== "undefined" ? document.activeElement : null,
+      origem: pedido.origem,
+    };
+    if (c && precisaRefazerCheckin(presenca)) {
+      // Barrado: abre explicando (e com a saída certa para o motivo).
+      setResultado({ presenca, falhaLocalizacao: c.falha_localizacao });
+      setHouveBarrado(true);
+      if (
+        pedido.acao === "incluir-localizacao" &&
+        c.motivo === "sem_localizacao" &&
+        c.filial_slug
+      ) {
+        setRefazerAoAbrir({ slug: c.filial_slug, leitura: pedido.leitura });
+      }
+    }
+    setAtivo(true);
+    // Uma leitura por abertura: se algo novo já liberou, a releitura fecha com o verde.
+    void buscarPresencaFresca().catch(() => null);
+  }, [
+    pedido,
+    tick,
+    pathname,
+    treino.decidido,
+    treino.aberto,
+    pendente,
+    presenca,
+    aberto,
+    deveAbrir,
+    buscarPresencaFresca,
+  ]);
 
   // A presença relida mudou enquanto o diálogo está na tela.
   useEffect(() => {
     if (!ativo || ocupado) return;
     const c = presenca?.checkin ?? null;
-    if (!fezCheckin) {
+    if (modo === "obrigatorio" && !fezCheckin) {
       // Só as opções (ou a confirmação) na tela: o check-in de hoje feito em
       // outro lugar fecha — com o verde, se liberou a roleta; senão, a faixa
       // do topo continua avisando.
@@ -172,32 +387,65 @@ export function CheckinObrigatorioGlobal() {
       else fechar();
       return;
     }
-    // Depois de um check-in daqui que não liberou: outro check-in de hoje que
-    // liberou (o celular, a gestão confirmando no plantão, o interruptor).
-    if (c && c.id !== resultado?.presenca.checkin?.id && checkinAptoAberto(presenca)) {
-      fecharPorCheckinDeFora(c);
-    }
-  }, [ativo, ocupado, presenca, pendente, fezCheckin, resultado, fechar, fecharPorCheckinDeFora]);
+    // Depois de um check-in daqui (ou no voluntário, que abre justamente com
+    // o check-in de hoje na tela): só OUTRO check-in de hoje que liberou (o
+    // celular, a gestão confirmando no plantão, o interruptor) fecha.
+    const referencia = ultimoIdDaqui.current ?? vistoNaAbertura.current?.id ?? null;
+    if (c && c.id !== referencia && checkinAptoAberto(presenca)) fecharPorCheckinDeFora(c);
+  }, [ativo, ocupado, presenca, pendente, modo, fezCheckin, fechar, fecharPorCheckinDeFora]);
 
   const escolher = async (
-    modo: "loja" | "casa",
+    modoCheckin: "loja" | "casa",
     filial?: string,
-    { novaLeitura = false }: { novaLeitura?: boolean } = {},
+    opts: OpcoesEscolher = {},
   ) => {
-    setEscolha(filial ?? modo);
+    // O que ele via no toque, antes de qualquer espera.
+    const visto: Visto = opts.visto !== undefined ? opts.visto : (p?.checkin ?? null);
+    setEscolha(filial ?? modoCheckin);
+    setViaLeitura(!!opts.leitura);
     setErro(null);
+    // O GPS sai AGORA, ainda dentro do toque (o navegador mostra o pedido de
+    // permissão), sem leitura incluída que valha. A releitura abaixo espera a
+    // resposta: a gestão que confirma enquanto o GPS lê (até 10 s) é vista e
+    // a leitura é descartada. Sobra só o tempo de rede da RPC.
+    const leituraNoToque = iniciarLeituraDoCheckin({
+      modo: modoCheckin,
+      leitura: opts.leitura,
+      novaLeitura: opts.novaLeitura,
+    });
+    if (leituraNoToque) await leituraNoToque;
     // Antes de qualquer check-in, a presença de agora: se o de hoje já
-    // liberou a roleta (feito no celular, confirmado pela gestão), fecha sem
-    // chamar a RPC — refazer aqui encerraria a confirmação.
+    // liberou a roleta sem ele ver (feito no celular, confirmado pela gestão),
+    // fecha sem chamar a RPC — refazer aqui encerraria a confirmação.
     const fresca = await buscarPresencaFresca().catch(() => null);
-    if (fresca?.checkin && checkinAptoAberto(fresca)) {
-      fecharPorCheckinDeFora(fresca.checkin);
+    const jaVale = jaNaRoletaSemSaber(fresca, visto);
+    if (jaVale) {
+      fecharPorCheckinDeFora(jaVale);
+      return;
+    }
+    // A leitura venceu durante a espera: nada de RPC com posição velha — a
+    // pergunta dessa filial, como antes do "Incluir".
+    if (opts.leitura && !leituraValida(opts.leitura, Date.now())) {
+      const f = filiais.find((x) => x.slug === filial);
+      setEscolha(null);
+      setViaLeitura(false);
+      setAviso(null);
+      if (f) setConfirmar(f);
       return;
     }
     checkin.mutate(
-      { modo, filial, novaLeitura, barradoHoje: houveBarrado },
+      {
+        modo: modoCheckin,
+        filial,
+        novaLeitura: opts.novaLeitura,
+        leitura: opts.leitura,
+        leituraNoToque,
+        previaDentro: opts.previaDentro,
+        barradoHoje: houveBarrado,
+      },
       {
         onSuccess: (r) => {
+          ultimoIdDaqui.current = r.presenca.checkin?.id ?? null;
           if (desfechoCheckin(r.presenca) === "na_roleta") return fechar();
           setFezCheckin(true);
           setResultado(r);
@@ -206,17 +454,89 @@ export function CheckinObrigatorioGlobal() {
         onError: (e) => setErro(mensagemDeErro(e) ?? "sem detalhe do servidor"),
         onSettled: () => {
           setEscolha(null);
+          setViaLeitura(false);
           setConfirmar(null);
+          setAviso(null);
         },
       },
     );
   };
 
-  // Filial: com a exigência ligada, primeiro a confirmação.
-  const tocarOpcao = (modo: "loja" | "casa", slug?: string) => {
-    const f = modo === "loja" ? p?.filiais.find((x) => x.slug === slug) : undefined;
-    if (f && p?.exige_localizacao) return setConfirmar(f);
-    void escolher(modo, slug);
+  /** A prévia disse "dentro" desta filial com a leitura de agora? */
+  const previaDentro = (slug: string) => previa?.porFilial[slug]?.tipo === "dentro";
+
+  /**
+   * O toque numa filial (ou no resgate "Fazer check-in na X"): direto com a
+   * leitura, a pergunta, ou o aviso — sem RPC no aviso.
+   */
+  const tocarFilial = (slug: string) => {
+    const f = filiais.find((x) => x.slug === slug);
+    if (!f || !p) return void escolher("loja", slug);
+    const leitura = loc.leituraValidaAgora();
+    const decisao = decidirToqueFilial({
+      exige: p.exige_localizacao,
+      filial: f,
+      leitura,
+      falhaRecente: loc.falhaRecenteAgora(),
+      previa: leitura ? previa : null,
+    });
+    if (decisao === "direto") {
+      return void escolher("loja", slug, {
+        leitura: leitura ?? undefined,
+        previaDentro: previaDentro(slug),
+      });
+    }
+    if (decisao === "confirmar") {
+      setAviso(null);
+      return setConfirmar(f);
+    }
+    setAviso({ filial: f, variante: decisao === "aviso_fora" ? "fora" : "sem_localizacao" });
+  };
+
+  const tocarOpcao = (modoCheckin: "loja" | "casa", slug?: string) => {
+    if (modoCheckin === "casa") return void escolher("casa");
+    const c = p?.checkin;
+    // Já na roleta NESTA filial (GPS ou a gestão confirmando no plantão):
+    // refazer só arriscaria rebaixar o check-in que vale.
+    if (c && checkinAptoAberto(p) && c.modo === "loja" && c.filial_slug === slug) {
+      toast.info(avisoJaNaRoleta(c));
+      if (modo === "voluntario" && !deveAbrir) fechar();
+      return;
+    }
+    if (slug) tocarFilial(slug);
+  };
+
+  /**
+   * "Incluir localização" do barrado sem localização (e o pedido da faixa ou
+   * do bloco): lê o GPS ANTES; se falhar, não chama a RPC (o barrado não se
+   * repete) e o motivo muda para o da falha nova. Se der, refaz na mesma
+   * filial com essa leitura — já barrado, um barrado novo não custa nada a
+   * mais e dá à gestão a distância nova.
+   */
+  const refazerComLocalizacao = async (slug: string, leituraDoToque?: PedidoCheckin["leitura"]) => {
+    const visto: Visto = p?.checkin ?? null;
+    setEscolha(slug);
+    setErro(null);
+    // A do toque da faixa/bloco, se veio no pedido; senão lê agora (o botão
+    // do próprio barrado chama daqui de dentro do toque).
+    const r = await (leituraDoToque ?? lerLocalizacaoAgora());
+    if (!r.ok) {
+      // Uma tentativa de check-in: conta no diagnóstico de "todo mundo barrado".
+      registrarFalhaLocalizacao(r.falha);
+      setResultado((prev) => prev && { ...prev, falhaLocalizacao: r.falha });
+      const id = visto?.id;
+      if (id) {
+        setTentativa((t) => ({
+          id,
+          n: t && t.id === id ? t.n + 1 : 2,
+          em: Date.now(),
+          falha: r.falha,
+        }));
+      }
+      setEscolha(null);
+      return;
+    }
+    await escolher("loja", slug, { leitura: r.leitura, visto });
   };
 
   const seguirSemCheckin = () => {
@@ -227,11 +547,24 @@ export function CheckinObrigatorioGlobal() {
   const desfecho = resultado ? desfechoCheckin(resultado.presenca) : null;
   const tela: Tela = confirmar
     ? "confirmar"
-    : resultado && desfecho === "barrado"
-      ? "barrado"
-      : resultado && desfecho === "recusado"
-        ? "recusado"
-        : "opcoes";
+    : aviso
+      ? "aviso"
+      : resultado && desfecho === "barrado"
+        ? "barrado"
+        : resultado && desfecho === "recusado"
+          ? "recusado"
+          : "opcoes";
+
+  // O pedido "Incluir localização" abriu no barrado: refaz assim que a tela
+  // estiver de pé (num efeito, para usar a presença e o barrado de agora; a
+  // função nova a cada render é de propósito — o pedido zera na 1ª vez).
+  useEffect(() => {
+    if (refazerAoAbrir && ativo && tela === "barrado" && !ocupado) {
+      const { slug, leitura } = refazerAoAbrir;
+      setRefazerAoAbrir(null);
+      void refazerComLocalizacao(slug, leitura);
+    }
+  }, [refazerAoAbrir, ativo, tela, ocupado, refazerComLocalizacao]);
 
   // O estudo do funil e as metas do dia esperam o diálogo fechar.
   useEffect(() => {
@@ -247,19 +580,55 @@ export function CheckinObrigatorioGlobal() {
 
   if (!aberto || !p) return null;
 
-  const bloqueante = tela !== "recusado";
+  const modoNaTela: ModoDialogo = deveAbrir ? "obrigatorio" : modo;
+  const bloqueante = dialogoBloqueante({ modo, deveAbrir, tela });
+  const temCoordenadas = filiais.some((f) => f.tem_coordenadas);
+  const leituraAgora = loc.leituraValidaAgora();
+  // "Você está na filial X" — noutra filial que não a tocada (ou a barrada),
+  // com a leitura ainda valendo e precisa.
+  const aquiFora = (slug: string | null | undefined) =>
+    leituraAgora && previa?.aqui && previa.aqui !== slug && !previa.aproximada
+      ? { slug: previa.aqui, nome: nomes[previa.aqui] ?? previa.aqui }
+      : null;
+  const textosAviso: TextosAviso | null = aviso
+    ? avisoAntesDoCheckin({
+        variante: aviso.variante,
+        filial: aviso.filial.nome,
+        conferencia: previa?.porFilial[aviso.filial.slug] ?? null,
+        previa,
+        falha: loc.estado.fase === "falhou" ? loc.estado.falha : null,
+        computador,
+        jaBarrado: houveBarrado || precisaRefazerCheckin(p),
+        encerra: encerraDoVisto(p.checkin),
+        aqui: aquiFora(aviso.filial.slug),
+      })
+    : null;
+
+  const linhaTentativa =
+    tentativa && tela === "barrado" && tentativa.id === resultado?.presenca.checkin?.id
+      ? textoNovaTentativa(tentativa.n, tentativa.em, tentativa.falha, computador)
+      : null;
   const anuncio = ocupado
-    ? escolha === "casa"
+    ? escolha === "casa" || viaLeitura
       ? "Registrando o check-in…"
       : "Conferindo a localização…"
-    : resultado && tela === "barrado"
-      ? (motivoDoResultado(resultado, { computador }) ?? "")
-      : resultado && tela === "recusado"
-        ? (motivoDoResultado(resultado) ?? "")
-        : "";
+    : lendo
+      ? "Lendo a localização…"
+      : resultado && tela === "barrado"
+        ? [motivoDoResultado(resultado, { computador }), linhaTentativa].filter(Boolean).join(" ")
+        : resultado && tela === "recusado"
+          ? (motivoDoResultado(resultado) ?? "")
+          : tela === "aviso" && textosAviso
+            ? textosAviso.titulo
+            : tela === "opcoes"
+              ? anuncioDaLeitura(loc.estado, previa, nomes, { computador })
+              : "";
+  const avisoTroca = modoNaTela === "voluntario" ? avisoTrocaDoValido(p.checkin) : null;
+  const barradaSlug = resultado?.presenca.checkin?.filial_slug ?? null;
+  const resgateBarrado = tela === "barrado" ? aquiFora(barradaSlug) : null;
 
   return (
-    <Dialog open onOpenChange={(o) => !o && !bloqueante && fechar()}>
+    <Dialog open onOpenChange={(o) => !o && !bloqueante && !ocupado && fechar()}>
       <DialogContent
         className={cn(
           "max-h-[92vh] max-w-xl overflow-y-auto",
@@ -269,21 +638,62 @@ export function CheckinObrigatorioGlobal() {
           e.preventDefault();
           tituloRef.current?.focus();
         }}
+        onCloseAutoFocus={(e) => {
+          // Aberto por um pedido: o foco volta ao botão tocado (o do bloco no
+          // computador, o da faixa). Se ele saiu da tela (o Sheet do celular
+          // fechou, a faixa sumiu com o check-in), vai ao ☰ (pedido da barra
+          // lateral) ou ao conteúdo — nunca ao body.
+          const antes = focoDoPedido.current;
+          focoDoPedido.current = null;
+          if (!antes) return;
+          e.preventDefault();
+          devolverFoco(antes.el, antes.origem);
+        }}
         onEscapeKeyDown={(e) => bloqueante && e.preventDefault()}
         onPointerDownOutside={(e) => bloqueante && e.preventDefault()}
         onInteractOutside={(e) => bloqueante && e.preventDefault()}
         data-testid="checkin-obrigatorio-dialog"
+        data-modo={modoNaTela}
       >
         {tela === "confirmar" && confirmar ? (
           <ConfirmarNaLoja
             tituloRef={tituloRef}
             filial={confirmar}
+            encerra={fraseEncerra(encerraDoVisto(p.checkin))}
             computador={computador}
             carregando={escolha === confirmar.slug}
             ocupado={ocupado}
-            // Depois de um barrado, a posição é lida na hora (nada da de 1 min atrás).
-            onConfirmar={() => void escolher("loja", confirmar.slug, { novaLeitura: houveBarrado })}
+            // Depois de um barrado, a posição é lida na hora (nada da de 1 min
+            // atrás); sem barrado, vai a leitura do painel, se ainda vale.
+            onConfirmar={() => {
+              const leitura = houveBarrado ? undefined : (loc.leituraValidaAgora() ?? undefined);
+              void escolher("loja", confirmar.slug, {
+                leitura,
+                novaLeitura: houveBarrado,
+                previaDentro: !!leitura && previaDentro(confirmar.slug),
+              });
+            }}
             onVoltar={() => setConfirmar(null)}
+          />
+        ) : tela === "aviso" && aviso && textosAviso ? (
+          <AvisoAntesDoCheckin
+            tituloRef={tituloRef}
+            textos={textosAviso}
+            variante={aviso.variante}
+            filial={aviso.filial}
+            aqui={aquiFora(aviso.filial.slug)}
+            escolha={escolha}
+            ocupado={ocupado}
+            // Pela trava "já na roleta nesta filial": nunca refaz (nem rebaixa)
+            // o check-in que vale lá.
+            onResgate={(slug) => tocarOpcao("loja", slug)}
+            onVoltar={() => setAviso(null)}
+            onIncluir={() => {
+              // Volta às opções e relê; nada de check-in depois.
+              setAviso(null);
+              void loc.incluir();
+            }}
+            onAssimMesmo={() => void escolher("loja", aviso.filial.slug, { novaLeitura: true })}
           />
         ) : tela === "barrado" && resultado ? (
           <Barrado
@@ -293,7 +703,11 @@ export function CheckinObrigatorioGlobal() {
             escolha={escolha}
             ocupado={ocupado}
             erro={erro}
+            resgate={resgateBarrado}
+            tentativa={linhaTentativa}
             onTentarDeNovo={(filial) => void escolher("loja", filial, { novaLeitura: true })}
+            onIncluirLocalizacao={(filial) => void refazerComLocalizacao(filial)}
+            onResgate={(slug) => tocarOpcao("loja", slug)}
             onEmCasa={() => void escolher("casa")}
             onOutraFilial={() => setResultado(null)}
             onContinuar={fechar}
@@ -303,6 +717,7 @@ export function CheckinObrigatorioGlobal() {
             tituloRef={tituloRef}
             resultado={resultado}
             houveBarrado={houveBarrado}
+            voluntario={modoNaTela === "voluntario"}
             onFechar={fechar}
           />
         ) : (
@@ -315,10 +730,37 @@ export function CheckinObrigatorioGlobal() {
               >
                 <Storefront className="h-5 w-5 text-primary" /> Check-in de hoje
               </DialogTitle>
-              <DialogDescription>Para usar o CRM hoje, diga onde você está.</DialogDescription>
+              <DialogDescription>{descricaoDoDialogo(p, modoNaTela)}</DialogDescription>
             </DialogHeader>
+            {avisoTroca && (
+              <p
+                className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
+                data-testid="checkin-aviso-troca"
+              >
+                {avisoTroca}
+              </p>
+            )}
+            {temCoordenadas && (
+              <PainelIncluirLocalizacao
+                estado={loc.estado}
+                previa={previa}
+                nomes={nomes}
+                computador={computador}
+                desabilitado={ocupado}
+                // Uma região só no diálogo: o texto da leitura entra na de baixo.
+                regiaoPropria={false}
+                onIncluir={() => void loc.incluir()}
+                onCancelar={loc.cancelar}
+              />
+            )}
             <div className="space-y-2">
-              <OpcoesCheckin p={p} escolha={escolha} disabled={ocupado} onEscolher={tocarOpcao} />
+              <OpcoesCheckin
+                p={p}
+                previa={previa}
+                escolha={escolha}
+                disabled={ocupado || lendo}
+                onEscolher={tocarOpcao}
+              />
               <p className="text-xs text-muted-foreground">{DICA_FORA_DA_FILIAL}</p>
             </div>
             <RegraDasVendas p={p} />
@@ -326,7 +768,13 @@ export function CheckinObrigatorioGlobal() {
               <MapPinSimpleArea className="mt-0.5 h-4 w-4 shrink-0" />
               {avisoLocalizacao(p.exige_localizacao)}
             </p>
-            {erro && <ErroCheckin erro={erro} onSeguir={seguirSemCheckin} />}
+            {erro && (
+              <ErroCheckin
+                erro={erro}
+                voluntario={modoNaTela === "voluntario"}
+                onSeguir={seguirSemCheckin}
+              />
+            )}
             {/* Voltou do "barrado" para escolher outra filial: a saída continua aqui. */}
             {fezCheckin && !erro && (
               <Button
@@ -337,6 +785,18 @@ export function CheckinObrigatorioGlobal() {
                 onClick={fechar}
               >
                 Continuar fora das roletas
+              </Button>
+            )}
+            {/* Voluntário: uma saída visível (o X do canto é pequeno). */}
+            {modoNaTela === "voluntario" && !fezCheckin && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="justify-self-start text-muted-foreground"
+                disabled={ocupado}
+                onClick={fechar}
+              >
+                Fechar
               </Button>
             )}
           </>
@@ -353,7 +813,8 @@ export function CheckinObrigatorioGlobal() {
           </p>
         )}
         {/* Sempre montada: uma região que já existe e só troca o texto é
-            anunciada; uma que nasce com o texto, muitas vezes não. */}
+            anunciada; uma que nasce com o texto, muitas vezes não. É a ÚNICA
+            do diálogo (a leitura do painel também fala por ela). */}
         <p
           role="status"
           aria-live="polite"
@@ -368,12 +829,36 @@ export function CheckinObrigatorioGlobal() {
   );
 }
 
+/** Foca e diz se o foco ficou mesmo lá (escondido ou fora da tela, não fica). */
+function focar(el: Element | null | undefined): boolean {
+  if (!(el instanceof HTMLElement) || !el.isConnected || el === document.body) return false;
+  el.focus();
+  return document.activeElement === el;
+}
+
+/**
+ * O foco depois do diálogo aberto por um pedido: o botão tocado; se ele saiu
+ * da tela, o ☰ ("Abrir menu", de onde veio o pedido da barra lateral no
+ * celular) e, por fim, o conteúdo principal.
+ */
+function devolverFoco(antes: Element | null, origem: PedidoCheckin["origem"]) {
+  if (focar(antes)) return;
+  if (origem === "lateral" && focar(document.querySelector("[data-gatilho-menu]"))) return;
+  focar(document.getElementById("conteudo-principal"));
+}
+
 type TituloRef = React.RefObject<HTMLHeadingElement | null>;
 
-/** "Você está dentro da loja X agora?" — antes do check-in na filial. */
+/**
+ * "Você está dentro da loja X agora?" — antes do check-in na filial. Com um
+ * check-in valendo (o voluntário, para trocar), diz o que o toque encerra: sem
+ * leitura incluída a troca passa por aqui, não pelo aviso, e o plantão
+ * confirmado pela gestão (ou a liberação) sumiria sem ninguém avisar.
+ */
 function ConfirmarNaLoja({
   tituloRef,
   filial,
+  encerra,
   computador,
   carregando,
   ocupado,
@@ -382,6 +867,8 @@ function ConfirmarNaLoja({
 }: {
   tituloRef: TituloRef;
   filial: FilialOpcao;
+  /** "Isso também encerra…" (fraseEncerra); null sem check-in valendo. */
+  encerra: string | null;
   computador: boolean;
   carregando: boolean;
   ocupado: boolean;
@@ -401,6 +888,7 @@ function ConfirmarNaLoja({
         </DialogTitle>
         <DialogDescription className="text-foreground/90">{pergunta.detalhe}</DialogDescription>
       </DialogHeader>
+      {encerra && <CaixaEncerra texto={encerra} testId="confirmar-checkin-encerra" />}
       {computador && (
         <p className="flex items-start gap-1.5 text-xs text-warning">
           <MapPinSimpleArea className="mt-0.5 h-4 w-4 shrink-0" />
@@ -417,6 +905,68 @@ function ConfirmarNaLoja({
   );
 }
 
+/**
+ * O aviso ANTES do check-in (a prévia diz que barraria): sem RPC. O check-in
+ * só sai pelo link "assim mesmo", que diz o custo e lê a posição de novo.
+ */
+function AvisoAntesDoCheckin({
+  tituloRef,
+  textos,
+  variante,
+  filial,
+  aqui,
+  escolha,
+  ocupado,
+  onResgate,
+  onVoltar,
+  onIncluir,
+  onAssimMesmo,
+}: {
+  tituloRef: TituloRef;
+  textos: TextosAviso;
+  variante: "fora" | "sem_localizacao";
+  filial: FilialOpcao;
+  aqui: { slug: string; nome: string } | null;
+  escolha: string | null;
+  ocupado: boolean;
+  onResgate: (slug: string) => void;
+  onVoltar: () => void;
+  onIncluir: () => void;
+  onAssimMesmo: () => void;
+}) {
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle
+          ref={tituloRef}
+          tabIndex={-1}
+          className="flex items-center gap-2 font-display leading-snug outline-none"
+        >
+          <MapPinSimpleArea className="h-5 w-5 shrink-0 text-warning" /> {textos.titulo}
+        </DialogTitle>
+        <DialogDescription asChild>
+          <div className="space-y-1.5 text-foreground/90" data-testid="aviso-checkin-texto">
+            {textos.orientacao && <p>{textos.orientacao}</p>}
+            <p>{textos.consequencia}</p>
+          </div>
+        </DialogDescription>
+      </DialogHeader>
+      <CorpoAviso textos={textos} />
+      <BotoesAviso
+        variante={variante}
+        filial={filial}
+        aqui={aqui}
+        escolha={escolha}
+        disabled={ocupado}
+        onResgate={() => aqui && onResgate(aqui.slug)}
+        onVoltar={onVoltar}
+        onIncluir={onIncluir}
+        onAssimMesmo={onAssimMesmo}
+      />
+    </>
+  );
+}
+
 /** Filial barrada pela localização: o porquê e as saídas. */
 function Barrado({
   tituloRef,
@@ -425,7 +975,11 @@ function Barrado({
   escolha,
   ocupado,
   erro,
+  resgate,
+  tentativa,
   onTentarDeNovo,
+  onIncluirLocalizacao,
+  onResgate,
   onEmCasa,
   onOutraFilial,
   onContinuar,
@@ -436,13 +990,24 @@ function Barrado({
   escolha: string | null;
   ocupado: boolean;
   erro: string | null;
+  /** A leitura do painel diz que ele está noutra filial (o resgate). */
+  resgate: { slug: string; nome: string } | null;
+  /** "2ª tentativa às 09:42: …" — o "Incluir localização" que falhou de novo. */
+  tentativa: string | null;
   onTentarDeNovo: (filial: string) => void;
+  onIncluirLocalizacao: (filial: string) => void;
+  onResgate: (slug: string) => void;
   onEmCasa: () => void;
   onOutraFilial: () => void;
   onContinuar: () => void;
 }) {
   const c = resultado.presenca.checkin;
   const filial = c?.filial_slug ?? null;
+  const semLocalizacao = c?.motivo === "sem_localizacao";
+  // Sem localização na filial: lê o GPS ANTES de refazer (se falhar, nada é
+  // gravado). Fora do raio: "Tentar de novo", como sempre.
+  const incluir = semLocalizacao && !!filial;
+  const girando = escolha !== null && escolha !== "casa" && escolha !== resgate?.slug;
   const titulo =
     c?.motivo === "sem_localizacao"
       ? computador
@@ -464,6 +1029,11 @@ function Barrado({
         <DialogDescription className="text-foreground/90" data-testid="checkin-barrado-motivo">
           {motivoDoResultado(resultado, { computador })}
         </DialogDescription>
+        {tentativa && (
+          <p className="text-sm font-medium" data-testid="checkin-nova-tentativa">
+            {tentativa}
+          </p>
+        )}
       </DialogHeader>
       <div
         className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
@@ -475,9 +1045,20 @@ function Barrado({
           continuam chegando.
         </p>
         <p className="text-foreground/80">
-          Chegou à loja depois? Refaça o check-in pela faixa no topo do CRM.
+          {semLocalizacao
+            ? "Chegou à loja depois? Inclua a localização pela faixa no topo do CRM ou pelo Check-in da barra lateral."
+            : "Chegou à loja depois? Refaça o check-in pela faixa no topo do CRM ou pelo Check-in da barra lateral."}
         </p>
       </div>
+      {resgate && (
+        <ResgateAqui
+          texto={`Pela localização, você está na filial ${resgate.nome}.`}
+          nome={resgate.nome}
+          carregando={escolha === resgate.slug}
+          disabled={ocupado}
+          onClick={() => onResgate(resgate.slug)}
+        />
+      )}
       {erro && (
         <p role="alert" className="text-sm text-destructive">
           Não foi possível registrar o check-in: {erro}
@@ -502,18 +1083,29 @@ function Barrado({
             )}
             Estou em casa
           </Button>
-          <Button
-            type="button"
-            disabled={ocupado}
-            onClick={() => (filial ? onTentarDeNovo(filial) : onOutraFilial())}
-          >
-            {escolha !== null && escolha !== "casa" ? (
-              <CircleNotch className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowCounterClockwise className="mr-1.5 h-4 w-4" />
-            )}
-            Tentar de novo
-          </Button>
+          {incluir && filial ? (
+            <Button type="button" disabled={ocupado} onClick={() => onIncluirLocalizacao(filial)}>
+              {escolha === filial ? (
+                <CircleNotch className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <MapPinSimpleArea className="mr-1.5 h-4 w-4" />
+              )}
+              Incluir localização
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              disabled={ocupado}
+              onClick={() => (filial ? onTentarDeNovo(filial) : onOutraFilial())}
+            >
+              {girando ? (
+                <CircleNotch className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowCounterClockwise className="mr-1.5 h-4 w-4" />
+              )}
+              Tentar de novo
+            </Button>
+          )}
         </div>
       </DialogFooter>
       <button
@@ -533,11 +1125,14 @@ function Recusado({
   tituloRef,
   resultado,
   houveBarrado,
+  voluntario,
   onFechar,
 }: {
   tituloRef: TituloRef;
   resultado: ResultadoCheckin;
   houveBarrado: boolean;
+  /** No voluntário o CRM nunca esteve preso: nada a "liberar". */
+  voluntario: boolean;
   onFechar: () => void;
 }) {
   const c = resultado.presenca.checkin;
@@ -564,9 +1159,11 @@ function Recusado({
           {AVISO_FORA_DO_REFORCO}
         </p>
       )}
-      <p className="text-sm text-muted-foreground">
-        Você já pode usar o CRM: o check-in de hoje está feito.
-      </p>
+      {!voluntario && (
+        <p className="text-sm text-muted-foreground">
+          Você já pode usar o CRM: o check-in de hoje está feito.
+        </p>
+      )}
       <DialogFooter>
         <Button type="button" onClick={onFechar}>
           Entendi
@@ -576,8 +1173,29 @@ function Recusado({
   );
 }
 
-/** O check-in deu erro técnico: tenta de novo nas opções, ou segue sem ele. */
-function ErroCheckin({ erro, onSeguir }: { erro: string; onSeguir: () => void }) {
+/**
+ * O check-in deu erro técnico: tenta de novo nas opções, ou segue sem ele. No
+ * voluntário, nada a liberar (o CRM não está preso): tente de novo ou feche.
+ */
+function ErroCheckin({
+  erro,
+  voluntario,
+  onSeguir,
+}: {
+  erro: string;
+  voluntario: boolean;
+  onSeguir: () => void;
+}) {
+  if (voluntario) {
+    return (
+      <div
+        role="alert"
+        className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm"
+      >
+        Não foi possível registrar o check-in ({erro}). Tente de novo ou feche esta janela.
+      </div>
+    );
+  }
   return (
     <div
       role="alert"
