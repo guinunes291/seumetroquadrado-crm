@@ -6573,6 +6573,7 @@ export type Database = {
           dia: string
           distancia_m: number | null
           encerrado_em: string | null
+          falha_localizacao: string | null
           filial_id: string | null
           id: string
           localizacao: string | null
@@ -6591,6 +6592,7 @@ export type Database = {
           dia?: string
           distancia_m?: number | null
           encerrado_em?: string | null
+          falha_localizacao?: string | null
           filial_id?: string | null
           id?: string
           localizacao?: string | null
@@ -6609,6 +6611,7 @@ export type Database = {
           dia?: string
           distancia_m?: number | null
           encerrado_em?: string | null
+          falha_localizacao?: string | null
           filial_id?: string | null
           id?: string
           localizacao?: string | null
@@ -10839,6 +10842,7 @@ export type Database = {
         }
         Returns: Json
       }
+      _dono_ativo: { Args: { _corretor: string }; Returns: boolean }
       _dre_calcular_unidade: {
         Args: {
           p_ano: number
@@ -11232,6 +11236,7 @@ export type Database = {
       _prospeccao_zona_pedida: { Args: { _zona: string }; Returns: string }
       _proximo_sdr: { Args: never; Returns: string }
       _reativacao_pode_agir: { Args: { _uid: string }; Returns: boolean }
+      _reatribuir_se_dono_inativo: { Args: { _lead_id: string }; Returns: Json }
       _registrar_estouro_sla: {
         Args: { _corretor: string; _lead: string; _slug: string }
         Returns: undefined
@@ -13912,6 +13917,7 @@ export type Database = {
       presenca_checkin: {
         Args: {
           _corretor_id?: string
+          _falha_localizacao?: string
           _filial?: string
           _latitude?: number
           _longitude?: number
@@ -13929,6 +13935,7 @@ export type Database = {
           corretor_id: string
           distancia_m: number
           encerrado_em: string
+          falha_localizacao: string
           filial_nome: string
           filial_slug: string
           localizacao: string
@@ -13936,6 +13943,7 @@ export type Database = {
           motivo: string
           nome: string
           origem: string
+          precisao_m: number
           presente: boolean
           vendas_mes_anterior: number
           vendas_minimas: number
