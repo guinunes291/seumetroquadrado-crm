@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { supabasePendente } from "@/integrations/supabase/pendentes";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -832,8 +833,18 @@ export function useDistribuirManual() {
 /** Gestor marca presença de outro corretor (capacidade da página antiga). */
 export function useMarcarPresencaAdmin() {
   const invalidate = useInvalidateDistribuicao();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (args: { corretorId: string; presente: boolean }) => {
+      // A gestão não LIGA a si mesma nas roletas (decisão do dono, 13/10/2026):
+      // o interruptor fura a regra da localização de propósito, para os outros;
+      // para si, o gestor que também é corretor faz o check-in como todo
+      // corretor. Desligar a própria presença (encerrar o dia) continua valendo.
+      if (args.presente && user && args.corretorId === user.id) {
+        throw new Error(
+          "a gestão não libera a si mesma: faça o seu check-in pelo Check-in da barra lateral, com a localização do celular",
+        );
+      }
       const { error } = await supabase.rpc("marcar_presenca_admin", {
         _corretor_id: args.corretorId,
         _presente: args.presente,

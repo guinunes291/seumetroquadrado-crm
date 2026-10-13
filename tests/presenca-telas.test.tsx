@@ -7,7 +7,16 @@
 // quadro cujo cabeçalho de filial conta só os válidos (os barrados num selo ao
 // lado) e sinaliza quem foi barrado e trocou para casa.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const estado = vi.hoisted(() => ({
@@ -15,6 +24,7 @@ const estado = vi.hoisted(() => ({
   checkinsDoDia: [] as Record<string, unknown>[],
   filtros: [] as [string, unknown][],
   toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() },
+  isCorretor: true,
 }));
 
 /** Uma consulta encadeável (select/eq/order) que resolve com `linhas`. */
@@ -41,7 +51,7 @@ const FILIAIS_TABELA = [
 vi.mock("sonner", () => ({ toast: estado.toast }));
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: { id: "c1" }, session: null, loading: false }),
-  useUserRoles: () => ({ isCorretor: true, loading: false }),
+  useUserRoles: () => ({ isCorretor: estado.isCorretor, loading: false }),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { rpc: estado.rpc, from: () => consulta(() => estado.checkinsDoDia) },
@@ -54,6 +64,8 @@ vi.mock("@/lib/error-tracking-browser", () => ({ captureClientError: vi.fn() }))
 import { CheckinCard } from "@/features/presenca/checkin-card";
 import { PresencaQuadro } from "@/features/presenca/presenca-quadro";
 import { AVISO_FORA_DO_REFORCO } from "@/features/presenca/presenca-derive";
+import { useCheckinPelaGestao } from "@/features/presenca/presenca-client";
+import { _reiniciarPedidoCheckin } from "@/features/presenca/use-checkin-obrigatorio";
 
 const HOJE = "2026-10-13";
 const FILIAIS = FILIAIS_TABELA.map((f) => ({
@@ -82,6 +94,7 @@ function minha(checkin: Record<string, unknown> | null, over: Record<string, unk
 let atual = minha(null);
 
 beforeEach(() => {
+  estado.isCorretor = true;
   atual = minha(null);
   estado.checkinsDoDia = [];
   estado.filtros = [];
@@ -539,7 +552,10 @@ describe("quadro da gestão", () => {
     const barra = await screen.findByTestId("contagem-filial:barra-funda");
     expect(barra).toHaveTextContent(/^1\s*1 barrado$/);
     expect(screen.getByTestId("contagem-filial:liberdade")).toHaveTextContent(/^0$/);
-    expect(screen.getByText("Barrado: sem localização (permissão negada)")).toBeInTheDocument();
+    const selo = screen.getByText("Barrado: sem localização (permissão negada)");
+    // Quebra linha (~280 px): sem isso, vazava do card e a tela rolava de lado.
+    expect(selo.className).toContain("whitespace-normal");
+    expect(selo.className).not.toContain("whitespace-nowrap");
     // Tile e colunas batem: 1 no plantão, 1 fora da conta.
     expect(screen.getByText("Fora da conta: 1 barrado pela localização")).toBeInTheDocument();
 
@@ -583,5 +599,119 @@ describe("quadro da gestão", () => {
     expect(screen.queryByText("Barrado: a 8,4 km da filial")).toBeNull();
     // Com o GPS preciso, a distância vale.
     expect(screen.getByText("Barrado: a 2,1 km da filial")).toBeInTheDocument();
+  });
+  it("a própria linha (gestor que também é corretor): sem 'Confirmar no plantão', com '(você)' e 'Meu check-in', que leva ao card", async () => {
+    // O usuário do teste é "c1". Antes, "Confirmar no plantão" na própria
+    // linha mandava presenca_checkin sem coordenada com o próprio id: para o
+    // banco, o check-in do próprio corretor — barrado "sem localização".
+    const hoje = [
+      linha({ nome: "Ingrid", corretor_id: "c1" }),
+      linha({ nome: "Rafa", corretor_id: "c2" }),
+    ];
+    estado.rpc.mockImplementation(async (fn: string) =>
+      fn === "presenca_hoje_v1"
+        ? { data: hoje, error: null }
+        : fn === "presenca_minha_v1"
+          ? { data: atual, error: null }
+          : { data: null, error: null },
+    );
+    const rolar = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: rolar,
+    });
+    try {
+      montar(
+        <>
+          <CheckinCard />
+          <PresencaQuadro podeOperar />
+        </>,
+      );
+      await screen.findByText("Onde você está trabalhando hoje?");
+      const ingrid = (await screen.findByText("Ingrid")).closest("div.rounded-md") as HTMLElement;
+      expect(within(ingrid).getByText("(você)")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Ações de presença de Ingrid" })).toBeNull();
+      // Os outros continuam com a confirmação da gestão.
+      expect(screen.getByRole("button", { name: "Ações de presença de Rafa" })).toBeInTheDocument();
+      const rafa = screen.getByText("Rafa").closest("div.rounded-md") as HTMLElement;
+      expect(within(rafa).queryByText("(você)")).toBeNull();
+
+      const meu = within(ingrid).getByRole("button", { name: "Meu check-in" });
+      // Alvo de toque de 44 px no celular (o size sm; 32 px do md para cima).
+      expect(meu.className).toContain("h-11");
+      expect(meu.className).toContain("md:h-8");
+      // O porquê visível (o title não aparece no celular).
+      expect(
+        within(ingrid).getByText("Sem celular na loja? Outro gestor confirma no plantão."),
+      ).toBeInTheDocument();
+      expect(within(rafa).queryByText(/Sem celular na loja/)).toBeNull();
+      fireEvent.click(meu);
+      // O card de check-in atende: rola até ele e foca o título.
+      await waitFor(() => expect(rolar).toHaveBeenCalled());
+      expect(document.activeElement).toHaveTextContent("Check-in de hoje");
+      expect(chamadasCheckin()).toHaveLength(0);
+    } finally {
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+      _reiniciarPedidoCheckin();
+    }
+  });
+
+  it("superintendente (só lê) não ganha 'Meu check-in' nem o menu, nem na própria linha", async () => {
+    const hoje = [
+      linha({ nome: "Ingrid", corretor_id: "c1" }),
+      linha({ nome: "Rafa", corretor_id: "c2" }),
+    ];
+    estado.rpc.mockImplementation(async (fn: string) =>
+      fn === "presenca_hoje_v1" ? { data: hoje, error: null } : { data: null, error: null },
+    );
+    montar(<PresencaQuadro podeOperar={false} />);
+    await screen.findByText("Ingrid");
+    expect(screen.queryByRole("button", { name: "Meu check-in" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Ações de presença/ })).toBeNull();
+  });
+
+  it("useCheckinPelaGestao recusa o próprio id (nenhuma RPC) e confirma o de outro corretor", async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useCheckinPelaGestao(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      ),
+    });
+    act(() => result.current.mutate({ corretorId: "c1", filial: "barra-funda", nome: "Ingrid" }));
+    await waitFor(() =>
+      expect(estado.toast.error).toHaveBeenCalledWith(
+        "Falha no check-in: seu check-in é pelo Check-in de hoje (ou pelo Check-in da barra lateral), com a localização do celular",
+      ),
+    );
+    expect(chamadasCheckin()).toHaveLength(0);
+
+    act(() => result.current.mutate({ corretorId: "c2", filial: "liberdade", nome: "Rafa" }));
+    await waitFor(() => expect(chamadasCheckin()).toHaveLength(1));
+    expect(chamadasCheckin()[0][1]).toMatchObject({
+      _modo: "loja",
+      _filial: "liberdade",
+      _corretor_id: "c2",
+    });
+    await waitFor(() =>
+      expect(estado.toast.success).toHaveBeenCalledWith("Rafa: check-in confirmado pela gestão."),
+    );
+  });
+  it("sem o papel corretor na sessão (papéis ainda velhos), a própria linha fica só com '(você)': sem 'Meu check-in' e sem o menu", async () => {
+    estado.isCorretor = false;
+    const hoje = [
+      linha({ nome: "Ingrid", corretor_id: "c1" }),
+      linha({ nome: "Rafa", corretor_id: "c2" }),
+    ];
+    estado.rpc.mockImplementation(async (fn: string) =>
+      fn === "presenca_hoje_v1" ? { data: hoje, error: null } : { data: null, error: null },
+    );
+    montar(<PresencaQuadro podeOperar />);
+    const ingrid = (await screen.findByText("Ingrid")).closest("div.rounded-md") as HTMLElement;
+    expect(within(ingrid).getByText("(você)")).toBeInTheDocument();
+    expect(within(ingrid).queryByRole("button")).toBeNull();
+    expect(screen.getByRole("button", { name: "Ações de presença de Rafa" })).toBeInTheDocument();
   });
 });

@@ -12,6 +12,7 @@
 // zonas de uma filial o banco recusa ("a região é por filial").
 
 import { useMemo, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { Check, UserMinus } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
   const mapaQ = useZonasRoletas();
   const presenca = useMarcarPresencaAdmin();
   const atualizar = useAtualizarCorretorDistribuicao();
+  const { user } = useAuth();
 
   const linhas = corretoresQ.data ?? [];
   const filiais = useMemo(() => agruparFiliais(mapaQ.data ?? []), [mapaQ.data]);
@@ -131,11 +133,24 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
                           <div className="flex items-center gap-2">
                             <Switch
                               checked={c.presente}
-                              disabled={somenteLeitura || presenca.isPending}
+                              // A própria linha: a gestão não liga a si mesma
+                              // (decisão do dono, 13/10/2026) — só desliga.
+                              disabled={
+                                somenteLeitura ||
+                                presenca.isPending ||
+                                (c.id === user?.id && !c.presente)
+                              }
                               onCheckedChange={(v) =>
                                 presenca.mutate({ corretorId: c.id, presente: v })
                               }
                               aria-label={`Presença de ${c.nome}`}
+                              aria-describedby={
+                                // A mesma condição do aviso abaixo (só fora da
+                                // leitura): nunca apontar para um id ausente.
+                                c.id === user?.id && !c.presente && !somenteLeitura
+                                  ? `presenca-propria-${c.id}`
+                                  : undefined
+                              }
                             />
                             {c.presente ? (
                               <StatusBadge intent="success">Presente</StatusBadge>
@@ -143,6 +158,15 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
                               <StatusBadge intent="neutral">Ausente</StatusBadge>
                             )}
                           </div>
+                          {c.id === user?.id && !c.presente && !somenteLeitura && (
+                            <p
+                              id={`presenca-propria-${c.id}`}
+                              className="mt-1 max-w-[16rem] text-xs text-muted-foreground"
+                            >
+                              Você: o seu check-in é pelo Check-in da barra lateral, com a
+                              localização do celular.
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           {somenteLeitura ? (

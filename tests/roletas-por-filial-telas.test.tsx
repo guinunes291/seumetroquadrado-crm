@@ -71,6 +71,12 @@ const estado = vi.hoisted(() => ({
   corretores: vi.fn(),
   mapa: vi.fn(),
   atualizar: vi.fn(),
+  presenca: vi.fn(),
+}));
+
+// O usuário logado é "eu" (a própria linha do interruptor de presença).
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: { id: "eu" }, session: null, loading: false }),
 }));
 
 vi.mock("@/features/distribuicao/queries", () => ({
@@ -80,7 +86,7 @@ vi.mock("@/features/distribuicao/queries", () => ({
     useQuery({ queryKey: ["roletas-por-corretor"], queryFn: async () => new Map() }),
   useWipCorretores: () => useQuery({ queryKey: ["wip"], queryFn: async () => null }),
   useZonasRoletas: () => useQuery({ queryKey: ["mapa"], queryFn: () => estado.mapa() }),
-  useMarcarPresencaAdmin: () => ({ mutate: vi.fn(), isPending: false }),
+  useMarcarPresencaAdmin: () => ({ mutate: estado.presenca, isPending: false }),
   useAtualizarCorretorDistribuicao: () => ({ mutate: estado.atualizar, isPending: false }),
 }));
 
@@ -331,5 +337,63 @@ describe("aba Corretores: a região por filial", () => {
     expect(within(linhaAna as HTMLElement).getByText("Sul")).toBeTruthy();
     const linhaBia = screen.getByText("Bia Reis").closest("tr") as HTMLElement;
     expect(within(linhaBia).getByText("Sem região")).toBeTruthy();
+  });
+});
+
+describe("aba Corretores: o interruptor de presença na própria linha", () => {
+  const corretor = (id: string, nome: string, presente: boolean) => ({
+    id,
+    nome,
+    ativo: true,
+    presente,
+    telefone: "11999990000",
+    zonas: [],
+    v2: null,
+  });
+
+  it("a gestão não se liga nas roletas (decisão do dono, 13/10/2026): a própria linha ausente fica travada, com o porquê; a dos outros, não", async () => {
+    estado.corretores.mockResolvedValue([
+      corretor("eu", "Ingrid Queiroz", false),
+      corretor("rafa", "Rafa Lima", false),
+    ]);
+    estado.mapa.mockResolvedValue(MAPA);
+    montar(<TabCorretores somenteLeitura={false} />);
+
+    const propria = await screen.findByRole("switch", { name: "Presença de Ingrid Queiroz" });
+    expect(propria).toBeDisabled();
+    const porque = screen.getByText(
+      "Você: o seu check-in é pelo Check-in da barra lateral, com a localização do celular.",
+    );
+    expect(propria).toHaveAttribute("aria-describedby", porque.id);
+    fireEvent.click(propria);
+    expect(estado.presenca).not.toHaveBeenCalled();
+
+    const outro = screen.getByRole("switch", { name: "Presença de Rafa Lima" });
+    expect(outro).toBeEnabled();
+    fireEvent.click(outro);
+    expect(estado.presenca).toHaveBeenCalledWith({ corretorId: "rafa", presente: true });
+  });
+
+  it("presente, a própria linha pode se DESLIGAR (encerrar o dia) — sem o aviso", async () => {
+    estado.corretores.mockResolvedValue([corretor("eu", "Ingrid Queiroz", true)]);
+    estado.mapa.mockResolvedValue(MAPA);
+    montar(<TabCorretores somenteLeitura={false} />);
+
+    const propria = await screen.findByRole("switch", { name: "Presença de Ingrid Queiroz" });
+    expect(propria).toBeEnabled();
+    expect(screen.queryByText(/Você: o seu check-in é pelo Check-in da barra lateral/)).toBeNull();
+    fireEvent.click(propria);
+    expect(estado.presenca).toHaveBeenCalledWith({ corretorId: "eu", presente: false });
+  });
+
+  it("em leitura (gestor que não é admin), a própria linha ausente fica travada sem apontar para um aviso que não existe", async () => {
+    estado.corretores.mockResolvedValue([corretor("eu", "Ingrid Queiroz", false)]);
+    estado.mapa.mockResolvedValue(MAPA);
+    montar(<TabCorretores somenteLeitura />);
+
+    const propria = await screen.findByRole("switch", { name: "Presença de Ingrid Queiroz" });
+    expect(propria).toBeDisabled();
+    expect(propria).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/Você: o seu check-in é pelo Check-in da barra lateral/)).toBeNull();
   });
 });

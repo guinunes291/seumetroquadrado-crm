@@ -4,6 +4,7 @@
 // remover/limite) via RPC gerenciar_participante_roleta.
 
 import { useMemo, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -69,6 +70,7 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  acaoPresencaDaGestao,
   agruparFiliais,
   descricaoRoletaFilial,
   motivoInaptidaoLabel,
@@ -184,6 +186,7 @@ function RoletaTabPadrao({
   const mapaQ = useZonasRoletas();
   const gerenciar = useGerenciarParticipante();
   const presencaAdmin = useMarcarPresencaAdmin();
+  const { user } = useAuth();
   const escoar = useEscoarEstoque(slug);
 
   const [incluirAberto, setIncluirAberto] = useState(false);
@@ -455,26 +458,32 @@ function RoletaTabPadrao({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {ehPlantao && !escopoEquipe && (
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      presencaAdmin.mutate({
-                                        corretorId: l.corretor_id,
-                                        presente: !l.presente,
-                                      })
-                                    }
-                                  >
-                                    {l.presente ? (
-                                      <>
-                                        <UserMinus className="mr-2 h-4 w-4" /> Marcar ausente
-                                      </>
-                                    ) : (
-                                      <>
-                                        <UserCheck className="mr-2 h-4 w-4" /> Marcar presente hoje
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                )}
+                                {ehPlantao &&
+                                  !escopoEquipe &&
+                                  // A gestão não se marca presente (decisão do
+                                  // dono, 13/10/2026); marcar-se ausente vale.
+                                  acaoPresencaDaGestao(l, user?.id) !== null && (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        presencaAdmin.mutate({
+                                          corretorId: l.corretor_id,
+                                          presente:
+                                            acaoPresencaDaGestao(l, user?.id) === "marcar_presente",
+                                        })
+                                      }
+                                    >
+                                      {acaoPresencaDaGestao(l, user?.id) === "marcar_ausente" ? (
+                                        <>
+                                          <UserMinus className="mr-2 h-4 w-4" /> Marcar ausente
+                                        </>
+                                      ) : (
+                                        <>
+                                          <UserCheck className="mr-2 h-4 w-4" /> Marcar presente
+                                          hoje
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                  )}
                                 {l.participante_ativo && !l.pausado && (
                                   <DropdownMenuItem onClick={() => setPausarAlvo(l)}>
                                     <PauseCircle className="mr-2 h-4 w-4" /> Pausar temporariamente

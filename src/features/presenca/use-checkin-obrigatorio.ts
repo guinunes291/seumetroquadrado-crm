@@ -168,10 +168,13 @@ export function useCheckinObrigatorioPendente(): boolean | null {
 // montar), e vence em 15 s (um pedido esquecido não abre nada horas depois).
 // ---------------------------------------------------------------------------
 
+/** Quem pediu: o bloco da barra lateral, a faixa do topo ou a própria linha no quadro da gestão. */
+export type OrigemPedidoCheckin = "lateral" | "faixa" | "quadro";
+
 export type PedidoCheckin = {
   id: number;
   acao: AcaoPedidoCheckin;
-  origem: "lateral" | "faixa";
+  origem: OrigemPedidoCheckin;
   em: number;
   /**
    * "Incluir localização": a leitura do GPS que já saiu NO TOQUE da faixa ou
@@ -201,7 +204,7 @@ function avisarPedido() {
 /** O bloco da barra lateral e a faixa pedem; quem atende é o diálogo ou o card. */
 export function pedirCheckin(p: {
   acao: AcaoPedidoCheckin;
-  origem: "lateral" | "faixa";
+  origem: OrigemPedidoCheckin;
   leitura?: PedidoCheckin["leitura"];
 }): void {
   ultimoPedidoId += 1;
@@ -220,7 +223,7 @@ export function pedirCheckin(p: {
  */
 export function pedirCheckinNoToque(
   acao: AcaoPedidoCheckin,
-  origem: "lateral" | "faixa",
+  origem: OrigemPedidoCheckin,
   pathname: string,
 ): void {
   const ler = acao === "incluir-localizacao" && !telaComCardCheckin(pathname);
