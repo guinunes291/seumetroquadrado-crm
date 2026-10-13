@@ -259,11 +259,14 @@ export function useCheckin({
   const qc = useQueryClient();
   const { user } = useAuth();
   const invalidar = useInvalidarPresenca();
-  return useMutation({
-    mutationFn: async (args: ArgsCheckin): Promise<ResultadoCheckin> => {
+  const m = useMutation({
+    mutationFn: async (
+      args: ArgsCheckin & { _leitura?: Promise<LeituraLocalizacao> },
+    ): Promise<ResultadoCheckin> => {
       const leitura =
         args.modo === "loja"
-          ? await obterLocalizacao(undefined, args.novaLeitura ? { maximumAge: 0 } : undefined)
+          ? await (args._leitura ??
+              obterLocalizacao(undefined, args.novaLeitura ? { maximumAge: 0 } : undefined))
           : null;
       const geo = leitura?.ok ? leitura : null;
       const falha = leitura && !leitura.ok ? leitura.falha : null;
@@ -299,6 +302,22 @@ export function useCheckin({
       if (avisarErro) toast.error(`Não foi possível fazer o check-in: ${e.message}`);
     },
   });
+  // O pedido de localização sai NO TOQUE do botão (antes de qualquer espera):
+  // assim o navegador mostra o aviso "Permitir localização" em vez de bloquear.
+  const comLeitura = (args: ArgsCheckin) =>
+    args.modo === "loja"
+      ? {
+          ...args,
+          _leitura: obterLocalizacao(undefined, args.novaLeitura ? { maximumAge: 0 } : undefined),
+        }
+      : args;
+  return {
+    ...m,
+    mutate: (args: ArgsCheckin, opts?: Parameters<typeof m.mutate>[1]) =>
+      m.mutate(comLeitura(args), opts),
+    mutateAsync: (args: ArgsCheckin, opts?: Parameters<typeof m.mutateAsync>[1]) =>
+      m.mutateAsync(comLeitura(args), opts),
+  };
 }
 
 /** "Sair": encerra a presença e tira da roleta (marcar_presenca(false)). */
