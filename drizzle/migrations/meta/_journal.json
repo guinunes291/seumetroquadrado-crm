@@ -582,6 +582,13 @@
       "when": 1792594800000,
       "tag": "0082_presenca_exigida_fallback_velocidade",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1792681200000,
+      "tag": "0083_link_agendamento_cliente",
+      "breakpoints": true
     }
   ]
 }
