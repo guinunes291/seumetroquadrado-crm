@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Roleta Marquinhos automática — os 6 corretores com mais vendas em 30 dias
 -- =============================================================================
--- Pedido do dono (13/10/2026), junto com as roletas simples (0083): a Roleta
+-- Pedido do dono (13/10/2026), junto com as roletas simples (0084): a Roleta
 -- Marquinhos continua "dentro da filial" (lead do bot com zona vai primeiro a
 -- quem da Marquinhos atende a zona; sem ninguém, a filial da zona) e "somente
 -- corretores com conversão recebem". Decisões na revisão:
@@ -33,13 +33,13 @@
 -- (marquinhos_regra_desde). Remoção feita antes, no critério antigo, não
 -- bloqueia. As ações da regra vão com feito_por NULL.
 --
--- Idempotente. Espelhada em drizzle/migrations/0084. Exige a 0083.
+-- Idempotente. Espelhada em drizzle/migrations/0085. Exige a 0084.
 -- =============================================================================
 
 DO $$
 BEGIN
   IF to_regclass('public.rodizio_sem_zona') IS NULL THEN
-    RAISE EXCEPTION 'marquinhos automática: aplique antes a 0083 (20261022120000_roletas_simples)';
+    RAISE EXCEPTION 'marquinhos automática: aplique antes a 0084 (20261023120000_roletas_simples)';
   END IF;
 END
 $$;
@@ -391,7 +391,7 @@ BEGIN
     RAISE EXCEPTION 'roleta % inexistente', _slug;
   END IF;
 
-  -- [MARQUINHOS AUTOMÁTICA] (0084)
+  -- [MARQUINHOS AUTOMÁTICA] (0085)
   _regra := _slug = 'marquinhos'
             AND COALESCE((public.get_dist_setting('marquinhos_regra_ativa') #>> '{}')::boolean, false);
   IF _regra AND _acao IN ('incluir', 'remover', 'reativar') THEN

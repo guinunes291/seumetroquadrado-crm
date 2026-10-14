@@ -25,7 +25,7 @@
 --      travaria o lead quente).
 --   5. A cota diária padrão (limite_diario_default) sobe de 10 para 20: o
 --      lead sem zona deixa de ter cota própria no Plantão/Landing.
---   (A Roleta Marquinhos automática — top 6 em vendas — é a 0084.)
+--   (A Roleta Marquinhos automática — top 6 em vendas — é a 0085.)
 --
 -- Revisão técnica (13/10) — o que cada bloco [ROLETAS SIMPLES] conserta:
 --   * cursor do rodízio com clock_timestamp(): o cron entrega até 200 leads
@@ -41,7 +41,7 @@
 -- O bloco 2 não muda comportamento sozinho (os dados ainda apontam para o
 -- Plantão); a virada é o bloco 3. Exige a 0082 aplicada.
 --
--- Idempotente. Espelhada em drizzle/migrations/0083.
+-- Idempotente. Espelhada em drizzle/migrations/0084.
 -- =============================================================================
 
 DO $$
@@ -237,7 +237,7 @@ DECLARE
   _vez_fora_ids uuid[] := ARRAY[]::uuid[];
   _vez_fora jsonb := '[]'::jsonb;
   _vez_forcada boolean := false;
-  -- [ROLETAS SIMPLES] (0083) _sem_zona_rodizio: o lead sem zona entrou no
+  -- [ROLETAS SIMPLES] (0084) _sem_zona_rodizio: o lead sem zona entrou no
   -- rodízio entre as filiais (grava o cursor de rodizio_sem_zona ao
   -- entregar). _marquinhos_sem_zona: lead do bot sem zona na Marquinhos
   -- inteira (sem apto, volta para o rodízio). _origem_cfg: a roleta da origem
@@ -280,7 +280,7 @@ BEGIN
   _tentaram := COALESCE(_lead.corretores_que_tentaram, ARRAY[]::uuid[]);
   _zona := public.zona_do_lead(_lead_id);
   _classe := COALESCE(_lead.classe_lead, 'quente');
-  -- [ROLETAS SIMPLES] (0083) Pedido de roleta DESLIGADA (Plantão, Landing e
+  -- [ROLETAS SIMPLES] (0084) Pedido de roleta DESLIGADA (Plantão, Landing e
   -- Base desde 13/10, as zona-*, filial ou campanha desligada) vale como se
   -- não houvesse pedido, em todo caminho — generaliza o "pino antigo" da
   -- 0079. O pedido fica no contexto como roleta_pedida. Uma exceção resolvida
@@ -343,7 +343,7 @@ BEGIN
   -- não, e por cima de slug explícito (token de zona, pino antigo, roleta
   -- escolhida na exceção, campanha delegada), que fica registrado como
   -- roleta_pedida. Sem ninguém da zona apto, o lead espera — nunca troca de
-  -- zona. Lead SEM zona: [ROLETAS SIMPLES] (0083) slug explícito (o pino de
+  -- zona. Lead SEM zona: [ROLETAS SIMPLES] (0084) slug explícito (o pino de
   -- filial só se ela estiver pronta para este lead); a origem do mapa (hoje
   -- só a Marquinhos), se pronta; senão o RODÍZIO ENTRE AS FILIAIS.
   -- [MARQUINHOS] Exceção: lead do Marquinhos com zona tenta antes quem da
@@ -1023,7 +1023,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- [ROLETAS SIMPLES] (0083) A equipe é montada ANTES da trava do cursor
+  -- [ROLETAS SIMPLES] (0084) A equipe é montada ANTES da trava do cursor
   -- (roleta_swrr:). Sem ninguém apto, o lead vai para o motor (filial da
   -- zona, ou o rodízio entre filiais) sem segurar a trava da campanha: a
   -- campanha travava a si e depois a filial, enquanto o lote do cron trava a
@@ -1215,7 +1215,7 @@ BEGIN
       _lead_id, 'redistribuicao', NULL, NULL, NULL, _gatilho, _ctx);
   END IF;
 
-  -- [ROLETAS SIMPLES] (0083) A equipe é montada ANTES da trava do cursor,
+  -- [ROLETAS SIMPLES] (0084) A equipe é montada ANTES da trava do cursor,
   -- como em distribuir_lead_ponderado: sem ninguém apto, o lead vai para o
   -- motor sem segurar a trava da campanha (ordem de travas oposta à do cron).
   CREATE TEMP TABLE IF NOT EXISTS _rlc_elegiveis (
@@ -1419,7 +1419,7 @@ AS $$
        AND dl.created_at >= j.ini AND dl.created_at < j.fim
        AND dl.resultado = 'sucesso'
        AND dl.roleta_slug IS NOT NULL
-       -- [ROLETAS SIMPLES] (0083) O estoque não é "movimento" da filial.
+       -- [ROLETAS SIMPLES] (0084) O estoque não é "movimento" da filial.
        AND dl.regra_aplicada IS DISTINCT FROM 'estoque_filial'
      GROUP BY 1
   ),
@@ -1554,7 +1554,7 @@ AS $$
       ON dl.corretor_id = b.corretor_id
      AND dl.resultado = 'sucesso'
      AND (dl.roleta_slug = _slug OR dl.roleta_slug IS NULL)
-     -- [ROLETAS SIMPLES] (0083) O estoque entregue pelas filiais (lote por
+     -- [ROLETAS SIMPLES] (0084) O estoque entregue pelas filiais (lote por
      -- vaga na carteira) não conta na cota do dia: um lote de 30 esgotava a
      -- cota da filial e travava o lead quente do corretor.
      AND dl.regra_aplicada IS DISTINCT FROM 'estoque_filial'
@@ -1988,7 +1988,7 @@ BEGIN
      AND e.motivo IN ('sem_corretor_na_zona', 'zona_sem_time',
                       'sem_corretor_elegivel', 'sem_corretor_ativo')
      AND e.tentativas > 0
-     -- [ROLETAS SIMPLES] (0083) sem zona = rodízio entre as filiais.
+     -- [ROLETAS SIMPLES] (0084) sem zona = rodízio entre as filiais.
      AND (public.zona_do_lead(e.lead_id) IS NULL
           OR public.zona_do_lead(e.lead_id) = ANY (_regiao));
   GET DIAGNOSTICS _n = ROW_COUNT;
@@ -2134,7 +2134,7 @@ BEGIN
      AND NOT EXISTS (SELECT 1 FROM public.roletas WHERE slug = _roleta_slug) THEN
     RAISE EXCEPTION 'roleta % inexistente', _roleta_slug;
   END IF;
-  -- [ROLETAS SIMPLES] (0083) Só existem quatro roletas: a origem vai para a
+  -- [ROLETAS SIMPLES] (0084) Só existem quatro roletas: a origem vai para a
   -- Marquinhos ou para as filiais (NULL). Campanha entra pelo token dela.
   IF _roleta_slug IS NOT NULL AND _roleta_slug <> 'marquinhos' AND NOT _limpar_roleta THEN
     RAISE EXCEPTION USING
@@ -2203,7 +2203,7 @@ BEGIN
     RAISE EXCEPTION 'projeto inexistente';
   END IF;
 
-  -- [ROLETAS SIMPLES] (0083) _equipe_fixa e _filial_slug ficam na assinatura
+  -- [ROLETAS SIMPLES] (0084) _equipe_fixa e _filial_slug ficam na assinatura
   -- só pela tela antiga: a campanha é sempre da equipe, de qualquer filial.
 
   -- Mesma regra de slug que vivia no cliente, agora no servidor (sem
@@ -2288,7 +2288,7 @@ BEGIN
      AND (_antes ->> 'tipo') IS DISTINCT FROM 'campanha' THEN
     RAISE EXCEPTION 'equipe_fixa/projeto/filial valem apenas para roletas de campanha';
   END IF;
-  -- [ROLETAS SIMPLES] (0083) Plantão, Landing e Base saíram em 13/10/2026:
+  -- [ROLETAS SIMPLES] (0084) Plantão, Landing e Base saíram em 13/10/2026:
   -- religar só pelo script de rollback (docs/ops/roletas-simples.md).
   IF _ativo IS TRUE AND _slug IN ('plantao', 'landing', 'base') THEN
     RAISE EXCEPTION USING
@@ -2335,7 +2335,7 @@ $$;
 
 -- #############################################################################
 -- BLOCO 3/4 — a virada (dados + cron). Cada linha mexida ganha um registro em
--- audit_log com valores_novos->>'_migracao' = '0083': é a fonte do rollback
+-- audit_log com valores_novos->>'_migracao' = '0084': é a fonte do rollback
 -- (docs/ops/roletas-simples.md §Rollback).
 -- #############################################################################
 
@@ -2353,7 +2353,7 @@ upd AS (
   RETURNING r.id, to_jsonb(r) AS depois
 )
 INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
-SELECT 'roletas', u.id, 'UPDATE', NULL, a.j, u.depois || jsonb_build_object('_migracao', '0083')
+SELECT 'roletas', u.id, 'UPDATE', NULL, a.j, u.depois || jsonb_build_object('_migracao', '0084')
   FROM upd u JOIN antes a ON a.id = u.id;
 
 -- 3b) Plantão, Landing e Base desligadas — nunca apagadas (participações,
@@ -2373,7 +2373,7 @@ upd AS (
   RETURNING r.id, to_jsonb(r) AS depois
 )
 INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
-SELECT 'roletas', u.id, 'UPDATE', NULL, a.j, u.depois || jsonb_build_object('_migracao', '0083')
+SELECT 'roletas', u.id, 'UPDATE', NULL, a.j, u.depois || jsonb_build_object('_migracao', '0084')
   FROM upd u JOIN antes a ON a.id = u.id;
 
 -- 3c) Origem → roleta: só a Marquinhos (chatbot) sobra; o resto vai para as
@@ -2392,7 +2392,7 @@ upd AS (
 )
 INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
 SELECT 'distribuicao_config', gen_random_uuid(), 'UPDATE', NULL, a.j,
-       u.depois || jsonb_build_object('_migracao', '0083')
+       u.depois || jsonb_build_object('_migracao', '0084')
   FROM upd u JOIN antes a ON a.origem = u.origem;
 
 -- 3d) Cota diária padrão: 10 → 20 (decisão 5). Só se ainda estiver no
@@ -2411,7 +2411,7 @@ upd AS (
 )
 INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
 SELECT 'distribuicao_settings', gen_random_uuid(), 'UPDATE', NULL, a.j,
-       u.depois || jsonb_build_object('_migracao', '0083')
+       u.depois || jsonb_build_object('_migracao', '0084')
   FROM upd u JOIN antes a ON a.chave = u.chave;
 
 -- 3e) O cron do estoque: sai o do Plantão, entra o das filiais.

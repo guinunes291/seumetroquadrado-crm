@@ -1,5 +1,5 @@
 /**
- * O estoque pelas FILIAIS (roletas simples, 20261022120000 / drizzle 0083).
+ * O estoque pelas FILIAIS (roletas simples, 20261023120000 / drizzle 0084).
  *
  * Decisão do dono (13/10/2026): sem o Plantão, o cron que entregava o
  * estoque aos aptos do Plantão passa a entregar pelas filiais, sempre por

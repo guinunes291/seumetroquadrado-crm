@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarPlus } from "@phosphor-icons/react";
+import { CalendarPlus, LinkSimple } from "@phosphor-icons/react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUserRoles } from "@/hooks/use-auth";
 import { AgendaPage, NovoAgendamentoDialog } from "@/features/agenda/agenda-page";
+import { LinkAgendamentoDialog } from "@/features/agenda/link-agendamento-dialog";
 import { TarefasPage } from "@/features/agenda/tarefas-page";
 
 type CompromissosTab = "agenda" | "tarefas";
@@ -30,8 +32,9 @@ export const Route = createFileRoute("/_authenticated/agendamentos")({
 // Padrão Lançamento (2026-10): um título só por tela, o da aba aberta
 // ("Agenda" — o mesmo rótulo da sidebar — ou "Tarefas"), e no celular ele vem
 // ANTES da linha de abas. Por isso o cabeçalho mora aqui no hub e não dentro
-// de cada aba. "Novo agendamento" é a única ação do cabeçalho da Agenda; a
-// das Tarefas é a linha de criar, dentro da aba.
+// de cada aba. "Novo agendamento" é a ação principal do cabeçalho da Agenda;
+// "Meu link" (secundária, só para corretor) é o link de agendamento que ele
+// manda ao cliente. A das Tarefas é a linha de criar, dentro da aba.
 function CompromissosPage() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -39,6 +42,7 @@ function CompromissosPage() {
   const onTabChange = (v: string) =>
     navigate({ search: { tab: v === "tarefas" ? "tarefas" : undefined } });
   const [novoAgendamento, setNovoAgendamento] = useState(false);
+  const { isCorretor } = useUserRoles();
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange}>
@@ -47,11 +51,20 @@ function CompromissosPage() {
           title="Agenda"
           description="Suas visitas e compromissos, e o que falta confirmar."
           actions={
-            <NovoAgendamentoDialog open={novoAgendamento} onOpenChange={setNovoAgendamento}>
-              <Button>
-                <CalendarPlus className="mr-1 h-4 w-4" /> Novo agendamento
-              </Button>
-            </NovoAgendamentoDialog>
+            <>
+              {isCorretor && (
+                <LinkAgendamentoDialog>
+                  <Button variant="outline">
+                    <LinkSimple className="mr-1 h-4 w-4" /> Meu link
+                  </Button>
+                </LinkAgendamentoDialog>
+              )}
+              <NovoAgendamentoDialog open={novoAgendamento} onOpenChange={setNovoAgendamento}>
+                <Button>
+                  <CalendarPlus className="mr-1 h-4 w-4" /> Novo agendamento
+                </Button>
+              </NovoAgendamentoDialog>
+            </>
           }
         />
       ) : (

@@ -210,7 +210,7 @@ export async function limparDados(c: Client): Promise<void> {
   // vez da Leste num arquivo dependeria dos leads entregues pelos anteriores.
   await c.query(`UPDATE public.zonas_roletas SET ultimo_lead_em = NULL`);
   // Idem o rodízio do lead SEM zona entre as filiais (roletas simples,
-  // 20261022120000).
+  // 20261023120000).
   await c.query(`UPDATE public.rodizio_sem_zona SET ultimo_lead_em = NULL`);
   // A exigência de localização no check-in da filial está LIGADA em produção
   // desde 12/10/2026 (decisão do dono; 20261019120000 a registra, e o replay
@@ -223,7 +223,7 @@ export async function limparDados(c: Client): Promise<void> {
     `UPDATE public.distribuicao_settings SET valor = 'false'::jsonb
       WHERE chave = 'presenca_loja_exige_localizacao' AND valor IS DISTINCT FROM 'false'::jsonb`,
   );
-  // A Roleta Marquinhos automática (top em vendas, 20261023120000) está
+  // A Roleta Marquinhos automática (top em vendas, 20261024120000) está
   // LIGADA em produção. Os testes de roteamento do bot montam o time da
   // Marquinhos à mão (o assunto deles é o motor, não a composição): com a
   // regra ligada, incluir pela RPC só "devolveria à regra" e ninguém sem

@@ -420,8 +420,13 @@ function LeadsPage() {
     saveViews(user.id, next);
   };
 
+  // Chave por usuário + nunca guardar lista vazia: uma busca feita antes da
+  // sessão hidratar (RLS → []) deixava a coluna Corretor em "—" e a
+  // transferência sem destinos até recarregar (2026-10-14).
   const { data: corretores } = useQuery({
-    queryKey: ["corretores-min"],
+    queryKey: ["corretores-min", user?.id],
+    enabled: !!user?.id,
+    retry: 3,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
@@ -429,7 +434,8 @@ function LeadsPage() {
         .eq("ativo", true)
         .order("nome");
       if (error) throw error;
-      return data ?? [];
+      if (!data || data.length === 0) throw new Error("Lista de corretores vazia");
+      return data;
     },
   });
 

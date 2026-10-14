@@ -29,14 +29,14 @@ export interface ResumoDistribuicao {
   distribuidos_hoje: number;
   aguardando_distribuicao: number;
   excecoes_pendentes: number;
-  /** Roletas simples (0083): pessoas aptas em alguma filial (uma vez cada). */
+  /** Roletas simples (0084): pessoas aptas em alguma filial (uma vez cada). */
   aptos_filiais?: number;
   aptos_por_filial?: Record<string, number>;
   /** O time ativo e sem pausa dos Agendados do SDR (o apto depende da visita). */
   time_sdr?: number;
   /** A filial da vez para o próximo lead sem zona. */
   sem_zona_da_vez?: string | null;
-  /** Banco anterior à 0083 (a 0083 as devolve com o número das filiais). */
+  /** Banco anterior à 0084 (a 0084 as devolve com o número das filiais). */
   aptos_plantao: number;
   aptos_marquinhos: number;
   aptos_landing: number;
@@ -430,8 +430,8 @@ export function useParticipacoesQuadro(enabled = true) {
   });
 }
 
-/** O ranking da Roleta Marquinhos automática (top em vendas, 0084). Banco
- *  sem a 0084: null — a tela mostra a participação manual, como antes. */
+/** O ranking da Roleta Marquinhos automática (top em vendas, 0085). Banco
+ *  sem a 0085: null — a tela mostra a participação manual, como antes. */
 export function useMarquinhosRanking(enabled = true) {
   return useQuery({
     queryKey: ["distribuicao:marquinhos-ranking"],
@@ -942,7 +942,7 @@ export function useRodarDistribuicao() {
   });
 }
 
-/** O estoque pelas FILIAIS (0083): um lote por corretor apto em qualquer
+/** O estoque pelas FILIAIS (0084): um lote por corretor apto em qualquer
  *  filial, por vaga na carteira, fora da cota do dia. A rotina automática faz
  *  isso a cada 10 minutos. */
 export function useEscoarEstoqueFiliais() {

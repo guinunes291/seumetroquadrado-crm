@@ -9,7 +9,7 @@
  *
  * Elenco: Ana (Sul) e Bia (Sul) na campanha `jardim-bf`; Ana e Caio (Leste)
  * na campanha `equipe-guilherme`. Todos presentes. Desde as roletas simples
- * (20261022120000) toda campanha é de equipe fixa (a `jardim-bf`, que era
+ * (20261023120000) toda campanha é de equipe fixa (a `jardim-bf`, que era
  * comum, também) e o lead sem zona sem ninguém livre na equipe vai para o
  * rodízio entre as filiais.
  * Desde as roletas por filial (20261018120000) o time da zona é a filial:

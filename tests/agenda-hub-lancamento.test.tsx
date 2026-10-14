@@ -1,7 +1,8 @@
 // O hub /agendamentos no padrão Lançamento: um título só — o da aba aberta
 // ("Agenda", o rótulo da sidebar, ou "Tarefas") — e, no celular, a linha de
-// abas Agenda/Tarefas vem DEPOIS do título. "Novo agendamento" é a única ação
-// do cabeçalho da Agenda. E o card do dia do hub /inicio (AgendaDoDiaCard)
+// abas Agenda/Tarefas vem DEPOIS do título. "Novo agendamento" é a ação
+// principal do cabeçalho da Agenda; o corretor vê também "Meu link" (o link de
+// agendamento para o cliente). E o card do dia do hub /inicio (AgendaDoDiaCard)
 // também liga pelo useLigarLead (decisão do dono, 12/10/2026).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -11,6 +12,7 @@ const busca = vi.hoisted(() => ({ tab: undefined as "tarefas" | undefined }));
 const navegar = vi.hoisted(() => vi.fn());
 const ligar = vi.hoisted(() => vi.fn());
 const dia = vi.hoisted(() => ({ itens: [] as unknown[], agora: new Date() }));
+const papeis = vi.hoisted(() => ({ isCorretor: false }));
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
@@ -26,13 +28,21 @@ vi.mock("@/features/agenda/agenda-page", () => ({
   AgendaPage: () => <div data-testid="aba-agenda">grade</div>,
   NovoAgendamentoDialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+vi.mock("@/features/agenda/link-agendamento-dialog", () => ({
+  LinkAgendamentoDialog: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock("@/features/agenda/tarefas-page", () => ({
   TarefasPage: () => <div data-testid="aba-tarefas">lista</div>,
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: { id: "u1" } }),
-  useUserRoles: () => ({ isAdmin: false, isGestor: false, isSuperintendente: false }),
+  useUserRoles: () => ({
+    isAdmin: false,
+    isGestor: false,
+    isSuperintendente: false,
+    isCorretor: papeis.isCorretor,
+  }),
 }));
 vi.mock("@/hooks/use-ligar-lead", () => ({ useLigarLead: () => ({ ligar, discando: false }) }));
 vi.mock("@/features/agenda/use-agenda-do-dia", async () => {
@@ -65,6 +75,7 @@ const segue = (a: Element, b: Element) =>
 
 beforeEach(() => {
   busca.tab = undefined;
+  papeis.isCorretor = false;
   navegar.mockClear();
   ligar.mockClear();
 });
@@ -87,6 +98,15 @@ describe("Hub Agenda & Tarefas", () => {
     // "Modo Visita" saiu do cabeçalho (é link do cartão do dia).
     expect(screen.queryByText("Modo Visita")).toBeNull();
     expect(screen.getByTestId("aba-agenda")).toBeTruthy();
+  });
+
+  it("corretor: 'Meu link' (link de agendamento) antes do 'Novo agendamento'", () => {
+    papeis.isCorretor = true;
+    render(<Hub />);
+    const botoes = screen
+      .getAllByRole("button")
+      .filter((b) => !b.getAttribute("role")?.includes("tab"));
+    expect(botoes.map((b) => b.textContent?.trim())).toEqual(["Meu link", "Novo agendamento"]);
   });
 
   it("Tarefas: título 'Tarefas' antes das abas e sem ação no cabeçalho", () => {

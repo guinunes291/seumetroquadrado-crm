@@ -1,6 +1,6 @@
 /**
  * Roleta Marquinhos automática — os 6 corretores com mais vendas em 30 dias
- * (migration 20261023120000, drizzle 0084).
+ * (migration 20261024120000, drizzle 0085).
  *
  * Decisões do dono (13/10/2026): o time da Marquinhos é automático; conta a
  * QUANTIDADE de vendas assinadas (pendente ou aprovada, sem distrato) nos

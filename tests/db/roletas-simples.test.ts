@@ -1,6 +1,6 @@
 /**
  * Roletas simples — só quatro: Campanha (Facebook Ads), Filial, SDR e
- * Marquinhos (migration 20261022120000, drizzle 0083).
+ * Marquinhos (migration 20261023120000, drizzle 0084).
  *
  * Decisões do dono (13/10/2026): Plantão, Landing e Base saem (desligadas,
  * nunca apagadas); o lead SEM zona entra no rodízio entre as filiais; a
@@ -273,7 +273,7 @@ describe("a virada", () => {
       await c.query(
         `SELECT valores_antigos->'valor' AS antes, valores_novos->'valor' AS depois
            FROM public.audit_log
-          WHERE tabela = 'distribuicao_settings' AND valores_novos->>'_migracao' = '0083'
+          WHERE tabela = 'distribuicao_settings' AND valores_novos->>'_migracao' = '0084'
             AND valores_novos->>'chave' = 'limite_diario_default'`,
       )
     ).rows;
@@ -282,7 +282,7 @@ describe("a virada", () => {
       await c.query(
         `SELECT valores_antigos->>'ativo' AS antes, valores_novos->>'ativo' AS depois
            FROM public.audit_log
-          WHERE tabela = 'roletas' AND valores_novos->>'_migracao' = '0083'
+          WHERE tabela = 'roletas' AND valores_novos->>'_migracao' = '0084'
             AND valores_novos->>'slug' = 'plantao'`,
       )
     ).rows;

@@ -138,7 +138,7 @@ describe("as telas (contratos no fonte)", () => {
     }
   });
 
-  it("as RPCs novas pela fronteira de compatibilidade (banco sem a 0083/0084 não quebra a tela)", () => {
+  it("as RPCs novas pela fronteira de compatibilidade (banco sem a 0084/0085 não quebra a tela)", () => {
     const q = read("src/features/distribuicao/queries.ts");
     expect(q).toContain('rpc("distribuir_estoque_filiais"');
     expect(q).toContain('rpc("marquinhos_ranking_v1"');

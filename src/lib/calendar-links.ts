@@ -10,6 +10,12 @@ export type CalendarEventInput = {
   fim?: string | Date | null;
   descricao?: string | null;
   local?: string | null;
+  /**
+   * Lembretes do .ics, em minutos ANTES do início (ex.: [1440, 300] = 1 dia e
+   * 5 horas antes). Viram blocos VALARM, que Apple Calendar/Outlook respeitam.
+   * O link do Google não aceita lembretes — lá vale o padrão da agenda do usuário.
+   */
+  lembretesMinutos?: readonly number[];
 };
 
 const HOUR_MS = 3_600_000;
@@ -20,7 +26,10 @@ function toDate(v: string | Date): Date {
 
 /** Formata para o padrão de data do Google/ICS em UTC: YYYYMMDDTHHmmssZ. */
 function toCalendarUtc(d: Date): string {
-  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  return d
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
 }
 
 function eventRange(ev: CalendarEventInput): { start: Date; end: Date } {
@@ -44,12 +53,63 @@ export function buildGoogleCalendarUrl(ev: CalendarEventInput): string {
 
 /** Escapa texto para propriedades ICS (RFC 5545). */
 function icsEscape(v: string): string {
-  return v.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  return v
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
+}
+
+/** Duração ICS negativa (antes do início): 1440 → -P1D, 300 → -PT5H, 90 → -PT1H30M. */
+export function icsTriggerAntes(minutos: number): string {
+  const total = Math.max(0, Math.round(minutos));
+  const dias = Math.floor(total / 1440);
+  const horas = Math.floor((total % 1440) / 60);
+  const mins = total % 60;
+  const parteDias = dias ? `${dias}D` : "";
+  if (horas === 0 && mins === 0) return dias ? `-P${parteDias}` : "-PT0M";
+  return `-P${parteDias}T${horas ? `${horas}H` : ""}${mins ? `${mins}M` : ""}`;
+}
+
+function valarm(minutos: number, titulo: string): string[] {
+  return [
+    "BEGIN:VALARM",
+    "ACTION:DISPLAY",
+    `DESCRIPTION:${icsEscape(titulo)}`,
+    `TRIGGER:${icsTriggerAntes(minutos)}`,
+    "END:VALARM",
+  ];
+}
+
+/**
+ * Dobra linhas com mais de 75 octetos (RFC 5545 §3.1): continuação começa com
+ * espaço. Descrições longas sem dobra quebram em alguns leitores (Outlook).
+ */
+function foldIcsLine(line: string): string {
+  const encoder = new TextEncoder();
+  if (encoder.encode(line).length <= 75) return line;
+  const parts: string[] = [];
+  let atual = "";
+  let tamanho = 0;
+  for (const ch of line) {
+    const n = encoder.encode(ch).length;
+    const limite = parts.length === 0 ? 75 : 74; // a continuação já gasta 1 octeto no espaço
+    if (tamanho + n > limite) {
+      parts.push(atual);
+      atual = "";
+      tamanho = 0;
+    }
+    atual += ch;
+    tamanho += n;
+  }
+  parts.push(atual);
+  return parts.join("\r\n ");
 }
 
 /** Conteúdo de um arquivo .ics com o evento (Apple Calendar, Outlook…). */
 export function buildIcsContent(ev: CalendarEventInput, uid?: string): string {
   const { start, end } = eventRange(ev);
+  const lembretes = [...new Set(ev.lembretesMinutos ?? [])].filter((m) => m > 0);
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -62,10 +122,11 @@ export function buildIcsContent(ev: CalendarEventInput, uid?: string): string {
     `SUMMARY:${icsEscape(ev.titulo)}`,
     ...(ev.descricao ? [`DESCRIPTION:${icsEscape(ev.descricao)}`] : []),
     ...(ev.local ? [`LOCATION:${icsEscape(ev.local)}`] : []),
+    ...lembretes.sort((a, b) => b - a).flatMap((m) => valarm(m, ev.titulo)),
     "END:VEVENT",
     "END:VCALENDAR",
   ];
-  return lines.join("\r\n");
+  return lines.map(foldIcsLine).join("\r\n");
 }
 
 function hashCode(s: string): number {
