@@ -72,6 +72,7 @@ import { Route as AuthenticatedSimuladoresRouteImport } from './routes/_authenti
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
+import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as ApiBookPdfRouteImport } from './routes/api/book-pdf'
 import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
 import { Route as ApiLojasPlanilhaRouteImport } from './routes/api/lojas-planilha'
@@ -90,6 +91,8 @@ import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
+import { Route as ApiPublicAgendamentoRouteImport } from './routes/api/public/agendamento'
+import { Route as ApiPublicAgendamentoIcsRouteImport } from './routes/api/public/agendamento-ics'
 import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
@@ -457,6 +460,11 @@ const AuthenticatedVitrineRoute = AuthenticatedVitrineRouteImport.update({
   path: '/vitrine',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AgendarSlugRoute = AgendarSlugRouteImport.update({
+  id: '/agendar/$slug',
+  path: '/agendar/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBookPdfRoute = ApiBookPdfRouteImport.update({
   id: '/api/book-pdf',
   path: '/api/book-pdf',
@@ -558,6 +566,16 @@ const AuthenticatedProjetosProjetoIdRoute =
     path: '/projetos/$projetoId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicAgendamentoRoute = ApiPublicAgendamentoRouteImport.update({
+  id: '/api/public/agendamento',
+  path: '/api/public/agendamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAgendamentoIcsRoute = ApiPublicAgendamentoIcsRouteImport.update({
+  id: '/api/public/agendamento-ics',
+  path: '/api/public/agendamento-ics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicDocumentosRoute = ApiPublicDocumentosRouteImport.update({
   id: '/api/public/documentos',
   path: '/api/public/documentos',
@@ -818,6 +836,7 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
+  '/agendar/$slug': typeof AgendarSlugRoute
   '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
@@ -831,6 +850,8 @@ export interface FileRoutesByFullPath {
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/agendamento': typeof ApiPublicAgendamentoRoute
+  '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
@@ -936,6 +957,7 @@ export interface FileRoutesByTo {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
+  '/agendar/$slug': typeof AgendarSlugRoute
   '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
@@ -949,6 +971,8 @@ export interface FileRoutesByTo {
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/agendamento': typeof ApiPublicAgendamentoRoute
+  '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
@@ -1056,6 +1080,7 @@ export interface FileRoutesById {
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
+  '/agendar/$slug': typeof AgendarSlugRoute
   '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
@@ -1069,6 +1094,8 @@ export interface FileRoutesById {
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/agendamento': typeof ApiPublicAgendamentoRoute
+  '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
@@ -1176,6 +1203,7 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/vitrine'
+    | '/agendar/$slug'
     | '/api/book-pdf'
     | '/api/documentacao'
     | '/api/lojas-planilha'
@@ -1189,6 +1217,8 @@ export interface FileRouteTypes {
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
+    | '/api/public/agendamento'
+    | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
@@ -1294,6 +1324,7 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/vitrine'
+    | '/agendar/$slug'
     | '/api/book-pdf'
     | '/api/documentacao'
     | '/api/lojas-planilha'
@@ -1307,6 +1338,8 @@ export interface FileRouteTypes {
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
+    | '/api/public/agendamento'
+    | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
@@ -1413,6 +1446,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tarefas'
     | '/_authenticated/templates'
     | '/_authenticated/vitrine'
+    | '/agendar/$slug'
     | '/api/book-pdf'
     | '/api/documentacao'
     | '/api/lojas-planilha'
@@ -1426,6 +1460,8 @@ export interface FileRouteTypes {
     | '/_authenticated/oferta-ativa/$ofertaId'
     | '/_authenticated/oferta-ativa/nova'
     | '/_authenticated/projetos/$projetoId'
+    | '/api/public/agendamento'
+    | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
@@ -1478,6 +1514,7 @@ export interface RootRouteChildren {
   VitrinePublicaRoute: typeof VitrinePublicaRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  AgendarSlugRoute: typeof AgendarSlugRoute
   ApiBookPdfRoute: typeof ApiBookPdfRoute
   ApiDocumentacaoRoute: typeof ApiDocumentacaoRoute
   ApiLojasPlanilhaRoute: typeof ApiLojasPlanilhaRoute
@@ -1485,6 +1522,8 @@ export interface RootRouteChildren {
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicAgendamentoRoute: typeof ApiPublicAgendamentoRoute
+  ApiPublicAgendamentoIcsRoute: typeof ApiPublicAgendamentoIcsRoute
   ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
@@ -1954,6 +1993,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVitrineRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/agendar/$slug': {
+      id: '/agendar/$slug'
+      path: '/agendar/$slug'
+      fullPath: '/agendar/$slug'
+      preLoaderRoute: typeof AgendarSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/book-pdf': {
       id: '/api/book-pdf'
       path: '/api/book-pdf'
@@ -2079,6 +2125,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/projetos/$projetoId'
       preLoaderRoute: typeof AuthenticatedProjetosProjetoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/agendamento': {
+      id: '/api/public/agendamento'
+      path: '/api/public/agendamento'
+      fullPath: '/api/public/agendamento'
+      preLoaderRoute: typeof ApiPublicAgendamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/agendamento-ics': {
+      id: '/api/public/agendamento-ics'
+      path: '/api/public/agendamento-ics'
+      fullPath: '/api/public/agendamento-ics'
+      preLoaderRoute: typeof ApiPublicAgendamentoIcsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/documentos': {
       id: '/api/public/documentos'
@@ -2528,6 +2588,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  AgendarSlugRoute: AgendarSlugRoute,
   ApiBookPdfRoute: ApiBookPdfRoute,
   ApiDocumentacaoRoute: ApiDocumentacaoRoute,
   ApiLojasPlanilhaRoute: ApiLojasPlanilhaRoute,
@@ -2535,6 +2596,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicAgendamentoRoute: ApiPublicAgendamentoRoute,
+  ApiPublicAgendamentoIcsRoute: ApiPublicAgendamentoIcsRoute,
   ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
