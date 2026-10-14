@@ -11612,21 +11612,6 @@ export type Database = {
         }
         Returns: string
       }
-      agendar_pelo_link: {
-        Args: {
-          _comprovante_hash: string
-          _cpf: string
-          _data: string
-          _email: string
-          _endereco: string
-          _horario: string
-          _idempotency_key: string
-          _nome: string
-          _slug: string
-          _telefone: string
-        }
-        Returns: Json
-      }
       agendar_visita_sdr: {
         Args: {
           _data_fim?: string
@@ -12347,10 +12332,6 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
-      consumir_agendamento_link_requisicao: {
-        Args: { _slug: string }
-        Returns: string
-      }
       consumir_vitrine_requisicao: {
         Args: { _token_hash: string }
         Returns: string
@@ -12622,7 +12603,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      desativar_meu_agendamento_link: { Args: never; Returns: boolean }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -13084,7 +13064,6 @@ export type Database = {
         Args: { _venda_id: string }
         Returns: undefined
       }
-      gerar_novo_agendamento_link: { Args: never; Returns: Json }
       gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_pushes_lembretes_visita: { Args: never; Returns: undefined }
       gerenciar_participante_roleta: {
@@ -13814,7 +13793,6 @@ export type Database = {
         Args: { _fim: string; _inicio: string }
         Returns: Json
       }
-      meu_agendamento_link: { Args: never; Returns: Json }
       meu_followup_tentativas: {
         Args: { _meses?: number }
         Returns: {
@@ -13835,14 +13813,6 @@ export type Database = {
       }
       nav_pendencias: { Args: never; Returns: Json }
       normalize_phone_smq: { Args: { _raw: string }; Returns: string }
-      obter_agendamento_comprovante: {
-        Args: { _comprovante_hash: string }
-        Returns: Json
-      }
-      obter_agendamento_link_publico: {
-        Args: { _slug: string }
-        Returns: Json
-      }
       obter_vitrine_publica: {
         Args: { _token_hash: string }
         Returns: {
@@ -14281,16 +14251,6 @@ export type Database = {
         }[]
       }
       roletas_filas_zona_v1: { Args: { _zona?: string }; Returns: Json }
-      salvar_meu_agendamento_link: {
-        Args: {
-          _dias_semana: number[]
-          _duracao_minutos: number
-          _endereco: string
-          _hora_fim: string
-          _hora_inicio: string
-        }
-        Returns: Json
-      }
       salvar_modo_visita: {
         Args: {
           p_agendamento_id: string
