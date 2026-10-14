@@ -232,9 +232,16 @@ export function KanbanBoard({
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
+    retry: 3,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("id, nome").eq("ativo", true);
-      return data ?? [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Lista de corretores vazia");
+      return data;
     },
   });
   const corretoresMap = useMemo(() => {
