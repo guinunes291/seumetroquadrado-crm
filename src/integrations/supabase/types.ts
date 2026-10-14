@@ -7994,6 +7994,32 @@ export type Database = {
           },
         ]
       }
+      rodizio_sem_zona: {
+        Row: {
+          created_at: string
+          roleta_slug: string
+          ultimo_lead_em: string | null
+        }
+        Insert: {
+          created_at?: string
+          roleta_slug: string
+          ultimo_lead_em?: string | null
+        }
+        Update: {
+          created_at?: string
+          roleta_slug?: string
+          ultimo_lead_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rodizio_sem_zona_roleta_slug_fkey"
+            columns: ["roleta_slug"]
+            isOneToOne: true
+            referencedRelation: "roletas"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       roleta_participantes: {
         Row: {
           agendamentos_janela: number
@@ -10967,6 +10993,10 @@ export type Database = {
         Args: { _lat1: number; _lat2: number; _lng1: number; _lng2: number }
         Returns: number
       }
+      _distribuir_estoque_roleta_legado: {
+        Args: { _limite?: number; _roleta: string }
+        Returns: Json
+      }
       _distribuir_lead_sdr: {
         Args: {
           _fim?: string
@@ -11489,6 +11519,18 @@ export type Database = {
       _roleta_tem_time: { Args: { _slug: string }; Returns: boolean }
       _roletas_da_zona: {
         Args: { _zona: string }
+        Returns: {
+          da_vez: boolean
+          filial_nome: string
+          filial_slug: string
+          nome: string
+          ordem: number
+          pronta: boolean
+          roleta_slug: string
+        }[]
+      }
+      _roletas_sem_zona: {
+        Args: { _tentaram?: string[] }
         Returns: {
           da_vez: boolean
           filial_nome: string
@@ -12844,6 +12886,10 @@ export type Database = {
       disparar_repasse_sla_lead: {
         Args: { _lead_id: string }
         Returns: boolean
+      }
+      distribuir_estoque_filiais: {
+        Args: { _limite?: number; _roletas?: string[] }
+        Returns: Json
       }
       distribuir_estoque_roleta: {
         Args: { _limite?: number; _roleta?: string }
@@ -14425,6 +14471,7 @@ export type Database = {
           visitas: number
         }[]
       }
+      roleta_sem_zona_da_vez: { Args: never; Returns: string }
       roletas_filas_zona_v1: { Args: { _zona?: string }; Returns: Json }
       salvar_meu_agendamento_link: {
         Args: {
