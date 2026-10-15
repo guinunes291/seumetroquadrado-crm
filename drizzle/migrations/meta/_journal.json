@@ -593,8 +593,15 @@
     {
       "idx": 84,
       "version": "7",
+      "when": 1792024332712,
+      "tag": "0084_importar_leads_csv_lote",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
       "when": 1792767600000,
-      "tag": "0084_link_agendamento_por_local",
+      "tag": "0085_link_agendamento_por_local",
       "breakpoints": true
     }
   ]

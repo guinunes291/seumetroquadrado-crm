@@ -37,6 +37,7 @@ import { Route as AuthenticatedFilaRouteImport } from './routes/_authenticated/f
 import { Route as AuthenticatedFollowUpRouteImport } from './routes/_authenticated/follow-up'
 import { Route as AuthenticatedHigieneFunilRouteImport } from './routes/_authenticated/higiene-funil'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
+import { Route as AuthenticatedImportarLeadsRouteImport } from './routes/_authenticated/importar-leads'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInteligenciaRouteImport } from './routes/_authenticated/inteligencia'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
@@ -277,6 +278,12 @@ const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   path: '/hoje',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedImportarLeadsRoute =
+  AuthenticatedImportarLeadsRouteImport.update({
+    id: '/importar-leads',
+    path: '/importar-leads',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInicioRoute = AuthenticatedInicioRouteImport.update({
   id: '/inicio',
   path: '/inicio',
@@ -801,6 +808,7 @@ export interface FileRoutesByFullPath {
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/importar-leads': typeof AuthenticatedImportarLeadsRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
@@ -922,6 +930,7 @@ export interface FileRoutesByTo {
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/importar-leads': typeof AuthenticatedImportarLeadsRoute
   '/inicio': typeof AuthenticatedInicioRoute
   '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
@@ -1045,6 +1054,7 @@ export interface FileRoutesById {
   '/_authenticated/follow-up': typeof AuthenticatedFollowUpRoute
   '/_authenticated/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
+  '/_authenticated/importar-leads': typeof AuthenticatedImportarLeadsRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
@@ -1168,6 +1178,7 @@ export interface FileRouteTypes {
     | '/follow-up'
     | '/higiene-funil'
     | '/hoje'
+    | '/importar-leads'
     | '/inicio'
     | '/inteligencia'
     | '/kanban'
@@ -1289,6 +1300,7 @@ export interface FileRouteTypes {
     | '/follow-up'
     | '/higiene-funil'
     | '/hoje'
+    | '/importar-leads'
     | '/inicio'
     | '/inteligencia'
     | '/kanban'
@@ -1411,6 +1423,7 @@ export interface FileRouteTypes {
     | '/_authenticated/follow-up'
     | '/_authenticated/higiene-funil'
     | '/_authenticated/hoje'
+    | '/_authenticated/importar-leads'
     | '/_authenticated/inicio'
     | '/_authenticated/inteligencia'
     | '/_authenticated/kanban'
@@ -1746,6 +1759,13 @@ declare module '@tanstack/react-router' {
       path: '/hoje'
       fullPath: '/hoje'
       preLoaderRoute: typeof AuthenticatedHojeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/importar-leads': {
+      id: '/_authenticated/importar-leads'
+      path: '/importar-leads'
+      fullPath: '/importar-leads'
+      preLoaderRoute: typeof AuthenticatedImportarLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inicio': {
@@ -2416,6 +2436,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFollowUpRoute: typeof AuthenticatedFollowUpRoute
   AuthenticatedHigieneFunilRoute: typeof AuthenticatedHigieneFunilRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
+  AuthenticatedImportarLeadsRoute: typeof AuthenticatedImportarLeadsRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInteligenciaRoute: typeof AuthenticatedInteligenciaRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
@@ -2493,6 +2514,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFollowUpRoute: AuthenticatedFollowUpRoute,
   AuthenticatedHigieneFunilRoute: AuthenticatedHigieneFunilRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
+  AuthenticatedImportarLeadsRoute: AuthenticatedImportarLeadsRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInteligenciaRoute: AuthenticatedInteligenciaRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
