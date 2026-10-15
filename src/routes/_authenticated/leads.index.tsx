@@ -97,12 +97,14 @@ import {
   Trash,
   UploadSimple,
   UserPlus,
+  FolderSimpleUser,
   Warning,
   WhatsappLogo,
 } from "@phosphor-icons/react";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
+import { LinkDocumentosDialog } from "@/features/documentacao/link-documentos-dialog";
 import { KanbanBoard } from "@/components/leads-kanban-board";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail, normalizeSearch, onlyDigits } from "@/lib/validators";
@@ -999,6 +1001,15 @@ function LeadsPage() {
                 </Button>
                 <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} />
               </>
+            )}
+            {/* Link fixo de documentação: o cliente se cadastra, cai na carteira
+                em Em atendimento e manda os documentos pelo celular. */}
+            {isCorretor && (
+              <LinkDocumentosDialog>
+                <Button size="sm" variant="outline">
+                  <FolderSimpleUser className="h-4 w-4 mr-1" /> Link de documentos
+                </Button>
+              </LinkDocumentosDialog>
             )}
             <Button size="sm" onClick={abrirNovoLead}>
               <UserPlus className="h-4 w-4 mr-1" /> Novo lead

@@ -17,6 +17,7 @@ import {
 import {
   ArrowSquareOut,
   Buildings,
+  FolderSimpleUser,
   CircleNotch,
   FileText,
   ListChecks,
@@ -26,6 +27,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { SamiMark } from "@/components/ui/sami-mark";
+import { PastaClienteCard } from "@/features/documentacao/pasta-cliente-card";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
@@ -257,6 +259,8 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      <PastaClienteCard leadId={leadId} lead={lead} />
 
       {docsFalharam ? (
         <Card>
@@ -570,6 +574,15 @@ function DocRow({
               <WhatsappLogo className="h-3 w-3 mr-1" /> WhatsApp
             </Badge>
           )}
+          {doc.origem === "link_cliente" && (
+            <Badge
+              variant="outline"
+              className="shrink-0 border-primary/60 text-primary"
+              title="Enviado pelo próprio cliente no link da pasta"
+            >
+              <FolderSimpleUser className="h-3 w-3 mr-1" /> Pelo cliente
+            </Badge>
+          )}
           {doc.classificado_por === "ia" && (
             <Badge
               variant="outline"
@@ -585,30 +598,33 @@ function DocRow({
           )}
         </div>
         <div className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
-          {onCorrigirTipo && (doc.classificado_por === "ia" || doc.tipo === "nao_classificado") && (
-            <Select onValueChange={onCorrigirTipo}>
-              <SelectTrigger className="min-h-11 w-[150px]" title="Corrigir tipo">
-                <SelectValue placeholder="Corrigir tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  "documento_identidade",
-                  "cpf",
-                  "comprovante_residencia",
-                  "comprovante_estado_civil",
-                  "carteira_trabalho",
-                  "holerites",
-                  "extrato_bancario_6m",
-                  "decore",
-                  "outro",
-                ].map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {docLabel(t)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {onCorrigirTipo &&
+            (doc.classificado_por === "ia" ||
+              doc.tipo === "nao_classificado" ||
+              (doc.origem === "link_cliente" && doc.tipo === "outro")) && (
+              <Select onValueChange={onCorrigirTipo}>
+                <SelectTrigger className="min-h-11 w-[150px]" title="Corrigir tipo">
+                  <SelectValue placeholder="Corrigir tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    "documento_identidade",
+                    "cpf",
+                    "comprovante_residencia",
+                    "comprovante_estado_civil",
+                    "carteira_trabalho",
+                    "holerites",
+                    "extrato_bancario_6m",
+                    "decore",
+                    "outro",
+                  ].map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {docLabel(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           <Select value={doc.status} onValueChange={(v) => onStatus(v as DocStatus)}>
             <SelectTrigger className="min-h-11 w-[130px]">
               <SelectValue />

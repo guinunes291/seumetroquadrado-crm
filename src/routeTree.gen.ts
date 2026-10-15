@@ -79,6 +79,8 @@ import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
 import { Route as ApiLojasPlanilhaRouteImport } from './routes/api/lojas-planilha'
 import { Route as ApiMercadoPlanilhaRouteImport } from './routes/api/mercado-planilha'
 import { Route as ApiVitrineLinksRouteImport } from './routes/api/vitrine-links'
+import { Route as DocumentosSlugRouteImport } from './routes/documentos.$slug'
+import { Route as PastaTokenRouteImport } from './routes/pasta.$token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAcademiaIndexRouteImport } from './routes/_authenticated/academia/index'
@@ -94,6 +96,8 @@ import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
 import { Route as ApiPublicAgendamentoRouteImport } from './routes/api/public/agendamento'
 import { Route as ApiPublicAgendamentoIcsRouteImport } from './routes/api/public/agendamento-ics'
+import { Route as ApiPublicDocumentacaoRouteImport } from './routes/api/public/documentacao'
+import { Route as ApiPublicDocumentacaoArquivoRouteImport } from './routes/api/public/documentacao-arquivo'
 import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
@@ -497,6 +501,16 @@ const ApiVitrineLinksRoute = ApiVitrineLinksRouteImport.update({
   path: '/api/vitrine-links',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocumentosSlugRoute = DocumentosSlugRouteImport.update({
+  id: '/documentos/$slug',
+  path: '/documentos/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PastaTokenRoute = PastaTokenRouteImport.update({
+  id: '/pasta/$token',
+  path: '/pasta/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -583,6 +597,17 @@ const ApiPublicAgendamentoIcsRoute = ApiPublicAgendamentoIcsRouteImport.update({
   path: '/api/public/agendamento-ics',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicDocumentacaoRoute = ApiPublicDocumentacaoRouteImport.update({
+  id: '/api/public/documentacao',
+  path: '/api/public/documentacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicDocumentacaoArquivoRoute =
+  ApiPublicDocumentacaoArquivoRouteImport.update({
+    id: '/api/public/documentacao-arquivo',
+    path: '/api/public/documentacao-arquivo',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicDocumentosRoute = ApiPublicDocumentosRouteImport.update({
   id: '/api/public/documentos',
   path: '/api/public/documentos',
@@ -850,6 +875,8 @@ export interface FileRoutesByFullPath {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/documentos/$slug': typeof DocumentosSlugRoute
+  '/pasta/$token': typeof PastaTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -860,6 +887,8 @@ export interface FileRoutesByFullPath {
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/agendamento': typeof ApiPublicAgendamentoRoute
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
+  '/api/public/documentacao': typeof ApiPublicDocumentacaoRoute
+  '/api/public/documentacao-arquivo': typeof ApiPublicDocumentacaoArquivoRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
@@ -972,6 +1001,8 @@ export interface FileRoutesByTo {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/documentos/$slug': typeof DocumentosSlugRoute
+  '/pasta/$token': typeof PastaTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -982,6 +1013,8 @@ export interface FileRoutesByTo {
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/agendamento': typeof ApiPublicAgendamentoRoute
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
+  '/api/public/documentacao': typeof ApiPublicDocumentacaoRoute
+  '/api/public/documentacao-arquivo': typeof ApiPublicDocumentacaoArquivoRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
@@ -1096,6 +1129,8 @@ export interface FileRoutesById {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/documentos/$slug': typeof DocumentosSlugRoute
+  '/pasta/$token': typeof PastaTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -1106,6 +1141,8 @@ export interface FileRoutesById {
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/agendamento': typeof ApiPublicAgendamentoRoute
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
+  '/api/public/documentacao': typeof ApiPublicDocumentacaoRoute
+  '/api/public/documentacao-arquivo': typeof ApiPublicDocumentacaoArquivoRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
@@ -1220,6 +1257,8 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/documentos/$slug'
+    | '/pasta/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/academia/progresso'
@@ -1230,6 +1269,8 @@ export interface FileRouteTypes {
     | '/projetos/$projetoId'
     | '/api/public/agendamento'
     | '/api/public/agendamento-ics'
+    | '/api/public/documentacao'
+    | '/api/public/documentacao-arquivo'
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
@@ -1342,6 +1383,8 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/documentos/$slug'
+    | '/pasta/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/academia/progresso'
@@ -1352,6 +1395,8 @@ export interface FileRouteTypes {
     | '/projetos/$projetoId'
     | '/api/public/agendamento'
     | '/api/public/agendamento-ics'
+    | '/api/public/documentacao'
+    | '/api/public/documentacao-arquivo'
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
@@ -1465,6 +1510,8 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/documentos/$slug'
+    | '/pasta/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/academia/progresso'
@@ -1475,6 +1522,8 @@ export interface FileRouteTypes {
     | '/_authenticated/projetos/$projetoId'
     | '/api/public/agendamento'
     | '/api/public/agendamento-ics'
+    | '/api/public/documentacao'
+    | '/api/public/documentacao-arquivo'
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
@@ -1533,10 +1582,14 @@ export interface RootRouteChildren {
   ApiLojasPlanilhaRoute: typeof ApiLojasPlanilhaRoute
   ApiMercadoPlanilhaRoute: typeof ApiMercadoPlanilhaRoute
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
+  DocumentosSlugRoute: typeof DocumentosSlugRoute
+  PastaTokenRoute: typeof PastaTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicAgendamentoRoute: typeof ApiPublicAgendamentoRoute
   ApiPublicAgendamentoIcsRoute: typeof ApiPublicAgendamentoIcsRoute
+  ApiPublicDocumentacaoRoute: typeof ApiPublicDocumentacaoRoute
+  ApiPublicDocumentacaoArquivoRoute: typeof ApiPublicDocumentacaoArquivoRoute
   ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
@@ -2055,6 +2108,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVitrineLinksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/documentos/$slug': {
+      id: '/documentos/$slug'
+      path: '/documentos/$slug'
+      fullPath: '/documentos/$slug'
+      preLoaderRoute: typeof DocumentosSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pasta/$token': {
+      id: '/pasta/$token'
+      path: '/pasta/$token'
+      fullPath: '/pasta/$token'
+      preLoaderRoute: typeof PastaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
       path: '/.lovable/oauth/consent'
@@ -2158,6 +2225,20 @@ declare module '@tanstack/react-router' {
       path: '/api/public/agendamento-ics'
       fullPath: '/api/public/agendamento-ics'
       preLoaderRoute: typeof ApiPublicAgendamentoIcsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/documentacao': {
+      id: '/api/public/documentacao'
+      path: '/api/public/documentacao'
+      fullPath: '/api/public/documentacao'
+      preLoaderRoute: typeof ApiPublicDocumentacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/documentacao-arquivo': {
+      id: '/api/public/documentacao-arquivo'
+      path: '/api/public/documentacao-arquivo'
+      fullPath: '/api/public/documentacao-arquivo'
+      preLoaderRoute: typeof ApiPublicDocumentacaoArquivoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/documentos': {
@@ -2616,10 +2697,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLojasPlanilhaRoute: ApiLojasPlanilhaRoute,
   ApiMercadoPlanilhaRoute: ApiMercadoPlanilhaRoute,
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,
+  DocumentosSlugRoute: DocumentosSlugRoute,
+  PastaTokenRoute: PastaTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicAgendamentoRoute: ApiPublicAgendamentoRoute,
   ApiPublicAgendamentoIcsRoute: ApiPublicAgendamentoIcsRoute,
+  ApiPublicDocumentacaoRoute: ApiPublicDocumentacaoRoute,
+  ApiPublicDocumentacaoArquivoRoute: ApiPublicDocumentacaoArquivoRoute,
   ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,

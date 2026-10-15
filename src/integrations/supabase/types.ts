@@ -4064,17 +4064,127 @@ export type Database = {
           },
         ]
       }
+      documentacao_links: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          id: string
+          limite_janela_inicio: string | null
+          limite_janela_requisicoes: number
+          revogado_em: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          id?: string
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
+          revogado_em?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          id?: string
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
+          revogado_em?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      documentacao_pastas: {
+        Row: {
+          casado: boolean | null
+          created_at: string
+          criado_por: string | null
+          declara_ir: boolean | null
+          expira_em: string
+          id: string
+          lead_id: string
+          limite_janela_inicio: string | null
+          limite_janela_requisicoes: number
+          link_id: string | null
+          perfil: string | null
+          revogado_em: string | null
+          token: string
+          ultimo_aviso_em: string | null
+          ultimo_envio_em: string | null
+          updated_at: string
+          usa_fgts: boolean | null
+        }
+        Insert: {
+          casado?: boolean | null
+          created_at?: string
+          criado_por?: string | null
+          declara_ir?: boolean | null
+          expira_em: string
+          id?: string
+          lead_id: string
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
+          link_id?: string | null
+          perfil?: string | null
+          revogado_em?: string | null
+          token: string
+          ultimo_aviso_em?: string | null
+          ultimo_envio_em?: string | null
+          updated_at?: string
+          usa_fgts?: boolean | null
+        }
+        Update: {
+          casado?: boolean | null
+          created_at?: string
+          criado_por?: string | null
+          declara_ir?: boolean | null
+          expira_em?: string
+          id?: string
+          lead_id?: string
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
+          link_id?: string | null
+          perfil?: string | null
+          revogado_em?: string | null
+          token?: string
+          ultimo_aviso_em?: string | null
+          ultimo_envio_em?: string | null
+          updated_at?: string
+          usa_fgts?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentacao_pastas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacao_pastas_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "documentacao_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentacao_versoes: {
         Row: {
           ativa: boolean
           created_at: string
           documentacao_id: string
-          enviado_por: string
+          enviado_por: string | null
           id: string
           lead_id: string
           mime_type: string
           nome_original: string
           object_path: string
+          pasta_id: string | null
+          pelo_cliente: boolean
           removido_em: string | null
           removido_por: string | null
           tamanho_bytes: number
@@ -4084,12 +4194,14 @@ export type Database = {
           ativa?: boolean
           created_at?: string
           documentacao_id: string
-          enviado_por: string
+          enviado_por?: string | null
           id?: string
           lead_id: string
           mime_type: string
           nome_original: string
           object_path: string
+          pasta_id?: string | null
+          pelo_cliente?: boolean
           removido_em?: string | null
           removido_por?: string | null
           tamanho_bytes: number
@@ -4099,12 +4211,14 @@ export type Database = {
           ativa?: boolean
           created_at?: string
           documentacao_id?: string
-          enviado_por?: string
+          enviado_por?: string | null
           id?: string
           lead_id?: string
           mime_type?: string
           nome_original?: string
           object_path?: string
+          pasta_id?: string | null
+          pelo_cliente?: boolean
           removido_em?: string | null
           removido_por?: string | null
           tamanho_bytes?: number
@@ -4152,6 +4266,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "documentacao_versoes_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "documentacao_pastas"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -12559,8 +12680,17 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      consultar_pasta_do_lead: { Args: { _lead_id: string }; Returns: Json }
       consumir_agendamento_link_requisicao: {
         Args: { _slug: string }
+        Returns: string
+      }
+      consumir_documentacao_link_requisicao: {
+        Args: { _slug: string }
+        Returns: string
+      }
+      consumir_documentacao_pasta_requisicao: {
+        Args: { _token: string }
         Returns: string
       }
       consumir_vitrine_requisicao: {
@@ -12706,6 +12836,7 @@ export type Database = {
         }
         Returns: Json
       }
+      criar_meu_documentacao_link: { Args: never; Returns: Json }
       criar_lead_dedup: { Args: { _payload: Json }; Returns: Json }
       criar_registro_filho: {
         Args: { _cliente_id: string; _payload?: Json }
@@ -12838,6 +12969,17 @@ export type Database = {
           visitas: number
         }[]
       }
+      definir_perfil_pasta: {
+        Args: {
+          _casado: boolean
+          _declara_ir: boolean
+          _perfil: string
+          _tipos: string[]
+          _token: string
+          _usa_fgts: boolean
+        }
+        Returns: Json
+      }
       definir_status_conta: {
         Args: {
           _autor_id: string
@@ -12850,6 +12992,7 @@ export type Database = {
         Args: { _link_id: string }
         Returns: boolean
       }
+      desativar_meu_documentacao_link: { Args: never; Returns: boolean }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -13544,6 +13687,21 @@ export type Database = {
         Args: { _batch: string; _rows: Json }
         Returns: Json
       }
+      iniciar_documentacao_pelo_link: {
+        Args: {
+          _casado: boolean
+          _cpf: string
+          _declara_ir: boolean
+          _email: string
+          _nome: string
+          _perfil: string
+          _slug: string
+          _telefone: string
+          _tipos: string[]
+          _usa_fgts: boolean
+        }
+        Returns: Json
+      }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
       is_mcp: { Args: never; Returns: boolean }
       is_service_bot: { Args: { _uid: string }; Returns: boolean }
@@ -13964,6 +14122,7 @@ export type Database = {
         Args: { _antes?: string }
         Returns: number
       }
+      link_pasta_do_lead: { Args: { _lead_id: string }; Returns: Json }
       listar_vitrine_links: {
         Args: { _ator_id: string; _lead_id: string }
         Returns: {
@@ -14048,6 +14207,7 @@ export type Database = {
         Args: { _fim: string; _inicio: string }
         Returns: Json
       }
+      meu_documentacao_link: { Args: never; Returns: Json }
       meu_followup_tentativas: {
         Args: { _meses?: number }
         Returns: {
@@ -14074,6 +14234,8 @@ export type Database = {
         Returns: Json
       }
       obter_agendamento_link_publico: { Args: { _slug: string }; Returns: Json }
+      obter_documentacao_link_publico: { Args: { _slug: string }; Returns: Json }
+      obter_pasta_publica: { Args: { _token: string }; Returns: Json }
       obter_vitrine_publica: {
         Args: { _token_hash: string }
         Returns: {
@@ -14352,6 +14514,19 @@ export type Database = {
       }
       registrar_retorno_lead: {
         Args: { _data: string; _lead_id: string; _nota?: string; _tipo: string }
+        Returns: Json
+      }
+      registrar_upload_pasta: {
+        Args: {
+          _documentacao_id?: string
+          _mime_type: string
+          _nome_original: string
+          _novo_documentacao_id?: string
+          _object_path: string
+          _tamanho_bytes: number
+          _tipo?: string
+          _token: string
+        }
         Returns: Json
       }
       registrar_vitrine_evento: {
@@ -15048,6 +15223,8 @@ export type Database = {
         Returns: Json
       }
       trocar_agendamento_link: { Args: { _link_id: string }; Returns: Json }
+      trocar_link_pasta_do_lead: { Args: { _lead_id: string }; Returns: Json }
+      trocar_meu_documentacao_link: { Args: never; Returns: Json }
       trocar_vaga_em_atendimento: {
         Args: {
           _categoria?: string
@@ -15060,6 +15237,10 @@ export type Database = {
           _proximo_followup?: string
           _sai: string
         }
+        Returns: Json
+      }
+      validar_upload_pasta: {
+        Args: { _documentacao_id?: string; _tipo?: string; _token: string }
         Returns: Json
       }
       validar_visita: {
@@ -15200,6 +15381,7 @@ export type Database = {
         | "impulso_smq"
         | "acao_rua"
         | "portal"
+        | "documentacao_self_service"
       lead_status:
         | "novo"
         | "aguardando_atendimento"
@@ -15451,6 +15633,7 @@ export const Constants = {
         "impulso_smq",
         "acao_rua",
         "portal",
+        "documentacao_self_service",
       ],
       lead_status: [
         "novo",
