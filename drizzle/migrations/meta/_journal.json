@@ -600,8 +600,29 @@
     {
       "idx": 85,
       "version": "7",
+      "when": 1792767600001,
+      "tag": "0085_importar_leads_csv_lote",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1792767600002,
+      "tag": "0086_importar_leads_csv_lote_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1792767600003,
+      "tag": "0087_reload_schema_importar_csv",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
       "when": 1792854000000,
-      "tag": "0085_marquinhos_automatica",
+      "tag": "0088_marquinhos_automatica",
       "breakpoints": true
     }
   ]

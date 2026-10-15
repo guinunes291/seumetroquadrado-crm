@@ -1127,6 +1127,137 @@ export type Database = {
           },
         ]
       }
+      agendamento_link_envios: {
+        Row: {
+          agendamento_id: string | null
+          comprovante_hash: string
+          created_at: string
+          id: string
+          idempotency_key: string
+          lead_id: string | null
+          lead_novo: boolean
+          link_id: string
+        }
+        Insert: {
+          agendamento_id?: string | null
+          comprovante_hash: string
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          lead_id?: string | null
+          lead_novo?: boolean
+          link_id: string
+        }
+        Update: {
+          agendamento_id?: string | null
+          comprovante_hash?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          lead_id?: string | null
+          lead_novo?: boolean
+          link_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamento_link_envios_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamento_link_envios_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamento_link_envios_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamento_link_envios_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "agendamento_link_envios_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "agendamento_link_envios_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "agendamento_link_envios_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "agendamento_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agendamento_links: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          dias_semana: number[]
+          duracao_minutos: number
+          endereco: string
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          limite_janela_inicio: string | null
+          limite_janela_requisicoes: number
+          revogado_em: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          dias_semana?: number[]
+          duracao_minutos?: number
+          endereco?: string
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
+          revogado_em?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          dias_semana?: number[]
+          duracao_minutos?: number
+          endereco?: string
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
+          revogado_em?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agendamentos: {
         Row: {
           auto_gerado: boolean
@@ -7863,6 +7994,32 @@ export type Database = {
           },
         ]
       }
+      rodizio_sem_zona: {
+        Row: {
+          created_at: string
+          roleta_slug: string
+          ultimo_lead_em: string | null
+        }
+        Insert: {
+          created_at?: string
+          roleta_slug: string
+          ultimo_lead_em?: string | null
+        }
+        Update: {
+          created_at?: string
+          roleta_slug?: string
+          ultimo_lead_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rodizio_sem_zona_roleta_slug_fkey"
+            columns: ["roleta_slug"]
+            isOneToOne: true
+            referencedRelation: "roletas"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       roleta_participantes: {
         Row: {
           agendamentos_janela: number
@@ -10694,6 +10851,22 @@ export type Database = {
           o_valor: number
         }[]
       }
+      _agendamento_link_confirmacao: {
+        Args: { _agendamento_id: string }
+        Returns: Json
+      }
+      _agendamento_link_corretor_apto: {
+        Args: { _uid: string }
+        Returns: boolean
+      }
+      _agendamento_link_livres: {
+        Args: { _dia?: string; _link_id: string }
+        Returns: {
+          inicio: string
+        }[]
+      }
+      _agendamento_link_novo_slug: { Args: never; Returns: string }
+      _agendamento_link_resumo: { Args: { _link_id: string }; Returns: Json }
       _alertar_gestores_distribuicao: {
         Args: {
           _link?: string
@@ -10810,6 +10983,7 @@ export type Database = {
         Args: { _corretor: string; _ref?: string }
         Returns: number
       }
+      _cpf_valido: { Args: { _cpf: string }; Returns: boolean }
       _dentro_horario_comercial_brt: { Args: never; Returns: boolean }
       _devolver_lead_ao_sdr: {
         Args: { _gatilho: string; _lead_id: string; _motivo: string }
@@ -10818,6 +10992,10 @@ export type Database = {
       _distancia_metros: {
         Args: { _lat1: number; _lat2: number; _lng1: number; _lng2: number }
         Returns: number
+      }
+      _distribuir_estoque_roleta_legado: {
+        Args: { _limite?: number; _roleta: string }
+        Returns: Json
       }
       _distribuir_lead_sdr: {
         Args: {
@@ -11351,6 +11529,18 @@ export type Database = {
           roleta_slug: string
         }[]
       }
+      _roletas_sem_zona: {
+        Args: { _tentaram?: string[] }
+        Returns: {
+          da_vez: boolean
+          filial_nome: string
+          filial_slug: string
+          nome: string
+          ordem: number
+          pronta: boolean
+          roleta_slug: string
+        }[]
+      }
       _rotulo_zona: { Args: { _zona: string }; Returns: string }
       _sdr_agenda_conflita: {
         Args: { _corretor_id: string; _fim: string; _inicio: string }
@@ -11611,6 +11801,21 @@ export type Database = {
           _titulo: string
         }
         Returns: string
+      }
+      agendar_pelo_link: {
+        Args: {
+          _comprovante_hash: string
+          _cpf: string
+          _data: string
+          _email: string
+          _endereco: string
+          _horario: string
+          _idempotency_key: string
+          _nome: string
+          _slug: string
+          _telefone: string
+        }
+        Returns: Json
       }
       agendar_visita_sdr: {
         Args: {
@@ -12332,6 +12537,10 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      consumir_agendamento_link_requisicao: {
+        Args: { _slug: string }
+        Returns: string
+      }
       consumir_vitrine_requisicao: {
         Args: { _token_hash: string }
         Returns: string
@@ -12603,6 +12812,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      desativar_meu_agendamento_link: { Args: never; Returns: boolean }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -12676,6 +12886,10 @@ export type Database = {
       disparar_repasse_sla_lead: {
         Args: { _lead_id: string }
         Returns: boolean
+      }
+      distribuir_estoque_filiais: {
+        Args: { _limite?: number; _roletas?: string[] }
+        Returns: Json
       }
       distribuir_estoque_roleta: {
         Args: { _limite?: number; _roleta?: string }
@@ -13064,6 +13278,7 @@ export type Database = {
         Args: { _venda_id: string }
         Returns: undefined
       }
+      gerar_novo_agendamento_link: { Args: never; Returns: Json }
       gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_pushes_lembretes_visita: { Args: never; Returns: undefined }
       gerenciar_participante_roleta: {
@@ -13289,6 +13504,10 @@ export type Database = {
         }[]
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
+      importar_leads_csv_lote: {
+        Args: { _batch: string; _rows: Json }
+        Returns: Json
+      }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
       is_mcp: { Args: never; Returns: boolean }
       is_service_bot: { Args: { _uid: string }; Returns: boolean }
@@ -13793,6 +14012,7 @@ export type Database = {
         Args: { _fim: string; _inicio: string }
         Returns: Json
       }
+      meu_agendamento_link: { Args: never; Returns: Json }
       meu_followup_tentativas: {
         Args: { _meses?: number }
         Returns: {
@@ -13813,6 +14033,11 @@ export type Database = {
       }
       nav_pendencias: { Args: never; Returns: Json }
       normalize_phone_smq: { Args: { _raw: string }; Returns: string }
+      obter_agendamento_comprovante: {
+        Args: { _comprovante_hash: string }
+        Returns: Json
+      }
+      obter_agendamento_link_publico: { Args: { _slug: string }; Returns: Json }
       obter_vitrine_publica: {
         Args: { _token_hash: string }
         Returns: {
@@ -14250,7 +14475,18 @@ export type Database = {
           visitas: number
         }[]
       }
+      roleta_sem_zona_da_vez: { Args: never; Returns: string }
       roletas_filas_zona_v1: { Args: { _zona?: string }; Returns: Json }
+      salvar_meu_agendamento_link: {
+        Args: {
+          _dias_semana: number[]
+          _duracao_minutos: number
+          _endereco: string
+          _hora_fim: string
+          _hora_inicio: string
+        }
+        Returns: Json
+      }
       salvar_modo_visita: {
         Args: {
           p_agendamento_id: string
