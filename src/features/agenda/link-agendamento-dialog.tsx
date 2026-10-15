@@ -53,9 +53,6 @@ import {
 } from "@/lib/agendamento-link";
 import { cn } from "@/lib/utils";
 
-// RPCs do link de agendamento ainda fora dos tipos gerados (migration pendente).
-type RpcSolto = (fn: string, args?: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
-
 const QUERY_KEY = ["meu-agendamento-link"] as const;
 const HORARIOS = opcoesDeHorario();
 const DURACOES = [30, 60, 90, 120] as const;
@@ -108,7 +105,7 @@ function ConteudoLink() {
   const linkQ = useQuery({
     queryKey: QUERY_KEY,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as unknown as RpcSolto)("meu_agendamento_link");
+      const { data, error } = await supabase.rpc("meu_agendamento_link");
       if (error) throw error;
       return parseAgendamentoLinkResumo(data);
     },
@@ -125,7 +122,7 @@ function ConteudoLink() {
       const parsed = configurarAgendamentoLinkSchema.safeParse(c);
       if (!parsed.success)
         throw new Error(parsed.error.issues[0]?.message ?? "Configuração inválida.");
-      const { data, error } = await (supabase.rpc as unknown as RpcSolto)("salvar_meu_agendamento_link", {
+      const { data, error } = await supabase.rpc("salvar_meu_agendamento_link", {
         _endereco: parsed.data.endereco,
         _hora_inicio: parsed.data.hora_inicio,
         _hora_fim: parsed.data.hora_fim,
@@ -145,7 +142,7 @@ function ConteudoLink() {
 
   const trocar = useMutation({
     mutationFn: async () => {
-      const { data, error } = await (supabase.rpc as unknown as RpcSolto)("gerar_novo_agendamento_link");
+      const { data, error } = await supabase.rpc("gerar_novo_agendamento_link");
       if (error) throw error;
       return parseAgendamentoLinkResumo(data);
     },

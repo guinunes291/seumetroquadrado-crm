@@ -430,8 +430,8 @@ export function useParticipacoesQuadro(enabled = true) {
   });
 }
 
-/** O ranking da Roleta Marquinhos automática (top em vendas, 0085). Banco
- *  sem a 0085: null — a tela mostra a participação manual, como antes. */
+/** O ranking da Roleta Marquinhos automática (top em vendas, 0088). Banco
+ *  sem a 0088: null — a tela mostra a participação manual, como antes. */
 export function useMarquinhosRanking(enabled = true) {
   return useQuery({
     queryKey: ["distribuicao:marquinhos-ranking"],

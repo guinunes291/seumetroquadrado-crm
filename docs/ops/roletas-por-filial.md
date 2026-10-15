@@ -15,7 +15,7 @@
 > - Toda campanha é de equipe fixa e sem filial dona, o que tira a "válvula"
 >   do §3b.
 > - O estoque é entregue pelas filiais.
-> - A Marquinhos é automática (top 6 em vendas, `0085`).
+> - A Marquinhos é automática (top 6 em vendas, `0088`).
 >
 > Ver [roletas-simples.md](roletas-simples.md).
 

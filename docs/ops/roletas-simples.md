@@ -1,7 +1,8 @@
 # Roletas simples — só quatro: Campanha, Filial, SDR e Marquinhos
 
 > Migrations: `20261023120000_roletas_simples.sql` (drizzle `0084`) e
-> `20261024120000_marquinhos_automatica.sql` (drizzle `0085`).
+> `20261024120000_marquinhos_automatica.sql` (drizzle `0088`). As drizzle
+> 0085–0087 entre elas são a importação de leads por CSV, criada pelo Lovable.
 > Testes: `tests/db/roletas-simples.test.ts`, `tests/db/estoque-filiais.test.ts`,
 > `tests/db/marquinhos-automatica.test.ts`, `tests/quadro-roletas.test.tsx`,
 > `tests/roletas-simples-telas.test.tsx`.
@@ -119,7 +120,7 @@ Um `roleta_slug` NULL no log contaria contra a cota de **todas** as roletas.
   - com outra roleta ativa, roda o corpo antigo (`_distribuir_estoque_roleta_legado`);
   - com uma roleta desligada (`'plantao'`), roda para todas as filiais.
 
-## 5. A Marquinhos automática (0085)
+## 5. A Marquinhos automática (0088)
 
 **Configurações** em `distribuicao_settings`, editáveis em Central → Política → "Roleta Marquinhos — automática":
 
@@ -246,7 +247,7 @@ SELECT l.origem,
 -- 8.5 A cota padrão hoje (só sobe para 20 se ainda estiver em 10).
 SELECT valor FROM public.distribuicao_settings WHERE chave = 'limite_diario_default';
 
--- 8.6 O time da Marquinhos hoje — GUARDAR (é a fonte do rollback exato da 0085).
+-- 8.6 O time da Marquinhos hoje — GUARDAR (é a fonte do rollback exato da 0088).
 SELECT p.nome, rp.corretor_id, rp.ativo, rp.pausado_ate, rp.motivo_pausa, rp.limite_diario
   FROM public.roleta_participantes rp
   JOIN public.roletas r  ON r.id = rp.roleta_id AND r.slug = 'marquinhos'
@@ -280,7 +281,7 @@ SELECT row_number() OVER (ORDER BY ven.vendas DESC, ven.vgv DESC, ven.ultima DES
  ORDER BY posicao
  LIMIT 10;
 
--- 8.9 As funções que a 0084/0085 substituem — GUARDAR o resultado inteiro
+-- 8.9 As funções que a 0084/0088 substituem — GUARDAR o resultado inteiro
 --     (pg_get_functiondef) num arquivo: é o rollback do comportamento.
 SELECT p.oid::regprocedure AS funcao, md5(pg_get_functiondef(p.oid)) AS md5,
        pg_get_functiondef(p.oid) AS definicao
@@ -298,7 +299,8 @@ SELECT p.oid::regprocedure AS funcao, md5(pg_get_functiondef(p.oid)) AS md5,
 
 1. Rodar a pré-checagem (§8) e corrigir quem aparece em 8.1.
    - **A 0083 é a do link de agendamento** (#292, `20261022120000_link_agendamento_cliente.sql`). Se ela ainda não estiver em produção, entra e é registrada **antes** da 0084. O migrador do drizzle só aplica entradas com `when` maior que o do último registro; registrar a 0084 primeiro faria a 0083 ser pulada para sempre.
-   - As duas não mexem nas mesmas funções. Em 14/10, os tipos regenerados pela Lovable sem as RPCs do link indicavam que a 0083 ainda não estava em produção.
+   - As duas não mexem nas mesmas funções. Em 14/10 à tarde, os tipos regenerados pela Lovable vieram sem as RPCs do link, sinal de que a 0083 ainda não estava em produção. Os regenerados às 23:34 UTC já trazem as duas (link e roletas simples).
+   - **A 0085–0087 é a importação de leads por CSV** (`importar_leads_csv_lote`), que o Lovable criou e aplicou direto em produção logo depois da 0084. O `when` delas é o da 0084 + 1, 2 e 3 ms. No journal, elas ficam na ordem em que entraram no banco. A 0084 não muda nem um byte (o hash registrado é o deste arquivo), e só a 0088 tem `when` maior que o do último registro.
 2. **0084** (`20261023120000_roletas_simples.sql`). Ela recusa rodar sem a 0082. Pode entrar inteira, ou nos 4 blocos marcados no arquivo, nesta ordem, cada um numa transação com o `SET LOCAL lock_timeout = '5s'` no início:
    1. **Guardas + BLOCO 1** (cabeçalho até `BLOCO 2/4`): tabela, funções auxiliares e gatilho.
    2. **BLOCO 2** (`BLOCO 2/4` até `BLOCO 3/4`): motor, ponderado, repasse, estoque, painel e RPCs.
@@ -317,16 +319,19 @@ SELECT p.oid::regprocedure AS funcao, md5(pg_get_functiondef(p.oid)) AS md5,
 3. Conferir no cron seguinte (até 10 minutos):
    - um lead sem zona entregue numa filial: `distribuicao_log_contexto.contexto->>'sem_zona_rodizio' = 'true'` (junte com `distribution_log` por `log_id`);
    - `distribuir-estoque-filiais` em `cron.job_run_details` com `succeeded`.
-4. **0085** (`20261024120000_marquinhos_automatica.sql`), depois de ver a prévia 8.8 com o dono. Ela recusa rodar sem a 0084. Depois, registrar no drizzle (`0085`).
+4. **0088** (`20261024120000_marquinhos_automatica.sql`), depois de ver a prévia 8.8 com o dono. Ela recusa rodar sem a 0084.
+   - **Quando entra.** O `when` dela é maior que o do último registro (a 0087 do Lovable). Por isso, **depois do merge, o migrador do drizzle a aplica sozinho** na próxima vez que rodar.
+   - **A prévia 8.8 é antes do merge.**
+   - **Aplicar à mão antes do migrador** também serve. Nesse caso, registre-a no drizzle (`0088`, `created_at` = 1792854000000) logo em seguida, para ela não rodar duas vezes.
 5. **Publicar o front.** **Banco primeiro.**
-   - **Front antigo com o banco na 0084/0085:** funciona. As RPCs mantêm as assinaturas e o gatilho corrige a campanha.
+   - **Front antigo com o banco na 0084/0088:** funciona. As RPCs mantêm as assinaturas e o gatilho corrige a campanha.
    - **Front novo com o banco antigo:** funciona em parte. O ranking cai em `null`, e a tela mostra a Marquinhos manual. Os indicadores caem nas chaves antigas do painel. Mas "Escoar estoque (todas as filiais)" e "Apurar agora" dão erro até as migrations entrarem.
 
 ## 10. Rollback (script, não migration)
 
 O motor é guiado pelos dados. Desfazer os dados devolve quase todo o comportamento; para voltar **100%**, reaplicar as definições guardadas em 8.9.
 
-**0085 — desligar a Marquinhos automática** (o time fica como está):
+**0088 — desligar a Marquinhos automática** (o time fica como está):
 
 ```sql
 UPDATE public.distribuicao_settings SET valor = 'false'::jsonb, updated_at = now()
@@ -334,7 +339,7 @@ UPDATE public.distribuicao_settings SET valor = 'false'::jsonb, updated_at = now
 SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'marquinhos-apuracao-diaria';
 ```
 
-**0085 — devolver o time de antes.** O jeito exato é refazer as linhas a partir do resultado guardado em 8.6. Sem ele, o log basta. Para cada corretor, a **primeira** mudança feita pela regra (ou pela conversão "Inapto") desde `marquinhos_regra_desde` diz como ele estava:
+**0088 — devolver o time de antes.** O jeito exato é refazer as linhas a partir do resultado guardado em 8.6. Sem ele, o log basta. Para cada corretor, a **primeira** mudança feita pela regra (ou pela conversão "Inapto") desde `marquinhos_regra_desde` diz como ele estava:
 
 | Primeira mudança   | Como estava antes            |
 | ------------------ | ---------------------------- |
