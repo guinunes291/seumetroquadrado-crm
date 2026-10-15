@@ -37,6 +37,7 @@ export function novoComprovante(): { token: string; hash: string } {
 const publicoSchema = z.object({
   corretor_nome: z.string().min(1).max(200),
   endereco: z.string().max(300).nullable(),
+  local_nome: z.string().max(160).nullable().default(null),
   duracao_minutos: z.number().int().min(15).max(240),
   disponibilidade: z
     .array(
@@ -54,6 +55,7 @@ const confirmacaoSchema = z.object({
   inicio: z.string(),
   fim: z.string(),
   endereco: z.string(),
+  local_nome: z.string().nullable().default(null),
   corretor_nome: z.string(),
   corretor_whatsapp: z
     .string()

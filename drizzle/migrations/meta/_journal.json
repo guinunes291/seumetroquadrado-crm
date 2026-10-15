@@ -621,8 +621,15 @@
     {
       "idx": 88,
       "version": "7",
+      "when": 1792771200000,
+      "tag": "0088_link_agendamento_por_local",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
       "when": 1792854000000,
-      "tag": "0088_marquinhos_automatica",
+      "tag": "0089_marquinhos_automatica",
       "breakpoints": true
     }
   ]

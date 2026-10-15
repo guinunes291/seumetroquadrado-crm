@@ -2,10 +2,10 @@
 
 | Peça              | Onde                                                                                                                    |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Migration         | `20261022120000_link_agendamento_cliente` (Drizzle `0083`)                                                              |
+| Migration         | `20261022120000_link_agendamento_cliente` (Drizzle `0083`) e `20261023130000_link_agendamento_por_local` (`0088`)       |
 | Página do cliente | `/agendar/<slug>` — `src/routes/agendar.$slug.tsx`                                                                      |
 | API pública       | `POST /api/public/agendamento` (carregar/agendar), `GET /api/public/agendamento-ics?c=`                                 |
-| Tela do corretor  | Agenda → **Meu link** (`src/features/agenda/link-agendamento-dialog.tsx`)                                               |
+| Tela do corretor  | Agenda → **Meu link** (`link-agendamento-dialog.tsx` + `seletor-local-visita.tsx`, em `src/features/agenda/`)           |
 | Testes            | `tests/db/link-agendamento.test.ts` (banco), `tests/agendamento-link.test.ts`, `tests/link-agendamento-dialog.test.tsx` |
 
 ## 1. O que foi pedido
@@ -23,15 +23,23 @@ Decisões do dono (14/10/2026):
 | 2   | Dados do cliente                  | Nome completo, telefone, e-mail **e CPF**.                                                                     |
 | 3   | Endereço da visita                | **O corretor pré-preenche** no link; em branco, o cliente informa.                                             |
 
+Decisão do dono (15/10/2026): o local sai do **Mapa de Lojas**, de forma
+compacta dentro do formulário, e cada endereço tem o **seu link** — o corretor
+passa a ter um link por stand (até 20 ativos), em vez de um link só.
+
 ## 2. Como funciona
 
-1. O corretor abre **Agenda → Meu link**, define endereço, primeiro e último
-   horário, dias da semana e duração, e copia o link (ou manda direto no
-   WhatsApp com a mensagem pronta).
+1. O corretor abre **Agenda → Meu link** ("Meus links de agendamento") e, em
+   cada link, escolhe o local — o stand no mapa compacto (busca por
+   construtora, bairro ou endereço; toque no pino ou na lista) ou "Outro
+   endereço" digitado — mais primeiro e último horário, dias e duração. Copia
+   o link ou manda direto no WhatsApp com a mensagem pronta (que cita o stand).
+   **Mesmo endereço = mesmo link**: criar de novo devolve o que já existe.
 2. O cliente abre `/agendar/<slug>`, vê o corretor, o local e só os **horários
    livres**: de 30 em 30 minutos, a partir de 2 horas de antecedência, até 30
    dias, menos o que choca com visita, reunião ou "outro" já na agenda do
-   corretor.
+   corretor. A agenda é **uma só** para todos os links dele: o horário pego
+   por um link some dos outros (ninguém está em dois stands ao mesmo tempo).
 3. Ao confirmar, o banco faz tudo numa transação (`agendar_pelo_link`): lead,
    visita, etapa, tarefas, linha do tempo, aviso ao corretor.
 4. O cliente sai com os botões **Google Agenda** e **iPhone/Outlook (.ics)**,
@@ -90,7 +98,25 @@ Calendário e o que funciona no navegador embutido do WhatsApp/Instagram. O UID
 é o id da visita — reimportar atualiza o evento; se o corretor remarcar, o
 comprovante já devolve o horário novo.
 
-## 7. Próximos passos possíveis
+## 7. Link por local (20261023120000)
+
+| Peça                             | O que é                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `local_id`                       | Id estável do stand no Mapa de Lojas (construtora + endereço); `null` = endereço digitado. |
+| `local_nome`                     | "Construtora · Stand" — aparece na página do cliente, na confirmação e no `.ics`.          |
+| `endereco_chave` (gerada)        | Endereço sem caixa nem espaços repetidos; único por corretor entre os links ativos.        |
+| `meus_agendamento_links`         | Os links ativos do corretor, mais novo primeiro.                                           |
+| `criar_agendamento_link`         | Cria o link do local; se já existe para o endereço, devolve o existente (`ja_existia`).    |
+| `atualizar_agendamento_link`     | Ajusta um link (mesmo slug); mudar para o endereço de outro link ativo é recusado (23505). |
+| `trocar_agendamento_link(id)`    | Revoga e cria outro slug com a mesma configuração e local.                                 |
+| `desativar_agendamento_link(id)` | Revoga só aquele link.                                                                     |
+
+O mapa do formulário é o mesmo `LojasMap` do `/mapa-lojas` em modo
+**seletor**: o clique no pino escolhe o stand e não há popup (num mapa
+compacto ele cobriria tudo). Leaflet e a base de stands só carregam quando o
+formulário abre (`React.lazy`).
+
+## 8. Próximos passos possíveis
 
 - Lembrete ativo ao cliente (WhatsApp D-1 e D-0) pela mensageria, que cobre
   também quem usa o Google Agenda.
