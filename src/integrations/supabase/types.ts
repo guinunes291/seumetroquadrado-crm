@@ -1235,7 +1235,7 @@ export type Database = {
           dias_semana?: number[]
           duracao_minutos?: number
           endereco?: string
-          endereco_chave?: never
+          endereco_chave?: string | null
           hora_fim?: string
           hora_inicio?: string
           id?: string
@@ -1253,7 +1253,7 @@ export type Database = {
           dias_semana?: number[]
           duracao_minutos?: number
           endereco?: string
-          endereco_chave?: never
+          endereco_chave?: string | null
           hora_fim?: string
           hora_inicio?: string
           id?: string
@@ -10873,6 +10873,10 @@ export type Database = {
         Returns: {
           inicio: string
         }[]
+      }
+      _agendamento_link_local: {
+        Args: { _endereco: string; _local_id: string; _local_nome: string }
+        Returns: Record<string, unknown>
       }
       _agendamento_link_novo_slug: { Args: never; Returns: string }
       _agendamento_link_resumo: { Args: { _link_id: string }; Returns: Json }
