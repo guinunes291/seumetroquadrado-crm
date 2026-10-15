@@ -13540,6 +13540,10 @@ export type Database = {
         }[]
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
+      importar_leads_csv_lote: {
+        Args: { _batch: string; _rows: Json }
+        Returns: Json
+      }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
       is_mcp: { Args: never; Returns: boolean }
       is_service_bot: { Args: { _uid: string }; Returns: boolean }
