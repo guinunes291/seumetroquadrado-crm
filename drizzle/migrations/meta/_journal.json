@@ -589,6 +589,13 @@
       "when": 1792681200000,
       "tag": "0083_link_agendamento_cliente",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1792024332712,
+      "tag": "0084_importar_leads_csv_lote",
+      "breakpoints": true
     }
   ]
 }
