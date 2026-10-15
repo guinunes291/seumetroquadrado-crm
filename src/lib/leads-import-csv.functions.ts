@@ -42,7 +42,11 @@ export const importarLeadsCsvLote = createServerFn({ method: "POST" })
     if (!isAdmin) throw new Error("Apenas administradores podem importar leads.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: res, error } = await supabaseAdmin.rpc("importar_leads_csv_lote", {
+    const rpc = supabaseAdmin.rpc as unknown as (
+      fn: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>;
+    const { data: res, error } = await rpc.call(supabaseAdmin, "importar_leads_csv_lote", {
       _rows: data.rows,
       _batch: data.batchId,
     });
