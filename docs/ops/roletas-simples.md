@@ -300,7 +300,8 @@ SELECT p.oid::regprocedure AS funcao, md5(pg_get_functiondef(p.oid)) AS md5,
 1. Rodar a pré-checagem (§8) e corrigir quem aparece em 8.1.
    - **A 0083 é a do link de agendamento** (#292, `20261022120000_link_agendamento_cliente.sql`). Se ela ainda não estiver em produção, entra e é registrada **antes** da 0084. O migrador do drizzle só aplica entradas com `when` maior que o do último registro; registrar a 0084 primeiro faria a 0083 ser pulada para sempre.
    - As duas não mexem nas mesmas funções. Em 14/10 à tarde, os tipos regenerados pela Lovable vieram sem as RPCs do link, sinal de que a 0083 ainda não estava em produção. Os regenerados às 23:34 UTC já trazem as duas (link e roletas simples).
-   - **A 0085–0087 é a importação de leads por CSV** (`importar_leads_csv_lote`), que o Lovable criou e aplicou direto em produção logo depois da 0084. O `when` delas é o da 0084 + 1, 2 e 3 ms. No journal, elas ficam na ordem em que entraram no banco. A 0084 não muda nem um byte (o hash registrado é o deste arquivo), e só a 0088 tem `when` maior que o do último registro.
+   - **A 0085–0087 é a importação de leads por CSV** (`importar_leads_csv_lote`), que o Lovable criou e aplicou direto em produção logo depois da 0084. O `when` delas é o da 0084 + 1, 2 e 3 ms. No journal, elas ficam na ordem em que entraram no banco. A 0084 não muda nem um byte (o hash registrado é o deste arquivo).
+   - **Estado do drizzle em produção** (export de 14/10, 22:47): registradas até a 0086 (id 89, `created_at` …600002). A 0087 (`436b4960`) é só um `NOTIFY pgrst, 'reload schema'` e ficou sem registro.
 2. **0084** (`20261023120000_roletas_simples.sql`). Ela recusa rodar sem a 0082. Pode entrar inteira, ou nos 4 blocos marcados no arquivo, nesta ordem, cada um numa transação com o `SET LOCAL lock_timeout = '5s'` no início:
    1. **Guardas + BLOCO 1** (cabeçalho até `BLOCO 2/4`): tabela, funções auxiliares e gatilho.
    2. **BLOCO 2** (`BLOCO 2/4` até `BLOCO 3/4`): motor, ponderado, repasse, estoque, painel e RPCs.
@@ -320,9 +321,9 @@ SELECT p.oid::regprocedure AS funcao, md5(pg_get_functiondef(p.oid)) AS md5,
    - um lead sem zona entregue numa filial: `distribuicao_log_contexto.contexto->>'sem_zona_rodizio' = 'true'` (junte com `distribution_log` por `log_id`);
    - `distribuir-estoque-filiais` em `cron.job_run_details` com `succeeded`.
 4. **0088** (`20261024120000_marquinhos_automatica.sql`), depois de ver a prévia 8.8 com o dono. Ela recusa rodar sem a 0084.
-   - **Quando entra.** O `when` dela é maior que o do último registro (a 0087 do Lovable). Por isso, **depois do merge, o migrador do drizzle a aplica sozinho** na próxima vez que rodar.
+   - **Quando entra.** O `when` dela é maior que o do último registro. Por isso, **depois do merge, o migrador do drizzle a aplica sozinho** (junto com o `NOTIFY` da 0087) na próxima vez que rodar.
    - **A prévia 8.8 é antes do merge.**
-   - **Aplicar à mão antes do migrador** também serve. Nesse caso, registre-a no drizzle (`0088`, `created_at` = 1792854000000) logo em seguida, para ela não rodar duas vezes.
+   - **Aplicar à mão antes do migrador** também serve. Nesse caso, registre logo em seguida a 0087 (`created_at` = 1792767600003) e a 0088 (`created_at` = 1792854000000) no drizzle, para ela não rodar duas vezes.
 5. **Publicar o front.** **Banco primeiro.**
    - **Front antigo com o banco na 0084/0088:** funciona. As RPCs mantêm as assinaturas e o gatilho corrige a campanha.
    - **Front novo com o banco antigo:** funciona em parte. O ranking cai em `null`, e a tela mostra a Marquinhos manual. Os indicadores caem nas chaves antigas do painel. Mas "Escoar estoque (todas as filiais)" e "Apurar agora" dão erro até as migrations entrarem.
