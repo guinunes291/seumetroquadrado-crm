@@ -676,7 +676,7 @@ function LimiteDialog({
 }
 
 // ---------------------------------------------------------------------------
-// Marquinhos automática (0088, decisão do dono de 13/10/2026): o time são os
+// Marquinhos automática (0089, decisão do dono de 13/10/2026): o time são os
 // N corretores com mais vendas assinadas na janela — a tela mostra o ranking
 // e o porquê de cada um estar dentro ou fora. A gestão só BLOQUEIA (a regra
 // não traz de volta) ou DEVOLVE À REGRA; "Apurar agora" refaz o time na hora.
