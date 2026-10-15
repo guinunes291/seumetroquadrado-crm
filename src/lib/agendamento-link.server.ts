@@ -15,9 +15,6 @@ import {
 } from "@/lib/agendamento-link";
 import { maskPhoneBR } from "@/lib/masks";
 
-// RPCs do link de agendamento ainda fora dos tipos gerados (migration pendente).
-type RpcSolto = (fn: string, args?: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
-
 export class AgendamentoLinkError extends Error {
   constructor(
     readonly status: number,
@@ -40,6 +37,7 @@ export function novoComprovante(): { token: string; hash: string } {
 const publicoSchema = z.object({
   corretor_nome: z.string().min(1).max(200),
   endereco: z.string().max(300).nullable(),
+  local_nome: z.string().max(160).nullable().default(null),
   duracao_minutos: z.number().int().min(15).max(240),
   disponibilidade: z
     .array(
@@ -57,6 +55,7 @@ const confirmacaoSchema = z.object({
   inicio: z.string(),
   fim: z.string(),
   endereco: z.string(),
+  local_nome: z.string().nullable().default(null),
   corretor_nome: z.string(),
   corretor_whatsapp: z
     .string()
@@ -90,7 +89,7 @@ function exigirSlug(slug: string): string {
 /** Limite distribuído por link, antes de qualquer leitura ou escrita. */
 export async function consumirRequisicao(slug: string): Promise<void> {
   const db = await admin();
-  const { data, error } = await (db.rpc as unknown as RpcSolto)("consumir_agendamento_link_requisicao", {
+  const { data, error } = await db.rpc("consumir_agendamento_link_requisicao", {
     _slug: exigirSlug(slug),
   });
   if (error) throw new AgendamentoLinkError(503, "limit_unavailable");
@@ -101,7 +100,7 @@ export async function consumirRequisicao(slug: string): Promise<void> {
 
 export async function carregarLinkPublico(slug: string): Promise<AgendamentoLinkPublico> {
   const db = await admin();
-  const { data, error } = await (db.rpc as unknown as RpcSolto)("obter_agendamento_link_publico", {
+  const { data, error } = await db.rpc("obter_agendamento_link_publico", {
     _slug: exigirSlug(slug),
   });
   if (error) throw new AgendamentoLinkError(503, "load_unavailable");
@@ -117,7 +116,7 @@ export async function agendarPeloLink(input: AgendarPeloLinkInput): Promise<Agen
 
   const { token, hash } = novoComprovante();
   const db = await admin();
-  const { data, error } = await (db.rpc as unknown as RpcSolto)("agendar_pelo_link", {
+  const { data, error } = await db.rpc("agendar_pelo_link", {
     _slug: exigirSlug(input.slug),
     _idempotency_key: input.idempotency_key,
     _nome: input.nome,
@@ -148,7 +147,7 @@ export async function obterComprovante(
 ): Promise<Omit<AgendamentoConfirmado, "comprovante">> {
   if (!COMPROVANTE_RE.test(token)) throw new AgendamentoLinkError(404, "not_found");
   const db = await admin();
-  const { data, error } = await (db.rpc as unknown as RpcSolto)("obter_agendamento_comprovante", {
+  const { data, error } = await db.rpc("obter_agendamento_comprovante", {
     _comprovante_hash: hashComprovante(token),
   });
   if (error) throw new AgendamentoLinkError(503, "load_unavailable");

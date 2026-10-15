@@ -1217,11 +1217,14 @@ export type Database = {
           dias_semana: number[]
           duracao_minutos: number
           endereco: string
+          endereco_chave: string | null
           hora_fim: string
           hora_inicio: string
           id: string
           limite_janela_inicio: string | null
           limite_janela_requisicoes: number
+          local_id: string | null
+          local_nome: string
           revogado_em: string | null
           slug: string
           updated_at: string
@@ -1232,11 +1235,14 @@ export type Database = {
           dias_semana?: number[]
           duracao_minutos?: number
           endereco?: string
+          endereco_chave?: never
           hora_fim?: string
           hora_inicio?: string
           id?: string
           limite_janela_inicio?: string | null
           limite_janela_requisicoes?: number
+          local_id?: string | null
+          local_nome?: string
           revogado_em?: string | null
           slug: string
           updated_at?: string
@@ -1247,11 +1253,14 @@ export type Database = {
           dias_semana?: number[]
           duracao_minutos?: number
           endereco?: string
+          endereco_chave?: never
           hora_fim?: string
           hora_inicio?: string
           id?: string
           limite_janela_inicio?: string | null
           limite_janela_requisicoes?: number
+          local_id?: string | null
+          local_nome?: string
           revogado_em?: string | null
           slug?: string
           updated_at?: string
@@ -11947,6 +11956,19 @@ export type Database = {
         }
         Returns: Json
       }
+      atualizar_agendamento_link: {
+        Args: {
+          _dias_semana: number[]
+          _duracao_minutos: number
+          _endereco: string
+          _hora_fim: string
+          _hora_inicio: string
+          _link_id: string
+          _local_id: string
+          _local_nome: string
+        }
+        Returns: Json
+      }
       atualizar_corretor_distribuicao: {
         Args: {
           _corretor_id: string
@@ -12672,6 +12694,18 @@ export type Database = {
         }
         Returns: string
       }
+      criar_agendamento_link: {
+        Args: {
+          _dias_semana: number[]
+          _duracao_minutos: number
+          _endereco: string
+          _hora_fim: string
+          _hora_inicio: string
+          _local_id: string
+          _local_nome: string
+        }
+        Returns: Json
+      }
       criar_lead_dedup: { Args: { _payload: Json }; Returns: Json }
       criar_registro_filho: {
         Args: { _cliente_id: string; _payload?: Json }
@@ -12812,7 +12846,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      desativar_meu_agendamento_link: { Args: never; Returns: boolean }
+      desativar_agendamento_link: {
+        Args: { _link_id: string }
+        Returns: boolean
+      }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -13278,7 +13315,6 @@ export type Database = {
         Args: { _venda_id: string }
         Returns: undefined
       }
-      gerar_novo_agendamento_link: { Args: never; Returns: Json }
       gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_pushes_lembretes_visita: { Args: never; Returns: undefined }
       gerenciar_participante_roleta: {
@@ -14012,7 +14048,6 @@ export type Database = {
         Args: { _fim: string; _inicio: string }
         Returns: Json
       }
-      meu_agendamento_link: { Args: never; Returns: Json }
       meu_followup_tentativas: {
         Args: { _meses?: number }
         Returns: {
@@ -14025,6 +14060,7 @@ export type Database = {
       }
       meu_funil_estagio: { Args: { _status: string }; Returns: number }
       meu_funil_estudo: { Args: { _dias?: number }; Returns: Json }
+      meus_agendamento_links: { Args: never; Returns: Json }
       minha_elegibilidade: { Args: never; Returns: Json }
       minhas_posicoes_roletas_v1: { Args: never; Returns: Json }
       motivo_perda_sem_retrabalho: {
@@ -14477,16 +14513,6 @@ export type Database = {
       }
       roleta_sem_zona_da_vez: { Args: never; Returns: string }
       roletas_filas_zona_v1: { Args: { _zona?: string }; Returns: Json }
-      salvar_meu_agendamento_link: {
-        Args: {
-          _dias_semana: number[]
-          _duracao_minutos: number
-          _endereco: string
-          _hora_fim: string
-          _hora_inicio: string
-        }
-        Returns: Json
-      }
       salvar_modo_visita: {
         Args: {
           p_agendamento_id: string
@@ -15021,6 +15047,7 @@ export type Database = {
         Args: { _gatilho?: string; _lead_id: string }
         Returns: Json
       }
+      trocar_agendamento_link: { Args: { _link_id: string }; Returns: Json }
       trocar_vaga_em_atendimento: {
         Args: {
           _categoria?: string

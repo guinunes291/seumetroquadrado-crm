@@ -610,6 +610,13 @@
       "when": 1792767600003,
       "tag": "0086_reload_schema_importar_csv",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1792771200000,
+      "tag": "0087_link_agendamento_por_local",
+      "breakpoints": true
     }
   ]
 }

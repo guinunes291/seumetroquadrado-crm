@@ -63,22 +63,44 @@ async function comoServico(cl: Client): Promise<void> {
   await cl.query(`SET ROLE service_role`);
 }
 
-type Link = { id: string; slug: string; endereco: string; dias_semana: number[] };
+type Link = {
+  id: string;
+  slug: string;
+  endereco: string;
+  local_id: string | null;
+  local_nome: string;
+  dias_semana: number[];
+  duracao_minutos: number;
+  ja_existia?: boolean;
+};
+
+const STAND = { id: "cury-av-paulista-1000", nome: "Cury · Stand Paulista" };
 
 /** Link da Ana aberto o dia todo, todos os dias: sempre há horário livre. */
-async function linkDaAna(endereco = ENDERECO): Promise<Link> {
+async function linkDaAna(
+  endereco = ENDERECO,
+  local: { id: string | null; nome: string } = { id: null, nome: "" },
+): Promise<Link> {
   await comoUsuario(c, ana.id);
   const r = await c.query(
-    `SELECT public.salvar_meu_agendamento_link($1, '00:00', '23:30', '{0,1,2,3,4,5,6}', 60) AS l`,
-    [endereco],
+    `SELECT public.criar_agendamento_link($1, $2, $3, '00:00', '23:30', '{0,1,2,3,4,5,6}', 60) AS l`,
+    [endereco, local.id, local.nome],
   );
   await comoSuperuser(c);
   return r.rows[0].l as Link;
 }
 
+async function linksDaAna(): Promise<Link[]> {
+  await comoUsuario(c, ana.id);
+  const r = await c.query(`SELECT public.meus_agendamento_links() AS l`);
+  await comoSuperuser(c);
+  return r.rows[0].l as Link[];
+}
+
 type Publico = {
   corretor_nome: string;
   endereco: string | null;
+  local_nome: string | null;
   duracao_minutos: number;
   disponibilidade: Array<{ data: string; horarios: string[] }>;
 };
@@ -106,6 +128,7 @@ type Resultado = {
   inicio?: string;
   fim?: string;
   endereco?: string;
+  local_nome?: string | null;
   corretor_nome?: string;
   corretor_whatsapp?: string | null;
 };
@@ -163,65 +186,144 @@ async function leadsDa(corretorId: string) {
   return r.rows;
 }
 
-describe("o link é do corretor", () => {
-  it("cria, ajusta, troca e desativa o próprio link", async () => {
-    await comoUsuario(c, ana.id);
-    expect((await c.query(`SELECT public.meu_agendamento_link() AS l`)).rows[0].l).toBeNull();
+describe("os links são do corretor, um por endereço", () => {
+  it("cria um link por local; o mesmo endereço devolve o mesmo link", async () => {
+    expect(await linksDaAna()).toEqual([]);
 
-    const criado = await linkDaAna();
-    expect(criado.slug).toMatch(/^[A-Za-z0-9_-]{16}$/);
-    expect(criado.endereco).toBe(ENDERECO);
+    const stand = await linkDaAna(ENDERECO, STAND);
+    expect(stand.slug).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    expect(stand).toMatchObject({
+      endereco: ENDERECO,
+      local_id: STAND.id,
+      local_nome: STAND.nome,
+      ja_existia: false,
+    });
 
-    // Salvar de novo só ajusta: o slug (o link já divulgado) não muda.
+    // Mesmo endereço (caixa e espaços não contam): o link já divulgado volta.
+    const deNovo = await linkDaAna(`  ${ENDERECO.toUpperCase().replace(" ", "   ")} `, STAND);
+    expect(deNovo.id).toBe(stand.id);
+    expect(deNovo.ja_existia).toBe(true);
+
+    // Outro endereço: outro link, ao lado do primeiro.
+    const outro = await linkDaAna("Rua Tuiuti, 2000 - Tatuapé, São Paulo", {
+      id: "cury-rua-tuiuti-2000",
+      nome: "Cury · Stand Tatuapé",
+    });
+    expect(outro.slug).not.toBe(stand.slug);
+    const lista = await linksDaAna();
+    expect(lista.map((l) => l.id)).toEqual([outro.id, stand.id]);
+
+    // Sem endereço (o cliente informa) também é um link só; o local some.
+    const semEndereco = await linkDaAna("", { id: "x", nome: "ignorado" });
+    expect(semEndereco).toMatchObject({ endereco: "", local_id: null, local_nome: "" });
+    expect((await linkDaAna("   ")).id).toBe(semEndereco.id);
+  });
+
+  it("ajusta, troca e desativa um link sem mexer nos outros", async () => {
+    const stand = await linkDaAna(ENDERECO, STAND);
+    const outro = await linkDaAna("Rua Tuiuti, 2000 - Tatuapé, São Paulo");
+
+    // Ajustar mantém o slug (o link já divulgado não muda).
     await comoUsuario(c, ana.id);
     const ajustado = (
       await c.query(
-        `SELECT public.salvar_meu_agendamento_link('  Rua Nova,   10 ', '08:00', '12:00', '{6,1,1}', 90) AS l`,
+        `SELECT public.atualizar_agendamento_link($1, '  Rua Nova,   10 ', NULL, '', '08:00', '12:00', '{6,1,1}', 90) AS l`,
+        [stand.id],
       )
-    ).rows[0].l;
-    expect(ajustado.slug).toBe(criado.slug);
-    expect(ajustado.endereco).toBe("Rua Nova, 10");
-    expect(ajustado.dias_semana).toEqual([1, 6]);
-    expect(ajustado.duracao_minutos).toBe(90);
+    ).rows[0].l as Link;
+    expect(ajustado.slug).toBe(stand.slug);
+    expect(ajustado).toMatchObject({
+      endereco: "Rua Nova, 10",
+      local_id: null,
+      dias_semana: [1, 6],
+      duracao_minutos: 90,
+    });
 
-    // Gerar novo: o antigo para de abrir na hora, a configuração vem junto.
-    const novo = (await c.query(`SELECT public.gerar_novo_agendamento_link() AS l`)).rows[0].l;
-    expect(novo.slug).not.toBe(criado.slug);
+    // Levar para o endereço de outro link ativo é recusado.
+    expect(
+      await errCode(
+        c.query(
+          `SELECT public.atualizar_agendamento_link($1, 'rua tuiuti, 2000 - tatuapé, são paulo', NULL, '', '08:00', '12:00', '{1}', 60)`,
+          [stand.id],
+        ),
+      ),
+    ).toBe("23505");
+
+    // Trocar: o antigo para de abrir na hora; endereço e local vêm junto.
+    await comoUsuario(c, ana.id);
+    const novo = (await c.query(`SELECT public.trocar_agendamento_link($1) AS l`, [stand.id]))
+      .rows[0].l as Link;
+    expect(novo.slug).not.toBe(stand.slug);
     expect(novo.endereco).toBe("Rua Nova, 10");
-    expect(await publico(criado.slug)).toBeNull();
+    expect(await publico(stand.slug)).toBeNull();
     expect(await publico(novo.slug)).not.toBeNull();
 
     await comoUsuario(c, ana.id);
-    expect((await c.query(`SELECT public.desativar_meu_agendamento_link() AS ok`)).rows[0].ok).toBe(
-      true,
-    );
-    expect((await c.query(`SELECT public.meu_agendamento_link() AS l`)).rows[0].l).toBeNull();
+    expect(
+      (await c.query(`SELECT public.desativar_agendamento_link($1) AS ok`, [novo.id])).rows[0].ok,
+    ).toBe(true);
+    expect((await linksDaAna()).map((l) => l.id)).toEqual([outro.id]);
     expect(await publico(novo.slug)).toBeNull();
+    expect(await publico(outro.slug)).not.toBeNull();
   });
 
-  it("configuração inválida é recusada com 22023", async () => {
+  it("não mexe no link de outro corretor", async () => {
+    const stand = await linkDaAna(ENDERECO, STAND);
+    await comoUsuario(c, bruno.id);
+    expect(await errCode(c.query(`SELECT public.trocar_agendamento_link($1)`, [stand.id]))).toBe(
+      "P0002",
+    );
+    expect(
+      await errCode(
+        c.query(
+          `SELECT public.atualizar_agendamento_link($1, 'Rua X, 1', NULL, '', '08:00', '12:00', '{1}', 60)`,
+          [stand.id],
+        ),
+      ),
+    ).toBe("P0002");
+    expect(
+      (await c.query(`SELECT public.desativar_agendamento_link($1) AS ok`, [stand.id])).rows[0].ok,
+    ).toBe(false);
+    expect(await publico(stand.slug)).not.toBeNull();
+  });
+
+  it("configuração inválida e o teto de 20 links são recusados com 22023", async () => {
     await comoUsuario(c, ana.id);
+    for (const [ini, fim, dias] of [
+      ["18:00", "09:00", "{1}"],
+      ["09:15", "18:00", "{1}"],
+      ["09:00", "18:00", "{}"],
+    ]) {
+      expect(
+        await errCode(
+          c.query(`SELECT public.criar_agendamento_link('Rua A, 1', NULL, '', $1, $2, $3, 60)`, [
+            ini,
+            fim,
+            dias,
+          ]),
+        ),
+      ).toBe("22023");
+    }
+    for (let i = 1; i <= 20; i++) {
+      await c.query(
+        `SELECT public.criar_agendamento_link($1, NULL, '', '09:00', '18:00', '{1}', 60)`,
+        [`Rua Teste, ${i}`],
+      );
+    }
     expect(
       await errCode(
-        c.query(`SELECT public.salvar_meu_agendamento_link('', '18:00', '09:00', '{1}', 60)`),
+        c.query(
+          `SELECT public.criar_agendamento_link('Rua Teste, 21', NULL, '', '09:00', '18:00', '{1}', 60)`,
+        ),
       ),
     ).toBe("22023");
-    expect(
-      await errCode(
-        c.query(`SELECT public.salvar_meu_agendamento_link('', '09:15', '18:00', '{1}', 60)`),
-      ),
-    ).toBe("22023");
-    expect(
-      await errCode(
-        c.query(`SELECT public.salvar_meu_agendamento_link('', '09:00', '18:00', '{}', 60)`),
-      ),
-    ).toBe("22023");
+    await comoSuperuser(c);
   });
 
   it("só corretor ativo tem link; anon e authenticated não tocam nas funções públicas", async () => {
     const gestor = await criarUsuario(c, { nome: "Gil Gestor", papel: "gestor" });
     await comoUsuario(c, gestor.id);
-    expect(await errCode(c.query(`SELECT public.meu_agendamento_link()`))).toBe("42501");
+    expect(await errCode(c.query(`SELECT public.meus_agendamento_links()`))).toBe("42501");
 
     const link = await linkDaAna();
     await comoUsuario(c, ana.id);
@@ -230,7 +332,7 @@ describe("o link é do corretor", () => {
     ).toBe("42501");
     await c.query(`RESET ROLE`);
     await c.query(`SET ROLE anon`);
-    expect(await errCode(c.query(`SELECT public.meu_agendamento_link()`))).toBe("42501");
+    expect(await errCode(c.query(`SELECT public.meus_agendamento_links()`))).toBe("42501");
     expect(
       await errCode(c.query(`SELECT public.consumir_agendamento_link_requisicao($1)`, [link.slug])),
     ).toBe("42501");
@@ -244,17 +346,19 @@ describe("o link é do corretor", () => {
 });
 
 describe("a página pública", () => {
-  it("mostra só nome do corretor, endereço e horários livres", async () => {
-    const link = await linkDaAna();
+  it("mostra só corretor, local, endereço e horários livres", async () => {
+    const link = await linkDaAna(ENDERECO, STAND);
     const p = await publico(link.slug);
     expect(Object.keys(p!).sort()).toEqual([
       "corretor_nome",
       "disponibilidade",
       "duracao_minutos",
       "endereco",
+      "local_nome",
     ]);
     expect(p!.corretor_nome).toBe("Ana Corretora");
     expect(p!.endereco).toBe(ENDERECO);
+    expect(p!.local_nome).toBe(STAND.nome);
     expect(p!.disponibilidade.length).toBeGreaterThanOrEqual(30);
     expect(p!.disponibilidade[1].horarios).toContain("10:00");
   });
@@ -281,6 +385,7 @@ describe("agendar pelo link", () => {
     expect(r.ok).toBe(true);
     expect(r.corretor_nome).toBe("Ana Corretora");
     expect(r.endereco).toBe(ENDERECO);
+    expect(r.local_nome).toBeNull();
     // 10:00 em São Paulo é 13:00 UTC.
     expect(new Date(r.inicio!).toISOString()).toBe(`${quando.data}T${horaUtc(quando.horario)}`);
 
@@ -342,6 +447,22 @@ describe("agendar pelo link", () => {
     const depois = await publico(link.slug);
     const dia = depois!.disponibilidade.find((d) => d.data === quando.data);
     expect(dia?.horarios ?? []).not.toContain(quando.horario);
+  });
+
+  it("os links do corretor dividem a mesma agenda", async () => {
+    const stand = await linkDaAna(ENDERECO, STAND);
+    const outro = await linkDaAna("Rua Tuiuti, 2000 - Tatuapé, São Paulo");
+    const quando = await horarioLivre(stand.slug);
+    expect((await agendar(stand.slug, quando)).ok).toBe(true);
+
+    // Ninguém está em dois stands ao mesmo tempo: o horário some do outro link.
+    const dia = (await publico(outro.slug))!.disponibilidade.find((d) => d.data === quando.data);
+    expect(dia?.horarios ?? []).not.toContain(quando.horario);
+    const r = await agendar(outro.slug, quando, {
+      telefone: "11912340000",
+      cpf: "111.444.777-35",
+    });
+    expect(r).toEqual({ ok: false, motivo: "horario_indisponivel" });
   });
 
   it("reenvio com a mesma chave devolve a mesma visita, sem duplicar", async () => {
@@ -496,12 +617,12 @@ describe("agendar pelo link", () => {
     expect(await agendar(link.slug, quando)).toEqual({ ok: false, motivo: "limite_link" });
 
     await comoUsuario(c, ana.id);
-    await c.query(`SELECT public.desativar_meu_agendamento_link()`);
+    await c.query(`SELECT public.desativar_agendamento_link($1)`, [link.id]);
     expect(await agendar(link.slug, quando)).toEqual({ ok: false, motivo: "not_found" });
   });
 
-  it("comprovante: o hash devolve a visita até ela ser cancelada", async () => {
-    const link = await linkDaAna();
+  it("comprovante: o hash devolve a visita (com o local) até ela ser cancelada", async () => {
+    const link = await linkDaAna(ENDERECO, STAND);
     const token = randomBytes(32).toString("base64url");
     const r = await agendar(link.slug, await horarioLivre(link.slug), { comprovante: token });
 
@@ -510,6 +631,7 @@ describe("agendar pelo link", () => {
       hashDe(token),
     ]);
     expect(ok.rows[0].p.agendamento_id).toBe(r.agendamento_id);
+    expect(ok.rows[0].p.local_nome).toBe(STAND.nome);
     await comoSuperuser(c);
 
     await c.query(`UPDATE public.agendamentos SET status = 'cancelado' WHERE id = $1`, [

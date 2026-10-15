@@ -56,10 +56,18 @@ type Props = {
   origem?: Ponto | null;
   /** Clique no pino: a página destaca o item na lista. */
   onSelecionar: (id: string) => void;
-  /** Botão "Enviar ao cliente" do popup. */
-  onEnviar: (loja: Loja) => void;
+  /** Botão "Enviar ao cliente" do popup (só no modo atendimento). */
+  onEnviar?: (loja: Loja) => void;
   /** Miniatura de planta no popup: a página abre a planta ampliada. */
-  onAbrirPlanta: (loja: Loja, plantaId: string) => void;
+  onAbrirPlanta?: (loja: Loja, plantaId: string) => void;
+  /**
+   * "atendimento" (padrão): o popup completo do Mapa de Lojas — rota, fotos,
+   * Street View, enviar ao cliente e plantas. "seletor": escolher um stand
+   * dentro de outro formulário (link de agendamento) num mapa compacto — o
+   * clique no pino é a escolha e não há popup (cobriria o mapa inteiro e
+   * repetiria o que o formulário já mostra); o nome do stand fica no title.
+   */
+  modo?: "atendimento" | "seletor";
   /** Metragem que o cliente procura: ordena as plantas e marca a mais próxima. */
   m2?: number | null;
   tolerancia?: number;
@@ -77,6 +85,7 @@ export function LojasMap({
   onSelecionar,
   onEnviar,
   onAbrirPlanta,
+  modo = "atendimento",
   m2 = null,
   tolerancia = 5,
   className,
@@ -103,6 +112,8 @@ export function LojasMap({
   enviarRef.current = onEnviar;
   const abrirPlantaRef = useRef(onAbrirPlanta);
   abrirPlantaRef.current = onAbrirPlanta;
+  const modoRef = useRef(modo);
+  modoRef.current = modo;
   // Lida na ABERTURA do popup: mudar a metragem não redesenha pino nenhum.
   const metragemRef = useRef({ alvo: m2, tolerancia });
   metragemRef.current = { alvo: m2, tolerancia };
@@ -200,19 +211,21 @@ export function LojasMap({
       // O popup é montado na ABERTURA, com o dado mais recente da loja. A
       // altura máxima faz a lista de plantas rolar dentro do popup em vez de
       // empurrá-lo para fora da tela (a Econ tem oito decorados).
-      marcador.bindPopup(
-        () =>
-          popupDaLoja(lojasRef.current.get(id) ?? loja, {
-            enviar: (l) => enviarRef.current(l),
-            abrirPlanta: (l, plantaId) => abrirPlantaRef.current(l, plantaId),
-            ...metragemRef.current,
-          }),
-        {
-          maxWidth: 300,
-          minWidth: 240,
-          maxHeight: Math.max(280, Math.min(480, window.innerHeight - 170)),
-        },
-      );
+      if (modoRef.current === "atendimento") {
+        marcador.bindPopup(
+          () =>
+            popupDaLoja(lojasRef.current.get(id) ?? loja, {
+              enviar: (l) => enviarRef.current?.(l),
+              abrirPlanta: (l, plantaId) => abrirPlantaRef.current?.(l, plantaId),
+              ...metragemRef.current,
+            }),
+          {
+            maxWidth: 300,
+            minWidth: 240,
+            maxHeight: Math.max(280, Math.min(480, window.innerHeight - 170)),
+          },
+        );
+      }
       marcador.on("click", () => selecionarRef.current(id));
       camada.addLayer(marcador);
       marcadores.set(id, marcador);

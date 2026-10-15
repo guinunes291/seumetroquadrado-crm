@@ -93,6 +93,13 @@ export const configurarAgendamentoLinkSchema = z
       .string()
       .max(300)
       .transform((v) => v.replace(/\s+/g, " ").trim()),
+    /** Stand escolhido no Mapa de Lojas (id estável) — null quando digitado. */
+    local_id: z.string().min(1).max(200).nullable(),
+    /** "Construtora · Stand", mostrado ao cliente; vazio quando digitado. */
+    local_nome: z
+      .string()
+      .max(160)
+      .transform((v) => v.replace(/\s+/g, " ").trim()),
     hora_inicio: z.string().regex(HORA_RE),
     hora_fim: z.string().regex(HORA_RE),
     dias_semana: z
@@ -115,6 +122,8 @@ export type DisponibilidadeDia = { data: string; horarios: string[] };
 export type AgendamentoLinkPublico = {
   corretor_nome: string;
   endereco: string | null;
+  /** "Construtora · Stand" quando o link foi criado a partir do Mapa de Lojas. */
+  local_nome: string | null;
   duracao_minutos: number;
   disponibilidade: DisponibilidadeDia[];
 };
@@ -125,6 +134,7 @@ export type AgendamentoConfirmado = {
   inicio: string;
   fim: string;
   endereco: string;
+  local_nome: string | null;
   corretor_nome: string;
   corretor_whatsapp: string | null;
   /** Token do comprovante: baixa o .ics pelo servidor (iPhone/WhatsApp). */
@@ -136,6 +146,8 @@ export type AgendamentoLinkResumo = {
   slug: string;
   path: string;
   endereco: string;
+  local_id: string | null;
+  local_nome: string;
   hora_inicio: string;
   hora_fim: string;
   dias_semana: number[];
@@ -149,6 +161,8 @@ const resumoSchema = z.object({
   id: z.string().uuid(),
   slug: z.string().regex(AGENDAMENTO_LINK_SLUG_RE),
   endereco: z.string(),
+  local_id: z.string().nullable(),
+  local_nome: z.string(),
   hora_inicio: z.string().regex(HORA_RE),
   hora_fim: z.string().regex(HORA_RE),
   dias_semana: z.array(z.number().int().min(0).max(6)),
@@ -158,15 +172,59 @@ const resumoSchema = z.object({
   ultimo_agendamento_em: z.string().nullable(),
 });
 
-/** Resumo do link vindo das RPCs do corretor (`null` = ainda não tem link). */
-export function parseAgendamentoLinkResumo(data: unknown): AgendamentoLinkResumo | null {
-  if (data == null) return null;
+/** Resumo de um link vindo das RPCs do corretor. */
+export function parseAgendamentoLinkResumo(data: unknown): AgendamentoLinkResumo {
   const r = resumoSchema.parse(data);
   return { ...r, path: agendamentoLinkPath(r.slug) };
 }
 
+/** Os links ativos do corretor (`meus_agendamento_links`), mais novo primeiro. */
+export function parseAgendamentoLinks(data: unknown): AgendamentoLinkResumo[] {
+  return z
+    .array(z.unknown())
+    .parse(data ?? [])
+    .map(parseAgendamentoLinkResumo);
+}
+
+/** Resposta de `criar_agendamento_link`: o link e se ele já existia (mesmo endereço). */
+export function parseLinkCriado(data: unknown): {
+  link: AgendamentoLinkResumo;
+  jaExistia: boolean;
+} {
+  const { ja_existia } = z.object({ ja_existia: z.boolean() }).parse(data);
+  return { link: parseAgendamentoLinkResumo(data), jaExistia: ja_existia };
+}
+
+/** Como o link aparece para o corretor: o stand, senão o endereço. */
+export function tituloDoLink(link: Pick<AgendamentoLinkResumo, "local_nome" | "endereco">): string {
+  return link.local_nome || link.endereco || "Endereço informado pelo cliente";
+}
+
+/** "Seg a Sáb · 09:00–18:00 · 1 hora" — resumo da agenda do link. */
+export function resumoAgendaDoLink(
+  link: Pick<AgendamentoLinkResumo, "dias_semana" | "hora_inicio" | "hora_fim" | "duracao_minutos">,
+): string {
+  const dias = [...link.dias_semana].sort((a, b) => a - b);
+  const seguidos = dias.length > 2 && dias.every((d, i) => i === 0 || d === dias[i - 1] + 1);
+  const rotuloDias =
+    dias.length === 7
+      ? "Todos os dias"
+      : seguidos
+        ? `${DIAS_SEMANA[dias[0]]} a ${DIAS_SEMANA[dias[dias.length - 1]]}`
+        : dias.map((d) => DIAS_SEMANA[d]).join(", ");
+  const duracao =
+    link.duracao_minutos < 60
+      ? `${link.duracao_minutos} min`
+      : link.duracao_minutos % 60 === 0
+        ? `${link.duracao_minutos / 60} h`
+        : `${Math.floor(link.duracao_minutos / 60)}h${link.duracao_minutos % 60}`;
+  return `${rotuloDias} · ${link.hora_inicio}–${link.hora_fim} · ${duracao}`;
+}
+
 export const AGENDAMENTO_LINK_DEFAULTS = {
   endereco: "",
+  local_id: null,
+  local_nome: "",
   hora_inicio: "09:00",
   hora_fim: "18:00",
   dias_semana: [1, 2, 3, 4, 5, 6],
@@ -225,17 +283,24 @@ export function rotuloInstante(iso: string): string {
 }
 
 /** Mensagem pronta para o corretor mandar o link no WhatsApp. */
-export function mensagemConviteAgendamento(url: string, nomeCorretor: string | null): string {
+export function mensagemConviteAgendamento(
+  url: string,
+  nomeCorretor: string | null,
+  localNome: string | null = null,
+): string {
   const quem = nomeCorretor ? `Aqui é ${nomeCorretor.split(" ")[0]}, da Seu Metro Quadrado. ` : "";
-  return `Olá! ${quem}Escolha o melhor dia e horário para a sua visita por este link — leva menos de 1 minuto: ${url}`;
+  const onde = localNome ? ` no ${localNome}` : "";
+  return `Olá! ${quem}Escolha o melhor dia e horário para a sua visita${onde} por este link — leva menos de 1 minuto: ${url}`;
 }
 
 /** Descrição do evento no calendário do cliente (sem dados pessoais dele). */
 export function descricaoEventoCliente(
-  c: Pick<AgendamentoConfirmado, "corretor_nome" | "corretor_whatsapp">,
+  c: Pick<AgendamentoConfirmado, "corretor_nome" | "corretor_whatsapp"> &
+    Partial<Pick<AgendamentoConfirmado, "local_nome">>,
 ): string {
   const linhas = [
     `Visita agendada com ${c.corretor_nome} (Seu Metro Quadrado).`,
+    ...(c.local_nome ? [`Local: ${c.local_nome}`] : []),
     "Leve um documento com foto. Se precisar remarcar, avise o corretor.",
   ];
   if (c.corretor_whatsapp)
