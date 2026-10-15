@@ -317,7 +317,7 @@ function Formulario({
             </Linha>
             {link.endereco && (
               <Linha icon={MapPin} rotulo="Local da visita">
-                {link.endereco}
+                <LocalEEndereco localNome={link.local_nome} endereco={link.endereco} />
               </Linha>
             )}
             <Linha icon={Clock} rotulo="Duração">
@@ -592,7 +592,7 @@ function Confirmacao({
               <span className="first-letter:uppercase">{rotuloInstante(confirmado.inicio)}</span>
             </Linha>
             <Linha icon={MapPin} rotulo="Onde">
-              {confirmado.endereco}
+              <LocalEEndereco localNome={confirmado.local_nome} endereco={confirmado.endereco} />
             </Linha>
             <Linha icon={UserCircle} rotulo="Corretor responsável">
               {confirmado.corretor_nome}
@@ -667,6 +667,17 @@ function Linha({
         <dd className="font-medium leading-snug break-words">{children}</dd>
       </div>
     </div>
+  );
+}
+
+/** "Cury · Stand Tatuapé" em destaque e o endereço embaixo; só o endereço quando digitado. */
+function LocalEEndereco({ localNome, endereco }: { localNome: string | null; endereco: string }) {
+  if (!localNome) return <>{endereco}</>;
+  return (
+    <>
+      {localNome}
+      <span className="block text-sm font-normal text-muted-foreground">{endereco}</span>
+    </>
   );
 }
 

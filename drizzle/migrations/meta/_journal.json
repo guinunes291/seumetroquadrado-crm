@@ -589,6 +589,13 @@
       "when": 1792681200000,
       "tag": "0083_link_agendamento_cliente",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1792767600000,
+      "tag": "0084_link_agendamento_por_local",
+      "breakpoints": true
     }
   ]
 }
