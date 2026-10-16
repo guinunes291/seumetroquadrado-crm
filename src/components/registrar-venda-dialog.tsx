@@ -107,6 +107,7 @@ export function VendaEtapasDialog({
   const [dataAssinatura, setDataAssinatura] = useState(hoje());
   const [unidade, setUnidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [previsaoRecebimento, setPrevisaoRecebimento] = useState("");
   const [efetivacao, setEfetivacao] = useState<EfetivacaoVenda>(EFETIVACAO_INICIAL);
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
@@ -309,6 +310,9 @@ export function VendaEtapasDialog({
       const split = parseSplit(percentuais);
       const erro = validarVenda({ valorVenda: valorNum, dataAssinatura, hoje: hoje(), split });
       if (erro) throw new Error(erro);
+      if (!/^\d{4}-\d{2}$/.test(previsaoRecebimento)) {
+        throw new Error("Informe o mês previsto para recebimento");
+      }
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
       const obsConstrutora = !projeto && projetoManual.trim() ? `Construtora: ${construtora}` : "";
@@ -323,6 +327,7 @@ export function VendaEtapasDialog({
         dataAssinatura,
         split: split!,
         observacoes: [obsConstrutora, observacoes.trim()].filter(Boolean).join("\n"),
+        previsaoRecebimento,
         efetivacao,
       });
     },
@@ -643,6 +648,15 @@ export function VendaEtapasDialog({
                   onChange={(e) => setUnidade(e.target.value)}
                   placeholder="Ex.: Torre B — apto 1204"
                   maxLength={60}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Previsão para recebimento *</Label>
+                <Input
+                  type="month"
+                  value={previsaoRecebimento}
+                  onChange={(e) => setPrevisaoRecebimento(e.target.value)}
                 />
               </div>
 

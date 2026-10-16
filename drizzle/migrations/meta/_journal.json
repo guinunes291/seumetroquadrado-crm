@@ -645,6 +645,20 @@
       "when": 1792771200004,
       "tag": "0091_reload_schema_recebimento",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1792771200005,
+      "tag": "0092_vendas_previsao_recebimento",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1792771200006,
+      "tag": "0093_reload_schema_previsao_recebimento",
+      "breakpoints": true
     }
   ]
 }
