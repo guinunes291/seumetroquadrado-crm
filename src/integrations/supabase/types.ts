@@ -9576,6 +9576,7 @@ export type Database = {
           percentual_corretor: number
           percentual_gerente: number
           percentual_superintendente: number
+          previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
           status_recebimento: string
@@ -9616,6 +9617,7 @@ export type Database = {
           percentual_corretor?: number
           percentual_gerente?: number
           percentual_superintendente?: number
+          previsao_recebimento?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           status_recebimento?: string
@@ -9656,6 +9658,7 @@ export type Database = {
           percentual_corretor?: number
           percentual_gerente?: number
           percentual_superintendente?: number
+          previsao_recebimento?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           status_recebimento?: string
@@ -11905,6 +11908,7 @@ export type Database = {
           percentual_corretor: number
           percentual_gerente: number
           percentual_superintendente: number
+          previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
           status_recebimento: string
@@ -12044,6 +12048,7 @@ export type Database = {
           percentual_corretor: number
           percentual_gerente: number
           percentual_superintendente: number
+          previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
           status_recebimento: string
