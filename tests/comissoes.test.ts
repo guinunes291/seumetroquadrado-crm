@@ -234,7 +234,19 @@ describe("computeResumoVendas", () => {
   });
 
   it("vazio retorna zeros", () => {
-    expect(computeResumoVendas([])).toEqual({ vgv: 0, comissaoImobiliaria: 0 });
+    expect(computeResumoVendas([])).toEqual({
+      vgv: 0,
+      comissaoImobiliaria: 0,
+      recebida: 0,
+      aReceber: 0,
+    });
+  });
+  it("separa recebida da construtora e a receber", () => {
+    const r = computeResumoVendas([
+      { valor_venda: 100000, percentual_comissao: 5, distrato: false, status_recebimento: "recebido", valor_recebido: 4800 },
+      { valor_venda: 200000, percentual_comissao: 5, distrato: false, status_recebimento: "pendente", valor_recebido: null },
+    ]);
+    expect(r).toMatchObject({ comissaoImobiliaria: 15000, recebida: 4800, aReceber: 10000 });
   });
 });
 
