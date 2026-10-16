@@ -9569,6 +9569,7 @@ export type Database = {
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
+          nf_emitida_em: string | null
           observacoes: string | null
           pct_share_corretor: number | null
           percentual_comissao: number
@@ -9583,6 +9584,7 @@ export type Database = {
           tier_comissao: string | null
           unidade: string | null
           updated_at: string
+          valor_recebido: number | null
           valor_venda: number
         }
         Insert: {
@@ -9607,6 +9609,7 @@ export type Database = {
           legacy_id?: number | null
           motivo_decisao?: string | null
           motivo_distrato?: string | null
+          nf_emitida_em?: string | null
           observacoes?: string | null
           pct_share_corretor?: number | null
           percentual_comissao?: number
@@ -9621,6 +9624,7 @@ export type Database = {
           tier_comissao?: string | null
           unidade?: string | null
           updated_at?: string
+          valor_recebido?: number | null
           valor_venda?: number
         }
         Update: {
@@ -9645,6 +9649,7 @@ export type Database = {
           legacy_id?: number | null
           motivo_decisao?: string | null
           motivo_distrato?: string | null
+          nf_emitida_em?: string | null
           observacoes?: string | null
           pct_share_corretor?: number | null
           percentual_comissao?: number
@@ -9659,6 +9664,7 @@ export type Database = {
           tier_comissao?: string | null
           unidade?: string | null
           updated_at?: string
+          valor_recebido?: number | null
           valor_venda?: number
         }
         Relationships: [
@@ -11892,6 +11898,7 @@ export type Database = {
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
+          nf_emitida_em: string | null
           observacoes: string | null
           pct_share_corretor: number | null
           percentual_comissao: number
@@ -11906,6 +11913,7 @@ export type Database = {
           tier_comissao: string | null
           unidade: string | null
           updated_at: string
+          valor_recebido: number | null
           valor_venda: number
         }
         SetofOptions: {
@@ -12029,6 +12037,7 @@ export type Database = {
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
+          nf_emitida_em: string | null
           observacoes: string | null
           pct_share_corretor: number | null
           percentual_comissao: number
@@ -12043,6 +12052,7 @@ export type Database = {
           tier_comissao: string | null
           unidade: string | null
           updated_at: string
+          valor_recebido: number | null
           valor_venda: number
         }
         SetofOptions: {
