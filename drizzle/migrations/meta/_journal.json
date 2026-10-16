@@ -624,6 +624,13 @@
       "when": 1792771200001,
       "tag": "0088_ranking_gestor_corretor",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1792120946242,
+      "tag": "0089_reload_schema_ranking",
+      "breakpoints": true
     }
   ]
 }
