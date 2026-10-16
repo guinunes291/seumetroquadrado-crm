@@ -277,17 +277,34 @@ export function computeTotais(rows: ComissaoRow[]): ComissoesTotais {
 
 /** VGV e comissão da imobiliária derivados das vendas do período (exclui distratos). */
 export function computeResumoVendas(
-  vendas: Array<{ valor_venda: number; percentual_comissao: number; distrato: boolean }>,
-): { vgv: number; comissaoImobiliaria: number } {
+  vendas: Array<{
+    valor_venda: number;
+    percentual_comissao: number;
+    distrato: boolean;
+    status_recebimento?: string | null;
+    valor_recebido?: number | null;
+  }>,
+): { vgv: number; comissaoImobiliaria: number; recebida: number; aReceber: number } {
   let vgv = 0;
   let comissao = 0;
+  let recebida = 0;
+  let aReceber = 0;
   for (const v of vendas) {
     if (v.distrato) continue;
     const valor = Number(v.valor_venda) || 0;
     vgv += valor;
-    comissao += round2((valor * (Number(v.percentual_comissao) || 0)) / 100);
+    const prevista = round2((valor * (Number(v.percentual_comissao) || 0)) / 100);
+    comissao += prevista;
+    // Recebimento da construtora: recebido sem valor informado conta a prevista.
+    if (v.status_recebimento === "recebido") recebida += Number(v.valor_recebido ?? prevista) || 0;
+    else aReceber += prevista;
   }
-  return { vgv: round2(vgv), comissaoImobiliaria: round2(comissao) };
+  return {
+    vgv: round2(vgv),
+    comissaoImobiliaria: round2(comissao),
+    recebida: round2(recebida),
+    aReceber: round2(aReceber),
+  };
 }
 
 /** Beneficiários únicos presentes nas linhas (para o filtro do gestor). */
@@ -378,12 +395,19 @@ export async function listComissoes(filtro: ComissoesFiltro = {}): Promise<Comis
 export async function listVendasPeriodo(
   mes?: { ini: string; fim: string } | null,
 ): Promise<
-  Array<{ id: string; valor_venda: number; percentual_comissao: number; distrato: boolean }>
+  Array<{
+    id: string;
+    valor_venda: number;
+    percentual_comissao: number;
+    distrato: boolean;
+    status_recebimento: string | null;
+    valor_recebido: number | null;
+  }>
 > {
   return fetchAllPaged(async (from, to) => {
     let q = supabase
       .from("vendas")
-      .select("id, valor_venda, percentual_comissao, distrato")
+      .select("id, valor_venda, percentual_comissao, distrato, status_recebimento, valor_recebido")
       .eq("status_venda", "aprovada")
       // Período sempre por data da venda (assinatura), igual a ranking e
       // métricas — aprovado_em inflava o mês com vendas antigas aprovadas agora.
