@@ -631,6 +631,13 @@
       "when": 1792771200002,
       "tag": "0089_reload_schema_ranking",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1792121074433,
+      "tag": "0090_recebimento_construtora_bloqueio_aprovacao",
+      "breakpoints": true
     }
   ]
 }
