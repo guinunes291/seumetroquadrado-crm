@@ -254,7 +254,7 @@ describe("a régua do quadro (puro)", () => {
     expect(rot("bia")).toEqual({ texto: "Fora — 9º (top 6)", dentro: false });
     expect(rot("caio")).toEqual({ texto: "Bloqueado pela gestão", dentro: false });
     expect(rot("dani")).toEqual({ texto: "Sem venda em 30 dias", dentro: false });
-    // Regra desligada (ou banco sem a 0089: ranking null) → só a participação.
+    // Regra desligada (ou banco sem a 0095: ranking null) → só a participação.
     expect(rot("ana", null)).toEqual({ texto: "Na roleta", dentro: true });
     expect(rot("bia", { ...RANKING, regra_ativa: false })).toEqual({ texto: "—", dentro: false });
     // Pausado dentro do time aparece.
@@ -492,7 +492,7 @@ describe("QuadroRoletas — admin", () => {
     ]);
   });
 
-  it("banco sem a 0089 (ranking null): a Marquinhos mostra só a participação", async () => {
+  it("banco sem a 0095 (ranking null): a Marquinhos mostra só a participação", async () => {
     preparar();
     estado.ranking.mockResolvedValue(null);
     montar(<QuadroRoletas somenteLeitura={false} />);

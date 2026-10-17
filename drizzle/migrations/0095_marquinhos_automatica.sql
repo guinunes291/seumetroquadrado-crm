@@ -33,7 +33,7 @@
 -- (marquinhos_regra_desde). Remoção feita antes, no critério antigo, não
 -- bloqueia. As ações da regra vão com feito_por NULL.
 --
--- Idempotente. Espelhada em drizzle/migrations/0089. Exige a 0084.
+-- Idempotente. Espelhada em drizzle/migrations/0095. Exige a 0084.
 -- =============================================================================
 
 DO $$
@@ -391,7 +391,7 @@ BEGIN
     RAISE EXCEPTION 'roleta % inexistente', _slug;
   END IF;
 
-  -- [MARQUINHOS AUTOMÁTICA] (0089)
+  -- [MARQUINHOS AUTOMÁTICA] (0095)
   _regra := _slug = 'marquinhos'
             AND COALESCE((public.get_dist_setting('marquinhos_regra_ativa') #>> '{}')::boolean, false);
   IF _regra AND _acao IN ('incluir', 'remover', 'reativar') THEN
