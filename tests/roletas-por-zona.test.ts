@@ -177,9 +177,12 @@ describe("UI — a central conhece as roletas de zona", () => {
     expect(cc).toContain("TabFilas");
     const filas = read("src/features/distribuicao/tab-filas.tsx");
     expect(filas).not.toContain("ZONA_ROLETAS");
-    expect(filas).toContain('r.tipo === "zona"');
+    // Roletas simples (13/10/2026): a régua de família (tipo 'zona' com
+    // filial = Filiais) vive em familiaDaRoleta, e a aba só a usa.
+    expect(filas).toContain("familiaDaRoleta");
     expect(filas).toContain("RoletaTab");
     const lib = read("src/lib/distribuicao.ts");
+    expect(lib).toContain('r.tipo === "zona"');
     for (const slug of ["zona-norte", "zona-sul", "zona-leste", "zona-oeste"]) {
       expect(lib).toContain(`"${slug}": "Roleta`);
     }

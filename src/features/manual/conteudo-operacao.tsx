@@ -296,15 +296,23 @@ export function ConteudoOperacao() {
         id="distribuicao"
         numero="6"
         titulo="Distribuição — como o cliente chega até o corretor"
-        resumo="Toda a configuração da passagem de leads mora numa tela só: filas, corretores, exceções, histórico e política."
+        resumo="Só quatro roletas — Campanhas Facebook Ads, Filiais, SDR e Marquinhos — e quem está em cada uma, numa tela só: a Central de Distribuição."
       >
-        <Bloco titulo="As filas (roletas)" quem="Admin · Gestor (time)">
+        <Bloco titulo="As quatro roletas" quem="Admin · Gestor (time)">
           <p>
-            Existem as roletas <strong>Plantão</strong>, <strong>Marquinhos</strong> (bot),{" "}
-            <strong>Landing Page</strong>, <strong>Base</strong>, <strong>Agendados do SDR</strong>{" "}
-            e as roletas por <strong>filial</strong> (Barra Funda, Liberdade, Belém). O cliente com
-            zona vai para a filial que atende a zona dele; sem zona, a origem define a roleta.
-            Dentro dela, recebe quem está apto e há mais tempo sem receber.
+            Desde 13/10/2026 existem só quatro roletas: <strong>Campanhas Facebook Ads</strong> (a
+            equipe da campanha recebe o lead do anúncio de qualquer zona e de qualquer filial),{" "}
+            <strong>Filiais</strong> (Barra Funda, Liberdade, Belém: o time de cada loja recebe os
+            leads das zonas dela), <strong>SDR</strong> (as visitas que o SDR agenda) e{" "}
+            <strong>Marquinhos</strong> (o lead do bot; automática: os 6 corretores com mais vendas
+            nos últimos 30 dias). O cliente <strong>sem zona</strong> entra num rodízio entre as
+            filiais — vai para a que está há mais tempo sem receber um. Dentro da roleta, recebe
+            quem está apto e há mais tempo sem receber.
+          </p>
+          <p>
+            Para ver <strong>quem está em qual roleta</strong>, abra a Central de Distribuição na
+            aba de mesmo nome: uma linha por corretor e uma coluna por roleta (Filial · Campanhas ·
+            SDR · Marquinhos), com filtros por filial, por campanha e “só quem está sem roleta”.
           </p>
         </Bloco>
 
@@ -322,8 +330,8 @@ export function ConteudoOperacao() {
             gestão: Barra Funda (Oeste, Norte e Sul), Liberdade (Centro e Leste) e Belém (Leste e
             Grande SP). O cliente da Leste alterna entre Liberdade e Belém — vai para a que está há
             mais tempo sem receber da zona. A região do corretor é escolhida por filial (quem está
-            na Belém atende Leste e Grande SP), e um corretor pode estar em duas lojas. A campanha
-            de equipe fixa manda: quem está na equipe recebe, de qualquer zona.
+            na Belém atende Leste e Grande SP), e um corretor pode estar em duas lojas. Na campanha,
+            quem está na equipe recebe, de qualquer zona e de qualquer filial.
           </p>
           <p>
             <strong>A vez é uma só.</strong> Quem está em duas filiais não fica em 1º nas duas ao

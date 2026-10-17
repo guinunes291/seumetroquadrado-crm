@@ -2,7 +2,7 @@
 
 | Peça              | Onde                                                                                                                    |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Migration         | `20261022120000_link_agendamento_cliente` (Drizzle `0083`) e `20261023120000_link_agendamento_por_local` (`0087`)       |
+| Migration         | `20261022120000_link_agendamento_cliente` (Drizzle `0083`) e `20261023130000_link_agendamento_por_local` (`0088`)       |
 | Página do cliente | `/agendar/<slug>` — `src/routes/agendar.$slug.tsx`                                                                      |
 | API pública       | `POST /api/public/agendamento` (carregar/agendar), `GET /api/public/agendamento-ics?c=`                                 |
 | Tela do corretor  | Agenda → **Meu link** (`link-agendamento-dialog.tsx` + `seletor-local-visita.tsx`, em `src/features/agenda/`)           |

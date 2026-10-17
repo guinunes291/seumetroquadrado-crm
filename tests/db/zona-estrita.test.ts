@@ -11,9 +11,10 @@
  * Elenco (todos com telefone, todos corretores, menos o admin):
  *   Lia   — Liberdade e Belém (Leste, Centro, Grande SP), pela aba Corretores
  *           — como quem atendia a Leste ficou depois da migração
- *   Saulo — Barra Funda (Norte, Sul, Oeste), no Plantão, pela aba Corretores
+ *   Saulo — Barra Funda (Norte, Sul, Oeste), pela aba Corretores
  *   Nina  — Barra Funda (Norte, Sul, Oeste), pela roleta da filial (aba Filas)
- *   Sem   — sem região, no Plantão  (só pode receber lead SEM zona)
+ *   Sem   — sem região (Saulo e ele ainda constam no Plantão, desligado desde
+ *           as roletas simples de 13/10/2026: lá ninguém mais recebe)
  *
  * O que cada bloco prova:
  *   1. a zona do lead é UMA regra (a da vitrine: ABC = Sul, Grande SP);
@@ -442,20 +443,23 @@ describe("3. motor: lead com zona nunca sai da zona", () => {
     expect(log.contexto.roleta_pedida).toBe("filial-belem");
   });
 
-  it("lead SEM zona segue o fluxo por origem (Plantão)", async () => {
+  it("lead SEM zona entra no rodízio entre as filiais (o Plantão saiu em 13/10)", async () => {
     const l = await leadComZona({ nome: "Sem zona" });
     const res = await triar(l);
-    expect(res).toMatchObject({ ok: true, roleta: "plantao" });
-    expect([saulo.id, sem.id]).toContain(res.corretor_id);
+    expect(res.ok).toBe(true);
+    expect(res.roleta).toMatch(/^filial-/);
+    expect([lia.id, saulo.id, nina.id]).toContain(res.corretor_id);
   });
 
-  it("ROLLBACK: zona_estrita=false volta ao desvio antigo (Leste sem time apto → Plantão)", async () => {
+  it("ROLLBACK: zona_estrita=false volta ao desvio (Leste sem time apto → rodízio das filiais)", async () => {
+    // Antes de 13/10 o desvio era o Plantão; sem ele, o rodízio entre as
+    // filiais (a Barra Funda é a que tem gente apta).
     await presenca(lia, false);
     await setZonaEstrita(false);
     try {
       const l = await leadComZona({ nome: "Leste no rollback", zona: "Leste" });
       const res = await triar(l);
-      expect(res).toMatchObject({ ok: true, roleta: "plantao" });
+      expect(res).toMatchObject({ ok: true, roleta: "filial-barra-funda" });
     } finally {
       await setZonaEstrita(true);
       await presenca(lia, true);
@@ -684,14 +688,17 @@ describe("7. os outros caminhos de entrega respeitam a região", () => {
         estoque[nome],
       ]);
     }
+    // Desde 13/10 o estoque é das FILIAIS (o 'plantao' da assinatura antiga
+    // cai em todas): a Lia, da Liberdade e da Belém, leva o da Leste; o Sem,
+    // sem filial, não leva nada.
     await comoSuperuser(c);
     const r = await c.query(`SELECT public.distribuir_estoque_roleta('plantao', 30) AS out`);
     expect(r.rows[0].out.ok).toBe(true);
 
-    expect(await dono(estoque["Estoque Sul"])).toBe(saulo.id);
-    expect(await dono(estoque["Estoque Leste"])).toBeNull(); // ninguém da Leste no Plantão
-    expect([saulo.id, sem.id]).toContain(await dono(estoque["Estoque sem zona"]));
-    expect(r.rows[0].out.restante_por_zona).toMatchObject({ Leste: 1 });
+    expect([saulo.id, nina.id]).toContain(await dono(estoque["Estoque Sul"]));
+    expect(await dono(estoque["Estoque Leste"])).toBe(lia.id);
+    expect([lia.id, saulo.id, nina.id]).toContain(await dono(estoque["Estoque sem zona"]));
+    expect(r.rows[0].out.restante_por_zona).not.toHaveProperty("Leste");
   });
 
   it("SDR: dono antigo de outra região é recusado; sem agendado da zona, vai o time da zona", async () => {

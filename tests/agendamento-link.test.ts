@@ -40,7 +40,7 @@ const migration = readFileSync(
   "utf8",
 );
 const migrationPorLocal = readFileSync(
-  join(process.cwd(), "supabase/migrations/20261023120000_link_agendamento_por_local.sql"),
+  join(process.cwd(), "supabase/migrations/20261023130000_link_agendamento_por_local.sql"),
   "utf8",
 );
 const rotaPublica = readFileSync(

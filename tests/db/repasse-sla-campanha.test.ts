@@ -7,8 +7,11 @@
  * ficava para sempre com quem estourou o SLA. No cron de parados ainda virava
  * laço: sem exceção nem backoff, o mesmo lead voltava a cada minuto.
  *
- * Elenco: Ana (Sul) e Bia (Sul) na campanha comum `jardim-bf`; Ana e Caio
- * (Leste) na campanha de equipe fixa `equipe-guilherme`. Todos presentes.
+ * Elenco: Ana (Sul) e Bia (Sul) na campanha `jardim-bf`; Ana e Caio (Leste)
+ * na campanha `equipe-guilherme`. Todos presentes. Desde as roletas simples
+ * (20261023120000) toda campanha é de equipe fixa (a `jardim-bf`, que era
+ * comum, também) e o lead sem zona sem ninguém livre na equipe vai para o
+ * rodízio entre as filiais.
  * Desde as roletas por filial (20261018120000) o time da zona é a filial:
  * Ana e Bia na Barra Funda (Oeste, Norte, Sul); Caio na Liberdade e na Belém
  * (Centro, Leste, Grande SP).
@@ -171,23 +174,38 @@ describe("repasse imediato (tela, quando o relógio zera)", () => {
     });
   });
 
-  it("sem mais ninguém na campanha: fica com a dona atual e a exceção abre (alerta + backoff)", async () => {
+  it("sem mais ninguém na campanha, lead sem zona: o rodízio entre as filiais (13/10/2026)", async () => {
     await comoSuperuser(c);
     await c.query(
       `UPDATE public.leads SET data_distribuicao = now() - interval '1 hour' WHERE id = $1`,
       [id],
     );
-    expect(await disparar(id, bia)).toBe(false);
-    expect((await lead(id)).corretor_id).toBe(bia.id);
-    const e = await c.query(
-      `SELECT motivo, roleta_slug, status FROM public.distribuicao_excecoes WHERE lead_id = $1`,
-      [id],
-    );
-    expect(e.rows[0]).toEqual({
-      motivo: "sem_corretor_elegivel",
-      roleta_slug: "jardim-bf",
-      status: "pendente",
+    // Ana e Bia (as duas da jardim-bf, e o time da Barra Funda) já tiveram o
+    // lead: a Barra Funda é pulada e o Caio, da Liberdade, recebe.
+    expect(await disparar(id, bia)).toBe(true);
+    expect(await lead(id)).toMatchObject({
+      corretor_id: caio.id,
+      corretor_anterior_id: bia.id,
+      roleta_slug: "filial-liberdade",
     });
+  });
+
+  it("ninguém livre em filial nenhuma: fica com o dono atual e a exceção abre (alerta + backoff)", async () => {
+    // Lead novo (o anterior já gastou as duas tentativas de repasse): a Ana e
+    // o Caio já o tiveram; o dono atual é a Bia.
+    const outro = await leadDeCampanha({ nome: "Sem saída BF", campanha: "jardim-bf", dono: bia });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET corretores_que_tentaram = $2 WHERE id = $1`, [
+      outro,
+      [ana.id, caio.id],
+    ]);
+    expect(await disparar(outro, bia)).toBe(false);
+    expect((await lead(outro)).corretor_id).toBe(bia.id);
+    const e = await c.query(
+      `SELECT motivo, status FROM public.distribuicao_excecoes WHERE lead_id = $1`,
+      [outro],
+    );
+    expect(e.rows[0]).toEqual({ motivo: "sem_corretor_elegivel", status: "pendente" });
   });
 });
 
@@ -209,7 +227,7 @@ describe("cron de leads parados", () => {
   });
 
   it("lead sem saída não vira laço: depois de 3 tentativas o cron para de mexer nele", async () => {
-    // Na jardim-bf a Ana e a Bia já tiveram o lead: ninguém para receber.
+    // Todos (a jardim-bf e as filiais) já tiveram o lead: ninguém para receber.
     const id = await leadDeCampanha({
       nome: "Parado sem saída",
       campanha: "jardim-bf",
@@ -219,7 +237,7 @@ describe("cron de leads parados", () => {
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET corretores_que_tentaram = $2 WHERE id = $1`, [
       id,
-      [ana.id, bia.id],
+      [ana.id, bia.id, caio.id],
     ]);
     const tentativasDoLog = async () =>
       (
@@ -256,7 +274,8 @@ describe("repasse respeita a zona estrita", () => {
     });
   });
 
-  it("campanha comum com lead da Leste: vai para o time da zona (motor)", async () => {
+  it("não há mais campanha comum: lead da Leste da jardim-bf fica na equipe (Ana → Bia)", async () => {
+    // Antes de 13/10 a jardim-bf era comum e o lead ia para o time da zona.
     const id = await leadDeCampanha({
       nome: "Leste da BF",
       campanha: "jardim-bf",
@@ -264,8 +283,7 @@ describe("repasse respeita a zona estrita", () => {
       zona: "Leste",
     });
     expect(await disparar(id, ana)).toBe(true);
-    // Rodízio zerado: a Liberdade é a filial da vez da Leste (empate pela ordem).
-    expect(await lead(id)).toMatchObject({ corretor_id: caio.id, roleta_slug: "filial-liberdade" });
+    expect(await lead(id)).toMatchObject({ corretor_id: bia.id, roleta_slug: "jardim-bf" });
   });
 
   it("campanha desligada: o repasse cai na triagem normal em vez de travar", async () => {

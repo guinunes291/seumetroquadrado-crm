@@ -5,8 +5,13 @@
  * e o teto de carteira é 65 — os dois números brigam, e enquanto a roleta
  * olhar só a cota diária o teto de carteira é decorativo.
  *
+ * Desde as roletas simples (13/10/2026) o estoque é entregue pelas FILIAIS
+ * (`distribuir_estoque_filiais`; o Plantão saiu): o elenco está no time da
+ * Barra Funda e a ordem é a de quem está há mais tempo sem receber lead
+ * (profiles.last_lead_assigned_at).
+ *
  * Por que a distribuição é chamada como SUPERUSER e não como admin: em
- * produção quem a dispara é o cron (`distribuir-estoque-plantao`), onde o
+ * produção quem a dispara é o cron (`distribuir-estoque-filiais`), onde o
  * papel da sessão não é `authenticated` e o guard de transição de status
  * libera a passagem. Chamada por um admin autenticado — o botão "escoar
  * estoque" da Central de Distribuição — ela estoura em
@@ -71,9 +76,10 @@ beforeAll(async () => {
 
   await comoUsuario(c, admin.id);
   for (const u of [cheio, vazio, novato]) {
-    await c.query(`SELECT public.gerenciar_participante_roleta('plantao', $1::uuid, 'incluir')`, [
-      u.id,
-    ]);
+    await c.query(
+      `SELECT public.gerenciar_participante_roleta('filial-barra-funda', $1::uuid, 'incluir')`,
+      [u.id],
+    );
   }
   for (const u of [cheio, vazio, novato]) {
     await comoUsuario(c, u.id);
@@ -84,13 +90,12 @@ beforeAll(async () => {
   // é exatamente essa ordem que tornava o bug do EXIT fatal.
   await comoSuperuser(c);
   await c.query(
-    `UPDATE public.roleta_participantes rp
-        SET ultimo_lead_em = CASE rp.corretor_id
+    `UPDATE public.profiles
+        SET last_lead_assigned_at = CASE id
               WHEN $1::uuid THEN now() - interval '5 hours'
               ELSE now() - interval '1 hour' END
-       FROM public.roletas r
-      WHERE r.id = rp.roleta_id AND r.slug = 'plantao'`,
-    [cheio.id],
+      WHERE id = ANY($2::uuid[])`,
+    [cheio.id, [cheio.id, vazio.id, novato.id]],
   );
 
   // Carteira estourada: 70 leads no fundo do funil, teto 65.
@@ -125,7 +130,7 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
 
     // Como o cron roda (ver o cabeçalho): sessão não-authenticated.
     await comoSuperuser(c);
-    const r = await c.query(`SELECT public.distribuir_estoque_roleta('plantao', 30) AS out`);
+    const r = await c.query(`SELECT public.distribuir_estoque_filiais(30) AS out`);
     const out = r.rows[0].out;
 
     expect(out.ok).toBe(true);
@@ -154,7 +159,7 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
     ]);
     expect(antes.rows[0].v).toBe(20);
 
-    await c.query(`SELECT public.distribuir_estoque_roleta('plantao', 200)`);
+    await c.query(`SELECT public.distribuir_estoque_filiais(200)`);
 
     expect(await carteira(novato.id)).toBe(20);
 

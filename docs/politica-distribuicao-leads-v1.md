@@ -2,6 +2,12 @@
 
 Aprovada em 26/08/2026 pelo Guilherme (gestão SMQ), ao final do processo completo de redesenho: diagnóstico com dados reais (Fase 0), 15 decisões de política (Fase 1), escolha de cenário (Fase 2), matemática e simulação (Fase 3), dicionário de métricas (Fase 4), especificação técnica (Fase 5) e plano de rollout (Fase 6). Implementada nas migrations `20260826120000_distribuicao_v2_fundacao.sql` e `20260826121000_distribuicao_v2_motor.sql`, atrás da flag `modelo_v2_ativo` (nasce desligada).
 
+> **13/10/2026 — roletas simples** ([`ops/roletas-simples.md`](./ops/roletas-simples.md)).
+> A Base universal (o rodízio puro do item 2 abaixo) ficou desligada, junto
+> com o Plantão e a Landing. O estoque passa a ser entregue pelas
+> **roletas de filial**, por vaga na carteira, sem contar na cota do dia nem
+> andar a fila. A cota diária padrão subiu de 10 para 20.
+
 ## 1. A regra em 1 página
 
 1. **Lead quente** (campanha, pago, novo) cai na fila da **zona** dele. Dentro da fila, **quem responde rápido recebe mais**: faixa A (mediana até 15 min) tem peso 3, faixa B (até 60 min, ou sem amostra) peso 2, faixa C (acima de 60 min) peso 1. A faixa recalcula toda segunda 08:00 com os últimos 14 dias.

@@ -6,6 +6,19 @@
 > `docs/distribuicao-por-zonas.md` (a zona continua no lead; o time passa a
 > ser a filial).
 
+> **13/10/2026 — roletas simples.** As filiais continuam como aqui. Desde a
+> `0084`, só existem quatro roletas: Campanha Facebook Ads, Filial, SDR e
+> Marquinhos. O que muda:
+>
+> - Plantão, Landing e Base estão desligadas.
+> - O lead sem zona entra num **rodízio entre as filiais**.
+> - Toda campanha é de equipe fixa e sem filial dona, o que tira a "válvula"
+>   do §3b.
+> - O estoque é entregue pelas filiais.
+> - A Marquinhos é automática (top 6 em vendas, `0095`).
+>
+> Ver [roletas-simples.md](roletas-simples.md).
+
 ## 1. O pedido e as decisões (12/10/2026)
 
 Dono, 11/10 à noite: **"vamos montar roletas por filial, fica mais simples de

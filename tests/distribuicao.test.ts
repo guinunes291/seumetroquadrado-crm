@@ -176,7 +176,8 @@ describe("labels pt-BR — vocabulário completo", () => {
   });
 
   it("roletaLabel", () => {
-    expect(roletaLabel("plantao")).toBe("Roleta Plantão");
+    // Roletas simples (13/10/2026): o Plantão ficou só no histórico.
+    expect(roletaLabel("plantao")).toBe("Roleta Plantão (antiga)");
     expect(roletaLabel("marquinhos")).toBe("Roleta Marquinhos");
     expect(roletaLabel(null)).toBe("—");
     expect(roletaLabel("desconhecida")).toBe("desconhecida");

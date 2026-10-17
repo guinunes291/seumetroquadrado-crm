@@ -16,6 +16,9 @@ import {
   type WipCorretor,
 } from "./corretor-v2-client";
 import { motivoExcecaoLabel, type ZonaRoletaLinha } from "@/lib/distribuicao";
+import type { MarquinhosRanking, ParticipacaoQuadro } from "@/lib/quadro-roletas";
+import { rpc } from "@/features/dashboard/queries";
+import { rpcWithFallback } from "@/lib/supabase-errors";
 
 type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
 
@@ -26,6 +29,14 @@ export interface ResumoDistribuicao {
   distribuidos_hoje: number;
   aguardando_distribuicao: number;
   excecoes_pendentes: number;
+  /** Roletas simples (0084): pessoas aptas em alguma filial (uma vez cada). */
+  aptos_filiais?: number;
+  aptos_por_filial?: Record<string, number>;
+  /** O time ativo e sem pausa dos Agendados do SDR (o apto depende da visita). */
+  time_sdr?: number;
+  /** A filial da vez para o próximo lead sem zona. */
+  sem_zona_da_vez?: string | null;
+  /** Banco anterior à 0084 (a 0084 as devolve com o número das filiais). */
   aptos_plantao: number;
   aptos_marquinhos: number;
   aptos_landing: number;
@@ -120,8 +131,8 @@ export interface RoletaRow {
   webhook_token: string | null;
   projeto_id: string | null;
   tiers_recalculados_em: string | null;
-  // Roletas por filial (0079, 12/10/2026): a filial dona — sempre na roleta de
-  // filial (tipo zona), opcional na campanha (rótulo e agrupamento na aba Filas).
+  // Roletas por filial (0079, 12/10/2026): a filial da roleta de filial (tipo
+  // zona). Desde as roletas simples (13/10) a campanha não tem filial.
   filial_id: string | null;
 }
 
@@ -394,6 +405,47 @@ export function useRoletasPorCorretor(enabled = true) {
       if (error) throw error;
       return agruparRoletasPorCorretor((data ?? []) as unknown as ParticipacaoBruta[]);
     },
+  });
+}
+
+/**
+ * Quadro "Quem está em qual roleta" (13/10/2026): todas as participações, com
+ * a roleta embutida. A régua (ativa, pausada, família) é de lib/quadro-roletas.
+ */
+export function useParticipacoesQuadro(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:quadro-participacoes"],
+    enabled,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("roleta_participantes")
+        .select(
+          "corretor_id, ativo, pausado_ate, roleta:roletas!roleta_participantes_roleta_id_fkey(slug, nome, tipo, ativo, filial_id)",
+        );
+      if (error) throw error;
+      const linhas: ParticipacaoQuadro[] = data ?? [];
+      return linhas;
+    },
+  });
+}
+
+/** O ranking da Roleta Marquinhos automática (top em vendas, 0095). Banco
+ *  sem a 0095: null — a tela mostra a participação manual, como antes. */
+export function useMarquinhosRanking(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:marquinhos-ranking"],
+    enabled,
+    staleTime: 60_000,
+    queryFn: () =>
+      rpcWithFallback<MarquinhosRanking | null>(
+        async () => {
+          const { data, error } = await rpc("marquinhos_ranking_v1", {});
+          if (error) throw error;
+          return (data ?? null) as MarquinhosRanking | null;
+        },
+        () => null,
+      ),
   });
 }
 
@@ -691,6 +743,8 @@ export const DISTRIBUICAO_KEYS = [
   ["distribuicao:corretores"],
   ["distribuicao:wip"],
   ["distribuicao:zonas-roletas"],
+  ["distribuicao:quadro-participacoes"],
+  ["distribuicao:marquinhos-ranking"],
   // A página de métricas de Campanhas lê as mesmas linhas que a Central
   // agora edita — sem estas chaves ela ficaria stale após cada mutação.
   ["gestao:campanhas"],
@@ -888,17 +942,18 @@ export function useRodarDistribuicao() {
   });
 }
 
-/** Escoa o estoque de leads sem corretor para os aptos da roleta. */
-export function useEscoarEstoque(slug: string) {
+/** O estoque pelas FILIAIS (0084): um lote por corretor apto em qualquer
+ *  filial, por vaga na carteira, fora da cota do dia. A rotina automática faz
+ *  isso a cada 10 minutos. */
+export function useEscoarEstoqueFiliais() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
     mutationFn: async (limite: number) => {
-      const { data, error } = await supabase.rpc("distribuir_estoque_roleta", {
-        _roleta: slug,
-        _limite: limite,
-      });
+      const { data, error } = await rpc("distribuir_estoque_filiais", { _limite: limite });
       if (error) throw error;
       return data as {
+        ok?: boolean;
+        motivo?: string;
         distribuidos?: number;
         corretores_aptos?: number;
         restante_estoque?: number;
@@ -906,12 +961,49 @@ export function useEscoarEstoque(slug: string) {
     },
     onSuccess: (res) => {
       invalidate();
+      if (res?.ok === false && res.motivo === "escoamento_em_andamento") {
+        toast.info("A rotina automática está escoando o estoque agora — tente em instantes.");
+        return;
+      }
       toast.success(
-        `${res?.distribuidos ?? 0} leads do estoque distribuídos para ${res?.corretores_aptos ?? 0} corretor(es) apto(s) · ` +
+        `${res?.distribuidos ?? 0} leads do estoque distribuídos para ${res?.corretores_aptos ?? 0} corretor(es) das filiais · ` +
           `${res?.restante_estoque ?? 0} ainda no estoque.`,
       );
     },
     onError: (e: Error) => toast.error(`Falha ao escoar estoque: ${e.message}`),
+  });
+}
+
+/** Apura a Roleta Marquinhos agora (admin): o top em vendas entra, o resto sai. */
+export function useApurarMarquinhos() {
+  const invalidate = useInvalidateDistribuicao();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await rpc("marquinhos_apurar", {});
+      if (error) throw error;
+      return data as {
+        ok?: boolean;
+        motivo?: string;
+        dentro?: number;
+        entraram?: number;
+        sairam?: number;
+      } | null;
+    },
+    onSuccess: (res) => {
+      invalidate();
+      if (res?.ok === false) {
+        toast.info(
+          res.motivo === "regra_inativa"
+            ? "A regra automática da Marquinhos está desligada (Central → Política)."
+            : `Apuração não rodou: ${res.motivo ?? "motivo desconhecido"}.`,
+        );
+        return;
+      }
+      toast.success(
+        `Marquinhos apurada: ${res?.dentro ?? 0} no time · ${res?.entraram ?? 0} entraram · ${res?.sairam ?? 0} saíram.`,
+      );
+    },
+    onError: (e: Error) => toast.error(`Falha ao apurar a Marquinhos: ${e.message}`),
   });
 }
 
@@ -1018,21 +1110,16 @@ export function useAtualizarRoleta() {
 }
 
 /** Cria roleta de campanha — slug e token nascem no SERVIDOR (RPC auditada).
- *  Desde a 0079 a campanha pode nascer com a filial dona (`_filial_slug`). */
+ *  Desde as roletas simples (13/10/2026) a campanha é sempre da equipe, de
+ *  qualquer zona e filial: nasce de equipe fixa e sem filial (o banco força). */
 export function useCriarRoletaCampanha() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
-    mutationFn: async (args: {
-      nome: string;
-      equipeFixa?: boolean;
-      projetoId?: string | null;
-      filialSlug?: string | null;
-    }) => {
+    mutationFn: async (args: { nome: string; projetoId?: string | null }) => {
       const { data, error } = await supabasePendente.rpc("criar_roleta_campanha", {
         _nome: args.nome,
-        _equipe_fixa: args.equipeFixa ?? false,
+        _equipe_fixa: true,
         _projeto_id: args.projetoId ?? undefined,
-        _filial_slug: args.filialSlug ?? undefined,
       });
       if (error) throw error;
       return data as { ok?: boolean; roleta?: { slug?: string } } | null;

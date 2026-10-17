@@ -1,18 +1,12 @@
-// Aba Visão Geral — saúde das roletas por filial e de origem + últimas
-// decisões do motor.
+// Aba Visão Geral — saúde das quatro roletas (decisão do dono, 13/10/2026):
+// um cartão por filial, a Marquinhos e o SDR (as campanhas têm a própria lista
+// na aba Roletas), a filial da vez do lead sem zona e as últimas decisões do
+// motor.
 
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import {
-  ArrowRight,
-  Fire,
-  Globe,
-  Robot,
-  Storefront,
-  Tray,
-  UsersThree,
-} from "@phosphor-icons/react";
+import { ArrowRight, Fire, Robot, Storefront, UsersThree } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -20,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { proximoDaVez, roletaLabel, RESULTADO_LABEL } from "@/lib/distribuicao";
 import {
+  useDistribuicaoResumo,
   useElegibilidadeRoleta,
   useHistoricoDistribuicao,
   useNomesPerfis,
@@ -27,16 +22,14 @@ import {
 } from "./queries";
 
 const ROLETA_ICON: Record<string, typeof UsersThree> = {
-  plantao: UsersThree,
   marquinhos: Robot,
-  landing: Globe,
-  base: Tray,
   "agendados-sdr": Fire,
 };
 
 /** O cartão de saúde de uma roleta. O ícone e a frase do "sem apto" vêm do
- *  tipo: a roleta de filial (tipo zona) segura o lead na filial — ele nunca
- *  vai para outra zona —, as de origem mandam para a exceção. */
+ *  tipo: a roleta de filial (tipo zona) segura o lead com zona na filial — ele
+ *  nunca vai para outra zona —; a Marquinhos sem apto manda o lead do bot
+ *  para a filial; o SDR entrega por agenda (o apto depende da visita). */
 function RoletaSaudeCard({
   slug,
   nome,
@@ -78,7 +71,9 @@ function RoletaSaudeCard({
               <StatusBadge intent="danger">
                 {ehFilial
                   ? "Sem corretor apto — lead da Leste vai para a outra filial; das outras zonas, espera aqui (nunca vai para outra zona)"
-                  : "Sem corretor apto — leads irão para exceção"}
+                  : slug === "marquinhos"
+                    ? "Sem corretor apto — o lead do bot vai para a filial"
+                    : "Sem corretor apto agora"}
               </StatusBadge>
             ) : (
               <div
@@ -102,27 +97,37 @@ export function TabVisaoGeral({ onVerExcecoes }: { onVerExcecoes: () => void }) 
   const logQ = useHistoricoDistribuicao({ dias: 1, limite: 20 });
   const nomesQ = useNomesPerfis();
   const roletasQ = useRoletas();
+  const resumoQ = useDistribuicaoResumo();
   const nomes = nomesQ.data;
   const decisoes = (logQ.data ?? []).slice(0, 12);
   // Um cartão por filial: as roletas de tipo 'zona' ativas, do banco (a 0079
   // deixou as seis zona-* inativas). A ordem de slug já põe Barra Funda,
   // Belém, Liberdade; a aba Filas é que ordena por filiais.ordem.
   const filiais = (roletasQ.data ?? []).filter((r) => r.tipo === "zona" && r.ativo);
+  const semZonaDaVez = resumoQ.data?.sem_zona_da_vez;
+  const nomeSemZona = filiais.find((r) => r.slug === semZonaDaVez)?.nome;
 
   return (
     <div className="space-y-4">
       {/* Roletas por filial primeiro — todo lead com zona vai para a filial
-          que atende a zona dele e só para ela (zona estrita); as de origem
-          atendem só o lead SEM zona. */}
+          que atende a zona dele e só para ela (zona estrita); o lead SEM zona
+          entra no rodízio entre elas (13/10/2026). */}
       <div className="grid gap-4 md:grid-cols-3">
         {filiais.map((r) => (
           <RoletaSaudeCard key={r.slug} slug={r.slug} nome={r.nome} tipo={r.tipo} />
         ))}
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <RoletaSaudeCard slug="plantao" />
+      {semZonaDaVez !== undefined && (
+        <p className="text-xs text-muted-foreground" data-testid="sem-zona-da-vez">
+          Lead sem zona:{" "}
+          {nomeSemZona
+            ? `a vez é da ${nomeSemZona} (rodízio entre as filiais).`
+            : "nenhuma filial com corretor apto agora — o lead espera e o fallback por velocidade entrega."}
+        </p>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
         <RoletaSaudeCard slug="marquinhos" />
-        <RoletaSaudeCard slug="landing" />
+        <RoletaSaudeCard slug="agendados-sdr" nome="Agendados do SDR" />
       </div>
 
       <Card>

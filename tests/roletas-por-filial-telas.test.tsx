@@ -8,8 +8,10 @@
 //     nunca de uma constante; as seis zona-* antigas são só histórico;
 //   - a região do corretor é escolhida por filial e salva como a UNIÃO das
 //     zonas das filiais marcadas (a mesma RPC de sempre);
-//   - as campanhas se agrupam pela filial dona; a de equipe fixa manda;
 //   - os links antigos (?tab=zona-leste) caem na roleta da filial.
+// Roletas simples (13/10/2026): a campanha perdeu a filial dona (a equipe
+// recebe de qualquer zona e filial) e a região se edita no quadro "Quem está
+// em qual roleta" (tests/quadro-roletas.test.tsx cobre as outras colunas).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +21,7 @@ import {
   ROLETA_LABEL,
   agruparFiliais,
   descricaoRoletaFilial,
+  familiaDaRoleta,
   femininoNaFrase,
   filiaisDaRegiao,
   frasesAlternancia,
@@ -26,7 +29,6 @@ import {
   ordenarZonas,
   roletaLabel,
   rotuloFilial,
-  secoesDeCampanhas,
   uniaoDasZonas,
   zonasSoltas,
   type ZonaRoletaLinha,
@@ -82,12 +84,20 @@ vi.mock("@/hooks/use-auth", () => ({
 vi.mock("@/features/distribuicao/queries", () => ({
   useCorretoresDistribuicao: () =>
     useQuery({ queryKey: ["corretores"], queryFn: () => estado.corretores() }),
-  useRoletasPorCorretor: () =>
-    useQuery({ queryKey: ["roletas-por-corretor"], queryFn: async () => new Map() }),
+  useParticipacoesQuadro: () => useQuery({ queryKey: ["part"], queryFn: async () => [] }),
+  useRoletas: () => useQuery({ queryKey: ["roletas"], queryFn: async () => [] }),
+  useMarquinhosRanking: () => useQuery({ queryKey: ["ranking"], queryFn: async () => null }),
+  useCorretoresDaMinhaEquipe: () =>
+    useQuery({ queryKey: ["equipe"], queryFn: async () => new Set<string>() }),
+  useGerenciarParticipante: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useWipCorretores: () => useQuery({ queryKey: ["wip"], queryFn: async () => null }),
   useZonasRoletas: () => useQuery({ queryKey: ["mapa"], queryFn: () => estado.mapa() }),
   useMarcarPresencaAdmin: () => ({ mutate: estado.presenca, isPending: false }),
   useAtualizarCorretorDistribuicao: () => ({ mutate: estado.atualizar, isPending: false }),
+}));
+
+vi.mock("@/features/distribuicao/roleta-sdr-semanal-queries", () => ({
+  useRoletaSdrConfig: () => ({ data: { regra_ativa: false, modo_sombra: false } }),
 }));
 
 import { TabCorretores } from "@/features/distribuicao/tab-corretores";
@@ -164,25 +174,15 @@ describe("o mapa das filiais (puro)", () => {
     );
   });
 
-  it("as campanhas se agrupam pela filial dona; as sem filial (ou de filial sumida) no fim", () => {
-    const filiaisDb = [
-      { id: "f-bel", nome: "Belém", ordem: 3 },
-      { id: "f-bf", nome: "Barra Funda", ordem: 1 },
-    ];
-    const campanhas = [
-      { slug: "well", filial_id: "f-bf" },
-      { slug: "cury", filial_id: null },
-      { slug: "jardim", filial_id: "f-bel" },
-      { slug: "orfa", filial_id: "f-apagada" },
-    ];
-    expect(
-      secoesDeCampanhas(campanhas, filiaisDb).map((s) => [s.titulo, s.filas.map((c) => c.slug)]),
-    ).toEqual([
-      ["Campanhas · Barra Funda", ["well"]],
-      ["Campanhas · Belém", ["jardim"]],
-      ["Campanhas · sem filial", ["cury", "orfa"]],
-    ]);
-    expect(secoesDeCampanhas([], filiaisDb)).toEqual([]);
+  // Roletas simples (13/10/2026): sem filial dona — as campanhas são uma
+  // lista só; a roleta de zona sem filial (zona-* antiga) não é família.
+  it("a família da roleta: campanha sem filial é campanha; zona só com filial", () => {
+    expect(familiaDaRoleta({ slug: "cury", tipo: "campanha", filial_id: null })).toBe("campanha");
+    expect(familiaDaRoleta({ slug: "filial-belem", tipo: "zona", filial_id: "f-bel" })).toBe(
+      "filial",
+    );
+    expect(familiaDaRoleta({ slug: "zona-leste", tipo: "zona", filial_id: null })).toBeNull();
+    expect(read("src/lib/distribuicao.ts")).not.toContain("secoesDeCampanhas");
   });
 
   it("o vocabulário: as três de filial têm rótulo, as seis antigas são '(antiga)'", () => {
@@ -195,16 +195,16 @@ describe("o mapa das filiais (puro)", () => {
 });
 
 describe("as telas (contratos no fonte)", () => {
-  it("a aba Filas lista as roletas de filial pelo tipo e ordena por filiais.ordem — sem constante", () => {
+  it("a aba Roletas lista as roletas de filial pela família e ordena por filiais.ordem — sem constante", () => {
     const filas = read("src/features/distribuicao/tab-filas.tsx");
     expect(filas).not.toContain("ZONA_ROLETAS");
-    expect(filas).toContain('r.tipo === "zona"');
+    expect(filas).toContain("familiaDaRoleta");
     expect(filas).toContain("useFiliais");
-    expect(filas).toContain("Roletas por filial");
-    expect(filas).toContain("secoesDeCampanhas");
-    expect(filas).toContain("A campanha manda: quem está na equipe recebe, de qualquer zona");
-    expect(filas).toContain("filialSlug");
-    expect(filas).not.toContain("atende a zona");
+    // Roletas simples: campanha sem filial dona (nem seções por filial, nem
+    // filial na criação) e a equipe recebe de qualquer zona e filial.
+    expect(filas).not.toContain("secoesDeCampanhas");
+    expect(filas).not.toContain("filialSlug");
+    expect(filas).toContain("de qualquer zona e de qualquer filial");
   });
 
   it("a Visão geral tira os cartões de useRoletas (tipo zona), com Storefront e a frase da filial", () => {
@@ -232,14 +232,18 @@ describe("as telas (contratos no fonte)", () => {
     }
   });
 
-  it("a campanha ganha filial nas propriedades e na criação, pela fronteira pendentes.ts", () => {
+  // Roletas simples (13/10/2026): a filial da campanha saiu da tela (o
+  // gatilho do banco zera filial_id); a RPC mantém os parâmetros por
+  // compatibilidade com o front antigo publicado.
+  it("a campanha não tem mais filial nas propriedades nem na criação", () => {
     const props = read("src/features/distribuicao/fila-propriedades.tsx");
-    expect(props).toContain("filialSlug: v === SEM_FILIAL ? null : v");
-    expect(props).toContain("Filial da campanha");
+    expect(props).not.toContain("filialSlug");
+    expect(props).not.toContain("Filial da campanha");
     expect(props).not.toContain("(respeita zonas)");
     const queries = read("src/features/distribuicao/queries.ts");
+    const criar = queries.slice(queries.indexOf("export function useCriarRoletaCampanha"));
+    expect(criar.slice(0, criar.indexOf("onSuccess"))).not.toContain("_filial_slug");
     expect(queries).toContain("_filial_slug: args.filialSlug ?? undefined");
-    expect(queries).toContain("_limpar_filial: args.filialSlug === null");
     expect(queries).toContain('supabasePendente.rpc("criar_roleta_campanha"');
     expect(queries).toContain('supabasePendente.rpc("atualizar_roleta"');
     expect(queries).toContain("useZonasRoletas");
@@ -249,22 +253,26 @@ describe("as telas (contratos no fonte)", () => {
     expect(pendentes).toContain("_limpar_filial?: boolean");
   });
 
-  it("a chave da vez única, o manual e a aba Corretores falam de filial", () => {
+  it("a chave da vez única, o manual e o quadro falam de filial", () => {
     expect(read("src/features/distribuicao/tab-configuracoes.tsx")).toContain(
       "Por zona nos Agendados do SDR e por filial nas roletas de filial",
     );
     const manual = read("src/features/manual/conteudo-operacao.tsx");
     expect(manual).toContain("Roletas por filial.");
     expect(manual).toContain("alterna entre Liberdade e Belém");
-    const corretores = read("src/features/distribuicao/tab-corretores.tsx");
-    expect(corretores).toContain("FiliaisEditor");
-    expect(corretores).toContain("uniaoDasZonas");
-    expect(corretores).not.toContain("ZonasEditor");
-    expect(corretores).not.toContain("ZONAS_REGIAO");
+    expect(read("src/features/distribuicao/tab-corretores.tsx")).toContain("QuadroRoletas");
+    const quadro = read("src/features/distribuicao/quadro-roletas.tsx");
+    expect(quadro).toContain("FiliaisEditor");
+    const editor = read("src/features/distribuicao/filiais-editor.tsx");
+    expect(editor).toContain("uniaoDasZonas");
+    for (const fonte of [quadro, editor]) {
+      expect(fonte).not.toContain("ZonasEditor");
+      expect(fonte).not.toContain("ZONAS_REGIAO");
+    }
   });
 });
 
-describe("aba Corretores: a região por filial", () => {
+describe("quadro de roletas: a coluna Filial", () => {
   const corretor = (id: string, nome: string, zonas: string[]) => ({
     id,
     nome,
@@ -280,7 +288,7 @@ describe("aba Corretores: a região por filial", () => {
     estado.mapa.mockResolvedValue(MAPA);
     montar(<TabCorretores somenteLeitura={false} />);
 
-    const botao = await screen.findByRole("button", { name: "Região de Lia Souza" });
+    const botao = await screen.findByRole("button", { name: "Filial de Lia Souza" });
     expect(botao.textContent).toBe("Belém");
     fireEvent.click(botao);
 
@@ -310,7 +318,7 @@ describe("aba Corretores: a região por filial", () => {
     estado.mapa.mockResolvedValue(MAPA);
     montar(<TabCorretores somenteLeitura={false} />);
 
-    const botao = await screen.findByRole("button", { name: "Região de Igor Nigro" });
+    const botao = await screen.findByRole("button", { name: "Filial de Igor Nigro" });
     expect(botao.textContent).toBe("Liberdade, Belém");
     fireEvent.click(botao);
     fireEvent.click(await screen.findByRole("checkbox", { name: "Belém — Leste, Grande SP" }));
@@ -336,7 +344,7 @@ describe("aba Corretores: a região por filial", () => {
     expect(within(linhaAna as HTMLElement).getByText("Belém · Leste, Grande SP")).toBeTruthy();
     expect(within(linhaAna as HTMLElement).getByText("Sul")).toBeTruthy();
     const linhaBia = screen.getByText("Bia Reis").closest("tr") as HTMLElement;
-    expect(within(linhaBia).getByText("Sem região")).toBeTruthy();
+    expect(within(linhaBia).getByText("Sem filial")).toBeTruthy();
   });
 });
 

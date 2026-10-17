@@ -7,6 +7,11 @@
 > fixa entregam sem corte por zona. A zona do lead, a zona estrita e a guarda
 > de região continuam como aqui. O que mudou está em
 > [`ops/roletas-por-filial.md`](./ops/roletas-por-filial.md).
+>
+> **13/10/2026 — roletas simples.** Só quatro roletas: Campanha Facebook Ads,
+> Filial, SDR e Marquinhos. O lead **sem zona** deixou de ir para o
+> Plantão ou a Landing, que estão desligadas, e entra num rodízio entre as
+> filiais. Ver [`ops/roletas-simples.md`](./ops/roletas-simples.md).
 
 ## ZONA ESTRITA (2026-10-03) — o modelo vigente
 

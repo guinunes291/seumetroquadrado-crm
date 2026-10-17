@@ -1,10 +1,11 @@
-// Aba de roleta (compartilhada pelas 3): tabela de participantes com
-// aptidão + MOTIVO visível, contadores dia/mês derivados do log, próximo da
-// vez calculado com dados do servidor, e ações auditadas (incluir/pausar/
-// remover/limite) via RPC gerenciar_participante_roleta.
+// Aba de roleta (campanhas, filiais e SDR; a Marquinhos tem a visão própria):
+// tabela de participantes com aptidão + MOTIVO visível, contadores dia/mês
+// derivados do log, próximo da vez calculado com dados do servidor, e ações
+// auditadas (incluir/pausar/remover/limite) via RPC
+// gerenciar_participante_roleta. Desde as roletas simples (13/10/2026) não há
+// mais Plantão nem Landing (e as colunas que eram só delas saíram).
 
 import { useMemo, useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -14,7 +15,6 @@ import {
   PauseCircle,
   PlayCircle,
   Plus,
-  SealCheck,
   Trash,
   UserCheck,
   UserMinus,
@@ -70,24 +70,20 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  acaoPresencaDaGestao,
   agruparFiliais,
   descricaoRoletaFilial,
   motivoInaptidaoLabel,
-  participacaoPercentual,
   proximoDaVez,
   roletaLabel,
 } from "@/lib/distribuicao";
 import {
+  useApurarMarquinhos,
   useCorretoresDaMinhaEquipe,
   useCorretoresDisponiveis,
   useCorretoresDaMinhaEquipeLista,
   useElegibilidadeRoleta,
-  useEscoarEstoque,
   useGerenciarParticipante,
-  useMarcarPresencaAdmin,
-  useNomesPerfis,
-  useRecebidosSemana,
+  useMarquinhosRanking,
   useRoletas,
   useRoletasPorCorretor,
   useVendasMesAnterior,
@@ -152,7 +148,7 @@ export function RoletaTab({
   escopoEquipe?: boolean;
 }) {
   if (slug === "marquinhos") {
-    return <MarquinhosSimpleTab somenteLeitura={somenteLeitura || escopoEquipe} />;
+    return <MarquinhosTab somenteLeitura={somenteLeitura || escopoEquipe} />;
   }
   return (
     <RoletaTabPadrao
@@ -178,16 +174,10 @@ function RoletaTabPadrao({
   const minhaEquipeQ = useCorretoresDaMinhaEquipe(escopoEquipe);
   const podeGerir = (corretorId: string) => !escopoEquipe || !!minhaEquipeQ.data?.has(corretorId);
   const q = useElegibilidadeRoleta(slug);
-  const vendasQ = useVendasMesAnterior(slug === "marquinhos");
-  const semanaQ = useRecebidosSemana(slug, slug === "landing");
-  const nomesQ = useNomesPerfis();
   const outrasRoletasQ = useRoletasPorCorretor();
   const roletasQ = useRoletas();
   const mapaQ = useZonasRoletas();
   const gerenciar = useGerenciarParticipante();
-  const presencaAdmin = useMarcarPresencaAdmin();
-  const { user } = useAuth();
-  const escoar = useEscoarEstoque(slug);
 
   const [incluirAberto, setIncluirAberto] = useState(false);
   const [pausarAlvo, setPausarAlvo] = useState<ElegibilidadeLinha | null>(null);
@@ -195,19 +185,8 @@ function RoletaTabPadrao({
   const [removerAlvo, setRemoverAlvo] = useState<ElegibilidadeLinha | null>(null);
 
   const linhas = q.data ?? [];
-  const vendasMap = useMemo(
-    () => new Map((vendasQ.data ?? []).map((v) => [v.corretor_id, v])),
-    [vendasQ.data],
-  );
   const proximo = proximoDaVez(linhas);
-  const totalMesRoleta = useMemo(
-    () => linhas.reduce((acc, l) => acc + l.recebidos_mes, 0),
-    [linhas],
-  );
 
-  const ehPlantao = slug === "plantao";
-  const ehMarquinhos = slug === "marquinhos";
-  const ehLanding = slug === "landing";
   const roleta = roletasQ.data?.find((r) => r.slug === slug);
   // Roletas por filial (12/10/2026): a descrição diz as zonas da filial e com
   // quem a zona alterna (o mapa vem do banco). Campanha de equipe fixa: a
@@ -215,11 +194,9 @@ function RoletaTabPadrao({
   const filiais = useMemo(() => agruparFiliais(mapaQ.data ?? []), [mapaQ.data]);
   const filialDaRoleta = filiais.find((f) => f.roletaSlug === slug);
   const descricao = filialDaRoleta
-    ? `${descricaoRoletaFilial(filialDaRoleta, filiais)} Time fixo montado pela gestão: inclua ou remova corretores aqui — a região de atuação deles acompanha.`
+    ? `${descricaoRoletaFilial(filialDaRoleta, filiais)} Também entra no rodízio do lead sem zona. Time fixo montado pela gestão: inclua ou remova corretores aqui — a filial deles acompanha (e aparece no quadro "Quem está em qual roleta").`
     : roleta?.tipo === "campanha"
-      ? roleta.equipe_fixa
-        ? "A campanha manda: quem está na equipe recebe, de qualquer zona (ponderado por faixa A/B/C). Repasse por SLA e transferência ficam entre a equipe."
-        : "Campanha comum: o lead com zona vai para a roleta da filial da zona; a campanha fica como rótulo. Só o lead sem zona é sorteado aqui."
+      ? "A equipe recebe o lead do anúncio, de qualquer zona e de qualquer filial (ponderado por faixa A/B/C). Repasse por SLA e transferência ficam entre a equipe."
       : null;
 
   return (
@@ -227,32 +204,11 @@ function RoletaTabPadrao({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            {ehPlantao &&
-              "Participação automática por presença: recebe quem está no plantão hoje, dentro da cota e com % de leads trabalhados acima do mínimo."}
-            {ehMarquinhos &&
-              "Participação MANUAL: inclua apenas corretores com venda no mês anterior (badge abaixo). Toda inclusão/remoção fica auditada."}
-            {ehLanding &&
-              "Exclusiva para leads da Landing Page (origem site). Configure os participantes e acompanhe o equilíbrio da distribuição."}
-            {!ehPlantao &&
-              !ehMarquinhos &&
-              !ehLanding &&
-              (descricao ??
-                "Participação manual: quem está aqui entra no rodízio desta fila. Toda inclusão, pausa e remoção fica auditada.")}
+            {descricao ??
+              "Participação manual: quem está aqui entra no rodízio desta fila. Toda inclusão, pausa e remoção fica auditada."}
           </p>
           {!somenteLeitura && (
             <div className="flex flex-wrap items-center gap-2">
-              {!escopoEquipe && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={escoar.isPending}
-                  title="Envia 30 leads do estoque para cada corretor apto desta fila. A rotina automática já faz isso a cada 10 minutos."
-                  onClick={() => escoar.mutate(30)}
-                >
-                  <PlayCircle className="mr-1.5 h-4 w-4" />
-                  {escoar.isPending ? "Escoando…" : "Escoar estoque"}
-                </Button>
-              )}
               <Button size="sm" onClick={() => setIncluirAberto(true)}>
                 <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
               </Button>
@@ -286,21 +242,14 @@ function RoletaTabPadrao({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Corretor</TableHead>
-                    {ehPlantao && <TableHead>Presença</TableHead>}
                     <TableHead>Status na roleta</TableHead>
-                    {ehPlantao && <TableHead className="text-right">Carteira</TableHead>}
-                    {ehPlantao && <TableHead className="text-right">% trabalhado</TableHead>}
-                    {ehMarquinhos && <TableHead>Venda mês anterior</TableHead>}
-                    {ehMarquinhos && <TableHead>Incluído por</TableHead>}
                     <TableHead
                       className="text-right"
                       title="Leads NOVOS recebidos hoje nesta roleta, contra a cota diária. Repasses/redistribuições de leads já existentes não entram nesta conta — veja a coluna 'Último lead'."
                     >
                       Novos hoje
                     </TableHead>
-                    {ehLanding && <TableHead className="text-right">Semana</TableHead>}
                     <TableHead className="text-right">Mês</TableHead>
-                    {ehLanding && <TableHead className="text-right">Participação</TableHead>}
                     <TableHead>Último lead</TableHead>
                     {!somenteLeitura && <TableHead className="w-10" />}
                   </TableRow>
@@ -308,7 +257,6 @@ function RoletaTabPadrao({
                 <TableBody>
                   {linhas.map((l) => {
                     const ehProximo = proximo?.corretor_id === l.corretor_id;
-                    const venda = vendasMap.get(l.corretor_id);
                     return (
                       <TableRow
                         key={l.corretor_id}
@@ -336,15 +284,6 @@ function RoletaTabPadrao({
                             aptoAqui={l.apto}
                           />
                         </TableCell>
-                        {ehPlantao && (
-                          <TableCell>
-                            {l.presente ? (
-                              <StatusBadge intent="success">Presente</StatusBadge>
-                            ) : (
-                              <StatusBadge intent="neutral">Ausente</StatusBadge>
-                            )}
-                          </TableCell>
-                        )}
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-1">
                             {l.apto ? (
@@ -377,69 +316,11 @@ function RoletaTabPadrao({
                             )}
                           </div>
                         </TableCell>
-                        {ehPlantao && (
-                          <TableCell className="text-right text-xs tabular-nums">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  {l.carteira_total - l.aguardando}/{l.carteira_total}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {l.carteira_total} leads ativos · {l.carteira_total - l.aguardando}{" "}
-                                trabalhados · {l.aguardando} aguardando atendimento
-                              </TooltipContent>
-                            </Tooltip>
-                          </TableCell>
-                        )}
-                        {ehPlantao && (
-                          <TableCell className="text-right tabular-nums">
-                            <span
-                              className={
-                                l.pct_trabalhado < 90
-                                  ? "font-semibold text-warning"
-                                  : "text-success"
-                              }
-                            >
-                              {l.pct_trabalhado}%
-                            </span>
-                          </TableCell>
-                        )}
-                        {ehMarquinhos && (
-                          <TableCell>
-                            {venda ? (
-                              <StatusBadge intent="success">
-                                <SealCheck className="mr-1 h-3 w-3" />
-                                Sim ({venda.qtd})
-                              </StatusBadge>
-                            ) : (
-                              <StatusBadge intent="warning">Não</StatusBadge>
-                            )}
-                          </TableCell>
-                        )}
-                        {ehMarquinhos && (
-                          <TableCell className="text-xs text-muted-foreground">
-                            {l.incluido_por
-                              ? (nomesQ.data?.get(l.incluido_por) ?? "—")
-                              : "migração"}
-                            {l.incluido_em ? ` · ${fmtDataHora(l.incluido_em)}` : ""}
-                          </TableCell>
-                        )}
                         <TableCell className="text-right tabular-nums">
                           {l.recebidos_hoje}
                           <span className="text-muted-foreground">/{l.limite_diario}</span>
                         </TableCell>
-                        {ehLanding && (
-                          <TableCell className="text-right tabular-nums">
-                            {semanaQ.data?.get(l.corretor_id) ?? 0}
-                          </TableCell>
-                        )}
                         <TableCell className="text-right tabular-nums">{l.recebidos_mes}</TableCell>
-                        {ehLanding && (
-                          <TableCell className="text-right tabular-nums">
-                            {participacaoPercentual(l.recebidos_mes, totalMesRoleta)}%
-                          </TableCell>
-                        )}
                         <TableCell className="text-xs text-muted-foreground tabular-nums">
                           {fmtDataHora(l.ultimo_lead_em)}
                         </TableCell>
@@ -458,32 +339,6 @@ function RoletaTabPadrao({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {ehPlantao &&
-                                  !escopoEquipe &&
-                                  // A gestão não se marca presente (decisão do
-                                  // dono, 13/10/2026); marcar-se ausente vale.
-                                  acaoPresencaDaGestao(l, user?.id) !== null && (
-                                    <DropdownMenuItem
-                                      onClick={() =>
-                                        presencaAdmin.mutate({
-                                          corretorId: l.corretor_id,
-                                          presente:
-                                            acaoPresencaDaGestao(l, user?.id) === "marcar_presente",
-                                        })
-                                      }
-                                    >
-                                      {acaoPresencaDaGestao(l, user?.id) === "marcar_ausente" ? (
-                                        <>
-                                          <UserMinus className="mr-2 h-4 w-4" /> Marcar ausente
-                                        </>
-                                      ) : (
-                                        <>
-                                          <UserCheck className="mr-2 h-4 w-4" /> Marcar presente
-                                          hoje
-                                        </>
-                                      )}
-                                    </DropdownMenuItem>
-                                  )}
                                 {l.participante_ativo && !l.pausado && (
                                   <DropdownMenuItem onClick={() => setPausarAlvo(l)}>
                                     <PauseCircle className="mr-2 h-4 w-4" /> Pausar temporariamente
@@ -821,7 +676,209 @@ function LimiteDialog({
 }
 
 // ---------------------------------------------------------------------------
-// Marquinhos — visão simplificada
+// Marquinhos automática (0095, decisão do dono de 13/10/2026): o time são os
+// N corretores com mais vendas assinadas na janela — a tela mostra o ranking
+// e o porquê de cada um estar dentro ou fora. A gestão só BLOQUEIA (a regra
+// não traz de volta) ou DEVOLVE À REGRA; "Apurar agora" refaz o time na hora.
+// Com a regra desligada (Política), volta a visão manual abaixo.
+// ---------------------------------------------------------------------------
+
+const RESULTADO_MARQUINHOS: Record<
+  string,
+  { texto: string; intent: "success" | "neutral" | "warning" }
+> = {
+  dentro: { texto: "No time", intent: "success" },
+  fora: { texto: "Fora do top", intent: "neutral" },
+  sem_venda: { texto: "Sem venda", intent: "neutral" },
+  bloqueado_admin: { texto: "Bloqueado pela gestão", intent: "warning" },
+};
+
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+function MarquinhosTab({ somenteLeitura }: { somenteLeitura: boolean }) {
+  const rankingQ = useMarquinhosRanking();
+  if (rankingQ.isLoading) return <Skeleton className="h-40 w-full" />;
+  if (!rankingQ.data?.regra_ativa) return <MarquinhosSimpleTab somenteLeitura={somenteLeitura} />;
+  return <MarquinhosAutoTab somenteLeitura={somenteLeitura} />;
+}
+
+function MarquinhosAutoTab({ somenteLeitura }: { somenteLeitura: boolean }) {
+  const slug = "marquinhos";
+  const rankingQ = useMarquinhosRanking();
+  const eligQ = useElegibilidadeRoleta(slug);
+  const gerenciar = useGerenciarParticipante();
+  const apurar = useApurarMarquinhos();
+  const [bloquearAlvo, setBloquearAlvo] = useState<{ id: string; nome: string } | null>(null);
+
+  const r = rankingQ.data;
+  const elig = useMemo(
+    () => new Map((eligQ.data ?? []).map((e) => [e.corretor_id, e])),
+    [eligQ.data],
+  );
+  // Quem tem venda, está bloqueado ou ainda consta no time; os demais (sem
+  // venda na janela) viram só um número.
+  const visiveis = (r?.corretores ?? []).filter(
+    (c) => c.vendas > 0 || c.bloqueado || elig.get(c.corretor_id)?.participante_ativo,
+  );
+  const semVenda = (r?.corretores ?? []).length - visiveis.length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Automática: entram os <b>{r?.top_n ?? 6}</b> corretores com mais vendas assinadas nos
+          últimos <b>{r?.janela_dias ?? 30} dias</b> (pendente ou aprovada, sem distrato; empate
+          pelo valor vendido), apurada todo dia às 06:50. Lead do bot com zona vai primeiro a quem
+          daqui atende a zona; sem ninguém, para a filial. <b>Bloquear</b> tira o corretor e a regra
+          não o traz de volta; <b>Devolver à regra</b> desfaz.
+          {r?.apurado_em && (
+            <span className="ml-1 text-xs">Última apuração: {fmtDataHora(r.apurado_em)}.</span>
+          )}
+        </p>
+        {!somenteLeitura && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={apurar.isPending}
+            onClick={() => apurar.mutate()}
+          >
+            <PlayCircle className="mr-1.5 h-4 w-4" />
+            {apurar.isPending ? "Apurando…" : "Apurar agora"}
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <CardContent className="overflow-x-auto pt-4">
+          {visiveis.length === 0 ? (
+            <EmptyState
+              icon={UserMinus}
+              title="Ninguém com venda na janela"
+              description="Sem venda nos últimos dias, a Roleta Marquinhos fica vazia e o lead do bot vai para as roletas de filial."
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12 text-right">#</TableHead>
+                  <TableHead>Corretor</TableHead>
+                  <TableHead className="text-right">Vendas</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Na roleta</TableHead>
+                  <TableHead>Hoje</TableHead>
+                  {!somenteLeitura && <TableHead className="w-40 text-right">Ações</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visiveis.map((c) => {
+                  const e = elig.get(c.corretor_id);
+                  const res = RESULTADO_MARQUINHOS[c.resultado] ?? RESULTADO_MARQUINHOS.fora;
+                  return (
+                    <TableRow key={c.corretor_id} data-testid="marquinhos-linha">
+                      <TableCell className="text-right tabular-nums">{c.posicao ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{c.nome}</TableCell>
+                      <TableCell className="text-right tabular-nums">{c.vendas}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtBRL(Number(c.valor))}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge intent={res.intent}>{res.texto}</StatusBadge>
+                      </TableCell>
+                      <TableCell>
+                        {e?.participante_ativo ? (
+                          e.apto ? (
+                            <StatusBadge intent="success">Apto</StatusBadge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {e.motivos.map(motivoInaptidaoLabel).join(" · ") || "Inapto"}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {!somenteLeitura && (
+                        <TableCell className="text-right">
+                          {c.bloqueado ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={gerenciar.isPending}
+                              onClick={() =>
+                                gerenciar.mutate({
+                                  slug,
+                                  corretorId: c.corretor_id,
+                                  acao: "incluir",
+                                  motivo: "Devolvido à regra (top em vendas) pela gestão",
+                                })
+                              }
+                            >
+                              Devolver à regra
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              disabled={gerenciar.isPending}
+                              onClick={() => setBloquearAlvo({ id: c.corretor_id, nome: c.nome })}
+                            >
+                              Bloquear
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+          {semVenda > 0 && (
+            <p className="pt-3 text-xs text-muted-foreground">
+              + {semVenda} corretor(es) sem venda nos últimos {r?.janela_dias ?? 30} dias.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={!!bloquearAlvo} onOpenChange={(o) => !o && setBloquearAlvo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bloquear {bloquearAlvo?.nome} na Roleta Marquinhos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sai do time agora e a regra automática não o traz de volta, mesmo no top de vendas — o
+              próximo do ranking entra no lugar. Desfaz-se com "Devolver à regra". Fica registrado
+              na auditoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (bloquearAlvo) {
+                  gerenciar.mutate({
+                    slug,
+                    corretorId: bloquearAlvo.id,
+                    acao: "remover",
+                    motivo: "Bloqueado na Roleta Marquinhos pela gestão",
+                  });
+                }
+                setBloquearAlvo(null);
+              }}
+            >
+              Bloquear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Marquinhos — visão simplificada (regra automática DESLIGADA)
 // Único critério gerenciável: Apto/Inapto (via pausar/reativar) + inclusão/remoção.
 // Mostra a quantidade de vendas no mês anterior como peso para calibragem futura.
 // ---------------------------------------------------------------------------

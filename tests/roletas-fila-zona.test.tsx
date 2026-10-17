@@ -484,9 +484,13 @@ describe("FilaZonaCard (SDR e gestão)", () => {
     expect(within(card).getByTestId("fila-alternancia").textContent).toContain(
       "A Leste alterna entre Liberdade e Belém",
     );
-    // A campanha: equipe fixa e a filial dona como rótulo.
-    expect(within(card).getByTestId("fila-cury").textContent).toContain("equipe fixa");
-    expect(within(card).getByTestId("fila-cury").textContent).toContain("Barra Funda");
+    // Roletas simples (13/10/2026): toda campanha é da equipe, de qualquer
+    // zona e filial — sem selo de "equipe fixa" nem de filial dona, mesmo que
+    // o banco antigo ainda devolva os dois campos.
+    const cury = within(card).getByTestId("fila-cury").textContent;
+    expect(cury).toContain("Cury Leopoldina");
+    expect(cury).not.toContain("equipe fixa");
+    expect(cury).not.toContain("Barra Funda");
   });
 
   it("trocar de zona lê a fila da outra e lembra a escolha", async () => {
