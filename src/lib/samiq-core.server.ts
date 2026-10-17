@@ -267,7 +267,22 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       Object.assign(tools, criarFerramentasDeSkillsSamiQ({ supabase, userId }));
       if (reservation.propostasEnabled) {
         const { criarFerramentasDePropostaSamiQ } = await import("./samiq-propostas.server");
-        Object.assign(tools, criarFerramentasDePropostaSamiQ({ supabase, userId, coletor }));
+        // Trava de homônimos (samiq-homonimos.ts): texto CRU do corretor,
+        // comparado só no servidor; o modelo continua vendo a versão redigida.
+        const textoDoCorretor = [
+          ...(data.historico ?? []).filter((m) => m.role === "user").map((m) => m.content),
+          data.pergunta ?? "",
+        ].join("\n");
+        Object.assign(
+          tools,
+          criarFerramentasDePropostaSamiQ({
+            supabase,
+            userId,
+            coletor,
+            textoDoCorretor,
+            leadIdEmContexto: data.leadId,
+          }),
+        );
       }
       const cabecalho = [
         `Ação solicitada: ${meta.label}.`,

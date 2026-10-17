@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
 import { rpcWithFallback } from "@/lib/supabase-errors";
+import { filtroOrTelefone } from "@/lib/lead-busca-telefone";
 import {
   BuscarClientesInput,
   CatalogoProjetosInput,
@@ -34,6 +35,7 @@ import {
   modelarFunil,
   modelarProjetos,
   modelarTarefas,
+  separarTermoBuscaSamiQ,
   termoBuscaSamiQ,
 } from "@/lib/samiq-tools";
 
@@ -64,19 +66,26 @@ export function criarFerramentasSamiQ(args: {
       description: SAMIQ_TOOL_DESCRIPTIONS.buscar_clientes,
       inputSchema: BuscarClientesInput,
       execute: async (input) => {
-        const termo = termoBuscaSamiQ(input.termo);
+        const { texto: termo, finalTelefone } = separarTermoBuscaSamiQ(input.termo);
         const limite = input.limite ?? 8;
-        if (termo.length < 2) return { clientes: [], aviso: "termo curto demais" };
+        if (termo.length < 2 && !finalTelefone) {
+          return { clientes: [], aviso: "termo curto demais" };
+        }
         let query = supabase
           .from("leads")
           .select(
             "id, nome, status, temperatura, projeto_nome, proximo_followup, ultima_interacao, origem, created_at",
           )
           .is("deleted_at", null)
-          .eq("na_lixeira", false)
-          .or(`nome.ilike.%${termo}%,projeto_nome.ilike.%${termo}%`)
-          .order("ultima_atividade_em", { ascending: false })
-          .limit(limite);
+          .eq("na_lixeira", false);
+        if (termo.length >= 2) {
+          query = query.or(`nome.ilike.%${termo}%,projeto_nome.ilike.%${termo}%`);
+        }
+        // "Lucas final 4321": os dígitos FILTRAM pelo fim do telefone, nas duas
+        // colunas (e164 em dígitos puros e o texto cru, que pode estar formatado).
+        // O telefone não é selecionado: o modelo nunca vê o número (D12).
+        if (finalTelefone) query = query.or(filtroOrTelefone(finalTelefone));
+        query = query.order("ultima_atividade_em", { ascending: false }).limit(limite);
         if (input.status) query = query.eq("status", input.status);
         if (input.temperatura) query = query.eq("temperatura", input.temperatura);
         const { data, error } = await query;
