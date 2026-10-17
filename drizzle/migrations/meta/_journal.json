@@ -628,8 +628,50 @@
     {
       "idx": 89,
       "version": "7",
+      "when": 1792771200001,
+      "tag": "0089_ranking_gestor_corretor",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1792771200002,
+      "tag": "0090_reload_schema_ranking",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1792771200003,
+      "tag": "0091_recebimento_construtora_bloqueio_aprovacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1792771200004,
+      "tag": "0092_reload_schema_recebimento",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1792771200005,
+      "tag": "0093_vendas_previsao_recebimento",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1792771200006,
+      "tag": "0094_reload_schema_previsao_recebimento",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
       "when": 1792854000000,
-      "tag": "0089_marquinhos_automatica",
+      "tag": "0095_marquinhos_automatica",
       "breakpoints": true
     }
   ]

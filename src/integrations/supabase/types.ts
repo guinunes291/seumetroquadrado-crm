@@ -1235,7 +1235,7 @@ export type Database = {
           dias_semana?: number[]
           duracao_minutos?: number
           endereco?: string
-          endereco_chave?: never
+          endereco_chave?: string | null
           hora_fim?: string
           hora_inicio?: string
           id?: string
@@ -1253,7 +1253,7 @@ export type Database = {
           dias_semana?: number[]
           duracao_minutos?: number
           endereco?: string
-          endereco_chave?: never
+          endereco_chave?: string | null
           hora_fim?: string
           hora_inicio?: string
           id?: string
@@ -9569,12 +9569,14 @@ export type Database = {
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
+          nf_emitida_em: string | null
           observacoes: string | null
           pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
           percentual_gerente: number
           percentual_superintendente: number
+          previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
           status_recebimento: string
@@ -9583,6 +9585,7 @@ export type Database = {
           tier_comissao: string | null
           unidade: string | null
           updated_at: string
+          valor_recebido: number | null
           valor_venda: number
         }
         Insert: {
@@ -9607,12 +9610,14 @@ export type Database = {
           legacy_id?: number | null
           motivo_decisao?: string | null
           motivo_distrato?: string | null
+          nf_emitida_em?: string | null
           observacoes?: string | null
           pct_share_corretor?: number | null
           percentual_comissao?: number
           percentual_corretor?: number
           percentual_gerente?: number
           percentual_superintendente?: number
+          previsao_recebimento?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           status_recebimento?: string
@@ -9621,6 +9626,7 @@ export type Database = {
           tier_comissao?: string | null
           unidade?: string | null
           updated_at?: string
+          valor_recebido?: number | null
           valor_venda?: number
         }
         Update: {
@@ -9645,12 +9651,14 @@ export type Database = {
           legacy_id?: number | null
           motivo_decisao?: string | null
           motivo_distrato?: string | null
+          nf_emitida_em?: string | null
           observacoes?: string | null
           pct_share_corretor?: number | null
           percentual_comissao?: number
           percentual_corretor?: number
           percentual_gerente?: number
           percentual_superintendente?: number
+          previsao_recebimento?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           status_recebimento?: string
@@ -9659,6 +9667,7 @@ export type Database = {
           tier_comissao?: string | null
           unidade?: string | null
           updated_at?: string
+          valor_recebido?: number | null
           valor_venda?: number
         }
         Relationships: [
@@ -10874,6 +10883,10 @@ export type Database = {
           inicio: string
         }[]
       }
+      _agendamento_link_local: {
+        Args: { _endereco: string; _local_id: string; _local_nome: string }
+        Returns: Record<string, unknown>
+      }
       _agendamento_link_novo_slug: { Args: never; Returns: string }
       _agendamento_link_resumo: { Args: { _link_id: string }; Returns: Json }
       _alertar_gestores_distribuicao: {
@@ -11888,12 +11901,14 @@ export type Database = {
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
+          nf_emitida_em: string | null
           observacoes: string | null
           pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
           percentual_gerente: number
           percentual_superintendente: number
+          previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
           status_recebimento: string
@@ -11902,6 +11917,7 @@ export type Database = {
           tier_comissao: string | null
           unidade: string | null
           updated_at: string
+          valor_recebido: number | null
           valor_venda: number
         }
         SetofOptions: {
@@ -12025,12 +12041,14 @@ export type Database = {
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
+          nf_emitida_em: string | null
           observacoes: string | null
           pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
           percentual_gerente: number
           percentual_superintendente: number
+          previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
           status_recebimento: string
@@ -12039,6 +12057,7 @@ export type Database = {
           tier_comissao: string | null
           unidade: string | null
           updated_at: string
+          valor_recebido: number | null
           valor_venda: number
         }
         SetofOptions: {

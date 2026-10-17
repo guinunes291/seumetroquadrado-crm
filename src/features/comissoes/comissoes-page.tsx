@@ -549,10 +549,14 @@ export function ComissoesPage() {
         />
         <StatTile
           title={canManage ? "Comissão imobiliária" : "Comissão sobre minhas vendas"}
-          value={formatBRL2(resumoVendas.comissaoImobiliaria)}
+          value={
+            canManage
+              ? `${formatBRL2(resumoVendas.recebida)} recebida`
+              : formatBRL2(resumoVendas.comissaoImobiliaria)
+          }
           hint={
             canManage
-              ? "Prevista sobre as vendas do período"
+              ? `${formatBRL2(resumoVendas.aReceber)} a receber da construtora · prevista ${formatBRL2(resumoVendas.comissaoImobiliaria)}`
               : "Prevista sobre as minhas vendas do período"
           }
           icon={Buildings}

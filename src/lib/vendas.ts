@@ -79,6 +79,8 @@ export type RegistrarVendaInput = {
   dataAssinatura: string;
   split: SplitPercentuais;
   observacoes?: string | null;
+  /** Mês previsto para recebimento da construtora ("AAAA-MM"). */
+  previsaoRecebimento?: string | null;
   /** Marcos de efetivação já cumpridos no momento do cadastro (opcional). */
   efetivacao?: Partial<EfetivacaoVenda>;
 };
@@ -104,6 +106,7 @@ export async function registrarVenda(input: RegistrarVendaInput): Promise<string
       percentual_gerente: input.split.gerente,
       percentual_superintendente: input.split.superintendente,
       observacoes: input.observacoes?.trim() || null,
+      previsao_recebimento: input.previsaoRecebimento ? `${input.previsaoRecebimento}-01` : null,
       status_venda: "pendente",
       contrato_assinado: input.efetivacao?.contrato_assinado ?? false,
       ato_pago: input.efetivacao?.ato_pago ?? false,

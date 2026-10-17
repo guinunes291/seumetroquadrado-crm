@@ -4,7 +4,7 @@
 // só vendas sem lançamento no ledger, o histórico financeiro é imutável).
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DotsThreeVertical, FileMinus, Trash } from "@phosphor-icons/react";
+import { DotsThreeVertical, FileMinus, Receipt, Trash } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,11 @@ type VendaGestao = {
   data_distrato: string | null;
   motivo_distrato: string | null;
   corretor_id: string | null;
+  percentual_comissao: number | null;
+  status_recebimento: string | null;
+  nf_emitida_em: string | null;
+  data_recebimento: string | null;
+  valor_recebido: number | null;
   corretorNome: string;
 };
 
@@ -89,6 +94,11 @@ export function VendasGestaoCard({
   const [motivo, setMotivo] = useState("");
   const [excluirVenda, setExcluirVenda] = useState<VendaGestao | null>(null);
   const [motivoExclusao, setMotivoExclusao] = useState("");
+  // Recebimento da construtora (NF e crédito) — separado do pagamento ao time.
+  const [recVenda, setRecVenda] = useState<VendaGestao | null>(null);
+  const [recNf, setRecNf] = useState("");
+  const [recData, setRecData] = useState("");
+  const [recValor, setRecValor] = useState("");
 
   const bounds = useMemo(() => {
     if (mes === "todos") return null;
@@ -106,7 +116,7 @@ export function VendasGestaoCard({
       let q = supabase
         .from("vendas")
         .select(
-          "id, projeto_nome, unidade, valor_venda, data_assinatura, status_venda, distrato, data_distrato, motivo_distrato, corretor_id",
+          "id, projeto_nome, unidade, valor_venda, data_assinatura, status_venda, distrato, data_distrato, motivo_distrato, corretor_id, percentual_comissao, status_recebimento, nf_emitida_em, data_recebimento, valor_recebido",
         )
         .order("data_assinatura", { ascending: false })
         .limit(200);
@@ -159,6 +169,33 @@ export function VendasGestaoCard({
       toast.success("Distrato registrado — comissões e metas estornadas.");
       setDistratoVenda(null);
       setMotivo("");
+      await invalidarTudo();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const recebimentoM = useMutation({
+    mutationFn: async () => {
+      if (!recVenda) throw new Error("Venda inválida");
+      const valor = recValor.trim() ? Number(recValor.replace(/\./g, "").replace(",", ".")) : null;
+      if (valor !== null && (!Number.isFinite(valor) || valor < 0))
+        throw new Error("Valor recebido inválido.");
+      if ((valor !== null) !== !!recData)
+        throw new Error("Para marcar como recebido, informe a data e o valor.");
+      const { error } = await supabase
+        .from("vendas")
+        .update({
+          nf_emitida_em: recNf || null,
+          data_recebimento: recData || null,
+          valor_recebido: valor,
+          status_recebimento: recData ? "recebido" : "pendente",
+        })
+        .eq("id", recVenda.id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      toast.success("Recebimento da construtora atualizado.");
+      setRecVenda(null);
       await invalidarTudo();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -243,6 +280,16 @@ export function VendasGestaoCard({
                     {venda.corretorNome} · {fmtData(venda.data_assinatura)}
                     {venda.distrato ? ` · distrato em ${fmtData(venda.data_distrato)}` : ""}
                   </p>
+                  {venda.status_venda === "aprovada" && !venda.distrato && (
+                    <p className="text-xs text-muted-foreground">
+                      Construtora:{" "}
+                      {venda.status_recebimento === "recebido"
+                        ? `recebido ${money(venda.valor_recebido ?? 0)} em ${fmtData(venda.data_recebimento)}`
+                        : venda.nf_emitida_em
+                          ? `NF emitida em ${fmtData(venda.nf_emitida_em)} · a receber`
+                          : "a receber · NF não emitida"}
+                    </p>
+                  )}
                 </div>
                 <strong className="text-sm tabular-nums">{money(venda.valor_venda)}</strong>
                 <StatusBadge hue={statusHue(venda.status_venda)}>
@@ -264,6 +311,23 @@ export function VendasGestaoCard({
                         }}
                       >
                         <FileMinus className="mr-2 h-4 w-4" /> Registrar distrato
+                      </DropdownMenuItem>
+                    )}
+                    {venda.status_venda === "aprovada" && !venda.distrato && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setRecVenda(venda);
+                          setRecNf(venda.nf_emitida_em ?? "");
+                          setRecData(venda.data_recebimento ?? "");
+                          const prevista =
+                            ((Number(venda.valor_venda) || 0) *
+                              (Number(venda.percentual_comissao) || 0)) /
+                            100;
+                          const v = venda.valor_recebido ?? (venda.data_recebimento ? prevista : null);
+                          setRecValor(v == null ? "" : String(Math.round(v * 100) / 100).replace(".", ","));
+                        }}
+                      >
+                        <Receipt className="mr-2 h-4 w-4" /> Recebimento da construtora
                       </DropdownMenuItem>
                     )}
                     {isAdmin && (
@@ -334,6 +398,59 @@ export function VendasGestaoCard({
               onClick={() => distratoM.mutate()}
             >
               {distratoM.isPending ? "Processando…" : "Confirmar distrato"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!recVenda}
+        onOpenChange={(open) => !open && !recebimentoM.isPending && setRecVenda(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recebimento da construtora</DialogTitle>
+            <DialogDescription>
+              Controle da comissão que a construtora paga à imobiliária. Não altera o pagamento das
+              comissões do time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="rec-nf">NF emitida em</Label>
+              <Input id="rec-nf" type="date" value={recNf} onChange={(e) => setRecNf(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rec-data">Recebido em</Label>
+              <Input
+                id="rec-data"
+                type="date"
+                value={recData}
+                max={hojeLocal()}
+                onChange={(e) => setRecData(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rec-valor">Valor recebido (R$)</Label>
+              <Input
+                id="rec-valor"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={recValor}
+                onChange={(e) => setRecValor(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={recebimentoM.isPending}
+              onClick={() => setRecVenda(null)}
+            >
+              Cancelar
+            </Button>
+            <Button disabled={recebimentoM.isPending} onClick={() => recebimentoM.mutate()}>
+              {recebimentoM.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
