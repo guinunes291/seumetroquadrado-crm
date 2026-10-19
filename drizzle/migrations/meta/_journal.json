@@ -659,6 +659,20 @@
       "when": 1792771200006,
       "tag": "0093_reload_schema_previsao_recebimento",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1792420266582,
+      "tag": "0094_dlog_sucesso_created_idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1792420420347,
+      "tag": "0095_aliviar_rotinas_leads_importados",
+      "breakpoints": true
     }
   ]
 }
