@@ -56,4 +56,4 @@ $proc$;
 
 REVOKE ALL ON PROCEDURE public.processar_distribuicao_automatica_proc() FROM PUBLIC, anon, authenticated;
 
-SELECT cron.alter_job(5, command := 'CALL public.processar_distribuicao_automatica_proc();');
+-- (troca do comando da rotina descartada)

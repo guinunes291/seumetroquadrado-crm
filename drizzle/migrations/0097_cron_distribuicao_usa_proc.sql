@@ -1,2 +1,2 @@
--- lovable-cron-fallback-reviewed: rotina de distribuição já existente a cada 5 min; só troca o comando, sem nova rotina
-SELECT cron.schedule('distribuicao-automatica-5min', '*/5 * * * *', 'CALL public.processar_distribuicao_automatica_proc();');
+-- descartada: a rotina continua chamando processar_distribuicao_automatica()
+SELECT 1;

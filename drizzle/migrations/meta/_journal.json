@@ -663,35 +663,35 @@
     {
       "idx": 94,
       "version": "7",
-      "when": 1792420266582,
+      "when": 1792771200007,
       "tag": "0094_dlog_sucesso_created_idx",
       "breakpoints": true
     },
     {
       "idx": 95,
       "version": "7",
-      "when": 1792420420347,
+      "when": 1792771200008,
       "tag": "0095_aliviar_rotinas_leads_importados",
       "breakpoints": true
     },
     {
       "idx": 96,
       "version": "7",
-      "when": 1792420947793,
+      "when": 1792771200009,
       "tag": "0096_distribuicao_automatica_commit_por_lead",
       "breakpoints": true
     },
     {
       "idx": 97,
       "version": "7",
-      "when": 1792421448718,
+      "when": 1792771200010,
       "tag": "0097_cron_distribuicao_usa_proc",
       "breakpoints": true
     },
     {
       "idx": 98,
       "version": "7",
-      "when": 1792421513479,
+      "when": 1792771200011,
       "tag": "0098_perdido_nao_espera_roleta",
       "breakpoints": true
     }
