@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_funcoes_20261017: {
+        Row: {
+          definicao: string | null
+          nome: string
+          salvo_em: string | null
+        }
+        Insert: {
+          definicao?: string | null
+          nome: string
+          salvo_em?: string | null
+        }
+        Update: {
+          definicao?: string | null
+          nome?: string
+          salvo_em?: string | null
+        }
+        Relationships: []
+      }
       academia_atribuicoes: {
         Row: {
           atribuido_por: string | null
@@ -10965,6 +10983,16 @@ export type Database = {
         Returns: boolean
       }
       _cadencia_virada_quatro_etapas: { Args: never; Returns: Json }
+      _campanha_elegiveis: {
+        Args: { _excluir: string[]; _relaxado: boolean; _roleta_id: string }
+        Returns: {
+          corretor_id: string
+          peso: number
+          rp_id: string
+          tier: string
+        }[]
+      }
+      _campanha_fixa_do_lead: { Args: { _lead_id: string }; Returns: string }
       _carteira_classificar: {
         Args: { _corretor: string }
         Returns: {
