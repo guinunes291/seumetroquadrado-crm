@@ -694,6 +694,13 @@
       "when": 1792771200011,
       "tag": "0098_perdido_nao_espera_roleta",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1792421541108,
+      "tag": "0099_aplicar_pendentes_perdido",
+      "breakpoints": true
     }
   ]
 }
