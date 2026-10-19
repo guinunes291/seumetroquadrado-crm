@@ -210,3 +210,13 @@ export function dateKey(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+/** Próximos 12 meses completos, após o mês corrente em Brasília. */
+export function mesesPrevisaoRecebimento(now: Date = new Date()) {
+  const hoje = agoraSaoPaulo(now);
+  const formato = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" });
+  return Array.from({ length: 12 }, (_, i) => {
+    const mes = new Date(hoje.getFullYear(), hoje.getMonth() + i + 1, 1);
+    return { value: dateKey(mes).slice(0, 7), label: formato.format(mes) };
+  });
+}
