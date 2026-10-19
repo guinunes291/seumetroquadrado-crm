@@ -27,6 +27,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { celebrate } from "@/components/ui/celebration";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { mesesPrevisaoRecebimento } from "@/lib/periodo";
 import { Textarea } from "@/components/ui/textarea";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
 import { EFETIVACAO_INICIAL, EfetivacaoFlagsField } from "@/components/efetivacao-flags-field";
@@ -108,6 +110,7 @@ export function VendaEtapasDialog({
   const [unidade, setUnidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [previsaoRecebimento, setPrevisaoRecebimento] = useState("");
+  const mesesRecebimento = mesesPrevisaoRecebimento();
   const [efetivacao, setEfetivacao] = useState<EfetivacaoVenda>(EFETIVACAO_INICIAL);
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
@@ -310,7 +313,7 @@ export function VendaEtapasDialog({
       const split = parseSplit(percentuais);
       const erro = validarVenda({ valorVenda: valorNum, dataAssinatura, hoje: hoje(), split });
       if (erro) throw new Error(erro);
-      if (!/^\d{4}-\d{2}$/.test(previsaoRecebimento)) {
+      if (!mesesPrevisaoRecebimento().some((mes) => mes.value === previsaoRecebimento)) {
         throw new Error("Informe o mês previsto para recebimento");
       }
       const { data: u } = await supabase.auth.getUser();
@@ -652,12 +655,17 @@ export function VendaEtapasDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label>Previsão para recebimento *</Label>
-                <Input
-                  type="month"
-                  value={previsaoRecebimento}
-                  onChange={(e) => setPrevisaoRecebimento(e.target.value)}
-                />
+                <Label htmlFor="previsao-recebimento">Previsão para recebimento *</Label>
+                <Select value={previsaoRecebimento} onValueChange={setPrevisaoRecebimento}>
+                  <SelectTrigger id="previsao-recebimento" className="w-full">
+                    <SelectValue placeholder="Selecione o mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mesesRecebimento.map((mes) => (
+                      <SelectItem key={mes.value} value={mes.value}>{mes.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <EfetivacaoFlagsField
