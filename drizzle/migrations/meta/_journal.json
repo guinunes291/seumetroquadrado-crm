@@ -687,6 +687,13 @@
       "when": 1792421448718,
       "tag": "0097_cron_distribuicao_usa_proc",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1792421513479,
+      "tag": "0098_perdido_nao_espera_roleta",
+      "breakpoints": true
     }
   ]
 }
