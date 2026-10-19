@@ -680,6 +680,13 @@
       "when": 1792420947793,
       "tag": "0096_distribuicao_automatica_commit_por_lead",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1792421448718,
+      "tag": "0097_cron_distribuicao_usa_proc",
+      "breakpoints": true
     }
   ]
 }
