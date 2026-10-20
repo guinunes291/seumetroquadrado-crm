@@ -1,0 +1,1 @@
+COMMENT ON TABLE public.vendas IS 'Vendas; aprovações novas registram gerente e sócios comissionados.';

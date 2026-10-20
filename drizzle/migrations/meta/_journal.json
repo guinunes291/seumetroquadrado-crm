@@ -715,6 +715,13 @@
       "when": 1792771200013,
       "tag": "0101_venda_beneficiarios_socios",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1792525200768,
+      "tag": "0102_socios_marcador",
+      "breakpoints": true
     }
   ]
 }
