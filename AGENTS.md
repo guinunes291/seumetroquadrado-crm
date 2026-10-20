@@ -3,3 +3,5 @@
 - Importação de leads por CSV usa a função de banco importar_leads_csv_lote chamada via server function com service role (só admin) — por que: inserir linha a linha passando pelos gatilhos de zona sem roleta e com dedupe idempotente.
 - Generate sale receipt forecast options with the shared period helpers and use them in the shared sale dialog — keeps both sale entry points consistent with the operational calendar.
 - Keep 3C Plus credentials separate from the dialer and existing global credentials; outbound integration events must remain roulette-scoped and additive to existing notifications to prevent unrelated customer data delivery.
+- Discador 3C Plus usa UMA campanha compartilhada do time (gestao_config chave telefonia_3cplus; telefonia_agentes.campaign_id é só override) e o token do agente é validado no 3C Plus pela tcplus-config antes de gravar — por que: setup simples; a fila é o Bolsão e o webhook casa o corretor pelo agente que atendeu.
+- Migration nova em drizzle/migrations precisa de `when` maior que todos do _journal.json (o migrator pula a fora de ordem em silêncio) — por que: 0099/0100 ficaram presas assim; tests/telefonia-3cplus.test.ts guarda.

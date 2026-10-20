@@ -37,11 +37,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { comCapturaDeErro } from "../_shared/error-tracking.ts";
 import {
-  TCPLUS_BASE_URL_PADRAO,
+  CHAVE_CONFIG_TCPLUS,
+  campanhaEfetiva,
+  lerAmbienteTcplus,
+  linhasDaResposta,
   mensagemDeErroTcplus,
   tcplusRequest,
   toTcplusNumero,
-  type TcplusAuthMode,
   type TcplusConfig,
 } from "../_shared/tcplus.ts";
 
@@ -108,9 +110,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
   const tokenGestor = (Deno.env.get("TCPLUS_API_TOKEN") ?? "").trim();
   if (precisaGestor && !tokenGestor) return json({ error: "tcplus_nao_configurado" }, 503);
-  const baseUrl = Deno.env.get("TCPLUS_BASE_URL") ?? TCPLUS_BASE_URL_PADRAO;
-  const authMode: TcplusAuthMode =
-    Deno.env.get("TCPLUS_AUTH_MODE") === "query" ? "query" : "bearer";
+  const { baseUrl, authMode } = lerAmbienteTcplus((k) => Deno.env.get(k));
 
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -142,8 +142,15 @@ async function handleRequest(req: Request): Promise<Response> {
     .select("api_token, campaign_id")
     .eq("user_id", uid)
     .maybeSingle();
+  // Campanha: a do corretor (override) ou a campanha ÚNICA do time
+  // (gestao_config.telefonia_3cplus) — o desenho padrão desde 2026-10-20.
+  const { data: cfgTcplus } = await admin
+    .from("gestao_config")
+    .select("valor")
+    .eq("chave", CHAVE_CONFIG_TCPLUS)
+    .maybeSingle();
   const tokenAgente = ((agente?.api_token as string | null) ?? "").trim();
-  const campaignId = ((agente?.campaign_id as string | null) ?? "").trim();
+  const campaignId = campanhaEfetiva(agente?.campaign_id, cfgTcplus?.valor);
   if (!campaignId) return json({ error: "campanha_nao_configurada" }, 422);
   if (!tokenAgente) return json({ error: "token_nao_configurado" }, 422);
 
@@ -199,26 +206,38 @@ async function handleRequest(req: Request): Promise<Response> {
   // a higiene e o "parar" apagam só o que é nosso, sem tocar em listas
   // subidas pela gestão no painel do 3C Plus.
   const marcador = `[crm:${uid.slice(0, 8)}]`;
+  const MARCADOR_CRM = /\[crm:[0-9a-f]{8}\]/;
   async function listasDoCrm(): Promise<Array<{ id: string; name: string }>> {
     const r = await tcplusRequest(gestor, "GET", `${base}/lists`, { qs: { per_page: "200" } });
     if (!r.ok) return [];
-    // A listagem vem como `{data:[...]}` (paginada) ou como array puro.
-    const d = dados(r.body);
-    const linhas: unknown[] = Array.isArray(r.body)
-      ? r.body
-      : Array.isArray(d.data)
-        ? d.data
-        : Array.isArray(d)
-          ? (d as unknown[])
-          : [];
-    return linhas
-      .filter(isObj)
+    return linhasDaResposta(r.body)
       .map((l) => ({ id: String(l.id ?? ""), name: String(l.name ?? "") }))
-      .filter((l) => l.id && l.name.includes(marcador));
+      .filter((l) => l.id && MARCADOR_CRM.test(l.name));
   }
-  async function apagarListasDoCrm(): Promise<number> {
+  // Apaga as listas deste corretor e, na campanha compartilhada, as listas
+  // ÓRFÃS de outros corretores: lista do CRM sem nenhuma reserva viva em
+  // bolsao_discagem (o dono fechou a aba sem "Parar" e a reserva venceu).
+  // Sem isso o discador seguiria ligando para leads que já voltaram ao
+  // Bolsão — e que outra sessão pode ter reservado de novo.
+  async function apagarListasDoCrm(incluirOrfas: boolean): Promise<number> {
     let apagadas = 0;
     for (const lista of await listasDoCrm()) {
+      let apagar = lista.name.includes(marcador);
+      // Lista recém-criada por um colega ainda pode estar sem reserva (a
+      // reserva vem logo depois da criação): só é órfã com 15 min de vida.
+      // O horário (UTC) está no nome; sem ele, na dúvida, não apaga.
+      const criadaEm = lista.name.match(/(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/);
+      const antiga =
+        !!criadaEm && Date.now() - Date.parse(`${criadaEm[1]}T${criadaEm[2]}:00Z`) > 15 * 60_000;
+      if (!apagar && incluirOrfas && antiga) {
+        const { count } = await admin
+          .from("bolsao_discagem")
+          .select("lead_id", { count: "exact", head: true })
+          .eq("list_id", lista.id)
+          .gt("expira_em", new Date().toISOString());
+        apagar = (count ?? 0) === 0;
+      }
+      if (!apagar) continue;
       const r = await tcplusRequest(gestor, "DELETE", `${base}/lists/${lista.id}`);
       if (r.ok) apagadas++;
     }
@@ -231,7 +250,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // vista do corretor: o cockpit fecha e a limpeza roda mesmo assim.
     const logout = await tcplusRequest(agenteCfg, "POST", "/agent/logout");
     let apagadas: number | null = null;
-    if (body.limpar === true) apagadas = await apagarListasDoCrm();
+    if (body.limpar === true) apagadas = await apagarListasDoCrm(false);
     const liberadas = await liberar();
     return json({
       ok: true,
@@ -245,17 +264,13 @@ async function handleRequest(req: Request): Promise<Response> {
   // ---- iniciar / adicionar --------------------------------------------------
   const adicionar = acao === "adicionar";
 
-  // Guarda de campanha COMPARTILHADA: o discador entrega as chamadas a
-  // QUALQUER agente logado na campanha — o lead do corretor A cairia no
-  // corretor B, e a higiene de um apagaria a lista do outro. Recusar alto e
-  // cedo é melhor do que corromper em silêncio. (Service role só para esta
-  // contagem: a RLS não deixa um corretor enxergar o vínculo dos outros.)
-  const { count: compartilhada } = await admin
-    .from("telefonia_agentes")
-    .select("user_id", { count: "exact", head: true })
-    .eq("campaign_id", campaignId)
-    .neq("user_id", uid);
-  if ((compartilhada ?? 0) > 0) return json({ error: "campanha_compartilhada" }, 409);
+  // Campanha COMPARTILHADA é o desenho padrão (decisão 2026-10-20): o
+  // discador entrega a chamada a QUALQUER agente logado na campanha, e tudo
+  // bem — a fila é o Bolsão (lead sem dono), o webhook casa o corretor pelo
+  // agente que ATENDEU (agent.id/e-mail) e quem falou ganha o Atendido. A
+  // reserva em bolsao_discagem segue impedindo dois corretores de subirem o
+  // mesmo lead; cada corretor só apaga as próprias listas (marcador) e as
+  // órfãs.
 
   let listId: string;
   let listasApagadas = 0;
@@ -269,7 +284,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // contatos restantes de uma sessão anterior continuariam sendo discados
     // no próximo login do agente — sem ninguém ter clicado "Iniciar agora".
     await tcplusRequest(agenteCfg, "POST", "/agent/logout");
-    listasApagadas = await apagarListasDoCrm();
+    listasApagadas = await apagarListasDoCrm(true);
     reservasLiberadas = await liberar();
 
     const { data: perfil } = await supabase

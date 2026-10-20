@@ -6,6 +6,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AtendidosDiscador } from "@/features/telefonia/atendidos-discador";
+import { ConfigTcplusGestao } from "@/features/telefonia/config-tcplus-gestao";
 import { ConectarTcplus } from "@/features/telefonia/conectar-tcplus";
 import { DiscadorCentral } from "@/features/telefonia/discador-page";
 import { SessaoDiscagem } from "@/features/telefonia/sessao-discagem";
@@ -25,6 +26,9 @@ function DiscadorPage() {
       {/* Conexão do agente (token) e a sessão funcionam mesmo antes da
           migration de `chamadas` (cada disco degrada para tel:), por isso
           vivem fora do gate da DiscadorCentral. */}
+      {/* Gestão: semáforo da integração (token do gestor, campanha única,
+          corretores conectados, webhook). Corretor não vê. */}
+      <ConfigTcplusGestao />
       <ConectarTcplus />
       <SessaoDiscagem />
       {/* Atendidos: quem atendeu o discador (sem posse — segue no Bolsão até

@@ -9,11 +9,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+  campanhaEfetiva,
   classificarDesfecho,
   eventoDeConexao,
   eventoDeHistorico,
   extrairChamadaDoEvento,
+  lerAmbienteTcplus,
+  linhasDaResposta,
   mensagemDeErroTcplus,
+  normalizarBaseUrl,
   normalizarNome,
   parseDuracaoSeg,
   tcplusRequest,
@@ -104,6 +108,39 @@ describe("_shared/tcplus — cliente HTTP", () => {
     expect(url).toBe("https://app.3c.plus/api/v1/agent/manual_call/dial");
     expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer tok");
     expect(init.body).toBe(JSON.stringify({ phone: "11999998888" }));
+  });
+
+  it("auto (default): tenta o header e, no 401, repete com ?api_token= e lembra o modo", async () => {
+    const f = vi.fn(async (url: string) =>
+      url.includes("api_token=")
+        ? new Response('{"data":{"id":7}}', { status: 200 })
+        : new Response('{"detail":"Unauthenticated."}', { status: 401 }),
+    ) as unknown as typeof fetch;
+    const cfg = { baseUrl: "https://x/api/v1", token: "tok-auto", authMode: "auto" as const };
+    const r = await tcplusRequest({ ...cfg, fetchImpl: f }, "GET", "/me");
+    expect(r).toMatchObject({ ok: true, status: 200 });
+    const calls = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect((calls[0][1].headers as Record<string, string>)["Authorization"]).toBe(
+      "Bearer tok-auto",
+    );
+    expect(calls[1][0]).toBe("https://x/api/v1/me?api_token=tok-auto");
+    // Segunda chamada com o mesmo token já vai direto na query.
+    await tcplusRequest({ ...cfg, fetchImpl: f }, "GET", "/campaigns");
+    expect(calls).toHaveLength(3);
+    expect(calls[2][0]).toContain("api_token=tok-auto");
+  });
+
+  it("auto: 401 nos dois modos devolve o 401 (token inválido de verdade)", async () => {
+    const f = vi.fn(
+      async () => new Response('{"detail":"Unauthenticated."}', { status: 401 }),
+    ) as unknown as typeof fetch;
+    const r = await tcplusRequest(
+      { baseUrl: "https://x", token: "tok-ruim", authMode: "auto", fetchImpl: f },
+      "GET",
+      "/me",
+    );
+    expect(r.status).toBe(401);
   });
 
   it("query (válvula de escape): ?api_token= e sem header", async () => {
@@ -566,21 +603,27 @@ describe("tcplus-campanha (discador automático por lista de mailing)", () => {
     expect(fnCampanha).toContain("bolsao_vazio");
   });
 
-  it("campanha compartilhada entre corretores é recusada (409) antes de mexer na lista", () => {
-    expect(fnCampanha).toContain("campanha_compartilhada");
-    expect(fnCampanha).toMatch(/eq\("campaign_id", campaignId\)[\s\S]*?neq\("user_id", uid\)/);
-    expect(fnCampanha.indexOf("campanha_compartilhada")).toBeLessThan(
-      fnCampanha.indexOf("Higiene do lote"),
-    );
+  it("campanha ÚNICA do time (decisão 2026-10-20): override do corretor ou gestao_config, sem recusar compartilhada", () => {
+    expect(fnCampanha).not.toContain('json({ error: "campanha_compartilhada" }');
+    expect(fnCampanha).toMatch(/\.eq\("chave", CHAVE_CONFIG_TCPLUS\)/);
+    expect(fnCampanha).toContain("campanhaEfetiva(agente?.campaign_id, cfgTcplus?.valor)");
+    expect(fnDiscar).toContain("campanhaEfetiva(agente?.campaign_id, cfgTcplus?.valor)");
+    // Na campanha compartilhada, cada corretor só apaga as PRÓPRIAS listas e
+    // as órfãs (sem reserva viva, com 15 min de vida) — nunca a lista ativa
+    // de um colega.
+    expect(fnCampanha).toMatch(/let apagar = lista\.name\.includes\(marcador\)/);
+    expect(fnCampanha).toMatch(/\.eq\("list_id", lista\.id\)\s*\.gt\("expira_em"/);
+    expect(fnCampanha).toContain("15 * 60_000");
+    expect(fnCampanha).toContain("apagarListasDoCrm(false)");
   });
 
   it("higiene só no iniciar (logout + apaga listas + solta reservas); adicionar exige list_id e só sobe", () => {
     expect(fnCampanha).toContain("[crm:");
     expect(fnCampanha).toContain("missing_list_id");
-    const higiene = fnCampanha.indexOf("listasApagadas = await apagarListasDoCrm()");
+    const higiene = fnCampanha.indexOf("listasApagadas = await apagarListasDoCrm(true)");
     expect(higiene).toBeGreaterThan(fnCampanha.indexOf("if (adicionar) {"));
     expect(fnCampanha).toMatch(
-      /\} else \{[\s\S]*?apagarListasDoCrm\(\)[\s\S]*?reservasLiberadas = await liberar\(\)/,
+      /\} else \{[\s\S]*?apagarListasDoCrm\(true\)[\s\S]*?reservasLiberadas = await liberar\(\)/,
     );
     // Peso >= 1 senão a lista não é discada; login do agente fecha o ciclo.
     expect(fnCampanha).toMatch(/weight: 1/);
@@ -718,7 +761,7 @@ describe("aba Discador (fiação 3C Plus)", () => {
     expect(sessao).toContain('acao: "reservar"');
     expect(sessao).toContain('acao: "liberar"');
     expect(sessao).toContain('acao: "parar", limpar: true');
-    expect(sessao).toContain("campanha_compartilhada:");
+    expect(sessao).toContain("campanha_nao_configurada:");
     expect(sessao).toContain("token_nao_configurado:");
     expect(sessao).toContain("bolsao_vazio:");
     // Nada de montar fila com o JWT do corretor: a RLS esconde (e deve) o
@@ -762,7 +805,10 @@ describe("aba Discador (fiação 3C Plus)", () => {
   });
 
   it("token do agente: self-service no card (input password), gravado sem nunca ser lido de volta", () => {
-    expect(conectar).toContain("salvarAgenteTcplus");
+    // O token é conferido no 3C Plus (tcplus-config, GET /me) ANTES de
+    // gravar — token errado é recusado no card, não na primeira ligação.
+    expect(conectar).toContain("conectarTcplus(valor)");
+    expect(conectar).not.toContain("salvarAgenteTcplus");
     expect(conectar).toMatch(/type="password"/);
     expect(conectar).toContain("api_token");
     // A fronteira só pede as colunas com GRANT — api_token fora do SELECT.
@@ -827,5 +873,115 @@ describe("aba Discador (fiação 3C Plus)", () => {
     expect(fnDiscar).toContain('from "../_shared/tcplus.ts"');
     expect(fnCampanha).toContain('from "../_shared/tcplus.ts"');
     expect(fnWebhook).toContain('from "../_shared/tcplus.ts"');
+  });
+});
+
+describe("_shared/tcplus — ambiente e campanha única", () => {
+  it("TCPLUS_BASE_URL aceita só o domínio da empresa (ou a URL do login)", () => {
+    expect(normalizarBaseUrl("seumetroquadrado.3c.plus")).toBe(
+      "https://seumetroquadrado.3c.plus/api/v1",
+    );
+    expect(normalizarBaseUrl("https://seumetroquadrado.3c.plus/login")).toBe(
+      "https://seumetroquadrado.3c.plus/api/v1",
+    );
+    expect(normalizarBaseUrl("https://app.3c.plus/api/v1/")).toBe("https://app.3c.plus/api/v1");
+    expect(normalizarBaseUrl("")).toBe("https://app.3c.plus/api/v1");
+    expect(normalizarBaseUrl(undefined)).toBe("https://app.3c.plus/api/v1");
+  });
+
+  it("auth auto por default; bearer/query só quando fixados", () => {
+    expect(lerAmbienteTcplus(() => undefined)).toEqual({
+      baseUrl: "https://app.3c.plus/api/v1",
+      authMode: "auto",
+      dialFormato: "nacional",
+    });
+    const env: Record<string, string> = { TCPLUS_AUTH_MODE: "QUERY", TCPLUS_DIAL_FORMAT: "ddi" };
+    expect(lerAmbienteTcplus((k) => env[k])).toMatchObject({
+      authMode: "query",
+      dialFormato: "ddi",
+    });
+  });
+
+  it("campanha: override do corretor vence; senão a do time; senão vazio", () => {
+    expect(campanhaEfetiva("318", { campaign_id: "500" })).toBe("318");
+    expect(campanhaEfetiva(null, { campaign_id: "500" })).toBe("500");
+    expect(campanhaEfetiva("  ", { campaign_id: 500 })).toBe("500");
+    expect(campanhaEfetiva(null, null)).toBe("");
+  });
+
+  it("listagens do 3C Plus: {data:[...]}, {data:{data:[...]}} ou array puro", () => {
+    expect(linhasDaResposta({ data: [{ id: 1 }, "x"] })).toEqual([{ id: 1 }]);
+    expect(linhasDaResposta({ data: { data: [{ id: 2 }] } })).toEqual([{ id: 2 }]);
+    expect(linhasDaResposta([{ id: 3 }])).toEqual([{ id: 3 }]);
+    expect(linhasDaResposta({ data: {} })).toEqual([]);
+    expect(linhasDaResposta(null)).toEqual([]);
+  });
+});
+
+describe("tcplus-config (conexão do corretor e diagnóstico da gestão)", () => {
+  const fnConfig = ler("supabase/functions/tcplus-config/index.ts");
+  const painel = ler("src/features/telefonia/config-tcplus-gestao.tsx");
+  const rota = ler("src/routes/_authenticated/discador.tsx");
+
+  it("function com JWT obrigatório no config.toml", () => {
+    expect(configToml).toMatch(/\[functions\.tcplus-config\]\s*verify_jwt = true/);
+  });
+
+  it("conectar: confere o token no 3C Plus (GET /me) ANTES de gravar e recusa o token do gestor", () => {
+    const me = fnConfig.indexOf('tcplusRequest({ ...amb, token }, "GET", "/me")');
+    const grava = fnConfig.indexOf('from("telefonia_agentes").update(patch)');
+    expect(me).toBeGreaterThan(0);
+    expect(grava).toBeGreaterThan(me);
+    expect(fnConfig).toContain("token_e_do_gestor");
+    expect(fnConfig).toMatch(/me\.status === 401 \|\| me\.status === 403/);
+  });
+
+  it("diagnóstico só para a gestão; alterar só o admin; segredo do webhook só para o admin", () => {
+    expect(fnConfig).toMatch(/if \(!ehGestao\) return json\(\{ error: "forbidden" \}, 403\)/);
+    expect(fnConfig).toMatch(
+      /acao === "salvar_campanha" \|\| acao === "vincular_agentes"\) && !ehAdmin/,
+    );
+    expect(fnConfig).toContain(
+      "ehAdmin && webhookSecret ? `${webhookUrl}?secret=${webhookSecret}`",
+    );
+    // O token do gestor nunca volta na resposta.
+    expect(fnConfig).not.toMatch(/token_gestor:\s*tokenGestor/);
+  });
+
+  it("painel da gestão montado na aba Discador", () => {
+    expect(rota).toContain("<ConfigTcplusGestao />");
+    expect(painel).toContain("diagnosticarTcplus");
+    expect(painel).toContain("call-history-was-created");
+  });
+});
+
+describe("drizzle journal (migrations gerenciadas)", () => {
+  // O migrator só aplica migration com `when` MAIOR que o da última
+  // aplicada: uma entrada fora de ordem é pulada em silêncio na produção
+  // (foi o que travou a 0099 e a 0100 em 20/10). Daqui para frente, a
+  // suíte quebra antes do deploy.
+  const journal = JSON.parse(ler("drizzle/migrations/meta/_journal.json")) as {
+    entries: Array<{ idx: number; when: number; tag: string }>;
+  };
+  // Entradas históricas já fora de ordem (anteriores a esta guarda).
+  const LEGADO = new Set([22, 37, 44, 60, 63, 64, 71, 72]);
+
+  it("toda migration nova tem `when` maior que todas as anteriores", () => {
+    let maior = 0;
+    const fora: string[] = [];
+    for (const e of journal.entries) {
+      if (e.when <= maior && !LEGADO.has(e.idx)) fora.push(e.tag);
+      maior = Math.max(maior, e.when);
+    }
+    expect(fora).toEqual([]);
+  });
+
+  it("0100 (roleta/eventos 3C Plus) é idempotente", () => {
+    const m = ler("drizzle/migrations/0100_tcplus_presenca_eventos.sql");
+    expect(m).toContain("CREATE TABLE IF NOT EXISTS public.tcplus_eventos");
+    const triggers = m.match(/CREATE TRIGGER (\w+)/g) ?? [];
+    for (const t of triggers) {
+      expect(m).toContain(`DROP TRIGGER IF EXISTS ${t.replace("CREATE TRIGGER ", "")}`);
+    }
   });
 });

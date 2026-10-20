@@ -53,9 +53,7 @@ import {
 
 const ERRO_CAMPANHA: Record<string, string> = {
   campanha_nao_configurada:
-    "Sua campanha do discador ainda não foi configurada (Gestão → Corretores → Discador).",
-  campanha_compartilhada:
-    "Esta campanha do 3C Plus está cadastrada para mais de um corretor — cada corretor precisa da própria campanha (crie no 3C Plus e ajuste em Gestão → Corretores → Discador).",
+    "A campanha do discador ainda não foi escolhida — o admin escolhe no painel “Integração 3C Plus” desta aba.",
   token_nao_configurado:
     "Seu 3C Plus ainda não está conectado — cole seu token de agente no card 'Meu 3C Plus' desta aba.",
   tcplus_token_invalido:

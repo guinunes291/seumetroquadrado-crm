@@ -35,7 +35,7 @@ const MENSAGENS: Record<string, string> = {
   token_nao_configurado:
     "Seu 3C Plus ainda não está conectado ao CRM — cole seu token de agente na aba Discador.",
   campanha_nao_configurada:
-    "Sua campanha do 3C Plus não está cadastrada (peça ao admin em Gestão → Corretores → Discador).",
+    "A campanha do discador ainda não foi escolhida (o admin escolhe em Discador → Integração 3C Plus).",
   tcplus_token_invalido:
     "O 3C Plus recusou seu token de agente — gere um novo no 3C Plus e cole na aba Discador.",
   tcplus_nao_configurado: "A integração com o discador ainda não foi configurada.",

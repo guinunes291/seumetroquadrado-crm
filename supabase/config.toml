@@ -71,3 +71,8 @@ verify_jwt = true
 # ?secret=), não por JWT do Supabase.
 [functions.tcplus-webhook]
 verify_jwt = false
+
+# Telefonia 3C Plus — conexão do corretor (valida o token no 3C Plus antes de
+# gravar) e diagnóstico/configuração da gestão. Chamada do app com JWT.
+[functions.tcplus-config]
+verify_jwt = true

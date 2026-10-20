@@ -739,8 +739,9 @@ function TelefoniaTcplusCell({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 space-y-3 p-3">
         <p className="text-xs text-muted-foreground">
-          Dados do corretor no 3C Plus. Sem campanha não há discador nem click-to-call; o token de
-          agente costuma ser colado pelo próprio corretor na aba Discador.
+          Dados do corretor no 3C Plus — em geral nada a preencher aqui: o corretor conecta o token
+          na aba Discador (o ID do agente vem junto) e a campanha é a única do time (Discador →
+          Integração 3C Plus).
         </p>
         <div className="space-y-1">
           <Label className="text-xs">ID do agente (usuário no 3C Plus)</Label>
@@ -752,7 +753,7 @@ function TelefoniaTcplusCell({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">ID da campanha do discador</Label>
+          <Label className="text-xs">Campanha própria (opcional — vazio = a do time)</Label>
           <Input
             value={campanha}
             onChange={(e) => setCampanha(e.target.value)}

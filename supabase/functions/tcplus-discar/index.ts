@@ -28,22 +28,23 @@
 // passar pelo navegador). Se o cliente atender, o webhook o põe na carteira.
 //
 // Secrets (Supabase -> Edge Functions -> Secrets):
-//   TCPLUS_BASE_URL     (opcional) — default https://app.3c.plus/api/v1
-//   TCPLUS_AUTH_MODE    (opcional) — "bearer" (default) | "query"
+//   TCPLUS_BASE_URL     (opcional) — default https://app.3c.plus/api/v1; aceita
+//                       só o domínio (ex.: seumetroquadrado.3c.plus)
+//   TCPLUS_AUTH_MODE    (opcional) — "auto" (default) | "bearer" | "query"
 //   TCPLUS_DIAL_FORMAT  (opcional) — "nacional" (default, 11 dígitos) | "ddi"
 //   SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY — injetadas
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { comCapturaDeErro } from "../_shared/error-tracking.ts";
 import {
-  TCPLUS_BASE_URL_PADRAO,
+  CHAVE_CONFIG_TCPLUS,
+  campanhaEfetiva,
+  lerAmbienteTcplus,
   mensagemDeErroTcplus,
   tcplusRequest,
   toTcplusDial,
   toTcplusNumero,
-  type TcplusAuthMode,
   type TcplusConfig,
-  type TcplusDialFormato,
 } from "../_shared/tcplus.ts";
 
 const cors = {
@@ -82,11 +83,7 @@ async function handleRequest(req: Request): Promise<Response> {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !anonKey || !serviceKey) return json({ error: "server_config" }, 503);
 
-  const baseUrl = Deno.env.get("TCPLUS_BASE_URL") ?? TCPLUS_BASE_URL_PADRAO;
-  const authMode: TcplusAuthMode =
-    Deno.env.get("TCPLUS_AUTH_MODE") === "query" ? "query" : "bearer";
-  const dialFormato: TcplusDialFormato =
-    Deno.env.get("TCPLUS_DIAL_FORMAT") === "ddi" ? "ddi" : "nacional";
+  const { baseUrl, authMode, dialFormato } = lerAmbienteTcplus((k) => Deno.env.get(k));
 
   const supabase = createClient(url, anonKey, {
     global: { headers: { Authorization: authorization } },
@@ -165,8 +162,14 @@ async function handleRequest(req: Request): Promise<Response> {
     .select("api_token, campaign_id, agent_id")
     .eq("user_id", uid)
     .maybeSingle();
+  // Campanha: a do corretor (override) ou a campanha única do time.
+  const { data: cfgTcplus } = await admin
+    .from("gestao_config")
+    .select("valor")
+    .eq("chave", CHAVE_CONFIG_TCPLUS)
+    .maybeSingle();
   const token = ((agente?.api_token as string | null) ?? "").trim();
-  const campaignId = ((agente?.campaign_id as string | null) ?? "").trim();
+  const campaignId = campanhaEfetiva(agente?.campaign_id, cfgTcplus?.valor);
   if (!token) return json({ error: "token_nao_configurado" }, 422);
   if (!campaignId) return json({ error: "campanha_nao_configurada" }, 422);
 

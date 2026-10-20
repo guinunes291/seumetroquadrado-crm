@@ -15,10 +15,64 @@
 export const TCPLUS_BASE_URL_PADRAO = "https://app.3c.plus/api/v1";
 
 /** Como o token vai na requisição. O SDK oficial manda `Authorization:
- *  Bearer` para qualquer token (fixo ou JWT de 12h); o nó n8n manda
- *  `?api_token=`. Default = header (regra da casa: segredo nunca em query);
- *  `query` fica como válvula de escape sem redeploy (TCPLUS_AUTH_MODE). */
-export type TcplusAuthMode = "bearer" | "query";
+ *  Bearer` para qualquer token; o nó n8n do próprio time da 3C manda o token
+ *  fixo em `?api_token=` e reserva o Bearer para o JWT de 12h. Como as duas
+ *  fontes divergem, o default é `auto`: tenta o header (regra da casa:
+ *  segredo fora da URL) e, se o 3C Plus responder 401, repete na query e
+ *  lembra o que funcionou para aquele token. `bearer`/`query` fixam um modo
+ *  (TCPLUS_AUTH_MODE). */
+export type TcplusAuthMode = "auto" | "bearer" | "query";
+
+/** Configuração lida dos secrets — uma definição para as três functions. */
+export type TcplusAmbiente = {
+  baseUrl: string;
+  authMode: TcplusAuthMode;
+  dialFormato: TcplusDialFormato;
+};
+
+/**
+ * Aceita a URL completa da API ou só o domínio da empresa
+ * ("seumetroquadrado.3c.plus", "https://seumetroquadrado.3c.plus/login") e
+ * devolve `https://<host>/api/v1`. Vazio = default.
+ */
+export function normalizarBaseUrl(raw: string | null | undefined): string {
+  const v = (raw ?? "").trim();
+  if (!v) return TCPLUS_BASE_URL_PADRAO;
+  try {
+    const u = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    return `https://${u.host}/api/v1`;
+  } catch {
+    return TCPLUS_BASE_URL_PADRAO;
+  }
+}
+
+export function lerAmbienteTcplus(env: (k: string) => string | undefined): TcplusAmbiente {
+  const modo = (env("TCPLUS_AUTH_MODE") ?? "").trim().toLowerCase();
+  return {
+    baseUrl: normalizarBaseUrl(env("TCPLUS_BASE_URL")),
+    authMode: modo === "query" || modo === "bearer" ? modo : "auto",
+    dialFormato: env("TCPLUS_DIAL_FORMAT") === "ddi" ? "ddi" : "nacional",
+  };
+}
+
+/** Chave em gestao_config com a campanha ÚNICA do discador (`{campaign_id}`). */
+export const CHAVE_CONFIG_TCPLUS = "telefonia_3cplus";
+
+/**
+ * Campanha usada pelo corretor: a dele (override em telefonia_agentes) ou a
+ * campanha única do time (gestao_config). Vazio = não configurada.
+ */
+export function campanhaEfetiva(doCorretor: unknown, configValor: unknown): string {
+  const propria = typeof doCorretor === "string" ? doCorretor.trim() : "";
+  if (propria) return propria;
+  const v = configValor as { campaign_id?: unknown } | null;
+  const unica = v?.campaign_id;
+  return typeof unica === "number" || typeof unica === "string" ? String(unica).trim() : "";
+}
+
+// Modo que funcionou por token (por isolate da function). Evita o 401 extra
+// em toda chamada depois da primeira.
+const modoPorToken = new Map<string, "bearer" | "query">();
 
 export type TcplusConfig = {
   baseUrl: string;
@@ -49,11 +103,31 @@ export async function tcplusRequest(
   path: string,
   opts: { body?: unknown; qs?: Record<string, string>; timeoutMs?: number } = {},
 ): Promise<TcplusResposta> {
+  if (cfg.authMode !== "auto") return requisicao(cfg, cfg.authMode, method, path, opts);
+  const lembrado = modoPorToken.get(cfg.token);
+  if (lembrado) return requisicao(cfg, lembrado, method, path, opts);
+  const r = await requisicao(cfg, "bearer", method, path, opts);
+  if (r.status !== 401) {
+    if (r.ok) modoPorToken.set(cfg.token, "bearer");
+    return r;
+  }
+  const q = await requisicao(cfg, "query", method, path, opts);
+  if (q.status !== 401 && q.status !== 0) modoPorToken.set(cfg.token, "query");
+  return q.status === 401 ? r : q;
+}
+
+async function requisicao(
+  cfg: TcplusConfig,
+  modo: "bearer" | "query",
+  method: "GET" | "POST" | "PUT" | "DELETE",
+  path: string,
+  opts: { body?: unknown; qs?: Record<string, string>; timeoutMs?: number },
+): Promise<TcplusResposta> {
   const url = new URL(cfg.baseUrl.replace(/\/$/, "") + path);
   for (const [k, v] of Object.entries(opts.qs ?? {})) url.searchParams.set(k, v);
-  if (cfg.authMode === "query") url.searchParams.set("api_token", cfg.token);
+  if (modo === "query") url.searchParams.set("api_token", cfg.token);
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (cfg.authMode === "bearer") headers["Authorization"] = `Bearer ${cfg.token}`;
+  if (modo === "bearer") headers["Authorization"] = `Bearer ${cfg.token}`;
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   const doFetch = cfg.fetchImpl ?? fetch;
   try {
@@ -76,6 +150,16 @@ export async function tcplusRequest(
   } catch (e) {
     return { ok: false, status: 0, body: null, texto: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** Linhas de uma listagem do 3C Plus: `{data:[...]}` (paginada), `{data:{data:[...]}}`
+ *  ou array puro. Só objetos. */
+export function linhasDaResposta(body: unknown): Record<string, unknown>[] {
+  const ehObj = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === "object" && !Array.isArray(v);
+  let atual: unknown = body;
+  for (let i = 0; i < 3 && ehObj(atual); i++) atual = atual.data;
+  return Array.isArray(atual) ? atual.filter(ehObj) : [];
 }
 
 /** Mensagem legível de um erro do 3C Plus (dois formatos conhecidos:

@@ -19,14 +19,17 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public._tcplus_sync_presenca() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS tcplus_checkin_sync ON public.presenca_checkins;
 CREATE TRIGGER tcplus_checkin_sync AFTER INSERT OR UPDATE OF encerrado_em,apto_roleta,modo,filial_id ON public.presenca_checkins FOR EACH ROW EXECUTE FUNCTION public._tcplus_sync_presenca();
+DROP TRIGGER IF EXISTS tcplus_profile_sync ON public.profiles;
 CREATE TRIGGER tcplus_profile_sync AFTER UPDATE OF ativo,presente ON public.profiles FOR EACH ROW EXECUTE FUNCTION public._tcplus_sync_presenca();
-CREATE TABLE public.tcplus_eventos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), lead_id uuid NOT NULL, evento text NOT NULL, tabela text NOT NULL, registro_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), request_id bigint, erro text);
+CREATE TABLE IF NOT EXISTS public.tcplus_eventos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), lead_id uuid NOT NULL, evento text NOT NULL, tabela text NOT NULL, registro_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), request_id bigint, erro text);
 GRANT SELECT ON public.tcplus_eventos TO authenticated;
 GRANT ALL ON public.tcplus_eventos TO service_role;
 ALTER TABLE public.tcplus_eventos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tcplus_eventos_admin ON public.tcplus_eventos;
 CREATE POLICY tcplus_eventos_admin ON public.tcplus_eventos FOR SELECT TO authenticated USING(public.has_role(auth.uid(),'admin'));
-CREATE INDEX tcplus_eventos_created_idx ON public.tcplus_eventos(created_at);
+CREATE INDEX IF NOT EXISTS tcplus_eventos_created_idx ON public.tcplus_eventos(created_at);
 CREATE OR REPLACE FUNCTION public._tcplus_emit_evento() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,net AS $$
 DECLARE _lead uuid; _evento text; _id uuid; _request bigint; _novo jsonb:=to_jsonb(NEW); _velho jsonb; _payload jsonb; _log uuid;
 BEGIN
@@ -56,10 +59,16 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public._tcplus_emit_evento() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS tcplus_lead_event ON public.leads;
 CREATE TRIGGER tcplus_lead_event AFTER INSERT OR UPDATE OF status,corretor_id,roleta_slug ON public.leads FOR EACH ROW EXECUTE FUNCTION public._tcplus_emit_evento();
+DROP TRIGGER IF EXISTS tcplus_interacao_event ON public.interacoes;
 CREATE TRIGGER tcplus_interacao_event AFTER INSERT ON public.interacoes FOR EACH ROW EXECUTE FUNCTION public._tcplus_emit_evento();
+DROP TRIGGER IF EXISTS tcplus_agendamento_event ON public.agendamentos;
 CREATE TRIGGER tcplus_agendamento_event AFTER INSERT OR UPDATE ON public.agendamentos FOR EACH ROW EXECUTE FUNCTION public._tcplus_emit_evento();
+DROP TRIGGER IF EXISTS tcplus_visita_event ON public.visitas;
 CREATE TRIGGER tcplus_visita_event AFTER INSERT OR UPDATE ON public.visitas FOR EACH ROW EXECUTE FUNCTION public._tcplus_emit_evento();
+DROP TRIGGER IF EXISTS tcplus_venda_event ON public.vendas;
 CREATE TRIGGER tcplus_venda_event AFTER INSERT OR UPDATE ON public.vendas FOR EACH ROW EXECUTE FUNCTION public._tcplus_emit_evento();
+DROP TRIGGER IF EXISTS tcplus_tarefa_event ON public.tarefas;
 CREATE TRIGGER tcplus_tarefa_event AFTER INSERT OR UPDATE ON public.tarefas FOR EACH ROW EXECUTE FUNCTION public._tcplus_emit_evento();
 NOTIFY pgrst, 'reload schema';

@@ -76,8 +76,9 @@ teste real.
 
 4. **Vínculo por corretor** — tabela `telefonia_agentes` (uma linha por
    corretor): `agent_id` (ID do usuário no 3C Plus; casa `agent.id` dos
-   eventos — o e-mail do agente é o fallback), `campaign_id` (campanha do
-   discador **dedicada** ao corretor) e `api_token` (token do agente,
+   eventos — o e-mail do agente é o fallback; preenchido sozinho quando o
+   corretor conecta o token), `campaign_id` (**opcional** — override da
+   campanha única do time, ver item 6) e `api_token` (token do agente,
    **write-only para o app**: a coluna não tem GRANT de SELECT para
    `authenticated`; só a service_role das functions lê). A tela mostra
    "token atualizado há X" (`token_atualizado_em`, mantido pelo trigger),
@@ -147,10 +148,19 @@ identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
    `distribution_log` (regra `discador_bolsao`). Discar sem atender não gera
    nada além do histórico.
 
-   **Uma campanha por corretor (obrigatório)**: o discador entrega as
-   chamadas a QUALQUER agente logado na campanha — dois corretores na mesma
-   campanha trocariam leads entre si e a higiene de um apagaria a lista do
-   outro. `iniciar` recusa com `campanha_compartilhada` (409).
+   **Uma campanha para o time todo** (decisão 2026-10-20, substitui a
+   "uma campanha por corretor"): o ID fica em `gestao_config` (chave
+   `telefonia_3cplus`, `{campaign_id, nome}`), escolhido pelo admin no painel
+   **Integração 3C Plus** da aba Discador. O discador entrega a chamada a
+   QUALQUER agente logado na campanha — e tudo bem: a fila é o Bolsão (sem
+   dono), o webhook casa o corretor pelo agente que **atendeu** e quem falou
+   ganha o Atendido. A reserva em `bolsao_discagem` continua impedindo dois
+   corretores de subirem o mesmo lead. Cada corretor só apaga as **próprias**
+   listas (marcador `[crm:<uid>]`) e, no `iniciar`, as listas **órfãs** de
+   colegas (nenhuma reserva viva e mais de 15 min de vida — quem fechou a aba
+   sem "Parar"), para o discador não seguir ligando para lead que já voltou
+   ao Bolsão. `telefonia_agentes.campaign_id`, se preenchido, ainda vence
+   (Gestão → Corretores → Discador).
 
 7. **Pop-up de chamada ativa (screen pop)** e **modo um a um** — inalterados
    no desenho (ver `sonax-discador.md`, itens 6 e 7): o pop-up acorda com o
@@ -166,6 +176,8 @@ identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
 | Click-to-call (JWT + RLS; service_role só p/ token) | `supabase/functions/tcplus-discar/index.ts`                                  |
 | Discador automático (lista de mailing + login)      | `supabase/functions/tcplus-campanha/index.ts`                                |
 | Webhook de eventos (secret + service_role)          | `supabase/functions/tcplus-webhook/index.ts`                                 |
+| Conexão do corretor + diagnóstico da gestão         | `supabase/functions/tcplus-config/index.ts`                                  |
+| Painel "Integração 3C Plus" (semáforo, gestão)      | `src/features/telefonia/config-tcplus-gestao.tsx`                            |
 | Hook do botão Ligar (com fallback `tel:`)           | `src/hooks/use-ligar-lead.ts`                                                |
 | Fronteira tipada de `telefonia_agentes`             | `src/features/telefonia/telefonia-3cplus-client.ts`                          |
 | Card "Meu 3C Plus" (token self-service)             | `src/features/telefonia/conectar-tcplus.tsx`                                 |
@@ -176,49 +188,46 @@ identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
 
 ## Setup (checklist de ativação)
 
-1. **Aplicar a migration** no projeto Supabase (fluxo normal de deploy).
-2. **Secrets** em _Supabase → Edge Functions → Secrets_:
+Desde 2026-10-20 o checklist virou o painel **Discador → Integração 3C
+Plus** (só gestão vê; só admin altera): cada etapa aparece verde/amarela/
+vermelha com o que fazer. Na ordem:
+
+1. **Secrets** no backend (Lovable Cloud → Secrets / Supabase → Edge
+   Functions → Secrets):
    - `TCPLUS_API_TOKEN` — token de API do **gestor** no 3C Plus (fixo, não
-     expira; aparece em `GET /me` do usuário gestor). Usado só pela
-     `tcplus-campanha` (listas/mailing).
-   - `TCPLUS_WEBHOOK_SECRET` — segredo longo e aleatório, exclusivo do
-     webhook (ex.: `openssl rand -hex 32`).
-   - Opcionais: `TCPLUS_BASE_URL` (instância white-label; default
-     `https://app.3c.plus/api/v1`), `TCPLUS_AUTH_MODE` (`bearer` default |
-     `query`), `TCPLUS_DIAL_FORMAT` (`nacional` default | `ddi`),
-     `TCPLUS_ALLOW_QUERY_SECRET` (`true` default).
-3. **Deploy das functions**
-   `supabase functions deploy tcplus-discar tcplus-campanha tcplus-webhook`.
-   O `config.toml` já define `verify_jwt` correto para cada uma. As
-   `sonax-*` não precisam mais de deploy.
-4. **No 3C Plus**: criar **uma campanha por corretor** que vai usar o
-   discador (tipo discador/preditivo, com a qualificação configurada e as
-   qualificações nomeadas conforme o mapeamento). Anotar o ID da campanha e o
-   ID do usuário (agente) de cada corretor (`GET /users?role=agent` ou o
-   painel).
-5. **Registrar o webhook no 3C Plus** (Configurações do sistema → Integrações
-   → webhook), eventos `call-was-connected` e `call-history-was-created`:
-
-   ```
-   https://rldnprwjlomjmjvinxuh.supabase.co/functions/v1/tcplus-webhook?secret=SEU_SEGREDO
-   ```
-
-   Se a tela aceitar header, prefira `x-webhook-secret: SEU_SEGREDO` (ou
-   `Authorization: Bearer SEU_SEGREDO`) e depois ligue o kill-switch
-   `TCPLUS_ALLOW_QUERY_SECRET=false`.
-
-6. **Cadastrar o vínculo dos corretores** em **Gestão → Corretores →
-   Discador**: ID do agente e ID da campanha (o token pode ficar em branco).
-7. **Cada corretor** abre a aba Discador → card "Meu 3C Plus" → cola o token
-   de agente (no 3C Plus: perfil do usuário → token de API).
-8. Testar: abrir um lead → "Ligar" (o webphone do 3C Plus disca; linha em
-   `chamadas` e na timeline). Encerrar e qualificar no 3C Plus → o webhook
-   preenche status/duração/gravação e move o lead de etapa. Depois, aba
-   Discador → "Iniciar agora": o lote do Bolsão é reservado, a lista sobe e o
-   discador passa a entregar chamadas ao webphone; quem atende aparece em
-   Atendidos, e "agendou visita" o coloca na carteira. Ajustes de lote,
-   rediscagem, validade e etapas de posse ficam em `gestao_config.bolsao`
-   (`discador_*`).
+     expira). Usado só pelas functions (listas/mailing, diagnóstico).
+   - `TCPLUS_WEBHOOK_SECRET` — texto longo e aleatório, exclusivo do webhook
+     (ex.: `openssl rand -hex 32`).
+   - Opcionais: `TCPLUS_BASE_URL` — aceita só o domínio da empresa
+     (`seumetroquadrado.3c.plus`); vazio = `https://app.3c.plus/api/v1`. O
+     painel testa os dois e diz qual respondeu. `TCPLUS_AUTH_MODE` — `auto`
+     (default: header Bearer e, se o 3C Plus responder 401, `?api_token=`;
+     lembra o que funcionou) | `bearer` | `query`. `TCPLUS_DIAL_FORMAT`
+     (`nacional` default | `ddi`). `TCPLUS_ALLOW_QUERY_SECRET` (`true`).
+2. **Deploy** das functions `tcplus-discar tcplus-campanha tcplus-webhook
+tcplus-config` (o Lovable publica sozinho; o `config.toml` já define o
+   `verify_jwt` de cada uma).
+3. **No 3C Plus**: criar **uma** campanha de discador (ex.: "CRM – Bolsão"),
+   com as qualificações nomeadas conforme o mapeamento (item 3), e os
+   usuários **agente** dos corretores com o **mesmo e-mail** do login no CRM.
+4. **Painel → etapa 2**: escolher a campanha na lista (o CRM lê as campanhas
+   da conta com o token do gestor).
+5. **Painel → etapa 4**: copiar a URL do webhook (com o segredo; só o admin
+   vê) e registrá-la no 3C Plus (Configurações → Integrações → Webhook),
+   eventos `call-was-connected` e `call-history-was-created`. O painel faz um
+   autoteste do webhook e mostra quando chegou o último evento real.
+6. **Cada corretor**: aba Discador → card "Meu 3C Plus" → cola o token do
+   **próprio** usuário de agente. O CRM confere o token no 3C Plus (`GET
+/me`) antes de gravar, preenche o ID do agente e avisa se o e-mail do
+   agente não bate com o do CRM. (Painel → etapa 3 → "Vincular agentes por
+   e-mail" preenche os IDs de quem ainda não conectou.)
+7. **Testar**: o corretor abre a **tela de agente do 3C Plus** numa aba, com
+   o webphone ativo e o fone; no CRM, abre um lead → "Ligar" (toca no
+   webphone; linha em `chamadas` e na timeline). Encerra e qualifica no 3C
+   Plus → o webhook preenche status/duração/gravação e move o lead de etapa.
+   Depois, aba Discador → "Iniciar agora": o lote do Bolsão é reservado, a
+   lista sobe e o discador passa a entregar chamadas; quem atende aparece em
+   Atendidos, e "agendou visita" o coloca na carteira.
 
 ### Nota de segurança — dois segredos, dois lugares
 
@@ -317,8 +326,9 @@ de confirmação no primeiro teste real — todas ajustáveis **sem deploy**
 1. **Formato do `phone` em `/agent/manual_call/dial`** — assumido nacional
    com DDD (11 dígitos, como no mailing). Se a discagem exigir DDI, defina
    `TCPLUS_DIAL_FORMAT=ddi`.
-2. **Modo de autenticação** — Bearer (SDK). Se a instância recusar o token
-   fixo no header, `TCPLUS_AUTH_MODE=query`.
+2. **Modo de autenticação** — resolvido sozinho (`auto`): o SDK oficial usa
+   Bearer, o nó n8n do próprio time da 3C manda o token fixo em
+   `?api_token=`. O CRM tenta o header e cai para a query no 401.
 3. **Corpo de `/agent/login`** — `{campaign: <id>, mode: "manual"}` (SDK
    `loginManual`). Se o campo tiver outro nome, ajuste na `tcplus-discar` e
    `tcplus-campanha` (um lugar cada).
