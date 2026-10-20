@@ -2,7 +2,6 @@ export const SOCIO_PERCENTUAL = 0.3;
 export const SOCIOS_PERCENTUAL_TOTAL = SOCIO_PERCENTUAL * 2;
 export const GUILHERME_SOCIO_ID = "43866728-4cde-4f74-a5de-bbbecec10198";
 export const FABIO_SOCIO_IDS = [
-  "69d35880-d2c3-4225-b07c-6cec02be8509",
   "5531c08f-e0dc-4289-90f3-b6105eab4c4c",
 ] as const;
 
