@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, ClockAfternoon, XCircle } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -26,6 +26,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GUILHERME_SOCIO_ID, FABIO_SOCIO_IDS, SOCIOS_PERCENTUAL_TOTAL, comissaoIndividualSocio } from "@/lib/comissao-socios";
+import { supabaseSocios } from "@/lib/comissao-socios-client";
 
 type PendingSale = {
   id: string;
@@ -65,14 +68,47 @@ export function PendingSalesApproval() {
     type: "aprovada" | "rejeitada";
   } | null>(null);
   const [reason, setReason] = useState("");
+  const [gerenteId, setGerenteId] = useState("");
+  const [fabioId, setFabioId] = useState("");
+  const sociosDisponiveis = useQuery({
+    queryKey: ["socios-schema-disponivel"],
+    enabled: decision?.type === "aprovada",
+    retry: false,
+    queryFn: async () => {
+      const { error } = await supabaseSocios.from("vendas").select("socio_fabio_id").limit(0);
+      if (error) throw error;
+      return true;
+    },
+  });
+  const beneficiarios = useQuery({
+    queryKey: ["aprovacao-beneficiarios", decision?.sale.corretor_id],
+    enabled: decision?.type === "aprovada",
+    queryFn: async () => {
+      const { data: profiles, error } = await supabase.from("profiles").select("id, nome, equipe_id").order("nome");
+      if (error) throw error;
+      const equipeId = profiles?.find((p) => p.id === decision?.sale.corretor_id)?.equipe_id;
+      let gestorId: string | null = null;
+      if (equipeId) {
+        const { data: equipe, error: equipeError } = await supabase.from("equipes").select("gestor_id").eq("id", equipeId).maybeSingle();
+        if (equipeError) throw equipeError;
+        gestorId = equipe?.gestor_id ?? null;
+      }
+      return { profiles: profiles ?? [], gestorId };
+    },
+  });
+  useEffect(() => {
+    if (decision?.type === "aprovada" && beneficiarios.data?.gestorId) setGerenteId(beneficiarios.data.gestorId);
+  }, [decision, beneficiarios.data]);
   const [pct, setPct] = useState({ total: "", gerente: "", superintendente: "" });
   const abrirDecisao = (sale: PendingSale, type: "aprovada" | "rejeitada") => {
     const f = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
     setPct({
       total: f(sale.percentual_comissao),
       gerente: f(sale.percentual_gerente),
-      superintendente: f(sale.percentual_superintendente),
+      superintendente: String(SOCIOS_PERCENTUAL_TOTAL),
     });
+    setGerenteId("");
+    setFabioId("");
     setDecision({ sale, type });
   };
   const num = (t: string) => {
@@ -140,28 +176,40 @@ export function PendingSalesApproval() {
       if (decision.type === "aprovada") {
         const total = num(pct.total);
         const gerente = num(pct.gerente || "0");
-        const sup = num(pct.superintendente || "0");
+        const sup = SOCIOS_PERCENTUAL_TOTAL;
         if (total === null || gerente === null || sup === null) {
           throw new Error("Percentuais inválidos — use números entre 0 e 100.");
         }
         const share = decision.sale.pct_share_corretor;
+        if (gerente > 0 && !gerenteId) throw new Error("Selecione o gerente comissionado.");
+        if (!fabioId) throw new Error("Selecione o Fábio que receberá como sócio.");
+        if (total < (share == null ? 0 : total * Number(share) / 100) + gerente + sup) throw new Error("A soma das comissões excede o total.");
         const patch: {
           percentual_comissao: number;
           percentual_gerente: number;
           percentual_superintendente: number;
           percentual_corretor?: number;
+          gerente_beneficiario_id: string | null;
+          socio_guilherme_id: string;
+          socio_fabio_id: string;
         } = {
           percentual_comissao: total,
           percentual_gerente: gerente,
           percentual_superintendente: sup,
+          gerente_beneficiario_id: gerenteId || null,
+          socio_guilherme_id: GUILHERME_SOCIO_ID,
+          socio_fabio_id: fabioId,
         };
         if (share != null)
           patch.percentual_corretor = Math.round(total * Number(share) * 100) / 10000;
-        const { error: upErr } = await supabase
+        const { error: upErr } = await supabaseSocios
           .from("vendas")
           .update(patch)
           .eq("id", decision.sale.id);
-        if (upErr) throw upErr;
+        if (upErr) {
+          if (upErr.message.includes("schema cache") || upErr.message.includes("does not exist")) throw new Error("A configuração dos sócios ainda não está disponível no banco. A venda não foi aprovada.");
+          throw upErr;
+        }
       }
       const { error } = await supabase.rpc("aprovar_venda", {
         p_decisao: decision.type,
@@ -351,7 +399,7 @@ export function PendingSalesApproval() {
                   [
                     ["total", "Imobiliária (total)"],
                     ["gerente", "Gerente"],
-                    ["superintendente", "Superint."],
+                    ["superintendente", "Sócios (total)"],
                   ] as const
                 ).map(([k, rotulo]) => (
                   <div key={k} className="space-y-1">
@@ -359,10 +407,28 @@ export function PendingSalesApproval() {
                     <Input
                       inputMode="decimal"
                       value={pct[k]}
+                      disabled={k === "superintendente"}
                       onChange={(e) => setPct((p) => ({ ...p, [k]: e.target.value }))}
                     />
                   </div>
                 ))}
+              </div>
+              {beneficiarios.isError && <p role="alert" className="text-sm text-destructive">Não foi possível carregar os comissionados.</p>}
+              {sociosDisponiveis.isError && <p role="alert" className="text-sm text-destructive">A configuração dos sócios aguarda liberação no banco. Nenhuma venda será aprovada com os beneficiários incompletos.</p>}
+              <div className="space-y-1">
+                <Label htmlFor="aprovacao-gerente">Gerente comissionado</Label>
+                <Select value={gerenteId} onValueChange={setGerenteId}>
+                  <SelectTrigger id="aprovacao-gerente"><SelectValue placeholder={beneficiarios.isLoading ? "Carregando…" : "Selecionar gerente"} /></SelectTrigger>
+                  <SelectContent>{beneficiarios.data?.profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <p className="text-sm">Sócio: Guilherme Nunes · 0,3% · {money(comissaoIndividualSocio(decision.sale.valor_venda))}</p>
+              <div className="space-y-1">
+                <Label htmlFor="aprovacao-fabio">Sócio: Fábio · 0,3% · {money(comissaoIndividualSocio(decision.sale.valor_venda))}</Label>
+                <Select value={fabioId} onValueChange={setFabioId}>
+                  <SelectTrigger id="aprovacao-fabio"><SelectValue placeholder="Selecionar Fábio" /></SelectTrigger>
+                  <SelectContent>{beneficiarios.data?.profiles.filter((p) => FABIO_SOCIO_IDS.some((id) => id === p.id)).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
               {(() => {
                 const total = num(pct.total);
@@ -394,7 +460,7 @@ export function PendingSalesApproval() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={mutation.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              disabled={mutation.isPending || (decision?.type === "rejeitada" && !reason.trim())}
+              disabled={mutation.isPending || (decision?.type === "rejeitada" && !reason.trim()) || (decision?.type === "aprovada" && (!sociosDisponiveis.data || !fabioId || beneficiarios.isLoading || beneficiarios.isError || (Number(pct.gerente.replace(",", ".")) > 0 && !gerenteId)))}
               onClick={(event) => {
                 event.preventDefault();
                 mutation.mutate();

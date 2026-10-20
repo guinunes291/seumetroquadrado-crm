@@ -708,6 +708,13 @@
       "when": 1792520543193,
       "tag": "0100_tcplus_presenca_eventos",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1792523665264,
+      "tag": "0101_venda_beneficiarios_socios",
+      "breakpoints": true
     }
   ]
 }

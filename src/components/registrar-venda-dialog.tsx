@@ -116,7 +116,7 @@ export function VendaEtapasDialog({
     total: "3.50",
     corretor: "1.85",
     gerente: "0.50",
-    superintendente: "0.30",
+    superintendente: "0.60",
   });
 
   const tierSplit = useTierNoSplit({
