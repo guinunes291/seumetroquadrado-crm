@@ -701,6 +701,13 @@
       "when": 1792421541108,
       "tag": "0099_aplicar_pendentes_perdido",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1792520543193,
+      "tag": "0100_tcplus_presenca_eventos",
+      "breakpoints": true
     }
   ]
 }
