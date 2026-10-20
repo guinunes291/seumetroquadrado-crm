@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SOCIOS_PERCENTUAL_TOTAL } from "@/lib/comissao-socios";
 import {
   calcularComissoes,
   validarSplit,
@@ -71,7 +72,7 @@ function SplitCompleto({ valorVenda, valores, onChange, travados, infoTier }: Pr
     { campo: "total", rotulo: "Total" },
     { campo: "corretor", rotulo: "Corretor" },
     { campo: "gerente", rotulo: "Gerente" },
-    { campo: "superintendente", rotulo: "Superint." },
+    { campo: "superintendente", rotulo: "Sócios" },
   ];
 
   return (
@@ -83,9 +84,9 @@ function SplitCompleto({ valorVenda, valores, onChange, travados, infoTier }: Pr
             <Label className="text-[11px]">{rotulo}</Label>
             <Input
               inputMode="decimal"
-              value={valores[campo]}
+              value={campo === "superintendente" ? String(SOCIOS_PERCENTUAL_TOTAL).replace(".", ",") : valores[campo]}
               onChange={(e) => onChange(campo, e.target.value)}
-              disabled={travados?.includes(campo)}
+              disabled={campo === "superintendente" || travados?.includes(campo)}
               aria-invalid={parsePercent(valores[campo]) === null}
             />
           </div>
@@ -112,7 +113,7 @@ function SplitCompleto({ valorVenda, valores, onChange, travados, infoTier }: Pr
       {preview && (
         <p className="text-xs text-muted-foreground">
           Corretor {formatBRL2(preview.corretor)} · Gerente {formatBRL2(preview.gerente)} ·
-          Superint. {formatBRL2(preview.superintendente)} · Imobiliária (total){" "}
+           Sócios {formatBRL2(preview.superintendente)} · Imobiliária (total){" "}
           {formatBRL2(preview.imobiliaria)}
         </p>
       )}

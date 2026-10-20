@@ -8,7 +8,7 @@ import type { Intent, Hue } from "@/lib/status-tones";
 
 /** Vocabulário canônico. Valores legados/desconhecidos são tolerados na UI. */
 export type ComissaoStatus = "pendente" | "paga" | "cancelada";
-export type ComissaoTipo = "corretor" | "gerente" | "superintendente";
+export type ComissaoTipo = "corretor" | "gerente" | "superintendente" | "socio";
 
 export type VendaEmbed = {
   data_assinatura: string;
@@ -169,6 +169,7 @@ export function tipoLabel(t: string): string {
       corretor: "Corretor",
       gerente: "Gerente",
       superintendente: "Superintendente",
+      socio: "Sócio",
     }[t] ?? t
   );
 }
@@ -178,6 +179,7 @@ export function tipoHue(t: string): Hue {
     corretor: "blue",
     gerente: "violet",
     superintendente: "teal",
+    socio: "teal",
   };
   return map[t] ?? "slate";
 }

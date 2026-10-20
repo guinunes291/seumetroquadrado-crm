@@ -3,3 +3,4 @@
 - Importação de leads por CSV usa a função de banco importar_leads_csv_lote chamada via server function com service role (só admin) — por que: inserir linha a linha passando pelos gatilhos de zona sem roleta e com dedupe idempotente.
 - Generate sale receipt forecast options with the shared period helpers and use them in the shared sale dialog — keeps both sale entry points consistent with the operational calendar.
 - Keep 3C Plus credentials separate from the dialer and existing global credentials; outbound integration events must remain roulette-scoped and additive to existing notifications to prevent unrelated customer data delivery.
+- New approvals snapshot commission beneficiaries on the sale and generate separate partner ledger rows; preserve legacy approved rows and cancellation handling for financial auditability.
