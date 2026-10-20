@@ -134,7 +134,7 @@ export const CatalogoProjetosInput = z.object({
 /** Descrições em PT-BR — é o que o modelo lê para decidir quando chamar. */
 export const SAMIQ_TOOL_DESCRIPTIONS: Record<SamiQToolName, string> = {
   buscar_clientes:
-    "Procura clientes na carteira do corretor pelo nome ou pelo empreendimento de interesse. Devolve id, nome, etapa, temperatura e datas-chave. Use antes de detalhe_cliente quando só tiver o nome.",
+    'Procura clientes na carteira do corretor pelo nome, pelo empreendimento de interesse e/ou pelos últimos dígitos do telefone (ex.: "Lucas 4321"). Devolve id, nome, etapa, temperatura, empreendimento e datas-chave (o telefone nunca aparece). Use antes de detalhe_cliente quando só tiver o nome. Se vierem dois ou mais clientes com o mesmo nome, pergunte qual antes de propor qualquer registro.',
   detalhe_cliente:
     "Traz o dossiê resumido de um cliente: perfil financeiro, momento no funil, últimas interações, tarefas abertas, próximos compromissos e status dos documentos.",
   minha_agenda:
@@ -216,6 +216,29 @@ export function termoBuscaSamiQ(termo: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
+}
+
+/**
+ * Separa o que é nome/empreendimento do que é final de telefone no termo do
+ * buscar_clientes ("Lucas 4321", "final 4321", "lucas final 98765-4321").
+ * Os 4 últimos dígitos bastam para separar homônimos e não expõem o número.
+ * Menos de 4 dígitos não vira filtro de telefone (fica no texto, como antes).
+ */
+export function separarTermoBuscaSamiQ(termo: string): {
+  texto: string;
+  finalTelefone: string | null;
+} {
+  const digitos = (termo.match(/\d[\d\s.-]*\d|\d/g) ?? [])
+    .map((d) => d.replace(/\D/g, ""))
+    .filter((d) => d.length >= 4);
+  if (digitos.length === 0) return { texto: termoBuscaSamiQ(termo), finalTelefone: null };
+  const ultimo = digitos[digitos.length - 1];
+  const texto = termoBuscaSamiQ(
+    termo
+      .replace(/\d[\d\s.-]*\d|\d/g, " ")
+      .replace(/\b(?:final|finais|terminado|termina|tel|telefone|cel|celular|em|com|o|a)\b/gi, " "),
+  );
+  return { texto, finalTelefone: ultimo.slice(-Math.min(ultimo.length, 9)) };
 }
 
 // ---------------------------------------------------------------------------
