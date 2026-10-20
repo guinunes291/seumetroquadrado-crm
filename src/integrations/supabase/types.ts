@@ -9582,6 +9582,7 @@ export type Database = {
           data_recebimento: string | null
           distrato: boolean
           esteira_comissao: string | null
+          gerente_beneficiario_id: string | null
           id: string
           lead_id: string | null
           legacy_id: number | null
@@ -9597,6 +9598,8 @@ export type Database = {
           previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
+          socio_fabio_id: string | null
+          socio_guilherme_id: string | null
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string
@@ -9623,6 +9626,7 @@ export type Database = {
           data_recebimento?: string | null
           distrato?: boolean
           esteira_comissao?: string | null
+          gerente_beneficiario_id?: string | null
           id?: string
           lead_id?: string | null
           legacy_id?: number | null
@@ -9638,6 +9642,8 @@ export type Database = {
           previsao_recebimento?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
+          socio_fabio_id?: string | null
+          socio_guilherme_id?: string | null
           status_recebimento?: string
           status_venda?: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at?: string
@@ -9664,6 +9670,7 @@ export type Database = {
           data_recebimento?: string | null
           distrato?: boolean
           esteira_comissao?: string | null
+          gerente_beneficiario_id?: string | null
           id?: string
           lead_id?: string | null
           legacy_id?: number | null
@@ -9679,6 +9686,8 @@ export type Database = {
           previsao_recebimento?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
+          socio_fabio_id?: string | null
+          socio_guilherme_id?: string | null
           status_recebimento?: string
           status_venda?: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at?: string
@@ -9689,6 +9698,20 @@ export type Database = {
           valor_venda?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "vendas_gerente_beneficiario_id_fkey"
+            columns: ["gerente_beneficiario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_gerente_beneficiario_id_fkey"
+            columns: ["gerente_beneficiario_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
           {
             foreignKeyName: "vendas_lead_id_fkey"
             columns: ["lead_id"]
@@ -9744,6 +9767,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
+          },
+          {
+            foreignKeyName: "vendas_socio_fabio_id_fkey"
+            columns: ["socio_fabio_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_socio_fabio_id_fkey"
+            columns: ["socio_fabio_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "vendas_socio_guilherme_id_fkey"
+            columns: ["socio_guilherme_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_socio_guilherme_id_fkey"
+            columns: ["socio_guilherme_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
           },
         ]
       }
@@ -11924,6 +11975,7 @@ export type Database = {
           data_recebimento: string | null
           distrato: boolean
           esteira_comissao: string | null
+          gerente_beneficiario_id: string | null
           id: string
           lead_id: string | null
           legacy_id: number | null
@@ -11939,6 +11991,8 @@ export type Database = {
           previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
+          socio_fabio_id: string | null
+          socio_guilherme_id: string | null
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string
@@ -12064,6 +12118,7 @@ export type Database = {
           data_recebimento: string | null
           distrato: boolean
           esteira_comissao: string | null
+          gerente_beneficiario_id: string | null
           id: string
           lead_id: string | null
           legacy_id: number | null
@@ -12079,6 +12134,8 @@ export type Database = {
           previsao_recebimento: string | null
           projeto_id: string | null
           projeto_nome: string | null
+          socio_fabio_id: string | null
+          socio_guilherme_id: string | null
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string

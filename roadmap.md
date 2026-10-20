@@ -1,6 +1,6 @@
 # Aprovação e comissão dos sócios
 - [x] Abrir seleção dos beneficiários na aprovação, com bloqueio seguro enquanto configuração não existe.
-- [ ] Aplicar comissão de 0,3% por sócio no banco: 0101 foi pulada pelo mesmo histórico de datas futuras; depende de correção do histórico gerenciado.
+- [x] Aplicar comissão de 0,3% por sócio no banco (aplicada; vendas antigas intactas).
 - [x] Testar cálculo: 41 testes passaram.
 - [ ] Validar aprovação real: depende da configuração no banco e de sessão autorizada; existem dois Fábios, seleção explícita na tela.
 
