@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, ClockAfternoon, XCircle } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GUILHERME_SOCIO_ID, FABIO_SOCIO_IDS, SOCIOS_PERCENTUAL_TOTAL, comissaoIndividualSocio } from "@/lib/comissao-socios";
+import { supabaseSocios } from "@/lib/comissao-socios-client";
 
 type PendingSale = {
   id: string;
@@ -69,6 +70,16 @@ export function PendingSalesApproval() {
   const [reason, setReason] = useState("");
   const [gerenteId, setGerenteId] = useState("");
   const [fabioId, setFabioId] = useState("");
+  const sociosDisponiveis = useQuery({
+    queryKey: ["socios-schema-disponivel"],
+    enabled: decision?.type === "aprovada",
+    retry: false,
+    queryFn: async () => {
+      const { error } = await supabaseSocios.from("vendas").select("socio_fabio_id").limit(0);
+      if (error) throw error;
+      return true;
+    },
+  });
   const beneficiarios = useQuery({
     queryKey: ["aprovacao-beneficiarios", decision?.sale.corretor_id],
     enabled: decision?.type === "aprovada",
@@ -76,14 +87,18 @@ export function PendingSalesApproval() {
       const { data: profiles, error } = await supabase.from("profiles").select("id, nome, equipe_id").order("nome");
       if (error) throw error;
       const equipeId = profiles?.find((p) => p.id === decision?.sale.corretor_id)?.equipe_id;
+      let gestorId: string | null = null;
       if (equipeId) {
         const { data: equipe, error: equipeError } = await supabase.from("equipes").select("gestor_id").eq("id", equipeId).maybeSingle();
         if (equipeError) throw equipeError;
-        if (equipe?.gestor_id) setGerenteId(equipe.gestor_id);
+        gestorId = equipe?.gestor_id ?? null;
       }
-      return profiles ?? [];
+      return { profiles: profiles ?? [], gestorId };
     },
   });
+  useEffect(() => {
+    if (decision?.type === "aprovada" && beneficiarios.data?.gestorId) setGerenteId(beneficiarios.data.gestorId);
+  }, [decision, beneficiarios.data]);
   const [pct, setPct] = useState({ total: "", gerente: "", superintendente: "" });
   const abrirDecisao = (sale: PendingSale, type: "aprovada" | "rejeitada") => {
     const f = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
@@ -187,7 +202,7 @@ export function PendingSalesApproval() {
         };
         if (share != null)
           patch.percentual_corretor = Math.round(total * Number(share) * 100) / 10000;
-        const { error: upErr } = await supabase
+        const { error: upErr } = await supabaseSocios
           .from("vendas")
           .update(patch)
           .eq("id", decision.sale.id);
@@ -399,11 +414,12 @@ export function PendingSalesApproval() {
                 ))}
               </div>
               {beneficiarios.isError && <p role="alert" className="text-sm text-destructive">Não foi possível carregar os comissionados.</p>}
+              {sociosDisponiveis.isError && <p role="alert" className="text-sm text-destructive">A configuração dos sócios aguarda liberação no banco. Nenhuma venda será aprovada com os beneficiários incompletos.</p>}
               <div className="space-y-1">
                 <Label htmlFor="aprovacao-gerente">Gerente comissionado</Label>
                 <Select value={gerenteId} onValueChange={setGerenteId}>
                   <SelectTrigger id="aprovacao-gerente"><SelectValue placeholder={beneficiarios.isLoading ? "Carregando…" : "Selecionar gerente"} /></SelectTrigger>
-                  <SelectContent>{beneficiarios.data?.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
+                  <SelectContent>{beneficiarios.data?.profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <p className="text-sm">Sócio: Guilherme Nunes · 0,3% · {money(comissaoIndividualSocio(decision.sale.valor_venda))}</p>
@@ -411,7 +427,7 @@ export function PendingSalesApproval() {
                 <Label htmlFor="aprovacao-fabio">Sócio: Fábio · 0,3% · {money(comissaoIndividualSocio(decision.sale.valor_venda))}</Label>
                 <Select value={fabioId} onValueChange={setFabioId}>
                   <SelectTrigger id="aprovacao-fabio"><SelectValue placeholder="Selecionar Fábio" /></SelectTrigger>
-                  <SelectContent>{beneficiarios.data?.filter((p) => FABIO_SOCIO_IDS.some((id) => id === p.id)).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
+                  <SelectContent>{beneficiarios.data?.profiles.filter((p) => FABIO_SOCIO_IDS.some((id) => id === p.id)).map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {(() => {
@@ -444,7 +460,7 @@ export function PendingSalesApproval() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={mutation.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              disabled={mutation.isPending || (decision?.type === "rejeitada" && !reason.trim()) || (decision?.type === "aprovada" && (!fabioId || beneficiarios.isLoading || beneficiarios.isError || (Number(pct.gerente.replace(",", ".")) > 0 && !gerenteId)))}
+              disabled={mutation.isPending || (decision?.type === "rejeitada" && !reason.trim()) || (decision?.type === "aprovada" && (!sociosDisponiveis.data || !fabioId || beneficiarios.isLoading || beneficiarios.isError || (Number(pct.gerente.replace(",", ".")) > 0 && !gerenteId)))}
               onClick={(event) => {
                 event.preventDefault();
                 mutation.mutate();

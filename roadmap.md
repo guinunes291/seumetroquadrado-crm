@@ -1,7 +1,8 @@
 # Aprovação e comissão dos sócios
-- [ ] Abrir seleção dos beneficiários faltantes na aprovação.
-- [ ] Substituir superintendente por Guilherme e Fábio, 0,3% para cada, preservando histórico.
-- [ ] Testar cálculo e aprovação.
+- [x] Abrir seleção dos beneficiários na aprovação, com bloqueio seguro enquanto configuração não existe.
+- [ ] Aplicar comissão de 0,3% por sócio no banco: 0101 foi pulada pelo mesmo histórico de datas futuras; depende de correção do histórico gerenciado.
+- [x] Testar cálculo: 41 testes passaram.
+- [ ] Validar aprovação real: depende da configuração no banco e de sessão autorizada; existem dois Fábios, seleção explícita na tela.
 
 # Integração 3C Plus
 - [x] Criar roleta dedicada 3C Plus, pausada, sem alterar as demais.
