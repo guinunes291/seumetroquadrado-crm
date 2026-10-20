@@ -1,3 +1,8 @@
+# Aprovação e comissão dos sócios
+- [ ] Abrir seleção dos beneficiários faltantes na aprovação.
+- [ ] Substituir superintendente por Guilherme e Fábio, 0,3% para cada, preservando histórico.
+- [ ] Testar cálculo e aprovação.
+
 # Integração 3C Plus
 - [x] Criar roleta dedicada 3C Plus, pausada, sem alterar as demais.
 - [x] Configurar os dois tokens e credencial exclusiva com leads:read, leads:write e events:write; leitura HTTP 200 no preview e no site publicado.
