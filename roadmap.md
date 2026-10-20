@@ -1,6 +1,6 @@
 # Integração 3C Plus
 - [x] Criar roleta dedicada 3C Plus, pausada, sem alterar as demais.
 - [x] Configurar os dois tokens e credencial exclusiva com leads:read, leads:write e events:write; leitura HTTP 200 no preview e no site publicado.
-- [ ] Definir participantes e ativar a roleta. Aguarda equipe/corretores escolhidos por Guilherme.
-- [ ] Preparar avisos para o webhook 3C Plus, preservando os avisos existentes. Aguarda confirmação se o destino informado como testes pode receber eventos reais ou se há outro destino de produção.
+- [ ] Ativar roleta para todos os corretores com check-in apto na filial. Bloqueado: histórico gerenciado de migrations tem datas futuras; 0100 foi pulada e o journal é somente leitura. Requer correção do histórico pela plataforma antes de aplicar 0100; roleta permanece pausada.
+- [ ] Ativar avisos reais exclusivos da roleta, preservando os avisos existentes. Destino autorizado; mesmo bloqueio da migration 0100. Avisos ainda não estão ativos.
 - [x] Enviar evento fictício de teste: HTTP 200, workflow iniciado; sem dados de clientes.
