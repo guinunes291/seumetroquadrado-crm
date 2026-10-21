@@ -722,6 +722,13 @@
       "when": 1792525200768,
       "tag": "0102_socios_marcador",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1792600536155,
+      "tag": "0103_bloquear_lead_telefone_corretor",
+      "breakpoints": true
     }
   ]
 }
