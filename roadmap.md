@@ -1,3 +1,7 @@
+# Telefones de corretores
+- [ ] Retirar leads com telefone de corretor preservando histórico.
+- [ ] Bloquear novos cadastros com telefone de corretor e testar.
+
 # Aprovação e comissão dos sócios
 - [x] Abrir seleção dos beneficiários na aprovação, com bloqueio seguro enquanto configuração não existe.
 - [x] Aplicar comissão de 0,3% por sócio no banco (aplicada; vendas antigas intactas).
