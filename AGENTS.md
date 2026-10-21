@@ -4,3 +4,4 @@
 - Generate sale receipt forecast options with the shared period helpers and use them in the shared sale dialog — keeps both sale entry points consistent with the operational calendar.
 - Keep 3C Plus credentials separate from the dialer and existing global credentials; outbound integration events must remain roulette-scoped and additive to existing notifications to prevent unrelated customer data delivery.
 - New approvals snapshot commission beneficiaries on the sale and generate separate partner ledger rows; preserve legacy approved rows and cancellation handling for financial auditability.
+- Broker-phone validation runs server-side against global role/profile records without returning personal data; a database trigger guards all insert/edit/restore paths once its pending migration is applied.
