@@ -85,6 +85,10 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   roles: { isAdmin: false, isGestor: false, isCorretor: true, isSdr: false },
 }));
+vi.mock("@/lib/telefone-corretor.functions", () => ({
+  validarTelefoneCliente: vi.fn(async () => ({ ok: true })),
+}));
+vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
 vi.mock("@/features/leads/oportunidade", async (orig) => ({
   ...(await orig<typeof import("@/features/leads/oportunidade")>()),
   buscarOportunidade: mocks.buscar,

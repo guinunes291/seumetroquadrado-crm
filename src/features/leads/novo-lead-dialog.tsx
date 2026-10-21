@@ -9,6 +9,7 @@
 // corretor no banco).
 
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isValidBrazilPhone, isValidCPF, isValidEmail } from "@/lib/validators";
 import { maskCPF, maskPhoneBR } from "@/lib/masks";
 import { origemLabel } from "@/lib/origem";
+import { validarTelefoneCliente } from "@/lib/telefone-corretor.functions";
 import { ZONAS_REGIAO } from "@/lib/zonas";
 import { BuscarOportunidade, type ClienteEncontrado } from "@/features/leads/buscar-oportunidade";
 import {
@@ -137,6 +139,7 @@ function NovoLeadForm({
   mostrarOportunidade?: boolean;
 }) {
   const qc = useQueryClient();
+  const validarTelefone = useServerFn(validarTelefoneCliente);
   // Corretor começa SEMPRE pela busca; os outros papéis, direto no cadastro.
   // Derivado (não o valor inicial do useState): os papéis chegam depois do
   // login, e o ⌘K logo na entrada abriria o corretor preso no cadastro.
@@ -190,7 +193,10 @@ function NovoLeadForm({
   // Primeira tela do corretor. "duplicado": o cadastro acusou o telefone em
   // outra carteira e a busca roda sozinha para mostrar o cliente.
   const busca = useMutation({
-    mutationFn: (v: { b: BuscaCliente; motivo: "busca" | "duplicado" }) => buscarOportunidade(v.b),
+    mutationFn: async (v: { b: BuscaCliente; motivo: "busca" | "duplicado" }) => {
+      if (v.b.telefone.trim()) await validarTelefone({ data: { telefone: v.b.telefone } });
+      return buscarOportunidade(v.b);
+    },
     onSuccess: (r, v) => {
       if (r.encontrado) {
         setEncontrado(r);
@@ -235,6 +241,7 @@ function NovoLeadForm({
       if (!isValidBrazilPhone(form.telefone)) {
         throw new Error("Telefone inválido. Informe DDD + número (ex.: 11 91234-5678).");
       }
+      await validarTelefone({ data: { telefone: form.telefone } });
       if (form.email.trim() && !isValidEmail(form.email)) {
         throw new Error("E-mail inválido.");
       }
@@ -370,7 +377,7 @@ function NovoLeadForm({
         };
       }
       return {
-        id: data!.id,
+        id: data.id,
         corretor: atribuicaoManual ? corretorId : null,
         // Nome para o toast — resolvido da lista já carregada no select.
         corretorNome: atribuicaoManual
