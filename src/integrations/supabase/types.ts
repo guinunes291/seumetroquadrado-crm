@@ -10987,6 +10987,7 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
       }
+      _bot_resolver_projeto: { Args: { _nome: string }; Returns: string }
       _cadencia_destino_saida: { Args: { _status: string }; Returns: string }
       _cadencia_devolver_roleta: {
         Args: { _corretor: string; _lead: string; _motivo: string }
@@ -12294,6 +12295,9 @@ export type Database = {
           zona: string
         }[]
       }
+      bot_aplicar_desfecho: { Args: { _lead_id: string }; Returns: string }
+      bot_nota_historico_mae: { Args: { _filho: string }; Returns: string }
+      bot_pedir_contexto: { Args: { _lead_id: string }; Returns: number }
       bump_atividade: {
         Args: {
           _ag?: number
