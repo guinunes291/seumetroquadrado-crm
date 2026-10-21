@@ -1,6 +1,8 @@
 # Telefones de corretores
-- [ ] Retirar leads com telefone de corretor preservando histórico.
-- [ ] Bloquear novos cadastros com telefone de corretor e testar.
+- [x] Retirar leads com telefone de corretor preservando histórico: 23 retirados, zero restantes.
+- [x] Bloquear telefone de corretor na busca e no cadastro com conferência global no servidor; testes automatizados.
+- [ ] Aplicar proteção global no banco: 0103 foi pulada por data futura do histórico gerenciado; requer correção pela plataforma.
+- [ ] Validar cadastro autenticado na tela: não foi possível obter sessão do solicitante; aguarda login no preview.
 
 # Aprovação e comissão dos sócios
 - [x] Abrir seleção dos beneficiários na aprovação, com bloqueio seguro enquanto configuração não existe.
