@@ -85,6 +85,10 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   roles: { isAdmin: false, isGestor: false, isCorretor: true, isSdr: false },
 }));
+vi.mock("@/lib/telefone-corretor.functions", () => ({
+  validarTelefoneCliente: vi.fn(async () => ({ ok: true })),
+}));
+vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
 vi.mock("@/features/leads/oportunidade", async (orig) => ({
   ...(await orig<typeof import("@/features/leads/oportunidade")>()),
   buscarOportunidade: mocks.buscar,
@@ -125,6 +129,7 @@ vi.mock("sonner", () => ({
 }));
 
 import { abrirNovoLead, NovoLeadDialogHost } from "@/features/leads/novo-lead-dialog";
+import { validarTelefoneCliente } from "@/lib/telefone-corretor.functions";
 
 const CLIENTE = "11111111-1111-4111-8111-111111111111";
 const LEAD = "33333333-3333-4333-8333-333333333333";
@@ -167,6 +172,17 @@ afterEach(() => {
 });
 
 describe("Novo lead do corretor: a busca vem primeiro", () => {
+  it("telefone de corretor bloqueia antes de buscar ou criar cliente", async () => {
+    vi.mocked(validarTelefoneCliente).mockRejectedValueOnce(new Error("Telefone de corretor bloqueado"));
+    const { toast } = await import("sonner");
+    vi.mocked(toast.error).mockClear();
+    abrir();
+    digitar("Telefone", "11987654321");
+    fireEvent.click(screen.getByText("Buscar cliente"));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Telefone de corretor bloqueado"));
+    expect(mocks.buscar).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
   it("abre sempre na busca, com telefone, e-mail e CPF — sem o cadastro", () => {
     abrir();
     expect(screen.getByLabelText("Telefone")).toBeTruthy();
@@ -342,6 +358,19 @@ describe("Novo lead do corretor: a busca vem primeiro", () => {
 });
 
 describe("Novo lead da gestão: direto no cadastro", () => {
+  it("não cria lead quando a conferência global recusa telefone de corretor", async () => {
+    mocks.roles = { isAdmin: false, isGestor: true, isCorretor: false, isSdr: false };
+    vi.mocked(validarTelefoneCliente).mockRejectedValueOnce(new Error("Telefone de corretor bloqueado"));
+    const { toast } = await import("sonner");
+    vi.mocked(toast.error).mockClear();
+    abrir();
+    const [nome] = screen.getAllByRole("textbox");
+    fireEvent.change(nome, { target: { value: "Cliente" } });
+    fireEvent.change(screen.getByPlaceholderText("(11) 98765-4321"), { target: { value: "11987654321" } });
+    fireEvent.click(screen.getByText("Criar lead"));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Telefone de corretor bloqueado"));
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
   it("gestor não passa pela busca (ela é do corretor no banco)", () => {
     mocks.roles = { isAdmin: false, isGestor: true, isCorretor: false, isSdr: false };
     abrir();
