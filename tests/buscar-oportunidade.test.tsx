@@ -364,7 +364,8 @@ describe("Novo lead da gestão: direto no cadastro", () => {
     const { toast } = await import("sonner");
     vi.mocked(toast.error).mockClear();
     abrir();
-    fireEvent.change(screen.getByPlaceholderText("Nome completo"), { target: { value: "Cliente" } });
+    const [nome] = screen.getAllByRole("textbox");
+    fireEvent.change(nome, { target: { value: "Cliente" } });
     fireEvent.change(screen.getByPlaceholderText("(11) 98765-4321"), { target: { value: "11987654321" } });
     fireEvent.click(screen.getByText("Criar lead"));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Telefone de corretor bloqueado"));
