@@ -353,6 +353,13 @@ export function ComissoesPage() {
         ),
       },
       {
+        id: "cliente",
+        accessorFn: (r) => r.venda?.lead?.nome ?? "",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Cliente" />,
+        meta: { label: "Cliente" },
+        cell: ({ row }) => <span className="text-sm">{row.original.venda?.lead?.nome ?? "—"}</span>,
+      },
+      {
         id: "projeto",
         accessorFn: (r) => r.venda?.projeto_nome ?? "",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Projeto" />,

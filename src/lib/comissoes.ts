@@ -16,6 +16,7 @@ export type VendaEmbed = {
   valor_venda: number;
   distrato: boolean;
   corretor_id: string | null;
+  lead?: { nome: string | null } | null;
 };
 
 export type ComissaoRow = {
@@ -326,6 +327,7 @@ export function beneficiariosDasLinhas(rows: ComissaoRow[]): { id: string; nome:
 export function buildExportRows(rows: ComissaoRow[]): Record<string, string | number | null>[] {
   return rows.map((r) => ({
     "Data assinatura": r.venda?.data_assinatura ?? null,
+    Cliente: r.venda?.lead?.nome ?? null,
     Projeto: r.venda?.projeto_nome ?? null,
     Beneficiário: r.beneficiario_nome ?? `${tipoLabel(r.tipo)} (a atribuir)`,
     Tipo: tipoLabel(r.tipo),
@@ -359,7 +361,7 @@ const SELECT_BASE =
   "valor_base, percentual, valor_comissao, percentual_desconto, valor_liquido, contrato_vgv, " +
   "observacoes, created_at";
 const VENDA_EMBED =
-  "venda:vendas(data_assinatura, projeto_nome, valor_venda, distrato, corretor_id, status_venda)";
+  "venda:vendas(data_assinatura, projeto_nome, valor_venda, distrato, corretor_id, status_venda, lead:leads!vendas_lead_id_fkey(nome))";
 const VENDA_EMBED_INNER = VENDA_EMBED.replace("venda:vendas(", "venda:vendas!inner(");
 
 export type ComissoesFiltro = {
