@@ -184,7 +184,8 @@ describe("fiação de entrada: os canais gravam zona/bairro", () => {
   });
 
   it("atribuição manual na UI mostra o aviso de zona vindo do motor", () => {
-    const queries = read("src/features/distribuicao/queries.ts");
+    // queries.ts virou barrel: a distribuição manual mora em operacao-mutations.ts.
+    const queries = read("src/features/distribuicao/operacao-mutations.ts");
     expect(queries).toContain("aviso_zona");
     expect(queries).toContain("toast.warning(res.aviso_zona)");
   });
