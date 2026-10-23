@@ -175,54 +175,65 @@ export const CriarTarefaPayload = z.object({
   prioridade: z.enum(TAREFA_PRIORIDADES_PROPOSTA).optional().describe("Padrão media"),
 });
 
-export const AtualizarQualificacaoPayload = z
-  .object({
-    tipo: z.literal("atualizar_qualificacao"),
-    leadId: uuid,
-    rendaInformada: z
-      .string()
-      .trim()
-      .max(60)
-      .optional()
-      .describe("Renda familiar como o cliente disse, ex.: '4500'"),
-    entradaDisponivel: z.string().trim().max(60).optional(),
-    usaFgts: z.boolean().optional(),
-    temFgts: z.boolean().optional(),
-    tipoRenda: z
-      .string()
-      .trim()
-      .max(40)
-      .optional()
-      .describe("clt | autonomo | servidor | misto | outro"),
-    temperatura: z.enum(TEMPERATURAS).optional(),
-    projetoInteresse: z
-      .string()
-      .trim()
-      .max(120)
-      .optional()
-      .describe("Nome do empreendimento de interesse"),
-    objecoesAdicionar: z.array(textoCurto(80)).max(5).optional(),
-    resumoQualificacao: z
-      .string()
-      .trim()
-      .max(1500)
-      .optional()
-      .describe("Parecer curto de qualificação"),
-  })
-  .refine(
-    (p) =>
-      [
-        p.rendaInformada,
-        p.entradaDisponivel,
-        p.usaFgts,
-        p.temFgts,
-        p.tipoRenda,
-        p.temperatura,
-        p.projetoInteresse,
-        p.resumoQualificacao,
-      ].some((v) => v !== undefined) || (p.objecoesAdicionar?.length ?? 0) > 0,
-    "informe pelo menos um campo para atualizar",
+// Objeto base SEM refine: o zod 4.4+ proíbe .omit() em objeto refinado, e as
+// ferramentas propor_* precisam do schema sem o campo `tipo`.
+export const AtualizarQualificacaoBase = z.object({
+  tipo: z.literal("atualizar_qualificacao"),
+  leadId: uuid,
+  rendaInformada: z
+    .string()
+    .trim()
+    .max(60)
+    .optional()
+    .describe("Renda familiar como o cliente disse, ex.: '4500'"),
+  entradaDisponivel: z.string().trim().max(60).optional(),
+  usaFgts: z.boolean().optional(),
+  temFgts: z.boolean().optional(),
+  tipoRenda: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .describe("clt | autonomo | servidor | misto | outro"),
+  temperatura: z.enum(TEMPERATURAS).optional(),
+  projetoInteresse: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .describe("Nome do empreendimento de interesse"),
+  objecoesAdicionar: z.array(textoCurto(80)).max(5).optional(),
+  resumoQualificacao: z
+    .string()
+    .trim()
+    .max(1500)
+    .optional()
+    .describe("Parecer curto de qualificação"),
+});
+
+type QualificacaoCampos = Omit<z.infer<typeof AtualizarQualificacaoBase>, "tipo" | "leadId">;
+
+/** Regra da qualificação: pelo menos um campo para atualizar. */
+export function qualificacaoTemCampo(p: QualificacaoCampos): boolean {
+  return (
+    [
+      p.rendaInformada,
+      p.entradaDisponivel,
+      p.usaFgts,
+      p.temFgts,
+      p.tipoRenda,
+      p.temperatura,
+      p.projetoInteresse,
+      p.resumoQualificacao,
+    ].some((v) => v !== undefined) || (p.objecoesAdicionar?.length ?? 0) > 0
   );
+}
+export const MSG_QUALIFICACAO_VAZIA = "informe pelo menos um campo para atualizar";
+
+export const AtualizarQualificacaoPayload = AtualizarQualificacaoBase.refine(
+  qualificacaoTemCampo,
+  MSG_QUALIFICACAO_VAZIA,
+);
 
 export const AgendarVisitaPayload = z.object({
   tipo: z.literal("agendar_visita"),
@@ -237,21 +248,31 @@ export const AgendarVisitaPayload = z.object({
     .describe("true (padrão) = também move o cliente para a etapa Agendado"),
 });
 
-export const MudarEtapaPayload = z
-  .object({
-    tipo: z.literal("mudar_etapa"),
-    leadId: uuid,
-    novoStatus: z.enum(ETAPAS_PROPONIVEIS),
-    motivo: z.string().trim().max(1000).optional().describe("Obrigatório ao perder"),
-    motivoCategoria: z.enum(MOTIVOS_PERDA_PROPOSTA).optional().describe("Só ao perder"),
-    proximaAcao: z.string().trim().max(500).optional(),
-    proximoFollowupEm: ISO_DATA_HORA.optional(),
-  })
-  .refine((p) => p.novoStatus !== "perdido" || !!p.motivo?.trim(), "motivo é obrigatório ao perder")
-  .refine(
-    (p) => p.novoStatus !== "aguardando_retorno" || !!p.proximoFollowupEm,
-    "aguardando retorno exige follow-up",
-  );
+export const MudarEtapaBase = z.object({
+  tipo: z.literal("mudar_etapa"),
+  leadId: uuid,
+  novoStatus: z.enum(ETAPAS_PROPONIVEIS),
+  motivo: z.string().trim().max(1000).optional().describe("Obrigatório ao perder"),
+  motivoCategoria: z.enum(MOTIVOS_PERDA_PROPOSTA).optional().describe("Só ao perder"),
+  proximaAcao: z.string().trim().max(500).optional(),
+  proximoFollowupEm: ISO_DATA_HORA.optional(),
+});
+
+type EtapaCampos = Pick<
+  z.infer<typeof MudarEtapaBase>,
+  "novoStatus" | "motivo" | "proximoFollowupEm"
+>;
+export const etapaPerdidoTemMotivo = (p: EtapaCampos) =>
+  p.novoStatus !== "perdido" || !!p.motivo?.trim();
+export const MSG_ETAPA_PERDIDO = "motivo é obrigatório ao perder";
+export const etapaRetornoTemFollowup = (p: EtapaCampos) =>
+  p.novoStatus !== "aguardando_retorno" || !!p.proximoFollowupEm;
+export const MSG_ETAPA_RETORNO = "aguardando retorno exige follow-up";
+
+export const MudarEtapaPayload = MudarEtapaBase.refine(
+  etapaPerdidoTemMotivo,
+  MSG_ETAPA_PERDIDO,
+).refine(etapaRetornoTemFollowup, MSG_ETAPA_RETORNO);
 
 export const PropostaPayloadSchema = z.discriminatedUnion("tipo", [
   RegistrarContatoPayload,
