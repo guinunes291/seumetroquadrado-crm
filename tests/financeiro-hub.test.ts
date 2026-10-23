@@ -9,7 +9,11 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 const hub = read("src/routes/_authenticated/financeiro/index.tsx");
 // O menu vem do registro SISTEMAS desde a reorganização em sistemas.
-const sistemas = read("src/features/nav/sistemas.ts");
+// sistemas.ts virou só reexportação (2026-10): o registro mora nestes arquivos,
+// lidos juntos e na ordem — os trechos esperados abaixo não mudaram.
+const sistemas = ["operacao", "pre-venda", "consulta", "registro", "atalhos"]
+  .map((m) => read(`src/features/nav/sistemas-${m}.ts`))
+  .join("\n");
 const ranking = read("src/routes/_authenticated/ranking.tsx");
 const aprovacao = read("src/components/pending-sales-approval.tsx");
 
