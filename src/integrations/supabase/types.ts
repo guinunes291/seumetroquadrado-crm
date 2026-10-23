@@ -7458,6 +7458,39 @@ export type Database = {
         }
         Relationships: []
       }
+      projetos_backup_20261023_metragem: {
+        Row: {
+          backup_em: string | null
+          construtora: string | null
+          dorms_max: number | null
+          dorms_min: number | null
+          id: string | null
+          metragem_max: number | null
+          metragem_min: number | null
+          nome: string | null
+        }
+        Insert: {
+          backup_em?: string | null
+          construtora?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
+          id?: string | null
+          metragem_max?: number | null
+          metragem_min?: number | null
+          nome?: string | null
+        }
+        Update: {
+          backup_em?: string | null
+          construtora?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
+          id?: string | null
+          metragem_max?: number | null
+          metragem_min?: number | null
+          nome?: string | null
+        }
+        Relationships: []
+      }
       projetos_metragem_backup_20260902: {
         Row: {
           corrigido_em: string
