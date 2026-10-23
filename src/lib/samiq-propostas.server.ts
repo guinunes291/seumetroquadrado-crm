@@ -12,11 +12,17 @@ import { displayNameForSamiQ } from "@/lib/samiq-governance";
 import {
   AgendarVisitaPayload,
   AnotarPayload,
-  AtualizarQualificacaoPayload,
+  AtualizarQualificacaoBase,
   CriarTarefaPayload,
-  MudarEtapaPayload,
+  MSG_ETAPA_PERDIDO,
+  MSG_ETAPA_RETORNO,
+  MSG_QUALIFICACAO_VAZIA,
+  MudarEtapaBase,
   RegistrarContatoPayload,
   descreverProposta,
+  etapaPerdidoTemMotivo,
+  etapaRetornoTemFollowup,
+  qualificacaoTemCampo,
   type PropostaPayload,
 } from "@/lib/samiq-propostas";
 
@@ -116,7 +122,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }),
     propor_qualificacao: tool({
       description: DESCRICOES.propor_qualificacao,
-      inputSchema: AtualizarQualificacaoPayload.omit({ tipo: true }),
+      inputSchema: AtualizarQualificacaoBase.omit({ tipo: true }).refine(
+        qualificacaoTemCampo,
+        MSG_QUALIFICACAO_VAZIA,
+      ),
       execute: (input) => empilhar({ tipo: "atualizar_qualificacao", ...input }),
     }),
     propor_visita: tool({
@@ -126,7 +135,9 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }),
     propor_etapa: tool({
       description: DESCRICOES.propor_etapa,
-      inputSchema: MudarEtapaPayload.omit({ tipo: true }),
+      inputSchema: MudarEtapaBase.omit({ tipo: true })
+        .refine(etapaPerdidoTemMotivo, MSG_ETAPA_PERDIDO)
+        .refine(etapaRetornoTemFollowup, MSG_ETAPA_RETORNO),
       execute: (input) => empilhar({ tipo: "mudar_etapa", ...input }),
     }),
   };
