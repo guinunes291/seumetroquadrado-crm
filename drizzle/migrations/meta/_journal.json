@@ -743,6 +743,13 @@
       "when": 1792799132725,
       "tag": "0105_seguranca_rls_membro_ativo_token_roleta",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1792799768938,
+      "tag": "0106_roletas_select_active_member",
+      "breakpoints": true
     }
   ]
 }
