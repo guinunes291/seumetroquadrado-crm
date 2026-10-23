@@ -8605,6 +8605,39 @@ export type Database = {
           },
         ]
       }
+      samiq_diretrizes: {
+        Row: {
+          ativa: boolean
+          atualizado_em: string
+          criado_em: string
+          id: string
+          id_origem: string | null
+          origem: string
+          texto: string
+          tipo: string
+        }
+        Insert: {
+          ativa?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          id_origem?: string | null
+          origem?: string
+          texto: string
+          tipo?: string
+        }
+        Update: {
+          ativa?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          id_origem?: string | null
+          origem?: string
+          texto?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       samiq_execucoes: {
         Row: {
           action: string
