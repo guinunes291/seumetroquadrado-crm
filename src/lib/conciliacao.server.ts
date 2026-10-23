@@ -106,9 +106,7 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
   const [transRes, concRes, comissoesRes, vendasRes] = await Promise.all([
     sb
       .from("extrato_transacoes")
-      .select(
-        "id,conta,data,valor,descricao,contraparte,fitid,arquivo,status,motivo_ignorada",
-      )
+      .select("id,conta,data,valor,descricao,contraparte,fitid,arquivo,status,motivo_ignorada")
       .order("data", { ascending: false })
       .limit(3000),
     sb
@@ -151,7 +149,7 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
   );
 
   const rotuloComissao = (c: any) =>
-    `${c.beneficiario_nome ?? "Sem beneficiário"} · ${(num(c.valor_liquido)).toFixed(2)}`;
+    `${c.beneficiario_nome ?? "Sem beneficiário"} · ${num(c.valor_liquido).toFixed(2)}`;
   const comissaoPorId = new Map(comissoes.map((c) => [c.id, c]));
 
   const vinculosPorTransacao = new Map<string, TransacaoItem["vinculos"]>();
@@ -221,7 +219,6 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
         : { debito: [], credito: sugerirVendas(t, vendas, leadNome) };
   }
 
-
   const valorTotal = comissoes.reduce((acc, c) => acc + num(c.valor_liquido), 0);
   const valorConciliado = comissoes
     .filter((c) => comissoesConciliadas.has(c.id))
@@ -229,7 +226,10 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
 
   // Caixa conciliado: só transações conciliadas ou classificadas como ignoradas
   // entram como fato de caixa? Não — apenas as conciliadas contam.
-  const caixaMap = new Map<string, { conta: ContaBancaria; mes: string; entradas: number; saidas: number }>();
+  const caixaMap = new Map<
+    string,
+    { conta: ContaBancaria; mes: string; entradas: number; saidas: number }
+  >();
   for (const t of itens) {
     if (t.status !== "conciliada") continue;
     const mes = t.data.slice(0, 7);
@@ -287,8 +287,7 @@ function sugerirComissoes(
       .filter(Boolean)
       .map((d) =>
         Math.abs(
-          (new Date(`${transacao.data}T12:00:00`).getTime() -
-            new Date(`${d}T12:00:00`).getTime()) /
+          (new Date(`${transacao.data}T12:00:00`).getTime() - new Date(`${d}T12:00:00`).getTime()) /
             86400000,
         ),
       );
@@ -308,7 +307,10 @@ function sugerirComissoes(
     conjunto.some((c) => {
       const venda = c.venda_id ? vendaPorId.get(c.venda_id) : null;
       if (!venda) return false;
-      const alvos = [venda.projeto_nome ?? "", venda.lead_id ? (leadNome.get(venda.lead_id) ?? "") : ""];
+      const alvos = [
+        venda.projeto_nome ?? "",
+        venda.lead_id ? (leadNome.get(venda.lead_id) ?? "") : "",
+      ];
       return alvos.some((texto) => {
         const norm = normalizar(texto).trim();
         if (norm.length > 5 && descricao.includes(norm)) return true;
@@ -339,7 +341,10 @@ function sugerirComissoes(
       total: conjunto.reduce((acc, c) => acc + num(c.valor_liquido), 0),
       score:
         base +
-        pontuar(nome, conjunto.map((c) => c.data_pagamento)) +
+        pontuar(
+          nome,
+          conjunto.map((c) => c.data_pagamento),
+        ) +
         (forte ? 0 : -60) +
         (cita ? 250 : 0),
     });
@@ -348,7 +353,7 @@ function sugerirComissoes(
   // 1 e 2) Exato integral e exato ×0,94.
   for (const c of comissoes) {
     const valor = cents(num(c.valor_liquido));
-    const modos: [("integral" | "liquido_nf"), number][] = [
+    const modos: ["integral" | "liquido_nf", number][] = [
       ["integral", valor],
       ["liquido_nf", Math.round(num(c.valor_liquido) * FATOR_NF * 100)],
     ];
@@ -381,7 +386,7 @@ function sugerirComissoes(
         .sort((a, b) => cents(num(b.valor_liquido)) - cents(num(a.valor_liquido)))
         .slice(0, 14);
 
-      const modos: [("integral" | "liquido_nf"), number][] = [
+      const modos: ["integral" | "liquido_nf", number][] = [
         ["integral", alvo],
         ["liquido_nf", Math.round(alvo / FATOR_NF)],
       ];
@@ -433,7 +438,6 @@ function subconjuntoQueSoma(itens: any[], alvo: number, tolerancia: number): any
   return buscar(0, alvo, 0) ? resultado.map((i) => itens[i]) : null;
 }
 
-
 /** Crédito ↔ venda: casa por contraparte (construtora). Valor é sinal fraco. */
 function sugerirVendas(
   transacao: TransacaoItem,
@@ -478,7 +482,7 @@ async function buscarTransacao(id: string) {
 }
 
 function motivoAutomatico(t: any): string {
-  const banco = BANCO_LABEL[(t.conta as ContaBancaria)] ?? t.conta;
+  const banco = BANCO_LABEL[t.conta as ContaBancaria] ?? t.conta;
   const fitidCurto = String(t.fitid ?? "").slice(-8);
   return `conciliacao bancaria ${banco} ${t.data} ${fitidCurto}`;
 }
@@ -517,7 +521,8 @@ export async function conciliarComissoes(
       .eq("id", comissaoId)
       .maybeSingle();
     if (!atual) return { ok: false, erro: "comissao_nao_encontrada", detalhe: comissaoId };
-    if (atual.status !== "paga") return { ok: false, erro: "comissao_nao_paga", detalhe: comissaoId };
+    if (atual.status !== "paga")
+      return { ok: false, erro: "comissao_nao_paga", detalhe: comissaoId };
 
     const anterior = atual.data_pagamento ?? null;
     if (anterior !== t.data) {
