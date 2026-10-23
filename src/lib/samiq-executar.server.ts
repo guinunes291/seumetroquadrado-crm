@@ -15,6 +15,7 @@ import {
   RESULTADOS_CONTATO,
   conteudoContato,
   fimDaVisita,
+  mensagemEtapaNaoAplicada,
   metadataViaSami,
   tituloVisita,
   type PropostaPayload,
@@ -361,7 +362,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       const followup = payload.proximoFollowupEm
         ? new Date(payload.proximoFollowupEm).toISOString()
         : (tpl?.vencimento ?? undefined);
-      const { error } = await supabase.rpc("transicionar_lead", {
+      const { data: transicionado, error } = await supabase.rpc("transicionar_lead", {
         p_lead_id: lead.id,
         p_novo_status: novo,
         p_motivo: payload.motivo?.trim() || undefined,
@@ -370,6 +371,13 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         ...(payload.motivoCategoria ? { p_motivo_categoria: payload.motivoCategoria } : {}),
       });
       if (error) erroDb("O funil recusou a mudança de etapa", error);
+      // Triggers do funil podem devolver o lead à etapa anterior sem erro
+      // (ex.: Em atendimento sem corretor dono volta a Aguardando atendimento).
+      // Sem esta checagem a proposta era marcada "aceita" sem ter mudado nada.
+      const statusFinal = (transicionado as { status?: string } | null)?.status;
+      if (statusFinal && statusFinal !== novo) {
+        throw new Error(mensagemEtapaNaoAplicada(novo, statusFinal, lead.corretor_id));
+      }
       const resultado: ResultadoExecucao = {
         lead_id: lead.id,
         etapa_anterior: lead.status,

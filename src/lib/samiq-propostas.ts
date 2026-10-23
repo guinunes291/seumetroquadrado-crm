@@ -8,6 +8,7 @@
 // descrição humana de cada proposta e as regras de desfazer — sem rede.
 
 import { z } from "zod";
+import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
 
 export const SAMIQ_PROPOSTA_TIPOS = [
   "registrar_contato",
@@ -440,4 +441,36 @@ export function foiViaSami(metadata: unknown): boolean {
     typeof metadata === "object" &&
     (metadata as { origem?: unknown }).origem === SAMIQ_ORIGEM
   );
+}
+
+// ---------------------------------------------------------------------------
+// Etapa que o funil não aplicou (23/10/2026). Os triggers de leads devolvem
+// "Em atendimento" a "Aguardando atendimento" quando o lead não tem corretor
+// dono (Bolsão). A RPC não dá erro, então a Sami precisa avisar com clareza.
+
+function rotuloEtapa(s: string): string {
+  return LEAD_STATUS_LABEL[s as LeadStatus] ?? s;
+}
+
+export function mensagemEtapaNaoAplicada(
+  pedida: string,
+  ficou: string,
+  corretorId: string | null,
+): string {
+  const base = `O funil não mudou a etapa: o cliente continua em ${rotuloEtapa(ficou)} (pedido: ${rotuloEtapa(pedida)}).`;
+  if (!corretorId && pedida === "em_atendimento") {
+    return `${base} Ele está sem corretor responsável; atribua um corretor antes de colocá-lo em atendimento.`;
+  }
+  return base;
+}
+
+/** Bloqueio na hora de PROPOR: evita card que o funil vai desfazer. */
+export function etapaBloqueadaSemDono(
+  novoStatus: string,
+  corretorId: string | null,
+): string | null {
+  if (novoStatus === "em_atendimento" && !corretorId) {
+    return "cliente sem corretor responsável: Em atendimento exige um corretor dono (atribuir o lead primeiro); registre o contato e a tarefa sem mudar a etapa";
+  }
+  return null;
 }
