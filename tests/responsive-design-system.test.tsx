@@ -201,7 +201,8 @@ describe("adoção nas jornadas comerciais", () => {
 
   it("aplica os primitives na base de leads e no pipeline", () => {
     const leads = read("src/routes/_authenticated/leads.index.tsx");
-    const kanban = read("src/components/leads-kanban-board.tsx");
+    // As abas do celular saíram do quadro para features/pipeline/kanban-topo.tsx.
+    const kanban = read("src/features/pipeline/kanban-topo.tsx");
     const pipeline = read("src/routes/_authenticated/pipeline.tsx");
 
     expect(leads).toContain("<FilterBar");
