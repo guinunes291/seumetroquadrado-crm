@@ -254,12 +254,10 @@ export function FilaPropriedades({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() =>
-                  copiar(
-                    typeof window !== "undefined" ? `${window.location.origin}${url}` : url,
-                    "URL",
-                  )
-                }
+                onClick={async () => {
+                  const url = urlDe(await carregarToken());
+                  copiar(url ? `${window.location.origin}${url}` : null, "URL");
+                }}
                 title="Copiar URL completa"
               >
                 URL
