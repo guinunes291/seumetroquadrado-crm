@@ -11,3 +11,6 @@ src/integrations/supabase/previewAuthStorage.ts
 # Asset de dados do Mapa de Mercado: ~2.200 coordenadas geradas, servidas
 # minificadas de propósito. Formatar multiplicaria o arquivo por 10 sem ganho.
 public/mercado-geo.json
+# Regras de lint copiadas byte a byte do vibe-coding-toolkit (commit 790a895).
+# Reformatar quebra a correspondência com a origem; ver eslint.config.js.
+eslint-rules/

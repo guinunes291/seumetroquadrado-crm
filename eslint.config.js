@@ -5,6 +5,13 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+import quality from "./eslint-rules/index.cjs";
+
+const testFiles = [
+  "**/*{.,-}{test,spec}.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+  "**/{__tests__,__mocks__,fixtures,mocks}/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+];
+
 export default tseslint.config(
   { ignores: ["dist", ".output", ".vinxi"] },
   {
@@ -59,6 +66,56 @@ export default tseslint.config(
     ],
     rules: {
       "prefer-const": "off",
+    },
+  },
+  // Quality gates copiados do vibe-coding-toolkit (commit 790a895, prompt 08).
+  // Os .cjs em eslint-rules/ são cópia byte a byte — não reformatar (por isso
+  // estão no .prettierignore). Severidade definida pela medição inicial: regra
+  // com violações entra em "warn" com a contagem anotada (baseline); volta a
+  // "error" quando a contagem chegar a zero.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { quality },
+    rules: {
+      // Baseline 2026-10-23: 160 arquivos acima de 350 linhas.
+      "quality/max-lines": ["warn", { max: 350 }],
+      // Baseline 2026-10-23: 88 chamadas em 48 arquivos. Não existe logger
+      // central no projeto ainda, então não há bloco "off" para um adaptador.
+      "quality/no-direct-console": ["warn", { logger: "um logger central do projeto" }],
+      // Tela (.tsx em qualquer pasta, e src/components/) não importa o cliente
+      // do banco. O Drizzle aqui só descreve o schema das migrations; o acesso
+      // real é pelo Supabase. Camada de dados liberada: features/*/queries.ts,
+      // lib/*.server.ts, lib/*.functions.ts e routes/api/** (servidor).
+      // Baseline 2026-10-23: 105 telas importam `supabase` (cliente com RLS);
+      // 0 telas importam `supabaseAdmin`.
+      "quality/no-direct-data-access": [
+        "warn",
+        {
+          modules: ["@/integrations/supabase/client", "@/integrations/supabase/client.server"],
+          bindings: ["supabase", "supabaseAdmin"],
+          layers: ["/src/components/"],
+          extensions: [".tsx"],
+        },
+      ],
+    },
+  },
+  {
+    // Tipos gerados pelo Supabase a partir do banco (já no .prettierignore):
+    // ninguém escreve este arquivo à mão, o próximo save do Lovable o reescreve.
+    // Vem DEPOIS do bloco que liga a regra, senão o "off" é sobrescrito.
+    files: ["src/integrations/supabase/types.ts"],
+    rules: {
+      "quality/max-lines": "off",
+    },
+  },
+  {
+    // Mesmo teto para arquivos de teste, sempre em "warn". Vem DEPOIS do bloco
+    // acima: em flat config o bloco posterior vence para o mesmo arquivo.
+    // Baseline 2026-10-23: 79 arquivos de teste acima de 350 linhas.
+    files: testFiles,
+    plugins: { quality },
+    rules: {
+      "quality/max-lines": ["warn", { max: 350, includeTests: true }],
     },
   },
   eslintPluginPrettier,
