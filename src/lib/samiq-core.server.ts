@@ -248,8 +248,8 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
     const systemPrompt = reservation.systemPrompt + (await blocoDiretrizesSamiQ());
 
     errorCode = "gateway_error";
-    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
-    const gateway = createLovableAiGatewayProvider(apiKey);
+    const { createGovernedModelGateway } = await import("./ai-gateway.server");
+    const gateway = createGovernedModelGateway(apiKey);
     const model = gateway(reservation.modelId);
 
     let texto = "";
