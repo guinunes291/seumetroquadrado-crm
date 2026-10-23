@@ -736,6 +736,13 @@
       "when": 1792787118452,
       "tag": "0104_samiq_diretrizes",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1792799132725,
+      "tag": "0105_seguranca_rls_membro_ativo_token_roleta",
+      "breakpoints": true
     }
   ]
 }

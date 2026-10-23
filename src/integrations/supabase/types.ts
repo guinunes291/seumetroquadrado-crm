@@ -13687,6 +13687,10 @@ export type Database = {
         Args: { _projeto_id: string }
         Returns: string
       }
+      get_roleta_webhook_token: {
+        Args: { _roleta_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
