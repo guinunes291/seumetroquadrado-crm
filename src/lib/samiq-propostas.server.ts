@@ -20,6 +20,7 @@ import {
   MudarEtapaBase,
   RegistrarContatoPayload,
   descreverProposta,
+  etapaBloqueadaSemDono,
   etapaPerdidoTemMotivo,
   etapaRetornoTemFollowup,
   qualificacaoTemCampo,
@@ -55,15 +56,20 @@ const DESCRICOES = {
 async function resolverLead(
   supabase: Db,
   leadId: string,
-): Promise<{ id: string; nome: string | null; status: string } | null> {
+): Promise<{ id: string; nome: string | null; status: string; corretorId: string | null } | null> {
   const { data, error } = await supabase
     .from("leads")
-    .select("id, nome, status")
+    .select("id, nome, status, corretor_id")
     .eq("id", leadId)
     .is("deleted_at", null)
     .maybeSingle();
   if (error || !data) return null;
-  return { id: data.id, nome: displayNameForSamiQ(data.nome), status: data.status };
+  return {
+    id: data.id,
+    nome: displayNameForSamiQ(data.nome),
+    status: data.status,
+    corretorId: data.corretor_id ?? null,
+  };
 }
 
 export function criarFerramentasDePropostaSamiQ(args: {
@@ -91,6 +97,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
       leadId = lead.id;
       if (payload.tipo === "mudar_etapa" && lead.status === payload.novoStatus) {
         return { erro: "etapa_igual", detalhe: `o cliente já está em ${lead.status}` };
+      }
+      if (payload.tipo === "mudar_etapa") {
+        const bloqueio = etapaBloqueadaSemDono(payload.novoStatus, lead.corretorId);
+        if (bloqueio) return { erro: "lead_sem_corretor", detalhe: bloqueio };
       }
     }
     coletor.push({ payload, leadId, leadNome });
