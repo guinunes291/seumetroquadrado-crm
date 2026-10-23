@@ -6,6 +6,7 @@
 // núcleo de escrita das rotas públicas (`aplicarPatchComissao`), com motivo
 // automático — o que satisfaz a exigência de motivo em comissão paga.
 import { aplicarPatchComissao } from "@/lib/comissoes-write.server";
+import { captureServerError } from "@/lib/error-tracking.server";
 import type { ApiClientContext } from "@/lib/api-client-auth.server";
 import { parseOfx } from "@/lib/ofx";
 import { FATOR_NF } from "@/lib/conciliacao-types";
@@ -106,9 +107,7 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
   const [transRes, concRes, comissoesRes, vendasRes] = await Promise.all([
     sb
       .from("extrato_transacoes")
-      .select(
-        "id,conta,data,valor,descricao,contraparte,fitid,arquivo,status,motivo_ignorada",
-      )
+      .select("id,conta,data,valor,descricao,contraparte,fitid,arquivo,status,motivo_ignorada")
       .order("data", { ascending: false })
       .limit(3000),
     sb
@@ -151,7 +150,7 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
   );
 
   const rotuloComissao = (c: any) =>
-    `${c.beneficiario_nome ?? "Sem beneficiário"} · ${(num(c.valor_liquido)).toFixed(2)}`;
+    `${c.beneficiario_nome ?? "Sem beneficiário"} · ${num(c.valor_liquido).toFixed(2)}`;
   const comissaoPorId = new Map(comissoes.map((c) => [c.id, c]));
 
   const vinculosPorTransacao = new Map<string, TransacaoItem["vinculos"]>();
@@ -221,7 +220,6 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
         : { debito: [], credito: sugerirVendas(t, vendas, leadNome) };
   }
 
-
   const valorTotal = comissoes.reduce((acc, c) => acc + num(c.valor_liquido), 0);
   const valorConciliado = comissoes
     .filter((c) => comissoesConciliadas.has(c.id))
@@ -229,7 +227,10 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
 
   // Caixa conciliado: só transações conciliadas ou classificadas como ignoradas
   // entram como fato de caixa? Não — apenas as conciliadas contam.
-  const caixaMap = new Map<string, { conta: ContaBancaria; mes: string; entradas: number; saidas: number }>();
+  const caixaMap = new Map<
+    string,
+    { conta: ContaBancaria; mes: string; entradas: number; saidas: number }
+  >();
   for (const t of itens) {
     if (t.status !== "conciliada") continue;
     const mes = t.data.slice(0, 7);
@@ -287,8 +288,7 @@ function sugerirComissoes(
       .filter(Boolean)
       .map((d) =>
         Math.abs(
-          (new Date(`${transacao.data}T12:00:00`).getTime() -
-            new Date(`${d}T12:00:00`).getTime()) /
+          (new Date(`${transacao.data}T12:00:00`).getTime() - new Date(`${d}T12:00:00`).getTime()) /
             86400000,
         ),
       );
@@ -308,7 +308,10 @@ function sugerirComissoes(
     conjunto.some((c) => {
       const venda = c.venda_id ? vendaPorId.get(c.venda_id) : null;
       if (!venda) return false;
-      const alvos = [venda.projeto_nome ?? "", venda.lead_id ? (leadNome.get(venda.lead_id) ?? "") : ""];
+      const alvos = [
+        venda.projeto_nome ?? "",
+        venda.lead_id ? (leadNome.get(venda.lead_id) ?? "") : "",
+      ];
       return alvos.some((texto) => {
         const norm = normalizar(texto).trim();
         if (norm.length > 5 && descricao.includes(norm)) return true;
@@ -339,7 +342,10 @@ function sugerirComissoes(
       total: conjunto.reduce((acc, c) => acc + num(c.valor_liquido), 0),
       score:
         base +
-        pontuar(nome, conjunto.map((c) => c.data_pagamento)) +
+        pontuar(
+          nome,
+          conjunto.map((c) => c.data_pagamento),
+        ) +
         (forte ? 0 : -60) +
         (cita ? 250 : 0),
     });
@@ -348,7 +354,7 @@ function sugerirComissoes(
   // 1 e 2) Exato integral e exato ×0,94.
   for (const c of comissoes) {
     const valor = cents(num(c.valor_liquido));
-    const modos: [("integral" | "liquido_nf"), number][] = [
+    const modos: ["integral" | "liquido_nf", number][] = [
       ["integral", valor],
       ["liquido_nf", Math.round(num(c.valor_liquido) * FATOR_NF * 100)],
     ];
@@ -381,7 +387,7 @@ function sugerirComissoes(
         .sort((a, b) => cents(num(b.valor_liquido)) - cents(num(a.valor_liquido)))
         .slice(0, 14);
 
-      const modos: [("integral" | "liquido_nf"), number][] = [
+      const modos: ["integral" | "liquido_nf", number][] = [
         ["integral", alvo],
         ["liquido_nf", Math.round(alvo / FATOR_NF)],
       ];
@@ -433,7 +439,6 @@ function subconjuntoQueSoma(itens: any[], alvo: number, tolerancia: number): any
   return buscar(0, alvo, 0) ? resultado.map((i) => itens[i]) : null;
 }
 
-
 /** Crédito ↔ venda: casa por contraparte (construtora). Valor é sinal fraco. */
 function sugerirVendas(
   transacao: TransacaoItem,
@@ -466,6 +471,10 @@ function sugerirVendas(
 }
 
 /* ------------------------------------------------------------------- ações */
+//
+// O supabase-js não lança em erro de escrita: devolve `{ error }`. Toda escrita
+// abaixo confere esse campo — escrita que falha em silêncio é dinheiro que o
+// financeiro acha que conciliou e não conciliou.
 
 async function buscarTransacao(id: string) {
   const sb = await db();
@@ -478,9 +487,89 @@ async function buscarTransacao(id: string) {
 }
 
 function motivoAutomatico(t: any): string {
-  const banco = BANCO_LABEL[(t.conta as ContaBancaria)] ?? t.conta;
+  const banco = BANCO_LABEL[t.conta as ContaBancaria] ?? t.conta;
   const fitidCurto = String(t.fitid ?? "").slice(-8);
   return `conciliacao bancaria ${banco} ${t.data} ${fitidCurto}`;
+}
+
+function linhaAuditoria(
+  contexto: ApiClientContext,
+  entidade: string,
+  entidadeId: string,
+  campo: string,
+  valorAnterior: string | null,
+  valorNovo: string | null,
+  motivo: string,
+) {
+  return {
+    entidade,
+    entidade_id: entidadeId,
+    campo,
+    valor_anterior: valorAnterior,
+    valor_novo: valorNovo,
+    api_cliente_id: null,
+    api_cliente_nome: contexto.clientName,
+    origem: contexto.origem ?? "tela_financeiro",
+    usuario_id: contexto.usuarioId ?? null,
+    usuario_nome: contexto.usuarioNome ?? null,
+    motivo,
+  };
+}
+
+type Banco = Awaited<ReturnType<typeof db>>;
+
+/** A trilha de auditoria não desfaz o que já foi gravado: a falha vira aviso
+ *  na mensagem e evento no rastreamento de erro — nunca silêncio. */
+async function auditar(sb: Banco, linhas: ReturnType<typeof linhaAuditoria>[]) {
+  const { error } = await sb.from("api_alteracao_auditoria").insert(linhas);
+  if (!error) return null;
+  await captureServerError(new Error(`auditoria da conciliação não gravada: ${error.message}`), {
+    mechanism: "conciliacao.auditoria",
+    extra: { registros: linhas.map((l) => `${l.entidade}:${l.entidade_id}:${l.campo}`) },
+  });
+  return "auditoria não registrada";
+}
+
+function comAvisos(mensagem: string, avisos: (string | null)[]): string {
+  const lista = Array.from(new Set(avisos.filter(Boolean)));
+  return lista.length ? `${mensagem} · atenção: ${lista.join("; ")}` : mensagem;
+}
+
+/** Devolve a mensagem do erro, ou null se a transação mudou de status. */
+async function marcarTransacao(sb: Banco, transacaoId: string, status: string) {
+  const { error } = await sb
+    .from("extrato_transacoes")
+    .update({ status, motivo_ignorada: null })
+    .eq("id", transacaoId);
+  return error ? String(error.message) : null;
+}
+
+/**
+ * Falha no meio de um lote de conciliação. A transação já foi marcada como
+ * "conciliada" antes do lote (é o que faz a tela mostrar o Desfazer):
+ *  - nada aplicado → ela volta ao status de antes;
+ *  - parte aplicada → ela fica conciliada, com vínculos, e o Desfazer reverte.
+ */
+async function falhaNoLote(
+  sb: Banco,
+  t: { id: string; status: string },
+  aplicadas: number,
+  falha: { erro: string; detalhe: string },
+): Promise<ResultadoConciliacao> {
+  if (!aplicadas) {
+    const erroVolta = await marcarTransacao(sb, t.id, t.status);
+    if (!erroVolta) return { ok: false, ...falha };
+    return {
+      ok: false,
+      erro: falha.erro,
+      detalhe: `${falha.detalhe} · a transação ficou marcada como conciliada sem vínculos; use Desfazer para devolvê-la à fila (${erroVolta})`,
+    };
+  }
+  return {
+    ok: false,
+    erro: falha.erro,
+    detalhe: `${falha.detalhe} · ${aplicadas} item(ns) anterior(es) deste lote já foram conciliados; use Desfazer na transação para reverter`,
+  };
 }
 
 /** Confirma o vínculo débito ↔ comissões pagas e grava a data real. */
@@ -507,8 +596,11 @@ export async function conciliarComissoes(
     return { ok: false, erro: "comissao_ja_conciliada" };
   }
 
+  const erroMarcar = await marcarTransacao(sb, transacaoId, "conciliada");
+  if (erroMarcar) return { ok: false, erro: "falha_ao_marcar_transacao", detalhe: erroMarcar };
+
   const motivo = motivoAutomatico(t);
-  const aplicadas: string[] = [];
+  let aplicadas = 0;
 
   for (const comissaoId of comissaoIds) {
     const { data: atual } = await sb
@@ -516,8 +608,15 @@ export async function conciliarComissoes(
       .select("id,status,data_pagamento")
       .eq("id", comissaoId)
       .maybeSingle();
-    if (!atual) return { ok: false, erro: "comissao_nao_encontrada", detalhe: comissaoId };
-    if (atual.status !== "paga") return { ok: false, erro: "comissao_nao_paga", detalhe: comissaoId };
+    if (!atual) {
+      return falhaNoLote(sb, t, aplicadas, {
+        erro: "comissao_nao_encontrada",
+        detalhe: comissaoId,
+      });
+    }
+    if (atual.status !== "paga") {
+      return falhaNoLote(sb, t, aplicadas, { erro: "comissao_nao_paga", detalhe: comissaoId });
+    }
 
     const anterior = atual.data_pagamento ?? null;
     if (anterior !== t.data) {
@@ -527,15 +626,14 @@ export async function conciliarComissoes(
         contexto,
       );
       if (!r.ok) {
-        return {
-          ok: false,
+        return falhaNoLote(sb, t, aplicadas, {
           erro: String((r.erro.body as Record<string, unknown>).error ?? "falha"),
           detalhe: comissaoId,
-        };
+        });
       }
     }
 
-    await sb.from("conciliacoes").insert({
+    const { error: erroVinculo } = await sb.from("conciliacoes").insert({
       transacao_id: transacaoId,
       tipo: "comissao",
       comissao_id: comissaoId,
@@ -544,15 +642,28 @@ export async function conciliarComissoes(
       confirmado_por: contexto.usuarioId ?? null,
       confirmado_por_nome: contexto.usuarioNome ?? null,
     });
-    aplicadas.push(comissaoId);
+    if (erroVinculo) {
+      // Sem vínculo o Desfazer não acha esta comissão: devolve a data aqui.
+      const devolvida =
+        anterior === t.data ||
+        (
+          await aplicarPatchComissao(
+            comissaoId,
+            { data_pagamento: anterior, motivo: `desfazimento de ${motivo}` },
+            contexto,
+          )
+        ).ok;
+      return falhaNoLote(sb, t, aplicadas, {
+        erro: "falha_ao_registrar_vinculo",
+        detalhe: devolvida
+          ? `comissão ${comissaoId} não foi conciliada (${erroVinculo.message})`
+          : `comissão ${comissaoId} ficou com pagamento em ${t.data} sem vínculo; corrija a data à mão (${erroVinculo.message})`,
+      });
+    }
+    aplicadas += 1;
   }
 
-  await sb
-    .from("extrato_transacoes")
-    .update({ status: "conciliada", motivo_ignorada: null })
-    .eq("id", transacaoId);
-
-  return { ok: true, mensagem: `${aplicadas.length} comissão(ões) conciliada(s) em ${t.data}` };
+  return { ok: true, mensagem: `${aplicadas} comissão(ões) conciliada(s) em ${t.data}` };
 }
 
 /** Confirma crédito ↔ venda: marca recebido com a data real do extrato. */
@@ -569,23 +680,38 @@ export async function conciliarVendas(
   if (t.status === "ignorada") return { ok: false, erro: "transacao_ignorada" };
   if (num(t.valor) <= 0) return { ok: false, erro: "transacao_nao_e_credito" };
 
+  const erroMarcar = await marcarTransacao(sb, transacaoId, "conciliada");
+  if (erroMarcar) return { ok: false, erro: "falha_ao_marcar_transacao", detalhe: erroMarcar };
+
+  const motivo = motivoAutomatico(t);
+  const avisos: (string | null)[] = [];
+  let aplicadas = 0;
+
   for (const vendaId of vendaIds.slice(0, 20)) {
     const { data: venda } = await sb
       .from("vendas")
       .select("id,status_recebimento,data_recebimento")
       .eq("id", vendaId)
       .maybeSingle();
-    if (!venda) return { ok: false, erro: "venda_nao_encontrada", detalhe: vendaId };
+    if (!venda) {
+      return falhaNoLote(sb, t, aplicadas, { erro: "venda_nao_encontrada", detalhe: vendaId });
+    }
 
     const anterior = venda.data_recebimento ?? null;
+    const statusAnterior = venda.status_recebimento ?? null;
     // Mesmo caminho de escrita de sempre: o trigger de efeitos de status roda.
     const { error } = await sb
       .from("vendas")
       .update({ status_recebimento: "recebido", data_recebimento: t.data })
       .eq("id", vendaId);
-    if (error) return { ok: false, erro: "falha_ao_atualizar_venda", detalhe: error.message };
+    if (error) {
+      return falhaNoLote(sb, t, aplicadas, {
+        erro: "falha_ao_atualizar_venda",
+        detalhe: error.message,
+      });
+    }
 
-    await sb.from("conciliacoes").insert({
+    const { error: erroVinculo } = await sb.from("conciliacoes").insert({
       transacao_id: transacaoId,
       tipo: "venda",
       venda_id: vendaId,
@@ -594,46 +720,59 @@ export async function conciliarVendas(
       confirmado_por: contexto.usuarioId ?? null,
       confirmado_por_nome: contexto.usuarioNome ?? null,
     });
+    if (erroVinculo) {
+      // Sem vínculo o Desfazer não acha esta venda: devolve o estado aqui.
+      const { error: erroVolta } = await sb
+        .from("vendas")
+        .update({ status_recebimento: statusAnterior, data_recebimento: anterior })
+        .eq("id", vendaId);
+      return falhaNoLote(sb, t, aplicadas, {
+        erro: "falha_ao_registrar_vinculo",
+        detalhe: erroVolta
+          ? `venda ${vendaId} ficou como recebida em ${t.data} sem vínculo; corrija o recebimento à mão (${erroVinculo.message})`
+          : `venda ${vendaId} não foi conciliada (${erroVinculo.message})`,
+      });
+    }
+    aplicadas += 1;
 
-    await sb.from("api_alteracao_auditoria").insert([
-      {
-        entidade: "vendas",
-        entidade_id: vendaId,
-        campo: "data_recebimento",
-        valor_anterior: anterior,
-        valor_novo: t.data,
-        api_cliente_id: null,
-        api_cliente_nome: contexto.clientName,
-        origem: contexto.origem ?? "tela_financeiro",
-        usuario_id: contexto.usuarioId ?? null,
-        usuario_nome: contexto.usuarioNome ?? null,
-        motivo: motivoAutomatico(t),
-      },
-      {
-        entidade: "vendas",
-        entidade_id: vendaId,
-        campo: "status_recebimento",
-        valor_anterior: venda.status_recebimento ?? null,
-        valor_novo: "recebido",
-        api_cliente_id: null,
-        api_cliente_nome: contexto.clientName,
-        origem: contexto.origem ?? "tela_financeiro",
-        usuario_id: contexto.usuarioId ?? null,
-        usuario_nome: contexto.usuarioNome ?? null,
-        motivo: motivoAutomatico(t),
-      },
-    ]);
+    avisos.push(
+      await auditar(sb, [
+        linhaAuditoria(contexto, "vendas", vendaId, "data_recebimento", anterior, t.data, motivo),
+        linhaAuditoria(
+          contexto,
+          "vendas",
+          vendaId,
+          "status_recebimento",
+          statusAnterior,
+          "recebido",
+          motivo,
+        ),
+      ]),
+    );
   }
 
-  await sb
-    .from("extrato_transacoes")
-    .update({ status: "conciliada", motivo_ignorada: null })
-    .eq("id", transacaoId);
-
-  return { ok: true, mensagem: `Recebimento registrado em ${t.data}` };
+  return { ok: true, mensagem: comAvisos(`Recebimento registrado em ${t.data}`, avisos) };
 }
 
-/** Desfaz a conciliação da transação: restaura datas anteriores e audita. */
+/**
+ * Status de recebimento que o Desfazer devolve à venda. Fonte exata: o valor
+ * anterior que a própria conciliação auditou. Sem essa linha (conciliação
+ * antiga ou auditoria que falhou), a regra da tela de vendas
+ * (vendas-gestao-card): com data de recebimento é "recebido", sem é "pendente".
+ */
+export function statusRecebimentoAoDesfazer(
+  statusAuditado: string | null | undefined,
+  dataAnterior: string | null,
+): string {
+  if (statusAuditado) return statusAuditado;
+  return dataAnterior ? "recebido" : "pendente";
+}
+
+/**
+ * Desfaz a conciliação da transação: restaura o que cada vínculo mudou,
+ * audita e devolve a transação à fila. Vínculo por vínculo: se algo falhar no
+ * meio, os já desfeitos ficam coerentes e um novo Desfazer continua dali.
+ */
 export async function desconciliarTransacao(
   transacaoId: string,
   contexto: ApiClientContext,
@@ -642,15 +781,26 @@ export async function desconciliarTransacao(
   const t = await buscarTransacao(transacaoId);
   if (!t) return { ok: false, erro: "transacao_nao_encontrada" };
 
-  const { data: vinculos } = await sb
+  const { data: vinculos, error: erroVinculos } = await sb
     .from("conciliacoes")
     .select("id,tipo,comissao_id,venda_id,data_anterior")
     .eq("transacao_id", transacaoId)
     .is("desfeito_em", null);
+  if (erroVinculos)
+    return { ok: false, erro: "falha_ao_ler_vinculos", detalhe: erroVinculos.message };
 
-  if (!(vinculos ?? []).length) return { ok: false, erro: "sem_vinculos" };
+  if (!(vinculos ?? []).length) {
+    if (t.status !== "conciliada") return { ok: false, erro: "sem_vinculos" };
+    // Conciliada sem vínculo ativo: sobra de um Desfazer interrompido (ou de
+    // um vínculo que não foi gravado). Não há o que restaurar; volta à fila.
+    const erroVolta = await marcarTransacao(sb, transacaoId, "pendente");
+    if (erroVolta) return { ok: false, erro: "falha_ao_marcar_transacao", detalhe: erroVolta };
+    return { ok: true, mensagem: "Transação sem vínculos ativos voltou para a fila" };
+  }
 
-  const motivo = `desfazimento de ${motivoAutomatico(t)}`;
+  const motivoConciliacao = motivoAutomatico(t);
+  const motivo = `desfazimento de ${motivoConciliacao}`;
+  const avisos: (string | null)[] = [];
 
   for (const v of vinculos ?? []) {
     if (v.tipo === "comissao") {
@@ -668,29 +818,59 @@ export async function desconciliarTransacao(
     } else if (v.venda_id) {
       const { data: venda } = await sb
         .from("vendas")
-        .select("data_recebimento")
+        .select("status_recebimento,data_recebimento")
         .eq("id", v.venda_id)
         .maybeSingle();
-      await sb
+      const { data: auditada } = await sb
+        .from("api_alteracao_auditoria")
+        .select("valor_anterior")
+        .eq("entidade", "vendas")
+        .eq("entidade_id", v.venda_id)
+        .eq("campo", "status_recebimento")
+        .eq("valor_novo", "recebido")
+        .eq("motivo", motivoConciliacao)
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const dataAnterior = v.data_anterior ?? null;
+      const statusAnterior = statusRecebimentoAoDesfazer(auditada?.valor_anterior, dataAnterior);
+
+      const { error } = await sb
         .from("vendas")
-        .update({ data_recebimento: v.data_anterior ?? null })
+        .update({ status_recebimento: statusAnterior, data_recebimento: dataAnterior })
         .eq("id", v.venda_id);
-      await sb.from("api_alteracao_auditoria").insert({
-        entidade: "vendas",
-        entidade_id: v.venda_id,
-        campo: "data_recebimento",
-        valor_anterior: venda?.data_recebimento ?? null,
-        valor_novo: v.data_anterior ?? null,
-        api_cliente_id: null,
-        api_cliente_nome: contexto.clientName,
-        origem: contexto.origem ?? "tela_financeiro",
-        usuario_id: contexto.usuarioId ?? null,
-        usuario_nome: contexto.usuarioNome ?? null,
-        motivo,
-      });
+      if (error) {
+        return {
+          ok: false,
+          erro: "falha_ao_desfazer_venda",
+          detalhe: `venda ${v.venda_id} continua conciliada; tente Desfazer de novo (${error.message})`,
+        };
+      }
+      avisos.push(
+        await auditar(sb, [
+          linhaAuditoria(
+            contexto,
+            "vendas",
+            v.venda_id,
+            "data_recebimento",
+            venda?.data_recebimento ?? null,
+            dataAnterior,
+            motivo,
+          ),
+          linhaAuditoria(
+            contexto,
+            "vendas",
+            v.venda_id,
+            "status_recebimento",
+            venda?.status_recebimento ?? null,
+            statusAnterior,
+            motivo,
+          ),
+        ]),
+      );
     }
 
-    await sb
+    const { error: erroDesfeito } = await sb
       .from("conciliacoes")
       .update({
         desfeito_em: new Date().toISOString(),
@@ -698,10 +878,24 @@ export async function desconciliarTransacao(
         desfeito_por_nome: contexto.usuarioNome ?? null,
       })
       .eq("id", v.id);
+    if (erroDesfeito) {
+      return {
+        ok: false,
+        erro: "falha_ao_desfazer_vinculo",
+        detalhe: `os valores já foram restaurados, mas o vínculo segue ativo; clique em Desfazer de novo (${erroDesfeito.message})`,
+      };
+    }
   }
 
-  await sb.from("extrato_transacoes").update({ status: "pendente" }).eq("id", transacaoId);
-  return { ok: true, mensagem: "Conciliação desfeita e datas restauradas" };
+  const erroVolta = await marcarTransacao(sb, transacaoId, "pendente");
+  if (erroVolta) {
+    return {
+      ok: false,
+      erro: "falha_ao_marcar_transacao",
+      detalhe: `valores restaurados, mas a transação segue como conciliada; clique em Desfazer de novo (${erroVolta})`,
+    };
+  }
+  return { ok: true, mensagem: comAvisos("Conciliação desfeita e valores restaurados", avisos) };
 }
 
 /** Ignora uma transação (tarifa, despesa, transferência entre contas). */
@@ -725,21 +919,19 @@ export async function ignorarTransacao(
     .eq("id", transacaoId);
   if (error) return { ok: false, erro: error.message };
 
-  await sb.from("api_alteracao_auditoria").insert({
-    entidade: "extrato_transacoes",
-    entidade_id: transacaoId,
-    campo: "status",
-    valor_anterior: t.status,
-    valor_novo: "ignorada",
-    api_cliente_id: null,
-    api_cliente_nome: contexto.clientName,
-    origem: contexto.origem ?? "tela_financeiro",
-    usuario_id: contexto.usuarioId ?? null,
-    usuario_nome: contexto.usuarioNome ?? null,
-    motivo: texto,
-  });
+  const aviso = await auditar(sb, [
+    linhaAuditoria(
+      contexto,
+      "extrato_transacoes",
+      transacaoId,
+      "status",
+      t.status,
+      "ignorada",
+      texto,
+    ),
+  ]);
 
-  return { ok: true, mensagem: "Transação ignorada" };
+  return { ok: true, mensagem: comAvisos("Transação ignorada", [aviso]) };
 }
 
 /** Volta uma transação ignorada para a fila de pendentes. */
@@ -752,26 +944,22 @@ export async function reativarTransacao(
   if (!t) return { ok: false, erro: "transacao_nao_encontrada" };
   if (t.status !== "ignorada") return { ok: false, erro: "transacao_nao_ignorada" };
 
-  await sb
-    .from("extrato_transacoes")
-    .update({ status: "pendente", motivo_ignorada: null })
-    .eq("id", transacaoId);
+  const erroVolta = await marcarTransacao(sb, transacaoId, "pendente");
+  if (erroVolta) return { ok: false, erro: erroVolta };
 
-  await sb.from("api_alteracao_auditoria").insert({
-    entidade: "extrato_transacoes",
-    entidade_id: transacaoId,
-    campo: "status",
-    valor_anterior: "ignorada",
-    valor_novo: "pendente",
-    api_cliente_id: null,
-    api_cliente_nome: contexto.clientName,
-    origem: contexto.origem ?? "tela_financeiro",
-    usuario_id: contexto.usuarioId ?? null,
-    usuario_nome: contexto.usuarioNome ?? null,
-    motivo: "reativada para conciliação",
-  });
+  const aviso = await auditar(sb, [
+    linhaAuditoria(
+      contexto,
+      "extrato_transacoes",
+      transacaoId,
+      "status",
+      "ignorada",
+      "pendente",
+      "reativada para conciliação",
+    ),
+  ]);
 
-  return { ok: true, mensagem: "Transação de volta na fila" };
+  return { ok: true, mensagem: comAvisos("Transação de volta na fila", [aviso]) };
 }
 
 /** Ignora várias transações pendentes com o MESMO motivo (qualidade de vida). */
