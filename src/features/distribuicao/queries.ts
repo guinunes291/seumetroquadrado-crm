@@ -114,10 +114,9 @@ export interface RoletaRow {
   horario_inicio: string | null;
   horario_fim: string | null;
   permitir_fora_horario: boolean;
-  // Colunas de campanha/tipo — o select("*") de useRoletas já as traz.
+  // Colunas de campanha/tipo. webhook_token fica fora: só admin lê, via RPC.
   tipo: string;
   equipe_fixa: boolean;
-  webhook_token: string | null;
   projeto_id: string | null;
   tiers_recalculados_em: string | null;
   // Roletas por filial (0079, 12/10/2026): a filial dona — sempre na roleta de
@@ -281,7 +280,12 @@ export function useRoletas(enabled = true) {
     staleTime: 60_000,
     queryFn: async () => {
       // supabasePendente: roletas.filial_id ainda não está nos types gerados.
-      const { data, error } = await supabasePendente.from("roletas").select("*").order("slug");
+      const { data, error } = await supabasePendente
+        .from("roletas")
+        .select(
+          "id, slug, nome, descricao, ativo, criterio_participacao, exigir_presenca, horario_inicio, horario_fim, permitir_fora_horario, tipo, equipe_fixa, projeto_id, tiers_recalculados_em, filial_id",
+        )
+        .order("slug");
       if (error) throw error;
       return (data ?? []) as RoletaRow[];
     },

@@ -474,3 +474,35 @@ export function etapaBloqueadaSemDono(
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Tarefa no mesmo horário (23/10/2026). Um relato vira até 3 propostas que
+// geram tarefa (mudar_etapa, registrar_contato com follow-up e criar_tarefa).
+// Confirmadas juntas, elas criavam 2 ou 3 tarefas abertas para o mesmo
+// cliente no mesmo horário. Regra: uma tarefa aberta do lead até 2 h antes ou
+// depois do novo vencimento é a MESMA tarefa e é reaproveitada.
+
+export const SAMIQ_JANELA_MESMA_TAREFA_MS = 2 * 60 * 60 * 1000;
+
+export type TarefaAbertaResumo = { id: string; data_vencimento: string | null };
+
+/** A tarefa aberta mais próxima do vencimento, dentro da janela; ou null. */
+export function tarefaNoMesmoHorario<T extends TarefaAbertaResumo>(
+  abertas: T[],
+  vencimentoIso: string,
+  janelaMs: number = SAMIQ_JANELA_MESMA_TAREFA_MS,
+): T | null {
+  const alvo = Date.parse(vencimentoIso);
+  if (Number.isNaN(alvo)) return null;
+  let melhor: T | null = null;
+  let menor = Infinity;
+  for (const t of abertas) {
+    if (!t.data_vencimento) continue;
+    const d = Math.abs(Date.parse(t.data_vencimento) - alvo);
+    if (!Number.isNaN(d) && d <= janelaMs && d < menor) {
+      melhor = t;
+      menor = d;
+    }
+  }
+  return melhor;
+}
