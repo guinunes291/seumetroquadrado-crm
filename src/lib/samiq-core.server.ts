@@ -243,6 +243,10 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
     }));
     const doCanal = instrucoesDoCanal(canal, args.origemMidia);
 
+    // Melhoria contínua (23/10/2026): diretrizes aprovadas pelo gestor entram no fim do prompt.
+    const { blocoDiretrizesSamiQ } = await import("./samiq-diretrizes.server");
+    const systemPrompt = reservation.systemPrompt + (await blocoDiretrizesSamiQ());
+
     errorCode = "gateway_error";
     const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
     const gateway = createLovableAiGatewayProvider(apiKey);
@@ -290,7 +294,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       const ferramentas = compatibilizarFerramentasSamiQ(tools);
       const result = await generateText({
         model,
-        system: reservation.systemPrompt,
+        system: systemPrompt,
         messages,
         tools: ferramentas,
         stopWhen: stepCountIs(reservation.maxToolSteps),
@@ -326,7 +330,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       const prompt = parts.join("\n\n");
       const result = await generateText({
         model,
-        system: reservation.systemPrompt,
+        system: systemPrompt,
         prompt,
         maxOutputTokens: reservation.maxOutputTokens,
       });
