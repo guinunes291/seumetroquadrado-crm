@@ -25,6 +25,8 @@
 --     sem atropelar o que o corretor mudou na tela depois da Sami.
 --  8) samiq_canal_mensagens: retentativa do n8n não repete ação e as
 --     mensagens do mesmo corretor rodam uma de cada vez, em ordem.
+--  9) samiq_politica.whatsapp_modo_escrita: chave de emergência que faz tudo
+--     voltar a esperar CONFIRMAR, sem deploy.
 -- Idempotente: pode rodar duas vezes sem efeito colateral.
 -- =============================================================================
 
@@ -684,5 +686,44 @@ REVOKE ALL ON FUNCTION public.samiq_canal_concluir(uuid, uuid, text, jsonb)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.samiq_canal_concluir(uuid, uuid, text, jsonb)
   TO service_role;
+
+-- 9) Chave de emergência do WhatsApp --------------------------------------
+-- 'por_risco' (padrão): leves gravam na hora, pesadas esperam CONFIRMAR.
+-- 'confirmar_tudo': tudo volta a esperar CONFIRMAR, sem deploy (um UPDATE).
+ALTER TABLE public.samiq_politica
+  ADD COLUMN IF NOT EXISTS whatsapp_modo_escrita text NOT NULL DEFAULT 'por_risco';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'samiq_politica_whatsapp_modo_escrita_check'
+      AND conrelid = 'public.samiq_politica'::regclass
+  ) THEN
+    ALTER TABLE public.samiq_politica
+      ADD CONSTRAINT samiq_politica_whatsapp_modo_escrita_check
+      CHECK (whatsapp_modo_escrita IN ('por_risco', 'confirmar_tudo'));
+  END IF;
+END;
+$$;
+
+COMMENT ON COLUMN public.samiq_politica.whatsapp_modo_escrita IS
+  'Sami v8: por_risco (leves gravam na hora, pesadas esperam CONFIRMAR) ou confirmar_tudo (chave de emergência: tudo espera CONFIRMAR). Muda com um UPDATE, sem deploy.';
+
+CREATE OR REPLACE FUNCTION public.samiq_modo_escrita_whatsapp()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT COALESCE(
+    (SELECT p.whatsapp_modo_escrita FROM public.samiq_politica AS p WHERE p.id = 1),
+    'por_risco'
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.samiq_modo_escrita_whatsapp() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.samiq_modo_escrita_whatsapp() TO service_role;
 
 NOTIFY pgrst, 'reload schema';

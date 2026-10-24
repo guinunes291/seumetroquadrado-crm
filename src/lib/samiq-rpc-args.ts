@@ -84,6 +84,7 @@ export type SamiQRpc = {
   (fn: "samiq_contexto_turno", args: SamiQContextoTurnoArgs): ResultadoRpc<null>;
   (fn: "samiq_canal_iniciar", args: SamiQCanalIniciarArgs): ResultadoRpc<Json>;
   (fn: "samiq_canal_concluir", args: SamiQCanalConcluirArgs): ResultadoRpc<boolean>;
+  (fn: "samiq_modo_escrita_whatsapp", args: Record<string, never>): ResultadoRpc<string>;
 };
 
 export function samiqRpc(client: ClientHolder): SamiQRpc {

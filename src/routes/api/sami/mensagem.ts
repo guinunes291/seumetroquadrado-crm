@@ -284,6 +284,8 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                   : null;
               })();
 
+          // Chave de emergência: 'confirmar_tudo' faz tudo esperar CONFIRMAR.
+          const modoEscrita = await canal.modoEscritaDoWhatsApp();
           const resposta = await canal.comSessaoDoCorretor(corretor, async (supabase) => {
             const { responderSamiQ } = await import("@/lib/samiq-core.server");
             return responderSamiQ({
@@ -291,7 +293,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               userId: corretor.id,
               canal: "whatsapp",
               origemMidia: body.origem_midia,
-              modoEscrita: "por_risco",
+              modoEscrita,
               corretorNome: corretor.nome,
               contexto,
               recentes: { pendentes, executadas },

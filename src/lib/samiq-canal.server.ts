@@ -30,7 +30,7 @@ import {
   type DecisaoResultado,
   type IntencaoCurta,
 } from "@/lib/samiq-canal";
-import type { MotivoSemDesfazer, PropostaSamiQ } from "@/lib/samiq-propostas";
+import type { ModoEscritaSamiQ, MotivoSemDesfazer, PropostaSamiQ } from "@/lib/samiq-propostas";
 import { localizacaoValida, type ContextoConversaSamiQ } from "@/lib/samiq-contexto";
 import { SamiQQuotaError } from "./samiq-governance.server";
 import { gravarContextoTurnoSamiQ, gravarTurnoSamiQ } from "./samiq-memoria.server";
@@ -407,6 +407,21 @@ type RespostaDaFila =
   | { acao: "processar"; id: string }
   | { acao: "repetida"; resposta: Record<string, unknown> | null }
   | { acao: "aguardar"; motivo: "mesma_mensagem" | "fila" };
+
+/**
+ * Chave de emergência (samiq_politica.whatsapp_modo_escrita): 'confirmar_tudo'
+ * faz as leves voltarem a esperar CONFIRMAR, sem deploy. Sem a coluna ou com
+ * erro de leitura, vale o padrão da v8 (por risco).
+ */
+export async function modoEscritaDoWhatsApp(): Promise<ModoEscritaSamiQ> {
+  try {
+    const { data, error } = await samiqRpc(supabaseAdmin)("samiq_modo_escrita_whatsapp", {});
+    if (error) return "por_risco";
+    return data === "confirmar_tudo" ? "confirmar_tudo" : "por_risco";
+  } catch {
+    return "por_risco";
+  }
+}
 
 function lerRespostaDaFila(data: Json | null): RespostaDaFila | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;

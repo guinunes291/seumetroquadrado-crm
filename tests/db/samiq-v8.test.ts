@@ -215,6 +215,32 @@ describe("tipos, estados, cota e versão", () => {
   });
 });
 
+describe("chave de emergência do WhatsApp (samiq_politica.whatsapp_modo_escrita)", () => {
+  it("padrão por risco; confirmar_tudo com um UPDATE; valor inventado não entra; browser não lê", async () => {
+    await comoSuperuser(c);
+    const modo = async () =>
+      (await c.query(`SELECT public.samiq_modo_escrita_whatsapp() AS m`)).rows[0].m as string;
+    expect(await modo()).toBe("por_risco");
+    await c.query(
+      `UPDATE public.samiq_politica SET whatsapp_modo_escrita = 'confirmar_tudo' WHERE id = 1`,
+    );
+    expect(await modo()).toBe("confirmar_tudo");
+    expect(
+      await errCode(
+        c.query(
+          `UPDATE public.samiq_politica SET whatsapp_modo_escrita = 'tudo_direto' WHERE id = 1`,
+        ),
+      ),
+    ).toBe("23514");
+    await c.query(
+      `UPDATE public.samiq_politica SET whatsapp_modo_escrita = 'por_risco' WHERE id = 1`,
+    );
+    await comoUsuario(c, corretorA.id);
+    expect(await errCode(c.query(`SELECT public.samiq_modo_escrita_whatsapp()`))).toBe("42501");
+    await comoSuperuser(c);
+  });
+});
+
 describe("trava de execução (samiq_reivindicar_proposta)", () => {
   it("só uma execução pega a ação; a segunda vê que já está sendo gravada", async () => {
     const id = await registrar(corretorA.id, execucaoA, "anotar", { leadId: leadA, nota: "x" });

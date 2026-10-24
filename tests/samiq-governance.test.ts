@@ -811,7 +811,10 @@ describe("v8 — o CRM inteiro no WhatsApp, com autonomia por risco (migration 2
   it("o cérebro: só o WhatsApp grava na hora; o painel continua confirmando tudo", () => {
     expect(handler).toContain('args.modoEscrita ?? "confirmar_tudo"');
     expect(handler).toContain('if (modo === "por_risco")');
-    expect(mensagem).toContain('modoEscrita: "por_risco"');
+    // WhatsApp por risco, com chave de emergência no banco (confirmar_tudo sem deploy)
+    expect(mensagem).toContain("const modoEscrita = await canal.modoEscritaDoWhatsApp();");
+    expect(canalServer).toContain('("samiq_modo_escrita_whatsapp", {})');
+    expect(canalServer).toMatch(/data === "confirmar_tudo" \? "confirmar_tudo" : "por_risco"/);
     expect(painelFn).not.toContain("modoEscrita");
     // ferramentas por intenção: o 1º passo recebe os grupos e o modelo abre outros
     expect(handler).toContain("activeTools: ativas()");
