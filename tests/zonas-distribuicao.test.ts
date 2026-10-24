@@ -175,7 +175,8 @@ describe("fiação de entrada: os canais gravam zona/bairro", () => {
   });
 
   it("novo lead e ficha editam bairro/zona (payload do criar_lead_dedup e update)", () => {
-    const dialog = read("src/features/leads/novo-lead-dialog.tsx");
+    // O payload do criar_lead_dedup saiu do diálogo para novo-lead-criacao.ts.
+    const dialog = read("src/features/leads/novo-lead-criacao.ts");
     expect(dialog).toContain("bairro: form.bairro.trim() || null");
     expect(dialog).toContain("zona: form.zona || null");
     const editar = read("src/features/leads/dossie/editar-lead-dialog.tsx");
