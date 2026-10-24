@@ -31,6 +31,13 @@ function criar(max = 3) {
     ssl: "require",
     connection: { application_name: "painel-marketing" },
     onnotice: () => {},
+    // Diagnóstico temporário da Biblioteca travando: registra qual conexão
+    // mandou qual consulta (só o começo do texto, nunca os valores).
+    debug: (conn, q) =>
+      console.log(
+        `[db] ${new Date().toISOString()} conn ${conn} envia: ${q.replace(/\s+/g, " ").trim().slice(0, 70)}`,
+      ),
+    onclose: (conn) => console.log(`[db] ${new Date().toISOString()} conn ${conn} fechou`),
   });
 }
 
