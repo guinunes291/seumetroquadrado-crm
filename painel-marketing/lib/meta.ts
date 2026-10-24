@@ -25,6 +25,8 @@ export class ErroMeta extends Error {
   constructor(
     public traduzido: string,
     public codigo?: number,
+    // Mensagem técnica da Meta, só para a auditoria (nunca traz o token).
+    public tecnico?: string,
   ) {
     super(traduzido);
   }
@@ -58,7 +60,9 @@ export function contaAnuncios(): string {
   return process.env.META_AD_ACCOUNT_ID ?? "382684244661295";
 }
 
-type CorpoGraph = { error?: { code?: number; error_subcode?: number; error_user_msg?: string } };
+type CorpoGraph = {
+  error?: { code?: number; error_subcode?: number; error_user_msg?: string; message?: string };
+};
 
 function erroDoCorpo(corpo: CorpoGraph): ErroMeta {
   const e = corpo.error;
@@ -68,15 +72,20 @@ function erroDoCorpo(corpo: CorpoGraph): ErroMeta {
   return new ErroMeta(
     e?.error_user_msg ? `${base} Detalhe da Meta: ${e.error_user_msg}` : base,
     e?.code,
+    e?.message,
   );
 }
 
-export async function graph<T>(caminho: string, params: Record<string, string>): Promise<T[]> {
+export async function graph<T>(
+  caminho: string,
+  params: Record<string, string>,
+  limite = 500,
+): Promise<T[]> {
   const token = tokenMeta();
   const itens: T[] = [];
   let url: string | null =
     `https://graph.facebook.com/${VERSAO}/${caminho}?` +
-    new URLSearchParams({ ...params, limit: "500" });
+    new URLSearchParams({ ...params, limit: String(limite) });
   while (url) {
     const r: Response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -86,7 +95,18 @@ export async function graph<T>(caminho: string, params: Record<string, string>):
       data?: T[];
       paging?: { next?: string };
     } & CorpoGraph;
-    if (!r.ok || corpo.error) throw erroDoCorpo(corpo);
+    if (!r.ok || corpo.error) {
+      // Código 1 em leitura grande costuma ser "peça menos dados de uma vez".
+      // Só leitura: repetir a página com um lote menor não muda nada na conta.
+      if (corpo.error?.code === 1 && limite > 25) {
+        limite = Math.floor(limite / 4);
+        const u: URL = new URL(url);
+        u.searchParams.set("limit", String(limite));
+        url = u.toString();
+        continue;
+      }
+      throw erroDoCorpo(corpo);
+    }
     itens.push(...(corpo.data ?? []));
     url = corpo.paging?.next ?? null;
   }

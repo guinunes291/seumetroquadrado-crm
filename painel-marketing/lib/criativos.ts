@@ -33,14 +33,20 @@ const CAMPOS_ANUNCIO = "id,name,effective_status,campaign_id,adset_id,created_ti
 async function lerAnuncios(conta: string): Promise<AnuncioMeta[]> {
   // Pede a miniatura em 480px; se a Meta recusar o modificador, cai para a padrão.
   try {
-    return await graph<AnuncioMeta>(`act_${conta}/ads`, {
-      fields: `${CAMPOS_ANUNCIO},creative.thumbnail_width(480).thumbnail_height(480){${CAMPOS_CRIATIVO}}`,
-    });
+    return await graph<AnuncioMeta>(
+      `act_${conta}/ads`,
+      {
+        fields: `${CAMPOS_ANUNCIO},creative.thumbnail_width(480).thumbnail_height(480){${CAMPOS_CRIATIVO}}`,
+      },
+      100,
+    );
   } catch (e) {
     if (!(e instanceof ErroMeta) || e.codigo !== 100) throw e;
-    return graph<AnuncioMeta>(`act_${conta}/ads`, {
-      fields: `${CAMPOS_ANUNCIO},creative{${CAMPOS_CRIATIVO}}`,
-    });
+    return graph<AnuncioMeta>(
+      `act_${conta}/ads`,
+      { fields: `${CAMPOS_ANUNCIO},creative{${CAMPOS_CRIATIVO}}` },
+      100,
+    );
   }
 }
 
@@ -48,11 +54,15 @@ export async function sincronizarCriativos(quem: string) {
   const conta = contaAnuncios();
   const [anuncios, insights] = await Promise.all([
     lerAnuncios(conta),
-    graph<InsightAnuncio>(`act_${conta}/insights`, {
-      level: "ad",
-      date_preset: "maximum",
-      fields: "ad_id,spend,impressions,clicks,actions",
-    }),
+    graph<InsightAnuncio>(
+      `act_${conta}/insights`,
+      {
+        level: "ad",
+        date_preset: "maximum",
+        fields: "ad_id,spend,impressions,clicks,actions",
+      },
+      200,
+    ),
   ]);
   const desempenho = new Map(insights.map((i) => [i.ad_id, i]));
   const linhas = anuncios.map((a) => {
