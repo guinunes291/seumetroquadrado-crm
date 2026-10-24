@@ -38,6 +38,7 @@ import { UnidadesTable } from "@/features/projetos/unidades-table";
 import { UnidadeFormDialog, type UnidadePayload } from "@/features/projetos/unidade-form-dialog";
 import { HistoricoPrecos } from "@/features/projetos/historico-precos";
 import { ProjetoFocoPanel, type FocoPayload } from "@/features/projetos/projeto-foco-panel";
+import { useRegistrarEventoProjeto } from "@/features/projetos/use-projeto-eventos";
 import { usePublicarFaseDoLeadPorId } from "@/features/nav/contexto-jornada";
 
 export const Route = createFileRoute("/_authenticated/projetos/$projetoId")({
@@ -60,6 +61,7 @@ function ProjetoDetalhePage() {
   // Corretor não tem o Catálogo completo: o "voltar" leva para Projetos em Foco.
   const podeVerCatalogo = roles.some((r) => PAPEIS_CATALOGO.includes(r));
   const qc = useQueryClient();
+  const registrarEvento = useRegistrarEventoProjeto();
   const [unidadeOpen, setUnidadeOpen] = useState(false);
   const [editing, setEditing] = useState<UnidadeRow | null>(null);
   const [focoOpen, setFocoOpen] = useState(false);
@@ -288,6 +290,14 @@ function ProjetoDetalhePage() {
           emFoco={!!focoAtivo}
           focoMotivo={focoAtivo?.motivo}
           actions={voltar}
+          onAbrirMaterial={(tipo) =>
+            registrarEvento({
+              tipo: tipo === "book" ? "book_abrir" : "tabela_abrir",
+              projetoId,
+              leadId,
+              origem: "ficha",
+            })
+          }
         />
       ) : (
         <PageHeader
