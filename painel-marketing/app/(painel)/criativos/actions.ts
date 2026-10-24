@@ -14,7 +14,11 @@ export async function acaoSincronizarCriativos(): Promise<string> {
     return `Atualizado: ${r.anuncios} anúncios lidos, ${r.comGasto} com gasto em todo o período.`;
   } catch (e) {
     const msg = e instanceof ErroMeta ? e.traduzido : "Não consegui falar com a Meta agora.";
-    await registrar(s.email, "criativos_sincronizacao_falhou", null, { motivo: msg });
+    await registrar(s.email, "criativos_sincronizacao_falhou", null, {
+      motivo: msg,
+      codigo: e instanceof ErroMeta ? e.codigo : null,
+      tecnico: e instanceof ErroMeta ? e.tecnico : e instanceof Error ? e.message : null,
+    });
     return msg;
   }
 }
