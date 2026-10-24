@@ -46,7 +46,8 @@ describe("regressões críticas do fechamento", () => {
   });
 
   it("mantém a ação principal do card Kanban com alvo de 44 px", () => {
-    const kanban = read("src/components/leads-kanban-board.tsx");
+    // O cartão saiu de leads-kanban-board.tsx para kanban-lead-card.tsx.
+    const kanban = read("src/features/pipeline/kanban-lead-card.tsx");
     expect(kanban).toContain('className="mt-2 min-h-11 w-full text-xs"');
     expect(kanban).not.toContain('className="mt-2 h-6 w-full text-[11px]"');
   });
@@ -54,7 +55,7 @@ describe("regressões críticas do fechamento", () => {
   it("mantém telefone, e-mail e dias parado à vista no card Kanban", () => {
     // Decisão do produto (2026-10): o cartão enxuto do vídeo não tira o
     // contato do cliente nem o prazo de quem está parado.
-    const kanban = read("src/components/leads-kanban-board.tsx");
+    const kanban = read("src/features/pipeline/kanban-lead-card.tsx");
     expect(kanban).toContain("{lead.telefone}");
     expect(kanban).toContain("{lead.email}");
     expect(kanban).toContain("const dias = diasParado(lead);");
