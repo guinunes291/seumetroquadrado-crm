@@ -729,6 +729,41 @@
       "when": 1792600536155,
       "tag": "0103_bloquear_lead_telefone_corretor",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1792787118452,
+      "tag": "0104_samiq_diretrizes",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1792799132725,
+      "tag": "0105_seguranca_rls_membro_ativo_token_roleta",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1792799768938,
+      "tag": "0106_roletas_select_active_member",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1792802490722,
+      "tag": "0107_samiq_projetos_busca_sem_acento",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1792813024603,
+      "tag": "0108_samiq_novo_cliente",
+      "breakpoints": true
     }
   ]
 }

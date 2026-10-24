@@ -229,3 +229,34 @@ describe("textos para o WhatsApp", () => {
     ).toBe("Boa tarde! Tudo em dia por aqui. Me chame quando precisar.");
   });
 });
+
+import { SAMIQ_AVISO_SEM_REGISTRO, semRegistroFantasma } from "../src/lib/samiq-canal";
+
+describe("trava de registro fantasma (sem proposta, sem CONFIRMAR)", () => {
+  it("tira a promessa e avisa quando não há proposta", () => {
+    const t = textoParaWhatsApp({
+      texto:
+        "Achei o Eduardo certo. Preparei o pacote: registro da ligação e tarefa para segunda. Aguardando você responder CONFIRMAR ou CANCELAR.",
+    });
+    expect(t).toContain("Achei o Eduardo certo.");
+    expect(t).not.toContain("Preparei o pacote");
+    expect(t).toContain(SAMIQ_AVISO_SEM_REGISTRO);
+  });
+
+  it("não mexe em resposta comum, nem em 'cancelar' minúsculo", () => {
+    const comum = "O cliente pode cancelar a visita até 24h antes. Quer que eu prepare o registro?";
+    expect(semRegistroFantasma(comum)).toBe(comum);
+    expect(textoParaWhatsApp({ texto: "Hoje você tem 2 visitas." })).toBe("Hoje você tem 2 visitas.");
+  });
+
+  it("com proposta real, o CONFIRMAR continua", () => {
+    const t = textoParaWhatsApp({
+      texto: "Preparei os registros da Maria. Responda CONFIRMAR.",
+      propostas: [
+        { id: "p1", tipo: "anotar", payload: { tipo: "anotar", leadId: "00000000-0000-4000-8000-000000000001", nota: "x" }, leadNome: "Maria" } as never,
+      ],
+    });
+    expect(t).toContain("CONFIRMAR");
+    expect(t).not.toContain(SAMIQ_AVISO_SEM_REGISTRO);
+  });
+});

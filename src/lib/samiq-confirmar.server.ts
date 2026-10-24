@@ -79,7 +79,7 @@ export async function confirmarPropostas(args: {
       continue;
     }
 
-    const editada = JSON.stringify(payloadFinal) !== JSON.stringify(row.payload);
+    const editada = jsonEstavel(payloadFinal) !== jsonEstavel(row.payload);
     try {
       const resultado = await executarPropostaSamiQ({
         supabase,
@@ -164,4 +164,13 @@ export async function desfazerProposta(args: {
   }
   const obj = (out ?? {}) as { desfeito?: boolean; itens?: string[] };
   return { desfeito: obj.desfeito === true, itens: Array.isArray(obj.itens) ? obj.itens : [] };
+}
+
+/** JSON com chaves ordenadas: "editada" só quando o conteúdo mudou de fato. */
+export function jsonEstavel(valor: unknown): string {
+  return JSON.stringify(valor, (_k, v) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  );
 }

@@ -169,9 +169,9 @@ export function textoParaWhatsApp(resposta: {
   texto: string;
   propostas?: ReadonlyArray<PropostaSamiQ>;
 }): string {
-  const texto = resposta.texto.trim();
   const propostas = resposta.propostas ?? [];
-  if (propostas.length === 0) return texto;
+  if (propostas.length === 0) return semRegistroFantasma(resposta.texto.trim());
+  const texto = resposta.texto.trim();
   const partes = [
     texto,
     "",
@@ -182,6 +182,29 @@ export function textoParaWhatsApp(resposta: {
     partes.push("", "Responda CONFIRMAR para registrar ou CANCELAR para descartar.");
   }
   return partes.join("\n");
+}
+
+// Trava (23/10/2026): com histórico longo o modelo às vezes repete o padrão
+// "preparei os registros, responda CONFIRMAR" sem ter chamado nenhuma
+// ferramenta propor_*. No WhatsApp isso é grave: o corretor responde
+// CONFIRMAR e nada é gravado (ou confirma um pacote antigo). Sem proposta
+// real na resposta, a promessa sai do texto e entra um aviso.
+const COMANDO_DE_DECISAO = /\b(CONFIRMAR|CANCELAR)\b/;
+const JA_PREPAREI =
+  /\bprepar(ei|ado|ados|ada|adas)\b[^.!?\n]{0,60}\b(registros?|pacote|propostas?|tarefas?|contato|lan[çc]amentos?)\b/i;
+const PROMESSA_DE_REGISTRO = { test: (f: string) => COMANDO_DE_DECISAO.test(f) || JA_PREPAREI.test(f) };
+
+export const SAMIQ_AVISO_SEM_REGISTRO =
+  "Atenção: nesta resposta eu não preparei nenhum registro, então não há nada para CONFIRMAR. Me conte de novo o que aconteceu com o cliente que eu preparo os registros.";
+
+export function semRegistroFantasma(texto: string): string {
+  if (!PROMESSA_DE_REGISTRO.test(texto)) return texto;
+  const frases = texto
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((f) => f.trim())
+    .filter(Boolean);
+  const restantes = frases.filter((f) => !PROMESSA_DE_REGISTRO.test(f));
+  return [restantes.join(" ").trim(), SAMIQ_AVISO_SEM_REGISTRO].filter(Boolean).join("\n\n");
 }
 
 export type DecisaoResultado = {
