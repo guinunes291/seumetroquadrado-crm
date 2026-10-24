@@ -750,6 +750,13 @@
       "when": 1792799768938,
       "tag": "0106_roletas_select_active_member",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1792802490722,
+      "tag": "0107_samiq_projetos_busca_sem_acento",
+      "breakpoints": true
     }
   ]
 }

@@ -7148,6 +7148,7 @@ export type Database = {
           metragem_max: number | null
           metragem_min: number | null
           nome: string
+          nome_busca: string | null
           numero: string | null
           observacoes: string | null
           percentual_comissao: number | null
@@ -7157,6 +7158,7 @@ export type Database = {
           preco_atualizado_em: string | null
           preco_inicial: string | null
           regiao: string | null
+          regiao_busca: string | null
           renda_minima: number | null
           slug: string
           sob_consulta: boolean
@@ -7203,6 +7205,7 @@ export type Database = {
           metragem_max?: number | null
           metragem_min?: number | null
           nome: string
+          nome_busca?: string | null
           numero?: string | null
           observacoes?: string | null
           percentual_comissao?: number | null
@@ -7212,6 +7215,7 @@ export type Database = {
           preco_atualizado_em?: string | null
           preco_inicial?: string | null
           regiao?: string | null
+          regiao_busca?: string | null
           renda_minima?: number | null
           slug: string
           sob_consulta?: boolean
@@ -7258,6 +7262,7 @@ export type Database = {
           metragem_max?: number | null
           metragem_min?: number | null
           nome?: string
+          nome_busca?: string | null
           numero?: string | null
           observacoes?: string | null
           percentual_comissao?: number | null
@@ -7267,6 +7272,7 @@ export type Database = {
           preco_atualizado_em?: string | null
           preco_inicial?: string | null
           regiao?: string | null
+          regiao_busca?: string | null
           renda_minima?: number | null
           slug?: string
           sob_consulta?: boolean
@@ -14415,6 +14421,15 @@ export type Database = {
           ultimo_envio: string
           vendas_total: number
         }[]
+      }
+      projetos_regiao_busca_text: {
+        Args: {
+          _bairro: string
+          _cidade: string
+          _regiao: string
+          _zona: string
+        }
+        Returns: string
       }
       prospeccao_lote_status_v1: { Args: never; Returns: Json }
       prospeccao_lotes_painel_v1: {
