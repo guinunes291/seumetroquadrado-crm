@@ -523,6 +523,13 @@ BEGIN
     END IF;
   END IF;
 
+  -- Tudo o que a ação mexeu já foi mudado depois por alguém: não há o que
+  -- desfazer. Erro (nada muda, a ação continua gravada) em vez de um
+  -- "desfeito" que não desfez nada.
+  IF jsonb_array_length(_feito) = 0 AND jsonb_array_length(_mantidos) > 0 THEN
+    RAISE EXCEPTION 'nada a desfazer: mudou depois da Sami' USING ERRCODE = '22023';
+  END IF;
+
   UPDATE public.samiq_propostas
      SET status = 'desfeita', desfeito_em = _now
    WHERE id = _proposta_id;

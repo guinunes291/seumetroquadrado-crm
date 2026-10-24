@@ -203,6 +203,9 @@ export async function desfazerProposta(args: {
     if (isMissingBackendObject(error)) throw new Error("Desfazer ainda não está disponível.");
     const msg = (error.message ?? "").toLowerCase();
     if (msg.includes("expirada")) throw new Error("A janela de 24 h para desfazer já passou.");
+    if (msg.includes("mudou depois")) {
+      throw new Error("isso já foi mudado depois na tela; deixei como está");
+    }
     if (msg.includes("nao se desfaz") || msg.includes("etapa")) {
       throw new Error("Essa ação passa pelo funil e não se desfaz por aqui.");
     }

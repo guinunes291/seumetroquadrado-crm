@@ -518,10 +518,11 @@ describe("desfazer não atropela o que mudou depois da Sami", () => {
       `UPDATE public.agendamentos SET status = 'cancelado', motivo_cancelamento = 'cliente desistiu' WHERE id = $1`,
       [visita],
     );
-    const r = await desfazer(corretorA.id, id);
-    expect(r.desfeito).toBe(true);
-    expect(r.itens).not.toContain("agendamento_restaurado");
-    expect(r.mantidos).toContain("agendamento_restaurado");
+    // tudo o que a ação mexeu mudou depois: recusa, nada muda, a ação segue gravada
+    expect(
+      await errCode(c.query(`SELECT public.samiq_desfazer_proposta($1, $2)`, [corretorA.id, id])),
+    ).toBe("22023");
+    expect((await proposta(id)).status).toBe("aceita");
     const v = await c.query(
       `SELECT status::text AS status, motivo_cancelamento FROM public.agendamentos WHERE id = $1`,
       [visita],
@@ -536,8 +537,9 @@ describe("desfazer não atropela o que mudou depois da Sami", () => {
       { leadId: leadA, inicioEm: "2026-11-03T13:00:00Z" },
       { agendamento_id: visita, lead_id: leadA },
     );
-    const r = await desfazer(corretorA.id, id);
-    expect(r.mantidos).toContain("agendamento");
+    expect(
+      await errCode(c.query(`SELECT public.samiq_desfazer_proposta($1, $2)`, [corretorA.id, id])),
+    ).toBe("22023");
     const v = await c.query(
       `SELECT status::text AS status, deleted_at IS NULL AS viva FROM public.agendamentos WHERE id = $1`,
       [visita],
@@ -581,8 +583,9 @@ describe("desfazer não atropela o que mudou depois da Sami", () => {
       `UPDATE public.tarefas SET status = 'pendente', data_conclusao = NULL, resultado = NULL, data_vencimento = '2026-11-10T13:00:00Z' WHERE id = $1`,
       [tarefa],
     );
-    const r = await desfazer(corretorA.id, id);
-    expect(r.mantidos).toContain("tarefa_restaurada");
+    expect(
+      await errCode(c.query(`SELECT public.samiq_desfazer_proposta($1, $2)`, [corretorA.id, id])),
+    ).toBe("22023");
     const t = await c.query(`SELECT data_vencimento FROM public.tarefas WHERE id = $1`, [tarefa]);
     expect((t.rows[0].data_vencimento as Date).toISOString()).toBe("2026-11-10T13:00:00.000Z");
   });
@@ -599,9 +602,9 @@ describe("desfazer não atropela o que mudou depois da Sami", () => {
       },
       { tarefa_id: tarefa, lead_id: leadA },
     );
-    const r = await desfazer(corretorA.id, id);
-    expect(r.itens).not.toContain("tarefa");
-    expect(r.mantidos).toContain("tarefa");
+    expect(
+      await errCode(c.query(`SELECT public.samiq_desfazer_proposta($1, $2)`, [corretorA.id, id])),
+    ).toBe("22023");
     expect(
       (
         await c.query(`SELECT deleted_at IS NULL AS viva FROM public.tarefas WHERE id = $1`, [
@@ -648,8 +651,9 @@ describe("desfazer não atropela o que mudou depois da Sami", () => {
       { leadId: leadA, documento: "holerites", status: "recebido" },
       { lead_id: leadA, documento_criado_id: doc },
     );
-    const r = await desfazer(corretorA.id, id);
-    expect(r.mantidos).toContain("documento");
+    expect(
+      await errCode(c.query(`SELECT public.samiq_desfazer_proposta($1, $2)`, [corretorA.id, id])),
+    ).toBe("22023");
     expect(
       (await c.query(`SELECT status FROM public.documentacoes WHERE id = $1`, [doc])).rows[0]
         .status,
