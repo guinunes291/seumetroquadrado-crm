@@ -224,8 +224,14 @@ describe("regras puras do pedido e do diálogo voluntário", () => {
 
   it("houvePedidoCheckinRecente: janela de 2 s, atendido ou não", () => {
     expect(houvePedidoCheckinRecente()).toBe(false);
+    // Relógio parado: o pedido e o "agora" do teste caem no mesmo milissegundo.
+    // Com o relógio real, um tique entre os dois empurrava a borda de 2 s para
+    // 2001 ms e o teste falhava de vez em quando (máquina carregada).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T12:00:00Z"));
     pedirCheckin({ acao: "abrir", origem: "lateral" });
     const agora = Date.now();
+    vi.useRealTimers();
     expect(houvePedidoCheckinRecente(agora)).toBe(true);
     expect(houvePedidoCheckinRecente(agora + 2_000)).toBe(true);
     expect(houvePedidoCheckinRecente(agora + 2_001)).toBe(false);
