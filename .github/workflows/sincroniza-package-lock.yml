@@ -1,0 +1,140 @@
+name: Sincroniza package-lock
+
+# O Lovable sobe dependência no package.json e no bun.lock, mas nunca no
+# package-lock.json. Como o CI instala com `npm ci`, cada uma dessas subidas
+# derrubava o CI inteiro na instalação — de 15/10 a 23/10/2026 a main ficou
+# vermelha sem rodar teste nenhum, e o mesmo descompasso já tinha sido
+# corrigido à mão em 21/09, 07/10, 08/10 e 09/10.
+#
+# Este workflow regenera o package-lock.json a partir do package.json (sem
+# tocar nele) com o npm do `packageManager` e abre uma PR para revisão humana.
+# Nunca faz merge sozinho.
+on:
+  push:
+    branches: ["main"]
+    paths: ["package.json"]
+  workflow_dispatch:
+
+concurrency:
+  group: sincroniza-package-lock
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  NPM_VERSAO: 11.13.0
+  BRANCH_BOT: bot/sincroniza-package-lock
+
+jobs:
+  sincronizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # PR aberta com o GITHUB_TOKEN não dispara o CI (trava do GitHub contra
+      # loops). Com o segredo opcional LOCKFILE_SYNC_TOKEN (token pessoal com
+      # contents e pull-requests: write), a PR já nasce com CI rodando.
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.LOCKFILE_SYNC_TOKEN || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+
+      - name: Regenerar package-lock.json
+        run: |
+          cp package-lock.json "$RUNNER_TEMP/lock-antes.json"
+          npx -y "npm@${NPM_VERSAO}" install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Garantir que o package.json não mudou
+        run: git diff --exit-code -- package.json
+
+      - name: Ver se há o que sincronizar
+        id: diff
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json já está em dia com o package.json."
+            echo "mudou=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "mudou=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Provar que o npm ci instala com o lock novo
+        if: steps.diff.outputs.mudou == 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Listar versões alteradas
+        if: steps.diff.outputs.mudou == 'true'
+        run: |
+          node - "$RUNNER_TEMP/lock-antes.json" > "$RUNNER_TEMP/versoes.md" <<'EOF'
+          const antes = require(process.argv[2]).packages ?? {};
+          const depois = require(`${process.cwd()}/package-lock.json`).packages ?? {};
+          const linhas = [];
+          for (const k of new Set([...Object.keys(antes), ...Object.keys(depois)])) {
+            const a = antes[k]?.version;
+            const d = depois[k]?.version;
+            if (a !== d) linhas.push(`| \`${k.replace(/^node_modules\//, "") || "(raiz)"}\` | ${a ?? "—"} | ${d ?? "—"} |`);
+          }
+          console.log(linhas.length
+            ? ["| Pacote | Antes | Depois |", "|---|---|---|", ...linhas].join("\n")
+            : "Nenhuma versão mudou (só metadados do lock).");
+          EOF
+          cat "$RUNNER_TEMP/versoes.md"
+
+      - name: Publicar a branch e abrir ou atualizar a PR
+        if: steps.diff.outputs.mudou == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.LOCKFILE_SYNC_TOKEN || github.token }}
+          SEM_TOKEN_PROPRIO: ${{ secrets.LOCKFILE_SYNC_TOKEN == '' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH_BOT"
+          git add package-lock.json
+          git commit -m "chore(deps): sincroniza package-lock.json com o package.json" \
+            -m "Gerado pelo workflow \"Sincroniza package-lock\" a partir de ${GITHUB_SHA::8}, com npm ${NPM_VERSAO}."
+          # Branch exclusiva do bot: sobrescrever é o comportamento esperado.
+          git push --force origin "$BRANCH_BOT"
+
+          {
+            echo "O \`package.json\` da \`main\` mudou (commit ${GITHUB_SHA::8}) e o \`package-lock.json\` ficou para trás, o que quebra o \`npm ci\` do CI."
+            echo
+            echo "Este PR regenera **só o \`package-lock.json\`** com \`npm ${NPM_VERSAO}\` (o \`packageManager\` do projeto). O \`package.json\` não muda, e o \`npm ci\` com o lock novo já foi testado pelo workflow."
+            echo
+            cat "$RUNNER_TEMP/versoes.md"
+            echo
+            if [ "$SEM_TOKEN_PROPRIO" = "true" ]; then
+              echo "> PR aberta pelo token padrão do Actions, que não dispara o CI. **Feche e reabra este PR** para rodar o CI antes do merge."
+            fi
+            echo
+            echo "Revise as versões acima antes do merge. Execução: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > "$RUNNER_TEMP/corpo.md"
+
+          titulo="chore(deps): sincroniza package-lock.json com o package.json"
+          existente=$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=$GITHUB_REPOSITORY_OWNER:$BRANCH_BOT&state=open" \
+            --jq '.[0].number // empty')
+          if [ -n "$existente" ]; then
+            gh pr edit "$existente" --body-file "$RUNNER_TEMP/corpo.md"
+            echo "PR #$existente atualizada."
+          elif gh pr create --base main --head "$BRANCH_BOT" --title "$titulo" --body-file "$RUNNER_TEMP/corpo.md"; then
+            echo "PR aberta."
+          else
+            # O repositório pode não permitir que o Actions abra PRs (Settings >
+            # Actions > General > "Allow GitHub Actions to create and approve
+            # pull requests"). A branch já está publicada: avisa por issue.
+            {
+              echo "O workflow regenerou o \`package-lock.json\` na branch \`$BRANCH_BOT\`, mas não pôde abrir a PR."
+              echo
+              echo "Abra pelo link: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${BRANCH_BOT}?expand=1"
+              echo
+              echo "Para o workflow abrir PRs sozinho: Settings > Actions > General > marque \"Allow GitHub Actions to create and approve pull requests\"."
+              echo
+              cat "$RUNNER_TEMP/corpo.md"
+            } > "$RUNNER_TEMP/issue.md"
+            gh issue create --title "package-lock.json precisa de sincronização" \
+              --body-file "$RUNNER_TEMP/issue.md" --assignee "$GITHUB_REPOSITORY_OWNER"
+            echo "::warning::Sem permissão para abrir PR; issue aberta com o link da branch."
+          fi

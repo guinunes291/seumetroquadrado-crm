@@ -1,0 +1,115 @@
+name: Alerta de CI na main
+
+# A main ficou 8 dias com o CI vermelho (15/10 a 23/10/2026) sem ninguém
+# agir, embora o GitHub mande e-mail a quem dispara a execução. Este workflow
+# torna a quebra impossível de ignorar: abre (ou comenta) UMA issue atribuída
+# ao dono do repositório enquanto a main estiver vermelha, e fecha a issue
+# sozinho quando ela volta ao verde. Usa só o GITHUB_TOKEN.
+#
+# Opcional: com o segredo N8N_CI_WEBHOOK_URL cadastrado, também faz um POST
+# JSON para o n8n (WhatsApp, Slack, e-mail…). Sem o segredo, o passo é pulado.
+#
+# `workflow_run` só vale a partir da versão deste arquivo que está na main.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: ["main"]
+
+permissions:
+  issues: write
+  actions: read
+
+jobs:
+  alertar:
+    # Só execuções disparadas por push na main; cancelamento não é quebra.
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      contains(fromJSON('["failure", "timed_out", "success"]'), github.event.workflow_run.conclusion)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ROTULO: ci-main-quebrado
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      CONCLUSAO: ${{ github.event.workflow_run.conclusion }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      DONO: ${{ github.repository_owner }}
+    steps:
+      - name: Abrir, comentar ou fechar a issue de CI quebrado
+        id: issue
+        run: |
+          gh label create "$ROTULO" --color B60205 \
+            --description "CI da main vermelho (aberta e fechada pelo workflow Alerta de CI na main)" 2>/dev/null || true
+
+          # REST (não GraphQL): a API de issues também lista PRs, por isso o filtro.
+          aberta=$(gh api "repos/$GH_REPO/issues?labels=$ROTULO&state=open&per_page=10" \
+            --jq '[.[] | select(.pull_request | not)][0].number // empty')
+          # SC2016: a crase e o \(...) são markdown/jq, não expansão do shell.
+          # shellcheck disable=SC2016
+          commit=$(gh api "repos/$GH_REPO/commits/$SHA" --jq '"`\(.sha[0:8])` \(.commit.message | split("\n")[0]) — \(.commit.author.name)"')
+
+          if [ "$CONCLUSAO" = "success" ]; then
+            if [ -n "$aberta" ]; then
+              gh issue comment "$aberta" --body "✅ O CI da main voltou ao verde em $commit. Execução: $RUN_URL"
+              gh issue close "$aberta" --reason completed
+              echo "evento=voltou" >> "$GITHUB_OUTPUT"
+            else
+              echo "evento=nada" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          # shellcheck disable=SC2016  # $job é variável do jq
+          falhas=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" --jq '
+            [.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out")
+              | .name as $job
+              | (.steps[] | select(.conclusion == "failure" or .conclusion == "timed_out") | "- **\($job)** › \(.name)")]
+            | if length == 0 then "- (não foi possível identificar a etapa)" else join("\n") end')
+
+          {
+            echo "❌ O CI da main falhou ($CONCLUSAO) em $commit."
+            echo
+            echo "Etapas que falharam:"
+            echo "$falhas"
+            echo
+            echo "Execução: $RUN_URL"
+          } > "$RUNNER_TEMP/alerta.md"
+
+          if [ -n "$aberta" ]; then
+            gh issue comment "$aberta" --body-file "$RUNNER_TEMP/alerta.md"
+            echo "evento=continua_quebrado" >> "$GITHUB_OUTPUT"
+          else
+            {
+              cat "$RUNNER_TEMP/alerta.md"
+              echo
+              echo "Enquanto esta issue estiver aberta, a main está vermelha e todo PR herda a falha. Ela é fechada automaticamente quando o CI da main passar de novo."
+            } > "$RUNNER_TEMP/issue.md"
+            gh issue create --title "CI da main está vermelho" --label "$ROTULO" \
+              --assignee "$DONO" --body-file "$RUNNER_TEMP/issue.md"
+            echo "evento=quebrou" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Só quando algo muda de estado ou continua quebrado — main verde em
+      # sequência não gera aviso.
+      - name: Avisar o n8n (opcional)
+        if: steps.issue.outputs.evento != 'nada'
+        env:
+          WEBHOOK: ${{ secrets.N8N_CI_WEBHOOK_URL }}
+          EVENTO: ${{ steps.issue.outputs.evento }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "Segredo N8N_CI_WEBHOOK_URL não cadastrado; nada a enviar."
+            exit 0
+          fi
+          jq -n \
+            --arg repositorio "$GH_REPO" \
+            --arg status "$CONCLUSAO" \
+            --arg evento "$EVENTO" \
+            --arg commit "$SHA" \
+            --arg execucao "$RUN_URL" \
+            '{repositorio: $repositorio, branch: "main", status: $status, evento: $evento, commit: $commit, execucao: $execucao}' |
+            curl -fsS --max-time 15 -X POST -H "Content-Type: application/json" --data @- "$WEBHOOK" \
+            || echo "::warning::O webhook do n8n não respondeu; a issue continua sendo o alerta principal."
