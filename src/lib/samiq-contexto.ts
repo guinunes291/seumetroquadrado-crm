@@ -29,6 +29,8 @@ export type ContextoConversaSamiQ = {
   ambiguos?: string[];
   /** Id da última mensagem do WhatsApp processada (retentativa do n8n não repete ação). */
   ultima_mensagem_id?: string | null;
+  /** v8.2: marcadores [TELEFONE_n]/[EMAIL_n]/[CPF_n] da conversa, restauráveis por 30 min. */
+  pii?: { mapa: Record<string, string>; em: string } | null;
 };
 
 export const SAMIQ_MAX_CLIENTES_CITADOS = 8;
@@ -65,7 +67,25 @@ export function lerContexto(valor: unknown): ContextoConversaSamiQ {
     ambiguos: ids(v.ambiguos),
     ultima_mensagem_id:
       typeof v.ultima_mensagem_id === "string" ? v.ultima_mensagem_id.slice(0, 200) : null,
+    pii: lerPii(v.pii),
   };
+}
+
+function lerPii(valor: unknown): ContextoConversaSamiQ["pii"] {
+  if (!valor || typeof valor !== "object") return null;
+  const v = valor as { mapa?: unknown; em?: unknown };
+  if (!v.mapa || typeof v.mapa !== "object" || typeof v.em !== "string") return null;
+  const mapa: Record<string, string> = {};
+  for (const [k, val] of Object.entries(v.mapa as Record<string, unknown>)) {
+    if (
+      /^\[(TELEFONE|EMAIL|CPF)_\d{1,2}\]$/.test(k) &&
+      typeof val === "string" &&
+      val.length <= 200
+    ) {
+      mapa[k] = val;
+    }
+  }
+  return Object.keys(mapa).length ? { mapa, em: v.em } : null;
 }
 
 /** Junta os citados agora com os de antes: sem repetir, o mais recente na frente. */
@@ -159,14 +179,38 @@ export function conversasComContexto(client: { from: unknown }): ConversaContext
  * diferentes (duas Marias e dois Joões na mesma mensagem) = conflito: "a 2"
  * não saberia de qual lista, então nenhuma vale e o corretor diz o nome.
  */
-export type AmbiguosDoTurno = { lista: string[]; conflito: boolean };
+export type CandidatoDaPergunta = {
+  id: string;
+  nome: string | null;
+  empreendimento: string | null;
+  etapa: string | null;
+};
 
-export function anotarAmbiguos(estado: AmbiguosDoTurno, ids: ReadonlyArray<string>): void {
+export type AmbiguosDoTurno = {
+  lista: string[];
+  conflito: boolean;
+  /** v8.2: os candidatos com nome, para o canal imprimir a lista numerada. */
+  candidatos?: CandidatoDaPergunta[];
+};
+
+export function anotarAmbiguos(
+  estado: AmbiguosDoTurno,
+  candidatos: ReadonlyArray<string | CandidatoDaPergunta>,
+): void {
+  const ids = candidatos.map((c) => (typeof c === "string" ? c : c.id));
   const outraLista =
     estado.lista.length > 0 &&
     (estado.lista.length !== ids.length || estado.lista.some((x, i) => x !== ids[i]));
   if (outraLista) estado.conflito = true;
   estado.lista = [...ids];
+  const comNome = candidatos.filter((c): c is CandidatoDaPergunta => typeof c !== "string");
+  estado.candidatos = comNome.length === ids.length ? comNome : undefined;
+}
+
+/** v8.2: candidatos que o canal deve listar (nenhum quando houve conflito). */
+export function candidatosParaOCanal(estado: AmbiguosDoTurno): CandidatoDaPergunta[] {
+  if (estado.conflito || !estado.candidatos) return [];
+  return estado.candidatos;
 }
 
 /** O que vai para a memória da conversa (vazio quando houve conflito). */

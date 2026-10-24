@@ -6328,12 +6328,12 @@ exports[`modo por risco (WhatsApp) > descrição de cada ferramenta (o manual qu
   "anotar: Grava uma anotação interna sobre o cliente (algo para lembrar).",
   "criar_tarefa: Cria uma tarefa ou lembrete com data e hora para o corretor (ligar, mandar WhatsApp, cobrar documento). Use para 'me lembra de...'. Tarefa aberta do mesmo cliente no mesmo horário (até 2 h) é reaproveitada.",
   "atualizar_qualificacao: Atualiza a ficha do cliente só com os campos informados: renda, entrada, FGTS (e saldo), tipo de renda, faixa (F1 a F4), temperatura, decisor, região (zona/bairro), dormitórios, vaga, prioridades, nota de perfil, empreendimento de interesse (de preferência pelo projetoId de catalogo_projetos), objeções, parecer.",
-  "agendar_visita: Agenda uma visita (data e hora de SP, local) e move o cliente para Agendado. Precisa do CONFIRMAR do corretor. Só agenda para cliente em Em atendimento ou etapa posterior: se ele ainda está em prospecção, registre ANTES o contato em que ele topou a visita (não em paralelo). Lembre o corretor de pedir ao cliente que confirme data e horário.",
+  "agendar_visita: Agenda uma visita (data e hora de SP, local) e move o cliente para Agendado. Precisa do CONFIRMAR do corretor. Só agenda para cliente em Em atendimento ou etapa posterior: se ele ainda está em prospecção, registre ANTES o contato em que ele topou a visita (pode ser na mesma resposta, nesta ordem). Dia da semana sem data ('sábado 10h') é o próximo que ainda não passou: se hoje é esse dia e a hora já passou, é o da semana que vem; não pergunte qual. Lembre o corretor de pedir ao cliente que confirme data e horário.",
   "mudar_etapa: Move o cliente para Qualificação Corretor (única etapa sem formulário). Para as outras etapas use a ferramenta do desfecho: registrar_contato (Em atendimento é consequência), registrar_retorno, agendar_visita, registrar_visita, enviar_analise_credito, marcar_perdido. Precisa do CONFIRMAR.",
   "registrar_retorno: Desfecho 'pediu retorno' ou 'esfriou': registra o contato e leva o cliente para Aguardando retorno com a data combinada (vira tarefa). 'Esfriou' deixa o cliente frio. Retorno a mais de 30 dias vira perda 'retorno futuro' (menos lead próprio) e volta pela reativação. Precisa do CONFIRMAR.",
   "marcar_perdido: Marca o cliente como perdido com a categoria oficial. Atenção: igual à tela, o cliente SAI da carteira do corretor (vai para outro corretor ou para a base). Precisa do CONFIRMAR. Na dúvida entre perder e retorno, pergunte.",
   "trocar_vaga: Entra um, sai um, quando o Em atendimento está lotado: o cliente que respondeu entra e outro do Em atendimento sai como pediu retorno, esfriou (com data) ou perdido (com categoria). Use listar_clientes etapa em_atendimento ordem mais_parados para sugerir quem sai. Precisa do CONFIRMAR.",
-  "concluir_tarefa: Marca uma tarefa como feita (id de minhas_tarefas ou detalhe_cliente), com o resultado.",
+  "concluir_tarefa: Marca uma tarefa como feita (id de minhas_tarefas ou detalhe_cliente), com o resultado. 'Já fiz', 'concluí', 'feito', 'dá baixa' e 'já liguei pra ele (tarefa de ligar)' chamam esta ferramenta na hora; o resultado pode ser curto. Só depois ofereça registrar_contato se o corretor quiser contar o que rolou.",
   "reagendar_tarefa: Muda a data e hora de uma tarefa aberta.",
   "cancelar_tarefa: Cancela uma tarefa aberta que não faz mais sentido.",
   "confirmar_visita: Marca a visita como confirmada pelo cliente (id de minha_agenda ou detalhe_cliente) e conclui a tarefa 'Confirmar visita'.",
@@ -6347,7 +6347,7 @@ exports[`modo por risco (WhatsApp) > descrição de cada ferramenta (o manual qu
   "registrar_resultado_credito: Registra o resultado da análise: aprovada, aprovada com condição ou reprovada, com os valores da carta (financiamento, parcela, prazo, taxa, FGTS, subsídio, validade). Não muda a etapa. Precisa do CONFIRMAR.",
   "registrar_venda: Registra a venda para aprovação da gestão (empreendimento, unidade, valor, data da assinatura, mês previsto de recebimento e marcos: contrato assinado, ato pago, apto para repasse). A comissão segue o tier do corretor. Precisa do CONFIRMAR.",
   "fazer_checkin: Check-in do dia: na filial (barra-funda, liberdade, belem; usa a localização que o corretor mandou no WhatsApp), em casa (só libera a roleta com o mínimo de vendas do mês anterior) ou sair (encerra a presença).",
-  "criar_lead: Cadastra um cliente novo do corretor (captação própria, indicação, plantão...). Use o marcador [TELEFONE_n] da mensagem no campo telefone. Se o telefone já existir no CRM, não duplica e avisa. Precisa do CONFIRMAR.",
+  "criar_lead: Cadastra um cliente novo do corretor (captação própria, indicação, plantão...). Use o marcador [TELEFONE_n] da mensagem (ou das anteriores desta conversa) no campo telefone. Se o telefone já existir no CRM, não duplica e avisa. Para o corretor, fale em 'o telefone que você mandou', nunca em 'marcador'. Precisa do CONFIRMAR.",
   "pedir_lote: Pede o lote de prospecção (até 30 leads da base) de uma zona. Só funciona com vaga na carteira e sem lote em andamento (veja minha_situacao). Precisa do CONFIRMAR.",
 ]
 `;
@@ -6567,8 +6567,18 @@ exports[`travas que dependem do que está no banco > homônimo sem sobrenome no 
 {
   "ambiguos": [
     [
-      "11111111-1111-4111-8111-111111111111",
-      "22222222-2222-4222-8222-222222222222",
+      {
+        "empreendimento": "Vibra Lapa",
+        "etapa": "em_atendimento",
+        "id": "11111111-1111-4111-8111-111111111111",
+        "nome": "Lucas Ferreira",
+      },
+      {
+        "empreendimento": null,
+        "etapa": "novo",
+        "id": "22222222-2222-4222-8222-222222222222",
+        "nome": "Lucas Andrade",
+      },
     ],
   ],
   "citados": [],

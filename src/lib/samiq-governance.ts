@@ -41,8 +41,11 @@ const MOBILE_PATTERN = /(?<![\d.])(?:\+?55\s*)?(?:\(?\d{2}\)?[\s.-]*)?9\d{4}[\s.
 const ADDRESS_PATTERN = /\b(?:rua|avenida|av\.|travessa|alameda)\s+[^,;\n]{3,80}/gi;
 const LABELED_NAME_PATTERN =
   /(\b(?:nome(?:\s+completo)?|cliente)\s*[:=-]\s*)[\p{L}]+(?:\s+[\p{L}]+){1,5}/giu;
+// v8.2 (QA de 24/10/2026): "conta" precisa fechar a palavra e o valor precisa
+// ter dígito. Sem isso "primeiro contato." virava "primeiro conta[DADO_BANCARIO]"
+// no histórico e "me conta uma piada" virava "me conta [DADO_BANCARIO] piada".
 const BANK_ACCOUNT_PATTERN =
-  /(\b(?:ag[eê]ncia|conta(?:\s+(?:corrente|poupan[cç]a))?|chave\s+pix)\s*(?:n[ºo.]|n[uú]mero)?\s*[:=-]?\s*)[A-Z0-9@._+\-/]{3,100}/gi;
+  /(\b(?:ag[eê]ncia|conta(?:\s+(?:corrente|poupan[cç]a))?|chave\s+pix)\b\s*(?:n[ºo.]|n[uú]mero)?\s*[:=-]?\s*)(?=[A-Z0-9@._+\-/]*\d)[A-Z0-9@._+\-/]{3,100}/gi;
 const TITLE_CASE_FULL_NAME_PATTERN =
   /\b\p{Lu}\p{Ll}{1,}(?:\s+(?:(?:da|de|do|das|dos|e)\s+)?\p{Lu}\p{Ll}{1,}){1,4}\b/gu;
 
@@ -82,6 +85,38 @@ export type MapaPiiCorretor = Record<string, string>;
 
 const MARCADOR_RESTAURAVEL = /\[(TELEFONE|EMAIL|CPF)_\d{1,2}\]/g;
 
+/** v8.2: por quanto tempo os marcadores de uma conversa continuam restauráveis. */
+export const SAMIQ_PII_MAPA_VALIDO_MS = 30 * 60 * 1000;
+
+/** Mapa guardado na conversa (samiq_conversas.contexto.pii), com a hora do último marcador novo. */
+export type PiiDaConversa = { mapa: MapaPiiCorretor; em: string };
+
+/** Mapa anterior que ainda vale (30 min desde o último marcador novo). */
+export function mapaPiiValido(pii: PiiDaConversa | null | undefined, agora: Date): MapaPiiCorretor {
+  if (!pii || !pii.mapa) return {};
+  const em = Date.parse(pii.em);
+  if (!Number.isFinite(em) || agora.getTime() - em > SAMIQ_PII_MAPA_VALIDO_MS) return {};
+  return { ...pii.mapa };
+}
+
+/**
+ * O que vai para a memória da conversa depois do turno: o mapa inteiro (até 12
+ * marcadores), com `em` renovado só quando esta mensagem trouxe marcador novo.
+ */
+export function piiParaMemoria(
+  anterior: PiiDaConversa | null | undefined,
+  mapaDoTurno: MapaPiiCorretor,
+  agora: Date,
+): PiiDaConversa | null {
+  const chaves = Object.keys(mapaDoTurno);
+  if (chaves.length === 0) return null;
+  const antes = anterior?.mapa ?? {};
+  const trouxeNovo = chaves.some((k) => antes[k] !== mapaDoTurno[k]);
+  const em = trouxeNovo || !anterior?.em ? agora.toISOString() : anterior.em;
+  const mapa = Object.fromEntries(chaves.slice(-12).map((k) => [k, mapaDoTurno[k]!]));
+  return { mapa, em };
+}
+
 /**
  * Texto do CORRETOR que vai ao modelo (pergunta e histórico). Diferente do
  * texto livre vindo do banco, aqui nomes de cliente e de empreendimento
@@ -94,9 +129,23 @@ const MARCADOR_RESTAURAVEL = /\[(TELEFONE|EMAIL|CPF)_\d{1,2}\]/g;
 export function redigirTextoDoCorretor(
   value: string,
   maxLength = 4000,
+  /**
+   * v8.2: marcadores das mensagens anteriores da conversa (30 min). A numeração
+   * continua de onde parou e o mesmo telefone ganha o mesmo marcador, para o
+   * modelo poder usar o [TELEFONE_1] que viu no histórico ("sim, é outro
+   * cliente" depois de "cadastra Fulano 11 9...").
+   */
+  anterior: MapaPiiCorretor = {},
 ): { texto: string; mapa: MapaPiiCorretor } {
-  const mapa: MapaPiiCorretor = {};
+  const mapa: MapaPiiCorretor = { ...anterior };
   const contagem: Record<"TELEFONE" | "EMAIL" | "CPF", number> = { TELEFONE: 0, EMAIL: 0, CPF: 0 };
+  for (const chave of Object.keys(anterior)) {
+    const m = /^\[(TELEFONE|EMAIL|CPF)_(\d{1,2})\]$/.exec(chave);
+    if (m) {
+      const tipo = m[1] as "TELEFONE" | "EMAIL" | "CPF";
+      contagem[tipo] = Math.max(contagem[tipo], Number(m[2]));
+    }
+  }
   const marcar = (tipo: "TELEFONE" | "EMAIL" | "CPF") => (achado: string) => {
     const valor = achado.trim();
     const existente = Object.entries(mapa).find(([, v]) => v === valor)?.[0];

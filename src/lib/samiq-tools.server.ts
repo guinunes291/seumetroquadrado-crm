@@ -15,7 +15,19 @@ import type { Database } from "@/integrations/supabase/types";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { filtroOrTelefone } from "@/lib/lead-busca-telefone";
-import { restaurarPiiDoCorretor, type MapaPiiCorretor } from "@/lib/samiq-governance";
+import {
+  displayNameForSamiQ,
+  restaurarPiiDoCorretor,
+  type MapaPiiCorretor,
+} from "@/lib/samiq-governance";
+import {
+  INSTRUCAO_CLIENTE_AMBIGUO,
+  candidatosParaPergunta,
+  escolherEntreHomonimos,
+  mensagemNomeia,
+  type ClienteParaDesambiguar,
+} from "@/lib/samiq-homonimos";
+import { buscarHomonimos, resolverLead } from "@/lib/samiq-propostas-leitura.server";
 import {
   BuscarClientesInput,
   CatalogoProjetosInput,
@@ -76,11 +88,53 @@ export function criarFerramentasSamiQ(args: {
   mapaPii?: MapaPiiCorretor;
   /** v8: registra os clientes vistos para o próximo turno achar "ela", "o 2". */
   citar?: CitarClienteSamiQ;
+  /**
+   * v8.2: trava de homônimos na LEITURA detalhe_cliente. Só age quando a
+   * mensagem deste turno nomeia o cliente; pronome ("dele") segue a memória.
+   */
+  homonimos?: {
+    /** Texto cru do corretor (este turno e os anteriores), só no servidor. */
+    textoDoCorretor: string;
+    /** Texto cru só deste turno: decide se o nome foi dito agora. */
+    perguntaDoTurno: string;
+    liberados?: ReadonlySet<string>;
+    aoAmbiguo?: (candidatos: ReturnType<typeof candidatosParaPergunta>) => void;
+  };
 }): ToolSet {
   const { supabase, userId } = args;
   const agora = args.agora ?? new Date();
   const mapaPii = args.mapaPii ?? {};
   const citar: CitarClienteSamiQ = args.citar ?? (() => {});
+  const homonimos = args.homonimos;
+
+  /**
+   * Devolve o id que o corretor de fato apontou (pode ser outro homônimo), um
+   * bloqueio "cliente_ambiguo" ou null quando não há o que desambiguar.
+   */
+  const checarHomonimosNaLeitura = async (
+    lead: ClienteParaDesambiguar,
+  ): Promise<
+    { usarId: string } | { erro: string; detalhe: string; candidatos: unknown[] } | null
+  > => {
+    if (!homonimos) return null;
+    if (homonimos.liberados?.has(lead.id)) return null;
+    if (!mensagemNomeia(homonimos.perguntaDoTurno, lead)) return null;
+    const outros = await buscarHomonimos(supabase, lead);
+    if (!outros || outros.length === 0) return null;
+    const r = escolherEntreHomonimos({
+      alvo: lead,
+      homonimos: outros,
+      texto: homonimos.textoDoCorretor,
+    });
+    if (r.ok) return r.trocou ? { usarId: r.id } : null;
+    const candidatos = candidatosParaPergunta([lead, ...outros], displayNameForSamiQ);
+    homonimos.aoAmbiguo?.(candidatos);
+    return {
+      erro: "cliente_ambiguo",
+      detalhe: `${INSTRUCAO_CLIENTE_AMBIGUO} Numere a lista (1, 2, 3...) nessa ordem: o corretor pode responder só com o número.`,
+      candidatos,
+    };
+  };
 
   return {
     buscar_clientes: tool({
@@ -124,25 +178,34 @@ export function criarFerramentasSamiQ(args: {
       description: SAMIQ_TOOL_DESCRIPTIONS.detalhe_cliente,
       inputSchema: DetalheClienteInput,
       execute: async (input) => {
+        // v8.2: com homônimo na carteira e o nome dito nesta mensagem, o id que
+        // o modelo mandou pode ser o errado ("e o Teste QA Sami Um?" com dois).
+        let leadId = input.leadId;
+        // O contato do cliente fica em resolverLead (servidor) e nunca sai daqui.
+        const alvo = homonimos ? await resolverLead(supabase, leadId) : null;
+        if (homonimos && !alvo) return { erro: "cliente_nao_encontrado" };
+        const trava = alvo ? await checarHomonimosNaLeitura(alvo.bruto) : null;
+        if (trava && "erro" in trava) return trava;
+        if (trava) leadId = trava.usarId;
         const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const [lead, interacoes, tarefas, agendamentos, documentos] = await Promise.all([
           supabase
             .from("leads")
             .select(LEAD_DETALHE_COLS)
-            .eq("id", input.leadId)
+            .eq("id", leadId)
             .is("deleted_at", null)
             .maybeSingle(),
           supabase
             .from("interacoes")
             .select("tipo, direcao, titulo, conteudo, ocorreu_em")
-            .eq("lead_id", input.leadId)
+            .eq("lead_id", leadId)
             .is("deleted_at", null)
             .order("ocorreu_em", { ascending: false })
             .limit(12),
           supabase
             .from("tarefas")
             .select("id, titulo, tipo, prioridade, status, data_vencimento, lead_id")
-            .eq("lead_id", input.leadId)
+            .eq("lead_id", leadId)
             .is("deleted_at", null)
             .in("status", ["pendente", "em_andamento"])
             .order("data_vencimento", { ascending: true, nullsFirst: false })
@@ -150,7 +213,7 @@ export function criarFerramentasSamiQ(args: {
           supabase
             .from("agendamentos")
             .select("id, tipo, status, titulo, local, data_inicio, data_fim, lead_id")
-            .eq("lead_id", input.leadId)
+            .eq("lead_id", leadId)
             .is("deleted_at", null)
             .gte("data_inicio", seteDiasAtras)
             .order("data_inicio", { ascending: true })
@@ -158,7 +221,7 @@ export function criarFerramentasSamiQ(args: {
           supabase
             .from("documentacoes")
             .select("tipo, status, recebido_em, observacoes")
-            .eq("lead_id", input.leadId)
+            .eq("lead_id", leadId)
             .limit(40),
         ]);
         if (lead.error) falhaConsulta("detalhe_cliente", lead.error);

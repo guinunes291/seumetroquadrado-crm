@@ -150,6 +150,9 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
     const citados: Array<Omit<ClienteCitado, "em">> = [];
     // Candidatos da pergunta "qual Maria?" deste turno (vazio = sem pergunta).
     const ambiguos: AmbiguosDoTurno = { lista: [], conflito: false };
+    // v8.2: a pergunta com marcadores numerados e o mapa vão para a memória da conversa.
+    let perguntaParaMemoria: string | undefined;
+    let mapaPiiDoTurno: MapaPiiCorretor | undefined;
 
     if (usarFerramentas) {
       const {
@@ -165,6 +168,8 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
         localizacao,
         contextoExecucao,
       } = prepararTurnoComFerramentas({ data, canal, args, citados });
+      perguntaParaMemoria = perguntaSegura;
+      mapaPiiDoTurno = mapaPii;
 
       // Loop de ferramentas: leitura pelo supabase do usuário (RLS) e ações
       // validadas antes de qualquer gravação.
@@ -319,6 +324,8 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       agora,
       ambiguos,
       fallback,
+      perguntaSegura: perguntaParaMemoria,
+      mapaPii: mapaPiiDoTurno,
     });
   } catch (error) {
     if (APICallError.isInstance(error)) {

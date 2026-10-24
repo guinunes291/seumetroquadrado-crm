@@ -77,7 +77,21 @@ export async function montarFerramentasDoTurno({
   // Ações gravadas na hora (só no modo por risco): quem chama guarda a lista.
   let executadas: AcaoExecutada[] | null = null;
   const { criarFerramentasSamiQ } = await import("./samiq-tools.server");
-  const tools: ToolSet = criarFerramentasSamiQ({ supabase, userId, agora, mapaPii, citar });
+  const tools: ToolSet = criarFerramentasSamiQ({
+    supabase,
+    userId,
+    agora,
+    mapaPii,
+    citar,
+    // v8.2: a leitura detalhe_cliente também respeita homônimos quando a
+    // mensagem nomeia o cliente ("e o Teste QA Sami Um?").
+    homonimos: {
+      textoDoCorretor,
+      perguntaDoTurno: data.pergunta ?? "",
+      liberados,
+      aoAmbiguo: (candidatos) => anotarAmbiguos(ambiguos, candidatos),
+    },
+  });
   // Onda S5 (D16): skills determinísticas, também só de leitura.
   const { criarFerramentasDeSkillsSamiQ } = await import("./samiq-skills.server");
   Object.assign(tools, criarFerramentasDeSkillsSamiQ({ supabase, userId }));
@@ -107,7 +121,7 @@ export async function montarFerramentasDoTurno({
         textoDoCorretor,
         leadIdEmContexto: data.leadId,
         liberados,
-        aoAmbiguo: (ids) => anotarAmbiguos(ambiguos, ids),
+        aoAmbiguo: (candidatos) => anotarAmbiguos(ambiguos, candidatos),
         mapaPii,
         citar,
         agora,
