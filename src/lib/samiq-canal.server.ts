@@ -289,7 +289,8 @@ export async function decidirPendentes(args: {
       canal: "whatsapp",
     });
     if (args.contexto) {
-      const gravadas = decisao === "confirmar" ? resultados.filter((r) => r.ok).map((r) => r.id) : [];
+      const gravadas =
+        decisao === "confirmar" ? resultados.filter((r) => r.ok).map((r) => r.id) : [];
       await gravarContextoTurnoSamiQ({
         userId: corretor.id,
         conversaId: args.conversaId,
@@ -321,7 +322,9 @@ export async function desfazerPeloCanal(args: {
   mensagemId?: string | null;
 }): Promise<{ texto: string; resultados: Array<{ id: string; ok: boolean; erro?: string }> }> {
   const { corretor, acoes } = args;
-  const resultados = acoes.length ? await desfazerPropostas({ userId: corretor.id, ids: acoes.map((a) => a.id) }) : [];
+  const resultados = acoes.length
+    ? await desfazerPropostas({ userId: corretor.id, ids: acoes.map((a) => a.id) })
+    : [];
   const texto = textoDoDesfazer(resultados, acoes);
   await gravarTurnoSamiQ({
     userId: corretor.id,
@@ -349,7 +352,8 @@ export async function desfazerPeloCanal(args: {
 // Retentativa do n8n enquanto a primeira chamada ainda roda (mesma instância):
 // a segunda não processa de novo (ações gravadas na hora não duplicam). Entre
 // instâncias, a guarda é o ultima_mensagem_id da memória da conversa.
-const EM_ANDAMENTO = new Map<string, number>();
+let EM_ANDAMENTO = new Map<string, number>();
+const JANELA_EM_ANDAMENTO_MS = 5 * 60_000;
 
 export function reservarMensagemDoCanal(
   userId: string,
@@ -358,10 +362,13 @@ export function reservarMensagemDoCanal(
   if (!mensagemId) return { liberar: () => {} };
   const chave = `${userId}:${mensagemId}`;
   const agora = Date.now();
-  for (const [k, t] of EM_ANDAMENTO) if (agora - t > 5 * 60_000) EM_ANDAMENTO.delete(k);
-  if (EM_ANDAMENTO.has(chave)) return null;
+  if (EM_ANDAMENTO.size > 500) {
+    EM_ANDAMENTO = new Map([...EM_ANDAMENTO].filter(([, t]) => agora - t < JANELA_EM_ANDAMENTO_MS));
+  }
+  if (agora - (EM_ANDAMENTO.get(chave) ?? 0) < JANELA_EM_ANDAMENTO_MS) return null;
   EM_ANDAMENTO.set(chave, agora);
-  return { liberar: () => void EM_ANDAMENTO.delete(chave) };
+  // Liberar = marcar como antiga (a mesma mensagem pode voltar depois de pronta).
+  return { liberar: () => void EM_ANDAMENTO.set(chave, 0) };
 }
 
 /** Erro → resposta JSON com um `texto` que o n8n pode mandar ao corretor. */

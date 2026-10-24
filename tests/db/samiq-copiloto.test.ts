@@ -42,7 +42,9 @@ type Reserva = {
   execution_id: string | null;
   prompt_version: string | null;
   system_prompt: string | null;
+  action_prompt: string | null;
   tools_enabled: boolean | null;
+  propostas_enabled: boolean | null;
   max_tool_steps: number | null;
   custo_mes_pct: number | null;
 };
@@ -119,19 +121,25 @@ describe("reserva com ferramentas de leitura", () => {
   it("devolve a versão ativa com tools_enabled, o teto de passos da política e sem % de custo quando não há teto", async () => {
     const r = await reservar(c, corretorA.id);
     expect(r.allowed).toBe(true);
-    // Versão ativa mais recente: v6 (aprovação de crédito, 20260927120000) é a
-    // v5 + a ação ler_aprovacao_credito — mesmo system prompt, por isso as
-    // asserções da S5 abaixo seguem valendo. v3, v4 e v5 ficam inativas.
-    expect(r.prompt_version).toBe("samiq-2026-09-v6");
+    // Versão ativa mais recente: v8 ("CRM no WhatsApp", 20261024120100), derivada
+    // da ativa anterior (v6 no replay; v7.1 em produção) com o mesmo modelo e
+    // os mesmos action_prompts, trocando o system prompt e o pergunta_livre.
+    expect(r.prompt_version).toBe("samiq-2026-10-v8");
     expect(r.tools_enabled).toBe(true);
-    expect(r.max_tool_steps).toBe(6);
+    expect(r.propostas_enabled).toBe(true);
+    // v8: 10 passos por resposta (era 6).
+    expect(r.max_tool_steps).toBe(10);
     expect(r.custo_mes_pct).toBeNull();
     expect(r.system_prompt).toContain("Não consegui");
-    expect(r.system_prompt).toContain("NÃO gravam nada");
-    // Onda S5: a v5 apresenta as skills e proíbe aritmética fora da ferramenta.
+    expect(r.system_prompt).toContain("AUTONOMIA POR RISCO");
+    // honestidade: só é "gravado" o que a ferramenta devolveu como gravado
+    expect(r.system_prompt).toContain('"aguardando_confirmacao" = nada gravado ainda');
+    // skills continuam sendo a única fonte de número de MCMV
     expect(r.system_prompt).toContain("pre_analise_mcmv");
-    expect(r.system_prompt).toMatch(/nunca calcule/);
+    expect(r.system_prompt).toMatch(/nunca de cabeça/);
+    expect(r.system_prompt).not.toContain("—");
     expect(r.action_prompt).toContain("curar_estoque");
+    expect(r.action_prompt).toContain("registrar_contato");
   });
 
   it("ação sem prompt versionado continua rejeitada (22023)", async () => {

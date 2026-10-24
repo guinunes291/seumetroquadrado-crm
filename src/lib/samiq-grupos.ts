@@ -20,7 +20,14 @@ export const FERRAMENTAS_BASE = [
 ] as const;
 
 export const FERRAMENTAS_POR_GRUPO: Record<GrupoFerramentas, readonly string[]> = {
-  carteira: ["listar_clientes", "minha_fila", "meu_funil", "minha_situacao", "minhas_tarefas", "minha_agenda"],
+  carteira: [
+    "listar_clientes",
+    "minha_fila",
+    "meu_funil",
+    "minha_situacao",
+    "minhas_tarefas",
+    "minha_agenda",
+  ],
   agenda: [
     "minha_agenda",
     "agendar_visita",
@@ -61,13 +68,15 @@ export const FERRAMENTAS_POR_GRUPO: Record<GrupoFerramentas, readonly string[]> 
 };
 
 /** Quando a mensagem não dá pista nenhuma: o que mais aparece no dia a dia. */
-export const GRUPOS_PADRAO: readonly GrupoFerramentas[] = ["carteira", "agenda", "tarefas", "qualificacao"];
+export const GRUPOS_PADRAO: readonly GrupoFerramentas[] = [
+  "carteira",
+  "agenda",
+  "tarefas",
+  "qualificacao",
+];
 
 function normalizar(texto: string): string {
-  return (texto ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+  return (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 // Pistas por grupo (texto já sem acento). Ordem não importa: todos que casam entram.

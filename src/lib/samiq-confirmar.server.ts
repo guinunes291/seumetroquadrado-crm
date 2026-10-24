@@ -102,7 +102,12 @@ export async function confirmarPropostas(args: {
     }
 
     if (!(await reivindicar(userId, row.id))) {
-      resultados.push({ id: row.id, ok: false, status: "indisponivel", erro: "já está sendo gravada" });
+      resultados.push({
+        id: row.id,
+        ok: false,
+        status: "indisponivel",
+        erro: "já está sendo gravada",
+      });
       continue;
     }
 
@@ -219,7 +224,9 @@ export async function desfazerPropostas(args: {
 export function jsonEstavel(valor: unknown): string {
   return JSON.stringify(valor, (_k, v) =>
     v && typeof v === "object" && !Array.isArray(v)
-      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)),
+        )
       : v,
   );
 }

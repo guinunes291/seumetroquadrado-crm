@@ -62,7 +62,11 @@ function falhaConsulta(ferramenta: string, error: unknown): never {
 }
 
 /** Cliente que apareceu numa consulta: vira a "memória de trabalho" da conversa. */
-export type CitarClienteSamiQ = (c: { id: string; nome: string | null; etapa?: string | null }) => void;
+export type CitarClienteSamiQ = (c: {
+  id: string;
+  nome: string | null;
+  etapa?: string | null;
+}) => void;
 
 export function criarFerramentasSamiQ(args: {
   supabase: Db;
@@ -110,7 +114,8 @@ export function criarFerramentasSamiQ(args: {
         const { data, error } = await query;
         if (error) falhaConsulta("buscar_clientes", error);
         const rows = data ?? [];
-        if (rows.length <= 3) for (const r of rows) citar({ id: r.id, nome: r.nome, etapa: r.status });
+        if (rows.length <= 3)
+          for (const r of rows) citar({ id: r.id, nome: r.nome, etapa: r.status });
         return { clientes: modelarClientes(rows, limite) };
       },
     }),

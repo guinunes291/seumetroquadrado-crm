@@ -8,6 +8,11 @@ import {
   redactSamiQFreeText,
   redactSamiQPii,
 } from "@/lib/samiq-governance";
+import {
+  SAMIQ_NIVEL_ACAO,
+  SAMIQ_PROPOSTA_TIPOS,
+  SAMIQ_TIPOS_DESFAZIVEIS,
+} from "@/lib/samiq-propostas";
 
 const root = process.cwd();
 const migration = readFileSync(
@@ -48,7 +53,7 @@ const skillsPuro = readFileSync(join(root, "src/lib/samiq-skills.ts"), "utf8");
 const catalogo = readFileSync(join(root, "src/lib/samiq-tools.ts"), "utf8");
 const skillsServer = readFileSync(join(root, "src/lib/samiq-skills.server.ts"), "utf8");
 const briefingPuro = readFileSync(join(root, "src/lib/samiq-briefing.ts"), "utf8");
-const rotasSami = ["mensagem", "propostas", "briefing"].map((r) =>
+const rotasSami = ["mensagem", "propostas", "briefing", "anexo"].map((r) =>
   readFileSync(join(root, `src/routes/api/sami/${r}.ts`), "utf8"),
 );
 const painel = readFileSync(join(root, "src/components/samiq/samiq-panel.tsx"), "utf8");
@@ -402,21 +407,22 @@ describe("Onda S2 — escrita por proposta confirmada (migration 20260907100000)
     expect(handler).toContain("registrarPropostasSamiQ");
   });
 
-  it("as ferramentas propor_* só LEEM o cliente (RLS) e empilham — nunca gravam", () => {
+  it("as ferramentas de escrita só LEEM o cliente (RLS) e validam — nunca gravam por conta própria", () => {
     expect(propostasTools).not.toMatch(/\.(insert|update|delete|upsert)\(/);
     expect(propostasTools).not.toMatch(/\.rpc\(/);
     expect(propostasTools).not.toContain("supabaseAdmin");
-    for (const name of [
-      "propor_registro_contato",
-      "propor_anotacao",
-      "propor_tarefa",
-      "propor_qualificacao",
-      "propor_visita",
-      "propor_etapa",
-    ]) {
-      expect(propostasTools).toContain(`${name}: tool({`);
+    // v8: uma ferramenta por tipo de ação (os nomes são os do catálogo).
+    for (const tipo of SAMIQ_PROPOSTA_TIPOS) {
+      expect(propostasTools).toContain(`${tipo}: tool({`);
     }
     expect(propostasTools).toContain("Nada foi gravado");
+    // Ação leve só grava na hora quando quem chama entregou o executor (WhatsApp).
+    expect(propostasTools).toContain(
+      'nivelDaAcao(payload.tipo, modo) === "direto" && args.executarAgora',
+    );
+    expect(propostasTools).toMatch(
+      /const modo: ModoEscritaSamiQ = args\.executarAgora\s*\?\s*\(args\.modo \?\? "confirmar_tudo"\)\s*:\s*"confirmar_tudo"/,
+    );
   });
 
   it("o executor é o único que escreve: com a sessão do corretor, marcando origem samiq, e etapa só pela RPC", () => {
@@ -619,7 +625,7 @@ describe("Onda S4 — um cérebro, dois canais (migration 20260909100000)", () =
   });
 
   it("rotas /api/sami/*: só POST, autenticam antes de tudo, sem admin nem modelo no arquivo de rota", () => {
-    expect(rotasSami).toHaveLength(3);
+    expect(rotasSami).toHaveLength(4);
     for (const rota of rotasSami) {
       expect(rota).toContain("canal.autenticarCanalSami(request)");
       expect(rota).toContain('await import("@/lib/samiq-canal.server")');
@@ -630,7 +636,7 @@ describe("Onda S4 — um cérebro, dois canais (migration 20260909100000)", () =
       expect(rota).not.toMatch(/\.(insert|update|delete|upsert)\(/);
     }
     const [mensagem] = rotasSami;
-    expect(mensagem).toContain("interpretarRespostaCurta(body.texto)");
+    expect(mensagem).toContain("interpretarComandoCurto(body.texto)");
     expect(mensagem).toContain('canal: "whatsapp"');
     expect(mensagem).toContain("origemMidia: body.origem_midia");
     expect(mensagem).toContain('action: "pergunta_livre"');
@@ -699,5 +705,141 @@ describe("Gateway — ferramentas no menor denominador comum e falha diagnostic�
     expect(handler).not.toMatch(
       /samiq_gateway_failed[\s\S]{0,400}(messages|prompt|perguntaSegura)/,
     );
+  });
+});
+
+describe("v8 — o CRM inteiro no WhatsApp, com autonomia por risco (migration 20261024120000)", () => {
+  const v8 = readFileSync(
+    join(root, "supabase/migrations/20261024120000_samiq_v8_crm_whatsapp.sql"),
+    "utf8",
+  );
+  const acoes = readFileSync(join(root, "src/lib/samiq-acoes.server.ts"), "utf8");
+  const controle = readFileSync(join(root, "src/lib/samiq-controle.server.ts"), "utf8");
+  const anexos = readFileSync(join(root, "src/lib/samiq-anexos.server.ts"), "utf8");
+  const [mensagem, , , anexoRota] = rotasSami;
+
+  /** Lista de 'tipo' entre aspas simples dentro do primeiro bloco que casar. */
+  const tiposDoBloco = (re: RegExp) =>
+    [...(v8.match(re)?.[1] ?? "").matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+
+  it("o banco aceita exatamente os 25 tipos do catálogo e o estado 'executando'", () => {
+    expect(tiposDoBloco(/samiq_propostas_tipo_check CHECK \(tipo IN \(([\s\S]*?)\)\);/)).toEqual(
+      [...SAMIQ_PROPOSTA_TIPOS].sort(),
+    );
+    expect(v8).toMatch(/samiq_propostas_status_check CHECK \(status IN \([\s\S]*?'executando'/);
+  });
+
+  it("o desfazer do banco espelha SAMIQ_TIPOS_DESFAZIVEIS nas duas funções", () => {
+    const esperado = [...SAMIQ_TIPOS_DESFAZIVEIS].sort();
+    expect(
+      tiposDoBloco(
+        /_pode_desfazer := _status IN \('aceita', 'editada'\) AND _p\.tipo IN \(([\s\S]*?)\);/,
+      ),
+    ).toEqual(esperado);
+    expect(
+      tiposDoBloco(
+        /IF _p\.tipo NOT IN \(([\s\S]*?)\) THEN\s*RAISE EXCEPTION 'esta acao nao se desfaz/,
+      ),
+    ).toEqual(esperado);
+    // etapa do funil nunca volta pelo botão; ficha só pela whitelist de colunas
+    expect(v8).toContain("mudanca de etapa nao se desfaz pelo botao");
+    expect(v8).toContain("jsonb_populate_record(NULL::public.leads, $1)");
+    expect(v8).toMatch(/WHERE e\.key = ANY \(_colunas_lead\)/);
+    expect(v8).not.toMatch(/'status'[^;]*_colunas_lead|_colunas_lead[^;]*'status'/);
+  });
+
+  it("pesada nunca é leve: o que passa pelo funil, venda, crédito, cadastro e lote pede CONFIRMAR", () => {
+    for (const tipo of [
+      "agendar_visita",
+      "mudar_etapa",
+      "registrar_retorno",
+      "marcar_perdido",
+      "trocar_vaga",
+      "cancelar_visita",
+      "registrar_visita",
+      "enviar_analise_credito",
+      "registrar_resultado_credito",
+      "registrar_venda",
+      "criar_lead",
+      "pedir_lote",
+    ] as const) {
+      expect(SAMIQ_NIVEL_ACAO[tipo], tipo).toBe("confirmar");
+    }
+  });
+
+  it("RPCs novas só para o service_role; anexos com RLS de leitura do dono e sem escrita pelo browser", () => {
+    for (const fn of [
+      "samiq_reivindicar_proposta",
+      "samiq_contexto_turno",
+      "samiq_decidir_proposta",
+      "samiq_desfazer_proposta",
+    ]) {
+      expect(v8).toMatch(
+        new RegExp(
+          `REVOKE ALL ON FUNCTION public\\.${fn}[\\s\\S]*?FROM PUBLIC, anon, authenticated`,
+        ),
+      );
+      expect(v8).toMatch(
+        new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${fn}[\\s\\S]*?TO service_role;`),
+      );
+    }
+    expect(v8).toMatch(/samiq_anexos_select_proprios[\s\S]*?USING \(user_id = auth\.uid\(\)\)/);
+    expect(v8).toContain("GRANT SELECT ON TABLE public.samiq_anexos TO authenticated");
+    expect(v8).not.toMatch(/GRANT[^;]*(INSERT|UPDATE|DELETE)[^;]*samiq_anexos[^;]*authenticated/);
+    expect(v8).toContain("SET LOCAL lock_timeout = '10s'");
+    expect(v8).not.toMatch(/^\s*DROP TRIGGER/m);
+  });
+
+  it("execução imediata não é caminho novo de escrita: registra a ação e executa pelo núcleo do CONFIRMAR", () => {
+    expect(acoes).toContain("registrarPropostasSamiQ(");
+    expect(acoes).toContain("confirmarPropostas(");
+    expect(acoes).not.toMatch(/\.(insert|update|delete|upsert)\(|\.rpc\(|supabaseAdmin/);
+    // e o CONFIRMAR reivindica antes de executar (duplo clique / retentativa)
+    expect(confirmar).toContain('("samiq_reivindicar_proposta", {');
+  });
+
+  it("controle da fila pela conversa: OK explícito em código, sem escrita própria", () => {
+    expect(controle).toContain("consentimentoExplicito(args.textoDoCorretor)");
+    expect(controle).toContain("confirmarPropostas(");
+    expect(controle).toContain("rejeitarPropostas(");
+    expect(controle).toContain("desfazerPropostas(");
+    expect(controle).not.toMatch(/\.(insert|update|delete|upsert)\(|\.rpc\(|supabaseAdmin/);
+  });
+
+  it("o cérebro: só o WhatsApp grava na hora; o painel continua confirmando tudo", () => {
+    expect(handler).toContain('args.modoEscrita ?? "confirmar_tudo"');
+    expect(handler).toContain('if (modo === "por_risco")');
+    expect(mensagem).toContain('modoEscrita: "por_risco"');
+    expect(painelFn).not.toContain("modoEscrita");
+    // ferramentas por intenção: o 1º passo recebe os grupos e o modelo abre outros
+    expect(handler).toContain("activeTools: ativas()");
+    expect(handler).toContain("prepareStep: () => ({ activeTools: ativas() })");
+    expect(handler).toContain("tools.abrir_ferramentas = tool({");
+    // texto do corretor: telefone/e-mail/CPF viram marcadores restauráveis só no servidor
+    expect(handler).toContain("redigirTextoDoCorretor(data.pergunta, LIMITE_PERGUNTA[canal])");
+    // o que vai para a memória do WhatsApp é o texto que o corretor viu (recibo incluso)
+    expect(handler).toContain("resposta: textoCanal ?? texto");
+    expect(handler).toContain("gravarContextoTurnoSamiQ({");
+  });
+
+  it("rota de mensagem: retentativa não repete ação; comando curto decide sem modelo", () => {
+    expect(mensagem).toContain("canal.reservarMensagemDoCanal(corretor.id, body.mensagem_id)");
+    expect(mensagem).toContain("lido.ultima_mensagem_id === body.mensagem_id");
+    expect(mensagem).toContain("comando.forte || contexto.pediu_decisao");
+    expect(mensagem).toContain("canal.decidirPendentes({");
+    expect(mensagem).toContain("canal.desfazerPeloCanal({");
+    expect(mensagem).toMatch(/finally \{\s*reserva\?\.liberar\(\);/);
+  });
+
+  it("anexo: tipo pelos bytes, área de espera privada, conteúdo nunca vai ao modelo", () => {
+    expect(anexoRota).toContain("canal.lerArquivoCanalSami(request)");
+    expect(canalServer).toContain("mimePelosBytes(");
+    expect(anexos).toContain("`samiq-anexos/${args.corretorId}/");
+    expect(anexos).toContain('rpc("registrar_documentacao_upload"');
+    // a sessão do corretor prova o acesso ao lead antes do storage privilegiado
+    expect(anexos).toMatch(
+      /Item do checklist com a sessão do corretor[\s\S]*?supabase\s*\.from\("documentacoes"\)/,
+    );
+    expect(handler).toContain("Você não vê o conteúdo");
   });
 });

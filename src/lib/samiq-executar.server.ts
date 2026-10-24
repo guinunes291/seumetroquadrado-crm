@@ -202,7 +202,11 @@ async function garantirFollowUp(
 }
 
 /** Auxiliar que nunca derruba a ação: devolve o aviso em vez de lançar. */
-async function auxiliar(avisos: string[], rotulo: string, fn: () => Promise<unknown>): Promise<void> {
+async function auxiliar(
+  avisos: string[],
+  rotulo: string,
+  fn: () => Promise<unknown>,
+): Promise<void> {
   try {
     await fn();
   } catch (e) {
@@ -302,7 +306,11 @@ async function followUpsAbertosPerto(supabase: Db, leadId: string, iso: string):
 }
 
 /** Duas tarefas abertas no mesmo horário exato (cadência + retorno): fica a mais nova. */
-async function deduplicarTarefasNoHorario(supabase: Db, leadId: string, iso: string): Promise<void> {
+async function deduplicarTarefasNoHorario(
+  supabase: Db,
+  leadId: string,
+  iso: string,
+): Promise<void> {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return;
   const { data } = await supabase
@@ -388,7 +396,10 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       if (out.interacao_id) {
         const interacaoId = out.interacao_id;
         await auxiliar(avisos, "marca via Sami", () =>
-          marcarViaSami(supabase, interacaoId, marca, { origem: "registrar_contato", resultado: payload.resultado }),
+          marcarViaSami(supabase, interacaoId, marca, {
+            origem: "registrar_contato",
+            resultado: payload.resultado,
+          }),
         );
       }
       // Cadência D0 a D3: a tentativa sem resposta também conta na régua
@@ -422,7 +433,8 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         efeitos.push(textoLotado(out.lotado));
         resultado.lotado = out.lotado as Json;
       }
-      if (resultado.cadencia_tentativa) efeitos.push(`tentativa contada na cadência (${lead.cadencia_etapa})`);
+      if (resultado.cadencia_tentativa)
+        efeitos.push(`tentativa contada na cadência (${lead.cadencia_etapa})`);
       if (out.tarefa_id && followup) efeitos.push(`follow-up ${fmtDataHoraSP(followup)}`);
       if (avisos.length) resultado.avisos = avisos;
       resultado.efeito = efeitos.join("; ") || null;
@@ -540,14 +552,23 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         }
       }
       if (Object.keys(patch).length === 0) {
-        return { lead_id: lead.id, sem_mudanca: true, efeito: "nada mudou: a ficha já tinha esses dados" };
+        return {
+          lead_id: lead.id,
+          sem_mudanca: true,
+          efeito: "nada mudou: a ficha já tinha esses dados",
+        };
       }
       const { error } = await supabase
         .from("leads")
         .update(patch as Database["public"]["Tables"]["leads"]["Update"])
         .eq("id", lead.id);
       if (error) erroDb("Não foi possível atualizar a qualificação", error);
-      return { lead_id: lead.id, lead_anterior: anterior, campos: Object.keys(patch), efeito: null };
+      return {
+        lead_id: lead.id,
+        lead_anterior: anterior,
+        campos: Object.keys(patch),
+        efeito: null,
+      };
     }
 
     case "agendar_visita": {
@@ -685,7 +706,8 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         canal: payload.canal ?? "ligacao",
         resultado: "pediu_retorno",
         conteudo:
-          payload.nota?.trim() || (payload.desfecho === "esfriou" ? "Cliente esfriou" : "Pediu retorno"),
+          payload.nota?.trim() ||
+          (payload.desfecho === "esfriou" ? "Cliente esfriou" : "Pediu retorno"),
         proximaAcao: "Retornar como combinado",
         proximoFollowup: retorno,
         criarTarefa: false,
@@ -698,7 +720,10 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       if (contato.interacao_id) {
         const interacaoId = contato.interacao_id;
         await auxiliar(avisos, "marca via Sami", () =>
-          marcarViaSami(supabase, interacaoId, marca, { origem: "registrar_contato", resultado: "pediu_retorno" }),
+          marcarViaSami(supabase, interacaoId, marca, {
+            origem: "registrar_contato",
+            resultado: "pediu_retorno",
+          }),
         );
       }
       // 2) O desfecho oficial (até 30 dias: Aguardando retorno com tarefa;
@@ -729,7 +754,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         return resultado;
       }
       const out = (r ?? {}) as { destino?: string; proprio?: boolean };
-      await auxiliar(avisos, "tarefa duplicada", () => deduplicarTarefasNoHorario(supabase, lead.id, retorno));
+      await auxiliar(avisos, "tarefa duplicada", () =>
+        deduplicarTarefasNoHorario(supabase, lead.id, retorno),
+      );
       resultado.etapa_nova = out.destino === "perdido" ? "perdido" : "aguardando_retorno";
       resultado.efeito =
         out.destino === "perdido"
@@ -835,7 +862,8 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         .maybeSingle();
       if (aErr) erroDb("Não foi possível ler a visita", aErr);
       if (!a) throw new Error("Visita não encontrada.");
-      if (!["agendado", "confirmado"].includes(a.status)) throw new Error(`A visita está ${a.status}.`);
+      if (!["agendado", "confirmado"].includes(a.status))
+        throw new Error(`A visita está ${a.status}.`);
       const confirmar = payload.tipo === "confirmar_visita";
       const { error } = await supabase
         .from("agendamentos")
@@ -845,9 +873,17 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
             : { status: "cancelado", motivo_cancelamento: payload.motivo.trim() },
         )
         .eq("id", a.id);
-      if (error) erroDb(confirmar ? "Não foi possível confirmar a visita" : "Não foi possível cancelar a visita", error);
+      if (error)
+        erroDb(
+          confirmar ? "Não foi possível confirmar a visita" : "Não foi possível cancelar a visita",
+          error,
+        );
       const resultado: ResultadoExecucao = {
-        agendamento_anterior: { id: a.id, status: a.status, motivo_cancelamento: a.motivo_cancelamento },
+        agendamento_anterior: {
+          id: a.id,
+          status: a.status,
+          motivo_cancelamento: a.motivo_cancelamento,
+        },
         lead_id: a.lead_id,
         efeito: confirmar ? "visita confirmada" : "visita cancelada",
       };
@@ -871,7 +907,11 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
               .from("tarefas")
               .update(
                 confirmar
-                  ? { status: "concluida", data_conclusao: agora.toISOString(), resultado: "Visita confirmada" }
+                  ? {
+                      status: "concluida",
+                      data_conclusao: agora.toISOString(),
+                      resultado: "Visita confirmada",
+                    }
                   : { status: "cancelada", resultado: "Visita cancelada" },
               )
               .in("id", ids);
@@ -887,13 +927,16 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
     case "remarcar_visita": {
       const { data: a, error: aErr } = await supabase
         .from("agendamentos")
-        .select("id, status, lead_id, corretor_id, titulo, descricao, local, tipo, data_inicio, data_fim, lembrete_minutos, lead:leads(id, nome)")
+        .select(
+          "id, status, lead_id, corretor_id, titulo, descricao, local, tipo, data_inicio, data_fim, lembrete_minutos, lead:leads(id, nome)",
+        )
         .eq("id", payload.agendamentoId)
         .is("deleted_at", null)
         .maybeSingle();
       if (aErr) erroDb("Não foi possível ler a visita", aErr);
       if (!a) throw new Error("Visita não encontrada.");
-      if (!["agendado", "confirmado"].includes(a.status)) throw new Error(`A visita está ${a.status}.`);
+      if (!["agendado", "confirmado"].includes(a.status))
+        throw new Error(`A visita está ${a.status}.`);
       const inicio = new Date(payload.novoInicioEm);
       if (inicio.getTime() < agora.getTime() - 60_000) throw new Error("A nova data já passou.");
       const duracaoMs = payload.duracaoMin
@@ -923,7 +966,10 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         .update({ status: "remarcado" })
         .eq("id", a.id);
       if (oldErr) {
-        await supabase.from("agendamentos").update({ deleted_at: new Date().toISOString() }).eq("id", nova.id);
+        await supabase
+          .from("agendamentos")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", nova.id);
         erroDb("Não foi possível remarcar a visita", oldErr);
       }
       const resultado: ResultadoExecucao = {
@@ -982,7 +1028,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       if (!agendamentoId) {
         // Visita que aconteceu sem estar agendada (a tela faz o mesmo: cria o
         // agendamento automático e valida em seguida).
-        const quando = payload.realizadaEm ? new Date(payload.realizadaEm) : new Date(agora.getTime() - HORA_MS);
+        const quando = payload.realizadaEm
+          ? new Date(payload.realizadaEm)
+          : new Date(agora.getTime() - HORA_MS);
         const { data: auto, error: autoErr } = await supabase
           .from("agendamentos")
           .insert({
@@ -1005,7 +1053,11 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         autoGerado = auto.id;
       }
       const etapa = (payload.proximaEtapa ??
-        (payload.compareceu ? "visita_realizada" : payload.reagendarPara ? "agendado" : "aguardando_retorno")) as LeadStatus;
+        (payload.compareceu
+          ? "visita_realizada"
+          : payload.reagendarPara
+            ? "agendado"
+            : "aguardando_retorno")) as LeadStatus;
       // Etapa atual que não chega à de destino direto (ex.: Em atendimento →
       // Visita realizada): passa por Agendado, como a visita agendada faria.
       let etapaAntes = lead.status;
@@ -1043,11 +1095,16 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         p_compareceu: payload.compareceu,
         p_interesse: payload.compareceu ? payload.interesse : undefined,
         p_objecao_principal: payload.objecaoPrincipal ?? undefined,
-        p_reagendar_para: payload.reagendarPara ? new Date(payload.reagendarPara).toISOString() : undefined,
+        p_reagendar_para: payload.reagendarPara
+          ? new Date(payload.reagendarPara).toISOString()
+          : undefined,
       });
       if (vErr) {
         if (autoGerado) {
-          await supabase.from("agendamentos").update({ deleted_at: new Date().toISOString() }).eq("id", autoGerado);
+          await supabase
+            .from("agendamentos")
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("id", autoGerado);
         }
         erroDb("O CRM recusou o resultado da visita", vErr);
       }
@@ -1099,13 +1156,24 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       }
       const { data: criados, error } = await supabase
         .from("documentacoes")
-        .insert(faltam.map((tipo) => ({ lead_id: lead.id, corretor_id: lead.corretor_id, tipo, status: "pendente" })))
+        .insert(
+          faltam.map((tipo) => ({
+            lead_id: lead.id,
+            corretor_id: lead.corretor_id,
+            tipo,
+            status: "pendente",
+          })),
+        )
         .select("id");
       if (error) erroDb("Não foi possível montar o checklist", error);
       return {
         lead_id: lead.id,
         documentacao_ids: (criados ?? []).map((d) => d.id),
-        efeito: `${faltam.length} documentos no checklist: ${faltam.map(docLabel).join(", ")}`.slice(0, 400),
+        efeito:
+          `${faltam.length} documentos no checklist: ${faltam.map(docLabel).join(", ")}`.slice(
+            0,
+            400,
+          ),
       };
     }
 
@@ -1142,16 +1210,25 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           .from("documentacoes")
           .update({
             status: payload.status,
-            ...(payload.observacao !== undefined ? { observacoes: payload.observacao.trim() || null } : {}),
+            ...(payload.observacao !== undefined
+              ? { observacoes: payload.observacao.trim() || null }
+              : {}),
             ...(recebe && !doc.recebido_em ? { recebido_em: agora.toISOString() } : {}),
           })
           .eq("id", doc.id);
         if (error) erroDb("Não foi possível atualizar o documento", error);
-        resultado.documento_anterior = { id: doc.id, status: doc.status, observacoes: doc.observacoes, recebido_em: doc.recebido_em };
+        resultado.documento_anterior = {
+          id: doc.id,
+          status: doc.status,
+          observacoes: doc.observacoes,
+          recebido_em: doc.recebido_em,
+        };
       }
       const depois = await statusAtual(supabase, lead.id);
       resultado.efeito = `${docLabel(payload.documento)}: ${payload.status}${
-        depois && depois !== lead.status ? `; pasta montada, cliente foi para ${rotuloEtapa(depois)}` : ""
+        depois && depois !== lead.status
+          ? `; pasta montada, cliente foi para ${rotuloEtapa(depois)}`
+          : ""
       }`;
       return resultado;
     }
@@ -1171,7 +1248,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         lead_id: lead.id,
         documentacao_id: r.documentacaoId,
         efeito: `${docLabel(payload.documento)} anexado na ficha${
-          depois && depois !== lead.status ? `; pasta montada, cliente foi para ${rotuloEtapa(depois)}` : ""
+          depois && depois !== lead.status
+            ? `; pasta montada, cliente foi para ${rotuloEtapa(depois)}`
+            : ""
         }`,
       };
     }
@@ -1271,7 +1350,8 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           }
         : {};
       const motivo = payload.motivo?.trim() || null;
-      const rotuloMotivo = payload.resultado === "aprovada_condicionada" ? "Condição" : "Reprovação";
+      const rotuloMotivo =
+        payload.resultado === "aprovada_condicionada" ? "Condição" : "Reprovação";
       const { data: atual, error: selErr } = await supabase
         .from("analises_credito")
         .select("id, status, observacoes")
@@ -1280,7 +1360,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         .limit(1)
         .maybeSingle();
       if (selErr) erroDb("Não foi possível ler a análise", selErr);
-      const decidida = ["aprovada", "aprovada_condicionada", "reprovada"].includes(atual?.status ?? "");
+      const decidida = ["aprovada", "aprovada_condicionada", "reprovada"].includes(
+        atual?.status ?? "",
+      );
       let analiseId: string;
       if (atual && !decidida) {
         const observacoes = motivo
@@ -1314,7 +1396,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
             ? "Análise de crédito APROVADA COM CONDIÇÃO"
             : "Análise de crédito REPROVADA";
       const valores = [
-        payload.valorFinanciamento ? `Financiamento R$ ${payload.valorFinanciamento.toLocaleString("pt-BR")}` : null,
+        payload.valorFinanciamento
+          ? `Financiamento R$ ${payload.valorFinanciamento.toLocaleString("pt-BR")}`
+          : null,
         payload.valorParcela ? `parcela R$ ${payload.valorParcela.toLocaleString("pt-BR")}` : null,
         payload.prazoMeses ? `${payload.prazoMeses} meses` : null,
         payload.banco ?? null,
@@ -1348,9 +1432,12 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
     case "registrar_venda": {
       const lead = await carregarLead(supabase, payload.leadId);
       if (!lead.corretor_id) throw new Error("Venda exige cliente com corretor responsável.");
-      if (payload.dataAssinatura > diaSP(agora)) throw new Error("A data de assinatura não pode ser futura.");
+      if (payload.dataAssinatura > diaSP(agora))
+        throw new Error("A data de assinatura não pode ser futura.");
       if (!mesesPrevisaoSP(agora).includes(payload.previsaoRecebimento)) {
-        throw new Error("O mês previsto para recebimento tem de estar nos próximos 12 meses (a partir do mês que vem).");
+        throw new Error(
+          "O mês previsto para recebimento tem de estar nos próximos 12 meses (a partir do mês que vem).",
+        );
       }
       let projetoId: string | null = null;
       let projetoNome = payload.projetoNome?.trim() || null;
@@ -1382,7 +1469,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           percentual_corretor: 1.85,
           percentual_gerente: 0.5,
           percentual_superintendente: 0.6,
-          observacoes: [payload.observacoes?.trim(), "Registrada via Sami"].filter(Boolean).join("\n"),
+          observacoes: [payload.observacoes?.trim(), "Registrada via Sami"]
+            .filter(Boolean)
+            .join("\n"),
           previsao_recebimento: `${payload.previsaoRecebimento}-01`,
           status_venda: "pendente",
           contrato_assinado: payload.contratoAssinado ?? false,
@@ -1424,7 +1513,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         ...(payload.modo === "loja" && !loc ? { _falha_localizacao: "indisponivel" } : {}),
       });
       if (error) erroDb("O CRM recusou o check-in", error);
-      const st = (data ?? {}) as { checkin?: { apto_roleta?: boolean; motivo?: string | null } | null };
+      const st = (data ?? {}) as {
+        checkin?: { apto_roleta?: boolean; motivo?: string | null } | null;
+      };
       const apto = st.checkin?.apto_roleta === true;
       const motivo = st.checkin?.motivo ?? null;
       const explicacao =
@@ -1438,7 +1529,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       return {
         checkin: (st.checkin ?? null) as Json,
         efeito: `check-in ${payload.modo === "casa" ? "em casa" : `na filial ${payload.filial}`}: ${
-          apto ? "apto para receber leads" : `não apto para a roleta${explicacao ? ` (${explicacao})` : ""}`
+          apto
+            ? "apto para receber leads"
+            : `não apto para a roleta${explicacao ? ` (${explicacao})` : ""}`
         }`,
       };
     }
@@ -1454,17 +1547,27 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           projeto_nome: payload.projetoNome?.trim() || null,
           bairro: payload.bairro?.trim() || null,
           zona: payload.zona?.trim() || null,
-          observacoes: [payload.observacoes?.trim(), "Cadastrado via Sami"].filter(Boolean).join("\n"),
+          observacoes: [payload.observacoes?.trim(), "Cadastrado via Sami"]
+            .filter(Boolean)
+            .join("\n"),
           corretor_id: userId,
           status: "aguardando_atendimento",
         },
       });
       if (error) erroDb("O CRM recusou o cadastro", error);
-      const out = (data ?? {}) as { duplicado?: boolean; lead_id?: string; na_carteira?: boolean; nome?: string | null };
+      const out = (data ?? {}) as {
+        duplicado?: boolean;
+        lead_id?: string;
+        na_carteira?: boolean;
+        nome?: string | null;
+      };
       if (out.duplicado) {
         throw new Error(
           out.na_carteira
-            ? `Esse telefone já é do cliente ${out.nome ?? ""} na sua carteira; nada foi criado. Registre o contato nele.`.replace("  ", " ")
+            ? `Esse telefone já é do cliente ${out.nome ?? ""} na sua carteira; nada foi criado. Registre o contato nele.`.replace(
+                "  ",
+                " ",
+              )
             : "Esse telefone já existe no CRM em outra carteira; nada foi criado. Fale com o gestor da sua equipe para transferir.",
         );
       }
@@ -1480,7 +1583,12 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
     case "pedir_lote": {
       const { data, error } = await supabase.rpc("prospeccao_pedir_lote", { _zona: payload.zona });
       if (error) erroDb("O CRM recusou o lote", error);
-      const out = (data ?? {}) as { ok?: boolean; motivo?: string; quantidade?: number; total?: number };
+      const out = (data ?? {}) as {
+        ok?: boolean;
+        motivo?: string;
+        quantidade?: number;
+        total?: number;
+      };
       if (out.ok === false) {
         const motivos: Record<string, string> = {
           so_corretor: "só corretor pede lote",
@@ -1490,10 +1598,15 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           zona_fora_da_regiao: "essa zona é fora da sua região",
           zona_vazia: "não há leads disponíveis nessa zona agora",
         };
-        throw new Error(`Lote não liberado: ${motivos[out.motivo ?? ""] ?? out.motivo ?? "motivo não informado"}.`);
+        throw new Error(
+          `Lote não liberado: ${motivos[out.motivo ?? ""] ?? out.motivo ?? "motivo não informado"}.`,
+        );
       }
       const n = out.quantidade ?? out.total ?? null;
-      return { lote: (data ?? null) as Json, efeito: `lote liberado${n ? `: ${n} leads` : ""} na zona ${payload.zona}` };
+      return {
+        lote: (data ?? null) as Json,
+        efeito: `lote liberado${n ? `: ${n} leads` : ""} na zona ${payload.zona}`,
+      };
     }
   }
 }

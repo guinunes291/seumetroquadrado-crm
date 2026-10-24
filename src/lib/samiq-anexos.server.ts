@@ -130,7 +130,10 @@ export async function anexosPendentes(args: {
 }
 
 /** Arquivo da área de espera pelo id (do próprio corretor). */
-export async function anexoPorId(args: { corretorId: string; id: string }): Promise<AnexoPendenteSamiQ | null> {
+export async function anexoPorId(args: {
+  corretorId: string;
+  id: string;
+}): Promise<AnexoPendenteSamiQ | null> {
   try {
     const { data: a } = await tabelaAnexosSamiQ(supabaseAdmin)
       .select(COLUNAS_ANEXO_SAMIQ)
@@ -168,7 +171,9 @@ export async function limparAnexosVencidos(corretorId: string): Promise<number> 
     const limite = Date.now() - 7 * 24 * 3600_000;
     const vencidos = (data ?? []).filter((a) => Date.parse(a.criado_em) < limite);
     if (vencidos.length === 0) return 0;
-    await supabaseAdmin.storage.from(SAMIQ_ANEXO_BUCKET).remove(vencidos.map((a) => a.storage_path));
+    await supabaseAdmin.storage
+      .from(SAMIQ_ANEXO_BUCKET)
+      .remove(vencidos.map((a) => a.storage_path));
     for (const a of vencidos) await tabela.delete().eq("id", a.id);
     return vencidos.length;
   } catch {
@@ -195,7 +200,8 @@ export async function anexarArquivoDoWhatsApp(args: {
     .eq("id", args.anexoId)
     .eq("user_id", userId)
     .maybeSingle();
-  if (aErr || !anexo) throw new Error("O arquivo não está mais disponível; peça para o corretor reenviar.");
+  if (aErr || !anexo)
+    throw new Error("O arquivo não está mais disponível; peça para o corretor reenviar.");
   if (anexo.usado_em) throw new Error("Esse arquivo já foi anexado.");
   const ext = SAMIQ_ANEXO_MIMES[anexo.mime_type] ?? "bin";
 
@@ -213,7 +219,12 @@ export async function anexarArquivoDoWhatsApp(args: {
   if (!documentacaoId) {
     const { data: criado, error: cErr } = await supabase
       .from("documentacoes")
-      .insert({ lead_id: leadId, corretor_id: args.corretorId, tipo: args.tipoDocumento, status: "pendente" })
+      .insert({
+        lead_id: leadId,
+        corretor_id: args.corretorId,
+        tipo: args.tipoDocumento,
+        status: "pendente",
+      })
       .select("id")
       .single();
     if (cErr || !criado) throw new Error("Não consegui criar o item do documento na ficha.");
@@ -239,7 +250,11 @@ export async function anexarArquivoDoWhatsApp(args: {
     throw new Error("O CRM recusou registrar o documento.");
   }
   await tabela
-    .update({ usado_em: new Date().toISOString(), lead_id: leadId, documentacao_id: documentacaoId })
+    .update({
+      usado_em: new Date().toISOString(),
+      lead_id: leadId,
+      documentacao_id: documentacaoId,
+    })
     .eq("id", anexo.id);
   await supabaseAdmin.storage.from(SAMIQ_ANEXO_BUCKET).remove([anexo.storage_path]);
   return { documentacaoId };

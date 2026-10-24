@@ -20,7 +20,13 @@ export type AnexoSamiQRow = {
 
 export type NovoAnexoSamiQ = Pick<
   AnexoSamiQRow,
-  "user_id" | "mime_type" | "tamanho_bytes" | "nome_original" | "legenda" | "storage_path" | "mensagem_id"
+  | "user_id"
+  | "mime_type"
+  | "tamanho_bytes"
+  | "nome_original"
+  | "legenda"
+  | "storage_path"
+  | "mensagem_id"
 >;
 
 type ResultadoBanco<T> = PromiseLike<{
@@ -38,8 +44,12 @@ type Filtro<T> = {
 
 export type TabelaAnexosSamiQ = {
   select(colunas: string): Filtro<AnexoSamiQRow>;
-  insert(linha: NovoAnexoSamiQ): { select(colunas: string): { single(): ResultadoBanco<{ id: string }> } };
-  update(patch: Partial<AnexoSamiQRow>): { eq(coluna: string, valor: string): ResultadoBanco<null> };
+  insert(linha: NovoAnexoSamiQ): {
+    select(colunas: string): { single(): ResultadoBanco<{ id: string }> };
+  };
+  update(patch: Partial<AnexoSamiQRow>): {
+    eq(coluna: string, valor: string): ResultadoBanco<null>;
+  };
   delete(): { eq(coluna: string, valor: string): ResultadoBanco<null> };
 };
 

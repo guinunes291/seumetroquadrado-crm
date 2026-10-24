@@ -706,7 +706,10 @@ export function modelarMaterialProjeto(p: MaterialProjetoRow, agora: Date = new 
     preco_a_partir: p.preco_a_partir,
     renda_minima: p.renda_minima,
     entrega:
-      [p.status_entrega, p.mes_entrega && p.ano_entrega ? `${p.mes_entrega}/${p.ano_entrega}` : p.ano_entrega]
+      [
+        p.status_entrega,
+        p.mes_entrega && p.ano_entrega ? `${p.mes_entrega}/${p.ano_entrega}` : p.ano_entrega,
+      ]
         .filter(Boolean)
         .join(" · ") || undefined,
     status_preco: p.status_preco ?? undefined,

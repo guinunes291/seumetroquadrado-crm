@@ -76,8 +76,14 @@ export function mimePelosBytes(bytes: Uint8Array): string | null {
   if (b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff) return "image/jpeg";
   if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47) return "image/png";
   if (
-    b(0) === 0x52 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x46 &&
-    b(8) === 0x57 && b(9) === 0x45 && b(10) === 0x42 && b(11) === 0x50
+    b(0) === 0x52 &&
+    b(1) === 0x49 &&
+    b(2) === 0x46 &&
+    b(3) === 0x46 &&
+    b(8) === 0x57 &&
+    b(9) === 0x45 &&
+    b(10) === 0x42 &&
+    b(11) === 0x50
   ) {
     return "image/webp";
   }
@@ -179,7 +185,16 @@ const REJEITA = new Set([
   "tira",
   "tirar",
 ]);
-const DESFAZ = new Set(["desfazer", "desfaz", "desfaca", "desfazendo", "anula", "anular", "reverte", "reverter"]);
+const DESFAZ = new Set([
+  "desfazer",
+  "desfaz",
+  "desfaca",
+  "desfazendo",
+  "anula",
+  "anular",
+  "reverte",
+  "reverter",
+]);
 /**
  * Palavras que SÓ podem ser comando ("CONFIRMAR", "cancela", "desfaz"): valem
  * sempre que há algo para decidir. As fracas ("sim", "ok", "pode", emoji) só
@@ -205,7 +220,27 @@ const FORTES = new Set([
   ...DESFAZ,
 ]);
 /** Palavras neutras que podem acompanhar o comando e os números. */
-const NEUTRAS = new Set(["o", "a", "os", "as", "e", "so", "somente", "apenas", "item", "itens", "numero", "num", "tudo", "todos", "todas", "por", "favor", "pf", "pfv"]);
+const NEUTRAS = new Set([
+  "o",
+  "a",
+  "os",
+  "as",
+  "e",
+  "so",
+  "somente",
+  "apenas",
+  "item",
+  "itens",
+  "numero",
+  "num",
+  "tudo",
+  "todos",
+  "todas",
+  "por",
+  "favor",
+  "pf",
+  "pfv",
+]);
 
 export type ComandoCurto = {
   acao: "confirmar" | "rejeitar" | "desfazer";
@@ -258,7 +293,11 @@ export function interpretarComandoCurto(texto: string): ComandoCurto | null {
   }
   if (!acao) return null;
   // "tira o 2" sem número não é comando (tira o quê?).
-  if (acao === "rejeitar" && itens.length === 0 && palavras.some((p) => p === "tira" || p === "tirar")) {
+  if (
+    acao === "rejeitar" &&
+    itens.length === 0 &&
+    palavras.some((p) => p === "tira" || p === "tirar")
+  ) {
     return null;
   }
   return { acao, itens, forte };
@@ -268,19 +307,14 @@ export function interpretarComandoCurto(texto: string): ComandoCurto | null {
 // a Sami só confirma um item pesado por conta própria quando a mensagem do
 // corretor tem uma palavra de OK e nenhuma de correção. "Sim, mas muda para
 // 15h" NÃO é OK: é correção (a Sami refaz o item e descarta o antigo).
+// Sem formas que também são substantivo ("agenda", "marca", "segue o print").
 const OK_NATURAL = new Set([
   ...CONFIRMA,
   "confirmar",
-  "marca",
   "marcar",
-  "agenda",
   "agendar",
-  "envia",
   "enviar",
-  "manda",
   "mandar",
-  "segue",
-  "seguir",
   "bora",
   "perfeito",
   "beleza",
@@ -335,17 +369,30 @@ export function consentimentoExplicito(texto: string): boolean {
  * pelo número da lista que a própria Sami mostrou.
  */
 export function pareceEscolha(texto: string): boolean {
-  const t = (texto ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim();
+  const t = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
   if (!t || t.length > 120) return false;
   return (
     /(^|\D)[1-8](\D|$)/.test(t) ||
     /\b(primeir|segund|terceir|quart|quint|ultim)/.test(t) ||
     /^(e |eh |sim,? )?(essa|esse|ela|ele|isso|a mesma|o mesmo|dela|dele)\b/.test(t)
   );
+}
+
+/** "1", "1 e 3", "2,3": só números (resposta à lista, sem dizer o que fazer com ela). */
+export function numerosSoltos(texto: string): number[] | null {
+  const t = (texto ?? "").trim();
+  if (!/^\d{1,2}(\s*(,|e|\/)\s*\d{1,2})*[.!]?$/i.test(t)) return null;
+  const nums = [...t.matchAll(/\d{1,2}/g)]
+    .map((m) => Number(m[0]))
+    .filter((n) => n >= 1 && n <= 20);
+  return nums.length ? [...new Set(nums)] : null;
+}
+
+/** Número solto depois de "Preciso do seu OK": pergunta o que fazer, sem gastar modelo. */
+export function textoNumeroSemComando(itens: ReadonlyArray<number>): string {
+  const n = itens.join(" e ");
+  const um = itens.length === 1;
+  return `Para gravar ${um ? "o item" : "os itens"} ${n}, responda CONFIRMAR ${n}. Para descartar, CANCELAR ${n}.`;
 }
 
 /** Atalho legado (testes e chamadas antigas): só confirmar/rejeitar sem itens. */
@@ -373,10 +420,10 @@ export type ItemExecutado = ItemDescritivel &
 function linha(p: ItemDescritivel, extra?: string | null): string {
   const d = descreverProposta(p.payload, p.leadNome);
   const detalhes = [extra || null, ...d.detalhes].filter(Boolean).slice(0, 3).join(", ");
-  return `${d.titulo}${detalhes ? `: ${detalhes}` : ""}`;
+  return `${d.titulo}${detalhes ? ` (${detalhes})` : ""}`;
 }
 
-/** Lista numerada: "1) Contato com Maria Silva: Ligação, atendeu, Follow-up sex 31/10 10:00". */
+/** Lista numerada: "1) Contato com Maria Silva (Ligação, atendeu, Follow-up sex 31/10 10:00)". */
 export function textoDasPropostas(propostas: ReadonlyArray<ItemDescritivel>): string {
   return propostas.map((p, i) => `${i + 1}) ${linha(p)}`).join("\n");
 }
@@ -387,15 +434,24 @@ export function textoDasExecutadas(executadas: ReadonlyArray<ItemExecutado>): st
   const falhas = executadas.filter((p) => p.status === "falhou");
   const partes: string[] = [];
   if (ok.length) {
-    partes.push(`Gravei no CRM:\n${ok.map((p, i) => `${i + 1}) ${linha(p, p.efeito)}`).join("\n")}`);
+    partes.push(
+      `Gravei no CRM:\n${ok.map((p, i) => `${i + 1}) ${linha(p, p.efeito)}`).join("\n")}`,
+    );
     if (ok.some((p) => !!p.desfazerAte)) {
-      partes.push(ok.length > 1 ? "Algo errado? Responda DESFAZER (ou DESFAZER 2)." : "Algo errado? Responda DESFAZER.");
+      partes.push(
+        ok.length > 1
+          ? "Algo errado? Responda DESFAZER (ou DESFAZER 2)."
+          : "Algo errado? Responda DESFAZER.",
+      );
     }
   }
   if (falhas.length) {
     partes.push(
       `Não consegui gravar: ${falhas
-        .map((p) => `${descreverProposta(p.payload, p.leadNome).titulo}${p.erro ? ` (${p.erro})` : ""}`)
+        .map(
+          (p) =>
+            `${descreverProposta(p.payload, p.leadNome).titulo}${p.erro ? ` (${p.erro})` : ""}`,
+        )
         .join("; ")}.`,
     );
   }
@@ -495,12 +551,19 @@ export function executadasDaDecisao<T extends ItemDescritivel & { id: string }>(
 ): Array<T & ItemExecutado> {
   return propostas.map((p) => {
     const r = resultados.find((x) => x.id === p.id);
-    const status: PropostaSamiQ["status"] = r?.ok ? (r.status === "editada" ? "editada" : "aceita") : "falhou";
+    const status: PropostaSamiQ["status"] = r?.ok
+      ? r.status === "editada"
+        ? "editada"
+        : "aceita"
+      : "falhou";
     return {
       ...p,
       status,
       efeito: r?.efeito ?? null,
-      erro: r?.ok ? null : (r?.erro ?? (r?.status === "indisponivel" ? "já foi decidida ou está sendo gravada" : null)),
+      erro: r?.ok
+        ? null
+        : (r?.erro ??
+          (r?.status === "indisponivel" ? "já foi decidida ou está sendo gravada" : null)),
       desfazerAte: r?.desfazerAte ?? null,
     };
   });
@@ -543,12 +606,17 @@ export function textoDoDesfazer(
   const linhas: string[] = [];
   if (feitos.length) linhas.push(`Desfeito: ${feitos.map((r) => titulo(r.id)).join("; ")}.`);
   if (falhas.length) {
-    linhas.push(`Não desfiz: ${falhas.map((r) => `${titulo(r.id)}${r.erro ? ` (${r.erro})` : ""}`).join("; ")}.`);
+    linhas.push(
+      `Não desfiz: ${falhas.map((r) => `${titulo(r.id)}${r.erro ? ` (${r.erro})` : ""}`).join("; ")}.`,
+    );
   }
   const mexeuEtapa = acoes.some(
-    (a) => feitos.some((f) => f.id === a.id) && (a.tipo === "registrar_contato" || a.tipo === "agendar_visita"),
+    (a) =>
+      feitos.some((f) => f.id === a.id) &&
+      (a.tipo === "registrar_contato" || a.tipo === "agendar_visita"),
   );
-  if (mexeuEtapa) linhas.push("A etapa do funil não volta sozinha; se precisar, me diga para onde.");
+  if (mexeuEtapa)
+    linhas.push("A etapa do funil não volta sozinha; se precisar, me diga para onde.");
   return linhas.join("\n");
 }
 

@@ -1,6 +1,5 @@
 // Leitura e publicação das diretrizes aprendidas da Sami (ver samiq-diretrizes.ts).
 // Falha de leitura nunca derruba a Sami: sem diretriz, segue o prompt versionado.
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   SAMIQ_MAX_DIRETRIZES,
@@ -9,8 +8,8 @@ import {
   type LinhaDiretriz,
 } from "./samiq-diretrizes";
 
-// A tabela é nova: o cliente sem tipos evita depender da regeração do types.ts.
-const db = () => supabaseAdmin as unknown as SupabaseClient;
+// samiq_diretrizes já está nos types gerados: cliente tipado, sem escape.
+const db = () => supabaseAdmin;
 
 const TTL_MS = 60_000;
 let cache: { em: number; bloco: string } | null = null;

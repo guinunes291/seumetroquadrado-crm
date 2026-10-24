@@ -13,7 +13,11 @@
 import { tool, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { displayNameForSamiQ, restaurarPiiDoCorretor, type MapaPiiCorretor } from "@/lib/samiq-governance";
+import {
+  displayNameForSamiQ,
+  restaurarPiiDoCorretor,
+  type MapaPiiCorretor,
+} from "@/lib/samiq-governance";
 import {
   INSTRUCAO_CLIENTE_AMBIGUO,
   avaliarDesambiguacao,
@@ -135,7 +139,8 @@ const D = {
     "Marca o cliente como perdido com a categoria oficial. Atenção: igual à tela, o cliente SAI da carteira do corretor (vai para outro corretor ou para a base). Precisa do CONFIRMAR. Na dúvida entre perder e retorno, pergunte.",
   trocar_vaga:
     "Entra um, sai um, quando o Em atendimento está lotado: o cliente que respondeu entra e outro do Em atendimento sai como pediu retorno, esfriou (com data) ou perdido (com categoria). Use listar_clientes etapa em_atendimento ordem mais_parados para sugerir quem sai. Precisa do CONFIRMAR.",
-  concluir_tarefa: "Marca uma tarefa como feita (id de minhas_tarefas ou detalhe_cliente), com o resultado.",
+  concluir_tarefa:
+    "Marca uma tarefa como feita (id de minhas_tarefas ou detalhe_cliente), com o resultado.",
   reagendar_tarefa: "Muda a data e hora de uma tarefa aberta.",
   cancelar_tarefa: "Cancela uma tarefa aberta que não faz mais sentido.",
   confirmar_visita:
@@ -253,7 +258,9 @@ export function criarFerramentasDePropostaSamiQ(args: {
   agora?: Date;
 }): ToolSet {
   const { supabase, coletor } = args;
-  const modo: ModoEscritaSamiQ = args.executarAgora ? (args.modo ?? "confirmar_tudo") : "confirmar_tudo";
+  const modo: ModoEscritaSamiQ = args.executarAgora
+    ? (args.modo ?? "confirmar_tudo")
+    : "confirmar_tudo";
   const textoDoCorretor = args.textoDoCorretor ?? "";
   const mapaPii = args.mapaPii ?? {};
   const citar: CitarClienteSamiQ = args.citar ?? (() => {});
@@ -313,7 +320,8 @@ export function criarFerramentasDePropostaSamiQ(args: {
             payload,
             bloqueio: {
               erro: "visita_ja_marcada",
-              detalhe: "Esse cliente já tem visita aberta nesse horário. Use remarcar_visita se mudou a hora.",
+              detalhe:
+                "Esse cliente já tem visita aberta nesse horário. Use remarcar_visita se mudou a hora.",
               agendamentoId: abertas[0].id,
             },
           };
@@ -368,7 +376,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
             },
           };
         }
-        if (!PROSPECCAO.has(status) && !transicaoLeadPermitida(status, "aguardando_retorno", false)) {
+        if (
+          !PROSPECCAO.has(status) &&
+          !transicaoLeadPermitida(status, "aguardando_retorno", false)
+        ) {
           return {
             payload,
             bloqueio: {
@@ -383,7 +394,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
         if (["perdido", "contrato_fechado", "pos_venda"].includes(status)) {
           return {
             payload,
-            bloqueio: { erro: "etapa_nao_permite", detalhe: `O cliente está em ${rotulo(status)}.` },
+            bloqueio: {
+              erro: "etapa_nao_permite",
+              detalhe: `O cliente está em ${rotulo(status)}.`,
+            },
           };
         }
         return { payload };
@@ -391,7 +405,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
       case "trocar_vaga": {
         const sai = await resolverLead(supabase, payload.saiLeadId);
         if (!sai) {
-          return { payload, bloqueio: { erro: "cliente_nao_encontrado", detalhe: "quem sai não está na carteira" } };
+          return {
+            payload,
+            bloqueio: { erro: "cliente_nao_encontrado", detalhe: "quem sai não está na carteira" },
+          };
         }
         if (sai.status !== "em_atendimento") {
           return {
@@ -403,16 +420,22 @@ export function criarFerramentasDePropostaSamiQ(args: {
           };
         }
         if (status === "em_atendimento") {
-          return { payload, bloqueio: { erro: "troca_invalida", detalhe: "quem entra já está em Em atendimento" } };
+          return {
+            payload,
+            bloqueio: { erro: "troca_invalida", detalhe: "quem entra já está em Em atendimento" },
+          };
         }
         citar({ id: sai.id, nome: sai.nome, etapa: sai.status });
         return { payload };
       }
       case "registrar_visita": {
-        const etapa = payload.proximaEtapa ?? (payload.compareceu ? "visita_realizada" : "aguardando_retorno");
+        const etapa =
+          payload.proximaEtapa ?? (payload.compareceu ? "visita_realizada" : "aguardando_retorno");
         const deAgendado = transicaoLeadPermitida("agendado", etapa as LeadStatus, false);
-        const direto = status === etapa || transicaoLeadPermitida(status, etapa as LeadStatus, false);
-        const viaAgendado = status !== "agendado" && transicaoLeadPermitida(status, "agendado", false) && deAgendado;
+        const direto =
+          status === etapa || transicaoLeadPermitida(status, etapa as LeadStatus, false);
+        const viaAgendado =
+          status !== "agendado" && transicaoLeadPermitida(status, "agendado", false) && deAgendado;
         if (!direto && !viaAgendado) {
           return {
             payload,
@@ -429,20 +452,26 @@ export function criarFerramentasDePropostaSamiQ(args: {
             payload,
             bloqueio: {
               erro: "falta_data",
-              detalhe: "Cliente não compareceu: informe a nova visita (reagendarPara) ou a data do próximo contato (proximoFollowupEm).",
+              detalhe:
+                "Cliente não compareceu: informe a nova visita (reagendarPara) ou a data do próximo contato (proximoFollowupEm).",
             },
           };
         }
         return { payload };
       }
       case "enviar_analise_credito": {
-        if (status !== "analise_credito" && !transicaoLeadPermitida(status, "analise_credito", false)) {
+        if (
+          status !== "analise_credito" &&
+          !transicaoLeadPermitida(status, "analise_credito", false)
+        ) {
           return {
             payload,
             bloqueio: {
               erro: "etapa_nao_permite",
               detalhe: `O cliente está em ${rotulo(status)}: o funil não vai para Análise de crédito.${
-                PROSPECCAO.has(status) && status !== "aguardando_retorno" && status !== "qualificacao_corretor"
+                PROSPECCAO.has(status) &&
+                status !== "aguardando_retorno" &&
+                status !== "qualificacao_corretor"
                   ? " Registre antes o contato com ele."
                   : ""
               }`,
@@ -455,7 +484,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
         if (!lead?.corretorId) {
           return {
             payload,
-            bloqueio: { erro: "lead_sem_corretor", detalhe: "Venda exige cliente com corretor responsável." },
+            bloqueio: {
+              erro: "lead_sem_corretor",
+              detalhe: "Venda exige cliente com corretor responsável.",
+            },
           };
         }
         return { payload };
@@ -469,9 +501,19 @@ export function criarFerramentasDePropostaSamiQ(args: {
           .eq("id", payload.tarefaId)
           .is("deleted_at", null)
           .maybeSingle();
-        if (!t) return { payload, bloqueio: { erro: "tarefa_nao_encontrada", detalhe: "use minhas_tarefas para achar o id" } };
+        if (!t)
+          return {
+            payload,
+            bloqueio: {
+              erro: "tarefa_nao_encontrada",
+              detalhe: "use minhas_tarefas para achar o id",
+            },
+          };
         if (t.status === "concluida" || t.status === "cancelada") {
-          return { payload, bloqueio: { erro: "tarefa_fechada", detalhe: `a tarefa já está ${t.status}` } };
+          return {
+            payload,
+            bloqueio: { erro: "tarefa_fechada", detalhe: `a tarefa já está ${t.status}` },
+          };
         }
         const l = t.lead as { id: string; nome: string | null } | null;
         if (l) citar({ id: l.id, nome: l.nome });
@@ -486,12 +528,25 @@ export function criarFerramentasDePropostaSamiQ(args: {
           .eq("id", payload.agendamentoId)
           .is("deleted_at", null)
           .maybeSingle();
-        if (!a) return { payload, bloqueio: { erro: "visita_nao_encontrada", detalhe: "use minha_agenda para achar o id" } };
+        if (!a)
+          return {
+            payload,
+            bloqueio: {
+              erro: "visita_nao_encontrada",
+              detalhe: "use minha_agenda para achar o id",
+            },
+          };
         if (!["agendado", "confirmado"].includes(a.status)) {
-          return { payload, bloqueio: { erro: "visita_fechada", detalhe: `a visita está ${a.status}` } };
+          return {
+            payload,
+            bloqueio: { erro: "visita_fechada", detalhe: `a visita está ${a.status}` },
+          };
         }
         if (payload.tipo === "confirmar_visita" && a.status === "confirmado") {
-          return { payload, bloqueio: { erro: "ja_confirmada", detalhe: "a visita já está confirmada" } };
+          return {
+            payload,
+            bloqueio: { erro: "ja_confirmada", detalhe: "a visita já está confirmada" },
+          };
         }
         const l = a.lead as { id: string; nome: string | null; status: string } | null;
         if (l) citar({ id: l.id, nome: l.nome, etapa: l.status });
@@ -503,15 +558,33 @@ export function criarFerramentasDePropostaSamiQ(args: {
           .select("id, usado_em")
           .eq("id", payload.anexoId)
           .maybeSingle();
-        if (!row) return { payload, bloqueio: { erro: "anexo_nao_encontrado", detalhe: "o arquivo não está mais disponível; peça para reenviar" } };
-        if (row.usado_em) return { payload, bloqueio: { erro: "anexo_ja_usado", detalhe: "esse arquivo já foi anexado" } };
+        if (!row)
+          return {
+            payload,
+            bloqueio: {
+              erro: "anexo_nao_encontrado",
+              detalhe: "o arquivo não está mais disponível; peça para reenviar",
+            },
+          };
+        if (row.usado_em)
+          return {
+            payload,
+            bloqueio: { erro: "anexo_ja_usado", detalhe: "esse arquivo já foi anexado" },
+          };
         return { payload };
       }
       case "fazer_checkin": {
-        if (payload.modo === "loja" && payload.filial && !FILIAIS_CONHECIDAS.includes(payload.filial)) {
+        if (
+          payload.modo === "loja" &&
+          payload.filial &&
+          !FILIAIS_CONHECIDAS.includes(payload.filial)
+        ) {
           return {
             payload,
-            bloqueio: { erro: "filial_invalida", detalhe: `use uma destas: ${FILIAIS_CONHECIDAS.join(", ")}` },
+            bloqueio: {
+              erro: "filial_invalida",
+              detalhe: `use uma destas: ${FILIAIS_CONHECIDAS.join(", ")}`,
+            },
           };
         }
         return { payload };
@@ -523,7 +596,8 @@ export function criarFerramentasDePropostaSamiQ(args: {
             payload,
             bloqueio: {
               erro: "telefone_de_corretor",
-              detalhe: "esse telefone é de um corretor da SMQ e não pode ser cadastrado como cliente",
+              detalhe:
+                "esse telefone é de um corretor da SMQ e não pode ser cadastrado como cliente",
             },
           };
         }
@@ -542,8 +616,13 @@ export function criarFerramentasDePropostaSamiQ(args: {
             payload,
             bloqueio: {
               erro: "cliente_ja_existe",
-              detalhe: "Esse telefone já é de um cliente da carteira: registre o contato nele em vez de cadastrar.",
-              cliente: { id: dup[0].id, nome: displayNameForSamiQ(dup[0].nome), etapa: dup[0].status },
+              detalhe:
+                "Esse telefone já é de um cliente da carteira: registre o contato nele em vez de cadastrar.",
+              cliente: {
+                id: dup[0].id,
+                nome: displayNameForSamiQ(dup[0].nome),
+                etapa: dup[0].status,
+              },
             },
           };
         }
@@ -559,7 +638,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
   const executar = async (entrada: PropostaPayload) => {
     let bruto = entrada;
     if (total >= SAMIQ_MAX_PROPOSTAS_POR_TURNO) {
-      return { erro: "limite_de_acoes", detalhe: `máximo de ${SAMIQ_MAX_PROPOSTAS_POR_TURNO} ações por resposta` };
+      return {
+        erro: "limite_de_acoes",
+        detalhe: `máximo de ${SAMIQ_MAX_PROPOSTAS_POR_TURNO} ações por resposta`,
+      };
     }
     // Cadastro: o modelo manda [TELEFONE_n]/[EMAIL_n]; o servidor troca pelo
     // que o corretor digitou e guarda o telefone só com dígitos.
@@ -574,15 +656,26 @@ export function criarFerramentasDePropostaSamiQ(args: {
       }
       const email = bruto.email ? restaurarPiiDoCorretor(bruto.email, mapaPii) : undefined;
       if (email && /\[(EMAIL|TELEFONE|CPF)/.test(email)) {
-        return { erro: "email_invalido", detalhe: "o e-mail não veio nesta mensagem; cadastre sem e-mail" };
+        return {
+          erro: "email_invalido",
+          detalhe: "o e-mail não veio nesta mensagem; cadastre sem e-mail",
+        };
       }
       bruto = { ...bruto, telefone, ...(email ? { email } : {}) };
     }
     // Datas sem fuso viram horário de SP antes de validar e gravar.
-    const normalizado = normalizarDatasDoPayload(bruto as Record<string, unknown>, (v) => isoComFusoSP(v)) as PropostaPayload;
+    const normalizado = normalizarDatasDoPayload(bruto as Record<string, unknown>, (v) =>
+      isoComFusoSP(v),
+    ) as PropostaPayload;
     const parsed = PropostaPayloadSchema.safeParse(normalizado);
     if (!parsed.success) {
-      return { erro: "dados_invalidos", detalhe: parsed.error.issues.map((i) => i.message).join("; ").slice(0, 300) };
+      return {
+        erro: "dados_invalidos",
+        detalhe: parsed.error.issues
+          .map((i) => i.message)
+          .join("; ")
+          .slice(0, 300),
+      };
     }
     let payload = parsed.data;
     for (const d of datasQueDevemSerFuturas(payload)) {
@@ -634,8 +727,11 @@ export function criarFerramentasDePropostaSamiQ(args: {
         status: "gravado",
         proposta: descricao,
         efeito: r.efeito ?? undefined,
-        desfazer: r.desfazivel ? "o corretor pode responder DESFAZER em até 24 h" : "não se desfaz pelo WhatsApp",
-        aviso: "Já está no CRM. Não repita a lista: o sistema manda o recibo. Fale só o próximo passo.",
+        desfazer: r.desfazivel
+          ? "o corretor pode responder DESFAZER em até 24 h"
+          : "não se desfaz pelo WhatsApp",
+        aviso:
+          "Já está no CRM. Não repita a lista: o sistema manda o recibo. Fale só o próximo passo.",
       };
     }
 
@@ -690,7 +786,10 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }),
     marcar_perdido: tool({
       description: D.marcar_perdido,
-      inputSchema: MarcarPerdidoBase.omit({ tipo: true }).refine(perdaOutroTemDetalhe, MSG_PERDA_OUTRO),
+      inputSchema: MarcarPerdidoBase.omit({ tipo: true }).refine(
+        perdaOutroTemDetalhe,
+        MSG_PERDA_OUTRO,
+      ),
       execute: (input) => executar({ tipo: "marcar_perdido", ...input }),
     }),
     trocar_vaga: tool({
@@ -758,17 +857,26 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }),
     registrar_resultado_credito: tool({
       description: D.registrar_resultado_credito,
-      inputSchema: RegistrarResultadoCreditoBase.omit({ tipo: true }).refine(creditoCoerente, MSG_CREDITO),
+      inputSchema: RegistrarResultadoCreditoBase.omit({ tipo: true }).refine(
+        creditoCoerente,
+        MSG_CREDITO,
+      ),
       execute: (input) => executar({ tipo: "registrar_resultado_credito", ...input }),
     }),
     registrar_venda: tool({
       description: D.registrar_venda,
-      inputSchema: RegistrarVendaBase.omit({ tipo: true }).refine(vendaTemProjeto, MSG_VENDA_PROJETO),
+      inputSchema: RegistrarVendaBase.omit({ tipo: true }).refine(
+        vendaTemProjeto,
+        MSG_VENDA_PROJETO,
+      ),
       execute: (input) => executar({ tipo: "registrar_venda", ...input }),
     }),
     fazer_checkin: tool({
       description: D.fazer_checkin,
-      inputSchema: FazerCheckinBase.omit({ tipo: true }).refine(checkinTemFilial, MSG_CHECKIN_FILIAL),
+      inputSchema: FazerCheckinBase.omit({ tipo: true }).refine(
+        checkinTemFilial,
+        MSG_CHECKIN_FILIAL,
+      ),
       execute: (input) => executar({ tipo: "fazer_checkin", ...input }),
     }),
     criar_lead: tool({

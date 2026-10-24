@@ -112,7 +112,9 @@ export async function registrarPropostasSamiQ(args: {
       });
       if (error) {
         if (!isMissingBackendObject(error)) {
-          console.error(JSON.stringify({ event: "samiq_propostas_failed", code: error.code ?? "" }));
+          console.error(
+            JSON.stringify({ event: "samiq_propostas_failed", code: error.code ?? "" }),
+          );
         }
         break;
       }

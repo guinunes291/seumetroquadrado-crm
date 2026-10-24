@@ -47,7 +47,11 @@ import {
   hojeSaoPaulo,
   type GrupoFerramentas,
 } from "@/lib/samiq-tools";
-import { descreverProposta, type ModoEscritaSamiQ, type PropostaSamiQ } from "@/lib/samiq-propostas";
+import {
+  descreverProposta,
+  type ModoEscritaSamiQ,
+  type PropostaSamiQ,
+} from "@/lib/samiq-propostas";
 import type { ExecutorImediato, PropostaColetada } from "@/lib/samiq-propostas.server";
 import type { CitarClienteSamiQ } from "@/lib/samiq-tools.server";
 import { compatibilizarFerramentasSamiQ } from "@/lib/samiq-ferramentas-compat";
@@ -390,7 +394,11 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       const localizacao = args.localizacao ?? null;
       const contextoExecucao = {
         localizacao: localizacao
-          ? { latitude: localizacao.latitude, longitude: localizacao.longitude, precisao: localizacao.precisao ?? null }
+          ? {
+              latitude: localizacao.latitude,
+              longitude: localizacao.longitude,
+              precisao: localizacao.precisao ?? null,
+            }
           : null,
       };
 
@@ -435,7 +443,10 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
             agora,
           }),
         );
-        if (canal === "whatsapp" && (recentes.pendentes.length > 0 || recentes.executadas.length > 0)) {
+        if (
+          canal === "whatsapp" &&
+          (recentes.pendentes.length > 0 || recentes.executadas.length > 0)
+        ) {
           const { criarFerramentasDeControleSamiQ } = await import("./samiq-controle.server");
           Object.assign(
             tools,
@@ -454,7 +465,9 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
 
       // Ferramentas por intenção: a mensagem escolhe os grupos do 1º passo e o
       // modelo abre outros com abrir_ferramentas (economia de ~70% de tokens).
-      const ultimaDaSami = [...historicoSeguro].reverse().find((m) => m.role === "assistant")?.content;
+      const ultimaDaSami = [...historicoSeguro]
+        .reverse()
+        .find((m) => m.role === "assistant")?.content;
       const gruposAbertos = new Set<GrupoFerramentas>(
         gruposPelaMensagem({
           texto: perguntaSegura,
@@ -481,11 +494,15 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
         reservation.actionPrompt,
         `Agora: ${agoraParaModelo(agora)} (São Paulo). Hoje é ${hojeSaoPaulo(agora)}. Próximos dias: ${calendarioParaModelo(agora)}. Datas nas ferramentas: AAAA-MM-DDTHH:MM no horário de São Paulo.`,
         ...doCanal,
-        args.corretorNome ? `Corretor: ${firstNameForSamiQ(args.corretorNome) ?? "corretor"}.` : null,
+        args.corretorNome
+          ? `Corretor: ${firstNameForSamiQ(args.corretorNome) ?? "corretor"}.`
+          : null,
         data.leadId
           ? `Cliente em contexto (id ${data.leadId}): ${JSON.stringify(safeContext.cliente ?? {}).slice(0, 2000)}`
           : null,
-        citadosAntes ? `Clientes citados nesta conversa (o mais recente primeiro): ${citadosAntes}.` : null,
+        citadosAntes
+          ? `Clientes citados nesta conversa (o mais recente primeiro): ${citadosAntes}.`
+          : null,
         !data.leadId && !citadosAntes
           ? "Sem cliente em contexto: use buscar_clientes quando o corretor citar um nome."
           : null,
@@ -546,9 +563,12 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           executadas.length > 0 || controle.confirmadas.length > 0 || controle.desfeitas.length > 0;
         if (!gravouAlgo) throw error;
         interrompido = true;
-        errorCode = APICallError.isInstance(error) ? `gateway_${error.statusCode ?? "erro"}` : "interrompido";
+        errorCode = APICallError.isInstance(error)
+          ? `gateway_${error.statusCode ?? "erro"}`
+          : "interrompido";
         console.error(JSON.stringify({ event: "samiq_turno_interrompido", codigo: errorCode }));
-        texto = "Tive um problema no meio da resposta. O que está no recibo abaixo já ficou gravado; me diga o que faltou.";
+        texto =
+          "Tive um problema no meio da resposta. O que está no recibo abaixo já ficou gravado; me diga o que faltou.";
         inputTokens = estimateSamiQTokens(reservation.systemPrompt + JSON.stringify(messages)) * 2;
         outputTokens = estimateSamiQTokens(texto);
       }
@@ -690,7 +710,9 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           anexo_pendente:
             (args.anexos ?? []).find(
               (a) =>
-                !gravadasOk.some((p) => p.payload.tipo === "anexar_documento" && p.payload.anexoId === a.id),
+                !gravadasOk.some(
+                  (p) => p.payload.tipo === "anexar_documento" && p.payload.anexoId === a.id,
+                ),
             )?.id ?? null,
         },
       });

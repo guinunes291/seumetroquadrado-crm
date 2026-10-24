@@ -19,12 +19,25 @@
 // Áudio (D8): o n8n transcreve e manda `texto` com origem_midia 'audio'.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { MensagemSamiInput, interpretarComandoCurto, textoParaWhatsApp } from "@/lib/samiq-canal";
-import { escolherPorNumero, localizacaoValida, type ContextoConversaSamiQ } from "@/lib/samiq-contexto";
+import {
+  MensagemSamiInput,
+  interpretarComandoCurto,
+  numerosSoltos,
+  textoNumeroSemComando,
+  textoParaWhatsApp,
+} from "@/lib/samiq-canal";
+import {
+  escolherPorNumero,
+  localizacaoValida,
+  type ContextoConversaSamiQ,
+} from "@/lib/samiq-contexto";
 import { descreverProposta, podeDesfazerProposta } from "@/lib/samiq-propostas";
 
 /** Itens na ordem dos ids (a numeração que o corretor viu), sem os que sumiram. */
-function naOrdem<T extends { id: string }>(ids: ReadonlyArray<string>, itens: ReadonlyArray<T>): T[] {
+function naOrdem<T extends { id: string }>(
+  ids: ReadonlyArray<string>,
+  itens: ReadonlyArray<T>,
+): T[] {
   return ids.map((id) => itens.find((p) => p.id === id)).filter((p): p is T => !!p);
 }
 
@@ -41,7 +54,10 @@ export const Route = createFileRoute("/api/sami/mensagem")({
           const quem = { id: corretor.id, nome: corretor.nome };
           reserva = canal.reservarMensagemDoCanal(corretor.id, body.mensagem_id);
           if (!reserva) {
-            return canal.jsonCanal({ ok: true, tipo: "em_andamento", ignorar: true, texto: "" }, 202);
+            return canal.jsonCanal(
+              { ok: true, tipo: "em_andamento", ignorar: true, texto: "" },
+              202,
+            );
           }
           const memoria = await import("@/lib/samiq-memoria.server");
           const agora = new Date();
@@ -49,7 +65,10 @@ export const Route = createFileRoute("/api/sami/mensagem")({
             ? null
             : await memoria.conversaAtivaSamiQ({ userId: corretor.id, canal: "whatsapp" });
           const lido: ContextoConversaSamiQ = conversa
-            ? await memoria.lerContextoDaConversaSamiQ({ userId: corretor.id, conversaId: conversa.id })
+            ? await memoria.lerContextoDaConversaSamiQ({
+                userId: corretor.id,
+                conversaId: conversa.id,
+              })
             : {};
 
           // 0) Retentativa do n8n já respondida: devolve a mesma resposta, sem refazer nada.
@@ -99,7 +118,9 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                   corretor: quem,
                 });
               }
-              const acoes = (await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: escolhidos })).filter(
+              const acoes = (
+                await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: escolhidos })
+              ).filter(
                 (a) =>
                   (a.status === "aceita" || a.status === "editada") &&
                   podeDesfazerProposta(a.tipo) &&
@@ -127,11 +148,17 @@ export const Route = createFileRoute("/api/sami/mensagem")({
             // Numeração do CONFIRMAR 2 = a lista que o corretor viu por último.
             const mostrados = contexto.pendentes?.length
               ? contexto.pendentes
-              : (await memoria.propostasPendentesSamiQ({ userId: corretor.id, conversaId: conversa.id })).map(
-                  (p) => p.id,
-                );
+              : (
+                  await memoria.propostasPendentesSamiQ({
+                    userId: corretor.id,
+                    conversaId: conversa.id,
+                  })
+                ).map((p) => p.id);
             const aindaPendentes = mostrados.length
-              ? naOrdem(mostrados, await memoria.propostasPendentesSamiQ({ userId: corretor.id, ids: mostrados }))
+              ? naOrdem(
+                  mostrados,
+                  await memoria.propostasPendentesSamiQ({ userId: corretor.id, ids: mostrados }),
+                )
               : [];
             if (aindaPendentes.length > 0 && (comando.forte || contexto.pediu_decisao)) {
               const escolhidosIds = escolherPorNumero(mostrados, comando.itens);
@@ -145,7 +172,9 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 });
               }
               const escolhidas = naOrdem(escolhidosIds, aindaPendentes);
-              const restantes = aindaPendentes.filter((p) => !escolhidas.some((e) => e.id === p.id));
+              const restantes = aindaPendentes.filter(
+                (p) => !escolhidas.some((e) => e.id === p.id),
+              );
               const decisao = await canal.decidirPendentes({
                 corretor,
                 decisao: comando.acao,
@@ -173,13 +202,31 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               return canal.jsonCanal({
                 ok: true,
                 tipo: "decisao",
-                texto: "Não há nada esperando confirmação. Me conte o que aconteceu com o cliente que eu registro.",
+                texto:
+                  "Não há nada esperando confirmação. Me conte o que aconteceu com o cliente que eu registro.",
                 decisao: comando.acao,
                 resultados: [],
                 conversa_id: conversa.id,
                 corretor: quem,
               });
             }
+          }
+
+          // 1b) "2" logo depois de "Preciso do seu OK": confirma ou descarta? Pergunta sem modelo.
+          const soNumeros = comando ? null : numerosSoltos(body.texto);
+          if (
+            soNumeros &&
+            conversa &&
+            contexto.pediu_decisao &&
+            (contexto.pendentes?.length ?? 0) > 0
+          ) {
+            return canal.jsonCanal({
+              ok: true,
+              tipo: "decisao",
+              texto: textoNumeroSemComando(soNumeros),
+              conversa_id: conversa.id,
+              corretor: quem,
+            });
           }
 
           // 2) Pergunta, relato, arquivo ou localização → o mesmo cérebro do painel.
@@ -192,11 +239,16 @@ export const Route = createFileRoute("/api/sami/mensagem")({
           const pendentes = contexto.pendentes?.length
             ? naOrdem(
                 contexto.pendentes,
-                await memoria.propostasPendentesSamiQ({ userId: corretor.id, ids: contexto.pendentes }),
+                await memoria.propostasPendentesSamiQ({
+                  userId: corretor.id,
+                  ids: contexto.pendentes,
+                }),
               )
             : [];
           const executadas = contexto.executadas?.length
-            ? (await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: contexto.executadas })).filter(
+            ? (
+                await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: contexto.executadas })
+              ).filter(
                 (a) =>
                   (a.status === "aceita" || a.status === "editada") &&
                   !!a.desfazerAte &&
@@ -216,7 +268,14 @@ export const Route = createFileRoute("/api/sami/mensagem")({
             ? { ...body.localizacao, agora: true }
             : (() => {
                 const v = localizacaoValida(contexto, agora);
-                return v ? { latitude: v.latitude, longitude: v.longitude, precisao: v.precisao, agora: false } : null;
+                return v
+                  ? {
+                      latitude: v.latitude,
+                      longitude: v.longitude,
+                      precisao: v.precisao,
+                      agora: false,
+                    }
+                  : null;
               })();
 
           const resposta = await canal.comSessaoDoCorretor(corretor, async (supabase) => {

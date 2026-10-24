@@ -145,11 +145,11 @@ describe("descrição humana e regras", () => {
 
   it("descreve contato com resultado, resumo, objeções e follow-up no fuso de SP", () => {
     const d = descreverProposta(contato, "Maria da Silva");
-    expect(d.titulo).toBe("Registrar contato com Maria da Silva");
-    expect(d.detalhes[0]).toBe("ligacao · Atendeu");
+    expect(d.titulo).toBe("Contato com Maria da Silva");
+    expect(d.detalhes[0]).toBe("Ligação, atendeu");
     expect(d.detalhes).toContain("achou a parcela alta");
     expect(d.detalhes).toContain("Objeções: parcela alta");
-    expect(d.detalhes.at(-1)).toMatch(/^Follow-up: .*11\/09.*10:00/);
+    expect(d.detalhes.at(-1)).toMatch(/^Follow-up .*11\/09 10:00$/);
     expect(descreverProposta({ ...contato, followupEm: null }, null).detalhes.at(-1)).toBe(
       "Sem follow-up",
     );
@@ -170,7 +170,10 @@ describe("descrição humana e regras", () => {
     expect(fimDaVisita({ ...visita, duracaoMin: 90 })).toBe("2026-09-10T14:30:00.000Z");
     expect(tituloVisita(visita, "Maria")).toBe("Visita - Vista Verde");
     expect(tituloVisita({ ...visita, local: undefined }, "Maria")).toBe("Visita - Maria");
-    expect(descreverProposta(visita, "Maria").detalhes).toContain("Move o cliente para Agendado");
+    expect(descreverProposta(visita, "Maria").detalhes).toContain("Move para Agendado");
+    expect(descreverProposta({ ...visita, moverParaAgendado: false }, "Maria").detalhes).toContain(
+      "Mantém a etapa",
+    );
   });
 
   it("pacote: título conta itens e nomeia o cliente quando é um só", () => {
@@ -316,54 +319,85 @@ describe("memória: propostas que voltam ao painel", () => {
 });
 
 import {
+  CriarLeadFerramentaInput,
   CriarLeadPayload,
-  descreverDadosOcultos,
-  extrairDadosDeCadastro,
   normalizarTelefoneCadastro,
 } from "../src/lib/samiq-propostas";
 
-describe("cadastro de cliente novo pela Sami (24/10/2026)", () => {
-  it("extrai telefone e nome completo do texto original", () => {
-    const c = extrairDadosDeCadastro(
-      "cadastra a Maria Silva Santos, (11) 99999-8888, indicação do Eduardo, quer Mooca",
-    );
-    expect(c.telefones).toEqual(["11999998888"]);
-    expect(c.nomes).toEqual(["Maria Silva Santos"]);
-    expect(descreverDadosOcultos(c)).toContain("1 (final 8888)");
-    expect(descreverDadosOcultos(c)).toContain("1 (Maria S.)");
-  });
-
-  it("aceita formatos comuns e descarta o que não é telefone", () => {
+describe("cadastro de cliente novo pela Sami (24/10/2026, v8)", () => {
+  it("telefone de cadastro vira só dígitos com DDD; o que não é telefone cai fora", () => {
     expect(normalizarTelefoneCadastro("+55 11 99999-8888")).toBe("11999998888");
     expect(normalizarTelefoneCadastro("011 99999 8888")).toBe("11999998888");
+    expect(normalizarTelefoneCadastro("(11) 99999-8888")).toBe("11999998888");
     expect(normalizarTelefoneCadastro("11 3333-4444")).toBe("1133334444");
     expect(normalizarTelefoneCadastro("1234")).toBeNull();
-    expect(extrairDadosDeCadastro("renda de 4500 e entrada de 20000").telefones).toEqual([]);
-    expect(descreverDadosOcultos({ telefones: [], nomes: [] })).toBeNull();
+    expect(normalizarTelefoneCadastro("[TELEFONE_1]")).toBeNull();
+    expect(normalizarTelefoneCadastro("11 89999-8888")).toBeNull(); // celular sem o 9
   });
 
-  it("payload exige telefone só com dígitos e origem permitida", () => {
+  it("payload gravado exige telefone só com dígitos e origem permitida", () => {
     expect(
-      CriarLeadPayload.safeParse({ tipo: "criar_lead", nome: "Maria", telefone: "11999998888", origem: "indicacao" })
-        .success,
+      CriarLeadPayload.safeParse({
+        tipo: "criar_lead",
+        nome: "Maria",
+        telefone: "11999998888",
+        origem: "indicacao",
+      }).success,
     ).toBe(true);
     expect(
-      CriarLeadPayload.safeParse({ tipo: "criar_lead", nome: "Maria", telefone: "(11) 99999-8888", origem: "indicacao" })
-        .success,
+      CriarLeadPayload.safeParse({
+        tipo: "criar_lead",
+        nome: "Maria",
+        telefone: "(11) 99999-8888",
+        origem: "indicacao",
+      }).success,
     ).toBe(false);
     expect(
-      CriarLeadPayload.safeParse({ tipo: "criar_lead", nome: "Maria", telefone: "11999998888", origem: "chatbot" })
-        .success,
+      CriarLeadPayload.safeParse({
+        tipo: "criar_lead",
+        nome: "Maria",
+        telefone: "11999998888",
+        origem: "chatbot",
+      }).success,
     ).toBe(false);
+    // Proposta pendente criada pela versão de produção (sem e-mail/zona) continua válida.
+    expect(
+      PropostaPayloadSchema.safeParse({
+        tipo: "criar_lead",
+        nome: "Maria Silva",
+        telefone: "11999998888",
+        origem: "plantao",
+        projetoNome: "MA Lapa",
+        bairro: "Lapa",
+        observacoes: "quer 2 dorms",
+      }).success,
+    ).toBe(true);
   });
 
-  it("descreve o cadastro sem expor o telefone inteiro", () => {
+  it("a ferramenta aceita o marcador (o servidor troca pelo número antes de validar)", () => {
+    expect(
+      CriarLeadFerramentaInput.safeParse({
+        nome: "Maria Silva",
+        telefone: "[TELEFONE_1]",
+        origem: "indicacao",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("descreve o cadastro sem expor o telefone inteiro e desfaz pela lixeira", () => {
     const d = descreverProposta(
-      { tipo: "criar_lead", nome: "Maria Silva", telefone: "11999998888", origem: "indicacao", projetoNome: "MA Lapa" },
+      {
+        tipo: "criar_lead",
+        nome: "Maria Silva",
+        telefone: "11999998888",
+        origem: "indicacao",
+        projetoNome: "MA Lapa",
+      },
       null,
     );
     expect(d.titulo).toBe("Cadastrar cliente Maria Silva");
     expect(d.detalhes.join(" ")).toContain("final 8888");
+    expect(d.detalhes.join(" ")).toContain("Origem: indicação");
     expect(d.detalhes.join(" ")).not.toContain("11999998888");
     expect(podeDesfazerProposta("criar_lead")).toBe(true);
   });

@@ -39,7 +39,11 @@ const Itens = z
 
 export const ConfirmarPendentesInput = z.object({ itens: Itens });
 export const DescartarPendentesInput = z.object({
-  itens: z.array(z.number().int().min(1).max(20)).min(1).max(20).describe("Números dos itens a descartar"),
+  itens: z
+    .array(z.number().int().min(1).max(20))
+    .min(1)
+    .max(20)
+    .describe("Números dos itens a descartar"),
 });
 export const DesfazerAcoesInput = z.object({ itens: Itens });
 
@@ -88,8 +92,10 @@ export function criarFerramentasDeControleSamiQ(args: {
           };
         }
         const escolhidas = escolher(pendentes, itens);
-        if (escolhidas === null) return { erro: "item_inexistente", detalhe: `a lista tem ${pendentes.length} itens` };
-        if (escolhidas.length === 0) return { erro: "nada_a_confirmar", detalhe: "esses itens já foram decididos" };
+        if (escolhidas === null)
+          return { erro: "item_inexistente", detalhe: `a lista tem ${pendentes.length} itens` };
+        if (escolhidas.length === 0)
+          return { erro: "nada_a_confirmar", detalhe: "esses itens já foram decididos" };
         const resultados = await confirmarPropostas({
           supabase,
           userId,
@@ -106,7 +112,8 @@ export function criarFerramentasDeControleSamiQ(args: {
             efeito: p.efeito ?? undefined,
             erro: p.erro ?? undefined,
           })),
-          aviso: "O sistema manda o recibo. Fale só do próximo passo; se algo falhou, explique em uma frase.",
+          aviso:
+            "O sistema manda o recibo. Fale só do próximo passo; se algo falhou, explique em uma frase.",
         };
       },
     });
@@ -117,7 +124,8 @@ export function criarFerramentasDeControleSamiQ(args: {
       inputSchema: DescartarPendentesInput,
       execute: async ({ itens }) => {
         const escolhidas = escolher(pendentes, itens);
-        if (escolhidas === null) return { erro: "item_inexistente", detalhe: `a lista tem ${pendentes.length} itens` };
+        if (escolhidas === null)
+          return { erro: "item_inexistente", detalhe: `a lista tem ${pendentes.length} itens` };
         if (escolhidas.length === 0) return { erro: "nada_a_descartar" };
         await rejeitarPropostas({ userId, ids: escolhidas.map((p) => p.id) });
         for (const p of escolhidas) decididas.add(p.id);
@@ -134,7 +142,8 @@ export function criarFerramentasDeControleSamiQ(args: {
       inputSchema: DesfazerAcoesInput,
       execute: async ({ itens }) => {
         const escolhidas = escolher(executadas, itens);
-        if (escolhidas === null) return { erro: "item_inexistente", detalhe: `a lista tem ${executadas.length} itens` };
+        if (escolhidas === null)
+          return { erro: "item_inexistente", detalhe: `a lista tem ${executadas.length} itens` };
         if (escolhidas.length === 0) return { erro: "nada_a_desfazer" };
         const r = await desfazerPropostas({ userId, ids: escolhidas.map((p) => p.id) });
         for (const p of escolhidas) decididas.add(p.id);

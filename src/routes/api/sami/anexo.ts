@@ -36,7 +36,10 @@ export const Route = createFileRoute("/api/sami/anexo")({
           });
           await anexos.limparAnexosVencidos(corretor.id);
           // Outro arquivo sem uso nos últimos 2 minutos = rajada: não pergunta de novo.
-          const recentes = await anexos.anexosPendentes({ corretorId: corretor.id, maxIdadeMs: 2 * 60_000 });
+          const recentes = await anexos.anexosPendentes({
+            corretorId: corretor.id,
+            maxIdadeMs: 2 * 60_000,
+          });
           const rajada = recentes.some((a) => a.id !== guardado.id);
           const silencioso = guardado.reaproveitado || rajada || !!campos.legenda;
           return canal.jsonCanal({

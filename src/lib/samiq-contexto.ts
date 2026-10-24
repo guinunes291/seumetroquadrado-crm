@@ -18,7 +18,12 @@ export type ContextoConversaSamiQ = {
   pendentes?: string[];
   executadas?: string[];
   pediu_decisao?: boolean;
-  localizacao?: { latitude: number; longitude: number; precisao?: number | null; em: string } | null;
+  localizacao?: {
+    latitude: number;
+    longitude: number;
+    precisao?: number | null;
+    em: string;
+  } | null;
   anexo_pendente?: string | null;
   /** Candidatos da última pergunta "qual Maria?" (a resposta "a 2" libera a trava). */
   ambiguos?: string[];
@@ -37,7 +42,10 @@ export function lerContexto(valor: unknown): ContextoConversaSamiQ {
     Array.isArray(x) ? x.filter((i): i is string => typeof i === "string").slice(0, 20) : undefined;
   const clientes = Array.isArray(v.clientes)
     ? (v.clientes as unknown[])
-        .filter((c): c is ClienteCitado => !!c && typeof c === "object" && typeof (c as ClienteCitado).id === "string")
+        .filter(
+          (c): c is ClienteCitado =>
+            !!c && typeof c === "object" && typeof (c as ClienteCitado).id === "string",
+        )
         .slice(0, SAMIQ_MAX_CLIENTES_CITADOS)
     : undefined;
   const loc = v.localizacao as ContextoConversaSamiQ["localizacao"];
@@ -47,12 +55,16 @@ export function lerContexto(valor: unknown): ContextoConversaSamiQ {
     executadas: ids(v.executadas),
     pediu_decisao: v.pediu_decisao === true,
     localizacao:
-      loc && typeof loc === "object" && typeof loc.latitude === "number" && typeof loc.longitude === "number"
+      loc &&
+      typeof loc === "object" &&
+      typeof loc.latitude === "number" &&
+      typeof loc.longitude === "number"
         ? loc
         : null,
     anexo_pendente: typeof v.anexo_pendente === "string" ? v.anexo_pendente : null,
     ambiguos: ids(v.ambiguos),
-    ultima_mensagem_id: typeof v.ultima_mensagem_id === "string" ? v.ultima_mensagem_id.slice(0, 200) : null,
+    ultima_mensagem_id:
+      typeof v.ultima_mensagem_id === "string" ? v.ultima_mensagem_id.slice(0, 200) : null,
   };
 }
 
@@ -100,7 +112,10 @@ export function localizacaoValida(
 }
 
 /** Itens escolhidos ("1 e 3") sobre uma lista numerada; fora da faixa devolve null. */
-export function escolherPorNumero(ids: ReadonlyArray<string>, numeros: ReadonlyArray<number>): string[] | null {
+export function escolherPorNumero(
+  ids: ReadonlyArray<string>,
+  numeros: ReadonlyArray<number>,
+): string[] | null {
   if (numeros.length === 0) return [...ids];
   const out: string[] = [];
   for (const n of numeros) {
@@ -122,8 +137,14 @@ type ResultadoBanco<T> = PromiseLike<{
 
 type ConversaContextoQuery = {
   select(colunas: "contexto"): {
-    eq(coluna: "id", valor: string): {
-      eq(coluna: "user_id", valor: string): { maybeSingle(): ResultadoBanco<{ contexto: unknown }> };
+    eq(
+      coluna: "id",
+      valor: string,
+    ): {
+      eq(
+        coluna: "user_id",
+        valor: string,
+      ): { maybeSingle(): ResultadoBanco<{ contexto: unknown }> };
     };
   };
 };

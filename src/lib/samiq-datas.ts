@@ -58,7 +58,13 @@ export function mesSP(agora: Date = new Date()): string {
 const DIA_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const DIA_SEMANA_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
-function partesSP(agora: Date): { ano: number; mes: number; dia: number; hora: string; semana: number } {
+function partesSP(agora: Date): {
+  ano: number;
+  mes: number;
+  dia: number;
+  hora: string;
+  semana: number;
+} {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: FUSO_SP,
     year: "numeric",
@@ -70,7 +76,15 @@ function partesSP(agora: Date): { ano: number; mes: number; dia: number; hora: s
     weekday: "short",
   }).formatToParts(agora);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  const semanas: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const semanas: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
   const hora = `${get("hour") === "24" ? "00" : get("hour")}:${get("minute")}`;
   return {
     ano: Number(get("year")),
@@ -125,7 +139,11 @@ export function fmtDiaBr(dia: string | null | undefined): string | null {
 }
 
 /** true se o instante já passou (com tolerância, para "agora" e relógios desalinhados). */
-export function jaPassou(iso: string, agora: Date = new Date(), toleranciaMs = 5 * 60_000): boolean {
+export function jaPassou(
+  iso: string,
+  agora: Date = new Date(),
+  toleranciaMs = 5 * 60_000,
+): boolean {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return false;
   return t < agora.getTime() - toleranciaMs;

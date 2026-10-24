@@ -39,7 +39,10 @@ export function criarExecucaoImediata(args: {
       coletadas: [coletada],
     });
     if (!proposta) {
-      return { ok: false, erro: "Não consegui registrar a ação agora (memória indisponível). Tente de novo." };
+      return {
+        ok: false,
+        erro: "Não consegui registrar a ação agora (memória indisponível). Tente de novo.",
+      };
     }
     const [r] = await confirmarPropostas({
       supabase: args.supabase,

@@ -283,7 +283,11 @@ export const OBJECOES_VISITA = [
   "outro",
 ] as const;
 
-export const ETAPAS_APOS_VISITA = ["visita_realizada", "aguardando_retorno", "analise_credito"] as const;
+export const ETAPAS_APOS_VISITA = [
+  "visita_realizada",
+  "aguardando_retorno",
+  "analise_credito",
+] as const;
 
 /** Slugs de documento do checklist (lib/documentacao-checklist.ts). */
 export const DOCUMENTOS_TIPOS = Object.keys(DOC_LABEL) as [string, ...string[]];
@@ -322,7 +326,10 @@ const ISO_DATA_HORA = z
   .string()
   .min(10)
   .max(40)
-  .refine((v) => !Number.isNaN(Date.parse(v)), "data/hora inválida (use ISO 8601, ex.: 2026-10-25T10:00:00-03:00)");
+  .refine(
+    (v) => !Number.isNaN(Date.parse(v)),
+    "data/hora inválida (use ISO 8601, ex.: 2026-10-25T10:00:00-03:00)",
+  );
 
 const DIA_ISO = z
   .string()
@@ -414,9 +421,11 @@ export const AtualizarQualificacaoBase = z.object({
   bairro: textoOpcional(80).describe("Bairro de interesse"),
   dormsDesejados: z.number().int().min(1).max(5).optional(),
   precisaVaga: z.boolean().optional(),
-  prioridades: z.array(z.enum(PRIORIDADES_CLIENTE)).max(9).optional().describe(
-    "Prioridades do cliente (substitui a lista atual)",
-  ),
+  prioridades: z
+    .array(z.enum(PRIORIDADES_CLIENTE))
+    .max(9)
+    .optional()
+    .describe("Prioridades do cliente (substitui a lista atual)"),
   notaPerfil: textoOpcional(1200).describe("Nota do perfil do cliente (o que ele valoriza)"),
   projetoId: uuid.optional().describe("id do empreendimento de interesse (de catalogo_projetos)"),
   projetoInteresse: z
@@ -523,7 +532,10 @@ export const RegistrarRetornoPayload = z.object({
   desfecho: z.enum(["pediu_retorno", "esfriou"]).describe("pediu_retorno | esfriou"),
   retornoEm: ISO_DATA_HORA.describe("Data/hora combinada para retornar (futura)"),
   nota: textoOpcional(500).describe("O que foi combinado"),
-  canal: z.enum(CANAIS_CONTATO).optional().describe("Canal do contato que gerou o retorno (padrão ligacao)"),
+  canal: z
+    .enum(CANAIS_CONTATO)
+    .optional()
+    .describe("Canal do contato que gerou o retorno (padrão ligacao)"),
 });
 
 export const MarcarPerdidoBase = z.object({
@@ -541,11 +553,16 @@ export const TrocarVagaBase = z.object({
   tipo: z.literal("trocar_vaga"),
   entraLeadId: uuid.describe("Cliente que entra em Em atendimento"),
   saiLeadId: uuid.describe("Cliente em Em atendimento que libera a vaga"),
-  desfecho: z.enum(["pediu_retorno", "esfriou", "perdido"]).describe("O que aconteceu com quem sai"),
+  desfecho: z
+    .enum(["pediu_retorno", "esfriou", "perdido"])
+    .describe("O que aconteceu com quem sai"),
   retornoEm: ISO_DATA_HORA.optional().describe("Quem sai: data do retorno (pediu_retorno/esfriou)"),
   categoria: z.enum(MOTIVOS_PERDA_PROPOSTA).optional().describe("Quem sai: categoria da perda"),
   detalhe: textoOpcional(500),
-  contato: z.enum(["ligacao", "whatsapp"]).optional().describe("Contato com quem entra, se foi agora"),
+  contato: z
+    .enum(["ligacao", "whatsapp"])
+    .optional()
+    .describe("Contato com quem entra, se foi agora"),
   proximoPasso: textoOpcional(200).describe("Próximo passo de quem entra"),
   proximoFollowupEm: ISO_DATA_HORA.optional().describe("Data do próximo passo de quem entra"),
 });
@@ -555,10 +572,9 @@ export const trocaTemDados = (p: {
   categoria?: string;
   entraLeadId: string;
   saiLeadId: string;
-}) =>
-  p.entraLeadId !== p.saiLeadId &&
-  (p.desfecho === "perdido" ? !!p.categoria : !!p.retornoEm);
-export const MSG_TROCA = "troca precisa de dois clientes diferentes; retorno exige data e perda exige categoria";
+}) => p.entraLeadId !== p.saiLeadId && (p.desfecho === "perdido" ? !!p.categoria : !!p.retornoEm);
+export const MSG_TROCA =
+  "troca precisa de dois clientes diferentes; retorno exige data e perda exige categoria";
 export const TrocarVagaPayload = TrocarVagaBase.refine(trocaTemDados, MSG_TROCA);
 
 // --- v8: tarefas -------------------------------------------------------------
@@ -618,8 +634,11 @@ export const RegistrarVisitaBase = z.object({
   reagendarPara: ISO_DATA_HORA.optional().describe("Nova visita, se já remarcou"),
   realizadaEm: ISO_DATA_HORA.optional().describe("Quando foi (só se a visita não estava agendada)"),
 });
-export const visitaSemComparecimentoSemInteresse = (p: { compareceu: boolean; interesse?: string; proximaEtapa?: string }) =>
-  p.compareceu || (!p.interesse && p.proximaEtapa !== "visita_realizada");
+export const visitaSemComparecimentoSemInteresse = (p: {
+  compareceu: boolean;
+  interesse?: string;
+  proximaEtapa?: string;
+}) => p.compareceu || (!p.interesse && p.proximaEtapa !== "visita_realizada");
 export const MSG_VISITA_SEM_COMPARECIMENTO =
   "sem comparecimento não há leitura de interesse nem visita realizada";
 export const RegistrarVisitaPayload = RegistrarVisitaBase.refine(
@@ -632,7 +651,9 @@ export const RegistrarVisitaPayload = RegistrarVisitaBase.refine(
 export const DocumentosChecklistPayload = z.object({
   tipo: z.literal("documentos_checklist"),
   leadId: uuid,
-  perfil: z.enum(PERFIL_RENDA as [string, ...string[]]).describe("clt | autonomo | empresario | aposentado"),
+  perfil: z
+    .enum(PERFIL_RENDA as [string, ...string[]])
+    .describe("clt | autonomo | empresario | aposentado"),
   casado: z.boolean().optional(),
   usaFgts: z.boolean().optional(),
   declaraIr: z.boolean().optional(),
@@ -642,7 +663,9 @@ export const AtualizarDocumentoPayload = z.object({
   tipo: z.literal("atualizar_documento"),
   leadId: uuid,
   documento: z.enum(DOCUMENTOS_TIPOS).describe("Tipo do documento (slug do checklist)"),
-  status: z.enum(DOC_STATUS as [string, ...string[]]).describe("pendente | recebido | aprovado | reprovado"),
+  status: z
+    .enum(DOC_STATUS as [string, ...string[]])
+    .describe("pendente | recebido | aprovado | reprovado"),
   observacao: textoOpcional(300),
 });
 
@@ -658,7 +681,10 @@ export const AnexarDocumentoPayload = z.object({
 export const EnviarAnaliseCreditoPayload = z.object({
   tipo: z.literal("enviar_analise_credito"),
   leadId: uuid,
-  situacao: z.enum(["enviada", "pendente"]).optional().describe("enviada (padrão) | pendente (faltam docs)"),
+  situacao: z
+    .enum(["enviada", "pendente"])
+    .optional()
+    .describe("enviada (padrão) | pendente (faltam docs)"),
   observacoes: textoOpcional(1000),
 });
 
@@ -719,7 +745,9 @@ export const RegistrarVendaPayload = RegistrarVendaBase.refine(vendaTemProjeto, 
 
 export const FazerCheckinBase = z.object({
   tipo: z.literal("fazer_checkin"),
-  modo: z.enum(["loja", "casa", "sair"]).describe("loja (filial) | casa | sair (encerrar presença)"),
+  modo: z
+    .enum(["loja", "casa", "sair"])
+    .describe("loja (filial) | casa | sair (encerrar presença)"),
   filial: textoOpcional(40).describe("Slug da filial: barra-funda | liberdade | belem"),
 });
 export const checkinTemFilial = (p: { modo: string; filial?: string }) =>
@@ -729,7 +757,12 @@ export const FazerCheckinPayload = FazerCheckinBase.refine(checkinTemFilial, MSG
 
 export const CriarLeadPayload = z.object({
   tipo: z.literal("criar_lead"),
-  nome: z.string().trim().min(2).max(120).describe("Nome do cliente (com sobrenome, se o corretor disse)"),
+  nome: z
+    .string()
+    .trim()
+    .min(2)
+    .max(120)
+    .describe("Nome do cliente (com sobrenome, se o corretor disse)"),
   // Gravado SÓ com dígitos (DDD + número). O modelo manda o marcador
   // [TELEFONE_n] da mensagem; o servidor troca pelo número e normaliza antes
   // de validar (mesmo formato do cadastro que já estava em produção).
@@ -850,7 +883,11 @@ function rotuloEtapa(s: string): string {
 
 function brl(n: number | undefined | null): string | null {
   if (n === undefined || n === null || !Number.isFinite(n)) return null;
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  return n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
 }
 
 /** "(11) 9****-4321": o corretor reconhece o número sem o WhatsApp repetir o telefone inteiro. */
@@ -884,17 +921,26 @@ export function descreverProposta(
     case "criar_tarefa": {
       const venc = fmtDataHoraSP(payload.vencimentoEm);
       return {
-        titulo: payload.leadId ? `Tarefa de ${quem}: ${payload.titulo}` : `Tarefa: ${payload.titulo}`,
-        detalhes: [venc ? `Vence ${venc}` : "Sem vencimento válido", `Prioridade ${payload.prioridade ?? "media"}`],
+        titulo: payload.leadId
+          ? `Tarefa de ${quem}: ${payload.titulo}`
+          : `Tarefa: ${payload.titulo}`,
+        detalhes: [
+          venc ? `Vence ${venc}` : "Sem vencimento válido",
+          `Prioridade ${payload.prioridade ?? "media"}`,
+        ],
       };
     }
     case "atualizar_qualificacao": {
       const detalhes: string[] = [];
       if (payload.rendaInformada !== undefined) detalhes.push(`Renda: ${payload.rendaInformada}`);
-      if (payload.rendaEstimada !== undefined) detalhes.push(`Renda: ${brl(payload.rendaEstimada)}`);
-      if (payload.entradaDisponivel !== undefined) detalhes.push(`Entrada: ${payload.entradaDisponivel}`);
-      if (payload.usaFgts !== undefined) detalhes.push(`Usa FGTS: ${payload.usaFgts ? "sim" : "não"}`);
-      if (payload.temFgts !== undefined) detalhes.push(`Tem FGTS: ${payload.temFgts ? "sim" : "não"}`);
+      if (payload.rendaEstimada !== undefined)
+        detalhes.push(`Renda: ${brl(payload.rendaEstimada)}`);
+      if (payload.entradaDisponivel !== undefined)
+        detalhes.push(`Entrada: ${payload.entradaDisponivel}`);
+      if (payload.usaFgts !== undefined)
+        detalhes.push(`Usa FGTS: ${payload.usaFgts ? "sim" : "não"}`);
+      if (payload.temFgts !== undefined)
+        detalhes.push(`Tem FGTS: ${payload.temFgts ? "sim" : "não"}`);
       if (payload.fgtsValor !== undefined) detalhes.push(`FGTS: ${brl(payload.fgtsValor)}`);
       if (payload.tipoRenda !== undefined) detalhes.push(`Renda ${payload.tipoRenda}`);
       if (payload.faixaMcmv !== undefined) detalhes.push(`Faixa ${payload.faixaMcmv}`);
@@ -903,13 +949,18 @@ export function descreverProposta(
       if (payload.zona !== undefined || payload.bairro !== undefined)
         detalhes.push(`Região: ${[payload.bairro, payload.zona].filter(Boolean).join(", ")}`);
       if (payload.dormsDesejados !== undefined) detalhes.push(`${payload.dormsDesejados} dorm.`);
-      if (payload.precisaVaga !== undefined) detalhes.push(`Vaga: ${payload.precisaVaga ? "sim" : "não"}`);
-      if (payload.prioridades?.length) detalhes.push(`Prioridades: ${payload.prioridades.join(", ")}`);
+      if (payload.precisaVaga !== undefined)
+        detalhes.push(`Vaga: ${payload.precisaVaga ? "sim" : "não"}`);
+      if (payload.prioridades?.length)
+        detalhes.push(`Prioridades: ${payload.prioridades.join(", ")}`);
       if (payload.notaPerfil !== undefined) detalhes.push(`Perfil: ${payload.notaPerfil}`);
-      if (payload.projetoInteresse !== undefined) detalhes.push(`Projeto: ${payload.projetoInteresse}`);
+      if (payload.projetoInteresse !== undefined)
+        detalhes.push(`Projeto: ${payload.projetoInteresse}`);
       else if (payload.projetoId) detalhes.push("Projeto de interesse atualizado");
-      if (payload.objecoesAdicionar?.length) detalhes.push(`Objeções: ${payload.objecoesAdicionar.join(", ")}`);
-      if (payload.resumoQualificacao !== undefined) detalhes.push(`Parecer: ${payload.resumoQualificacao}`);
+      if (payload.objecoesAdicionar?.length)
+        detalhes.push(`Objeções: ${payload.objecoesAdicionar.join(", ")}`);
+      if (payload.resumoQualificacao !== undefined)
+        detalhes.push(`Parecer: ${payload.resumoQualificacao}`);
       return { titulo: `Qualificação de ${quem}`, detalhes };
     }
     case "agendar_visita": {
@@ -961,7 +1012,10 @@ export function descreverProposta(
         detalhes: [`Para ${fmtDataHoraSP(payload.novoVencimentoEm) ?? "data inválida"}`],
       };
     case "cancelar_tarefa":
-      return { titulo: "Cancelar tarefa", detalhes: payload.motivo?.trim() ? [payload.motivo.trim()] : [] };
+      return {
+        titulo: "Cancelar tarefa",
+        detalhes: payload.motivo?.trim() ? [payload.motivo.trim()] : [],
+      };
     case "confirmar_visita":
       return { titulo: `Visita de ${quem} confirmada`, detalhes: [] };
     case "remarcar_visita":
@@ -976,7 +1030,8 @@ export function descreverProposta(
       if (payload.interesse) detalhes.push(`Interesse ${payload.interesse.replace("_", " ")}`);
       const etapa =
         payload.proximaEtapa ?? (payload.compareceu ? "visita_realizada" : "aguardando_retorno");
-      if (payload.reagendarPara) detalhes.push(`Nova visita ${fmtDataHoraSP(payload.reagendarPara) ?? ""}`.trim());
+      if (payload.reagendarPara)
+        detalhes.push(`Nova visita ${fmtDataHoraSP(payload.reagendarPara) ?? ""}`.trim());
       detalhes.push(`Vai para ${rotuloEtapa(etapa)}`);
       return { titulo: `Resultado da visita de ${quem}`, detalhes };
     }
@@ -985,7 +1040,11 @@ export function descreverProposta(
         titulo: `Checklist de documentos de ${quem}`,
         detalhes: [
           `Perfil ${payload.perfil}`,
-          [payload.casado ? "casado" : null, payload.usaFgts ? "usa FGTS" : null, payload.declaraIr ? "declara IR" : null]
+          [
+            payload.casado ? "casado" : null,
+            payload.usaFgts ? "usa FGTS" : null,
+            payload.declaraIr ? "declara IR" : null,
+          ]
             .filter(Boolean)
             .join(", ") || "sem extras",
         ],
@@ -993,7 +1052,10 @@ export function descreverProposta(
     case "atualizar_documento":
       return {
         titulo: `${DOC_LABEL[payload.documento] ?? payload.documento} de ${quem}`,
-        detalhes: [`Status ${payload.status}`, ...(payload.observacao?.trim() ? [payload.observacao.trim()] : [])],
+        detalhes: [
+          `Status ${payload.status}`,
+          ...(payload.observacao?.trim() ? [payload.observacao.trim()] : []),
+        ],
       };
     case "anexar_documento":
       return {
@@ -1019,14 +1081,18 @@ export function descreverProposta(
       if (payload.motivo?.trim()) detalhes.push(payload.motivo.trim());
       const fin = brl(payload.valorFinanciamento);
       const parc = brl(payload.valorParcela);
-      if (fin || parc) detalhes.push([fin && `financiamento ${fin}`, parc && `parcela ${parc}`].filter(Boolean).join(", "));
+      if (fin || parc)
+        detalhes.push(
+          [fin && `financiamento ${fin}`, parc && `parcela ${parc}`].filter(Boolean).join(", "),
+        );
       return { titulo: `Crédito de ${quem}`, detalhes };
     }
     case "registrar_venda":
       return {
         titulo: `Venda de ${quem}`,
         detalhes: [
-          [payload.projetoNome, payload.unidade].filter(Boolean).join(" ") || "Empreendimento cadastrado",
+          [payload.projetoNome, payload.unidade].filter(Boolean).join(" ") ||
+            "Empreendimento cadastrado",
           `${brl(payload.valorVenda)}, assinatura ${fmtDiaBr(payload.dataAssinatura) ?? payload.dataAssinatura}`,
           "Vai para aprovação da gestão",
         ],
@@ -1048,7 +1114,9 @@ export function descreverProposta(
       ];
       if (payload.projetoNome?.trim()) detalhes.push(`Interesse: ${payload.projetoNome.trim()}`);
       if (payload.bairro?.trim() || payload.zona?.trim()) {
-        detalhes.push(`Região: ${[payload.bairro?.trim(), payload.zona?.trim()].filter(Boolean).join(", ")}`);
+        detalhes.push(
+          `Região: ${[payload.bairro?.trim(), payload.zona?.trim()].filter(Boolean).join(", ")}`,
+        );
       }
       if (payload.observacoes?.trim()) detalhes.push(payload.observacoes.trim());
       detalhes.push("Entra na sua carteira em Aguardando atendimento");
@@ -1175,7 +1243,9 @@ export function normalizarDatasDoPayload<T extends Record<string, unknown>>(
 }
 
 /** Datas que precisam estar no futuro na hora de propor (com 5 min de tolerância). */
-export function datasQueDevemSerFuturas(payload: PropostaPayload): Array<{ campo: string; iso: string }> {
+export function datasQueDevemSerFuturas(
+  payload: PropostaPayload,
+): Array<{ campo: string; iso: string }> {
   const out: Array<{ campo: string; iso: string }> = [];
   const add = (campo: string, iso: string | null | undefined) => {
     if (iso) out.push({ campo, iso });
