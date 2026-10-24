@@ -75,7 +75,9 @@ describe("UI — gestão de campanha na Central (consolidação de 27/08)", () =
   it("cria campanha pela RPC do servidor (slug + token nascem no banco), nunca no navegador", () => {
     expect(filas).toContain("NovaCampanhaDialog");
     expect(filas).toContain("useCriarRoletaCampanha");
-    expect(read("src/features/distribuicao/queries.ts")).toContain("criar_roleta_campanha");
+    expect(read("src/features/distribuicao/config-mutations.ts")).toContain(
+      "criar_roleta_campanha",
+    );
     expect(filas).not.toContain("crypto.getRandomValues");
     expect(page).not.toContain("crypto.getRandomValues");
   });
