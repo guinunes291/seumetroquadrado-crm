@@ -16,6 +16,7 @@ import {
   minimizeSamiQContext,
   redactSamiQFreeText,
 } from "@/lib/samiq-governance";
+import { avisoTabelaSamiQ, situacaoTabelaSamiQ } from "@/lib/samiq-tabela";
 
 export const SAMIQ_TOOL_NAMES = [
   "buscar_clientes",
@@ -236,7 +237,7 @@ export const SAMIQ_TOOL_DESCRIPTIONS: Record<SamiQToolName, string> = {
   minha_situacao:
     "Situação do corretor hoje: check-in (onde, se está apto para a roleta e por quê), Em atendimento (ocupação x teto, se está lotado, se recebe lead), base e se pode pedir lote de prospecção. Use para 'por que não recebi lead?', 'fiz check-in?', 'quantos tenho em atendimento?'.",
   material_do_projeto:
-    "Ficha de venda de UM empreendimento: endereço, construtora, entrega, preço a partir de, renda mínima, metragem, vagas, argumentos de venda e se há book e tabela (com a data da tabela). Book, tabela e planta o próprio canal envia quando o corretor pede pelo nome.",
+    "Ficha de venda de UM empreendimento: endereço, construtora, entrega, preço a partir de, renda mínima, metragem, vagas, argumentos de venda e se há book e tabela (com a data da tabela e aviso_tabela quando ela não é do mês, do dia 5 em diante). Book, tabela e planta o próprio canal envia quando o corretor pede pelo nome.",
   credito_do_cliente:
     "Análise de crédito atual de um cliente: situação (enviada, pendente, aprovada, condicionada, reprovada), banco, financiamento, parcela, prazo, FGTS, subsídio, validade. Valores aprovados são para o corretor, nunca para mensagem ao cliente.",
   abrir_ferramentas:
@@ -693,6 +694,11 @@ export function modelarMaterialProjeto(p: MaterialProjetoRow, agora: Date = new 
   const diasTabela = p.tabela_atualizada_em
     ? Math.floor((agora.getTime() - Date.parse(p.tabela_atualizada_em)) / 86_400_000)
     : null;
+  // Do dia 5 em diante só vale a tabela do mês (samiq-tabela.ts). Sem link de
+  // tabela não há o que avisar.
+  const situacaoTabela = p.tabela_precos_url
+    ? situacaoTabelaSamiQ(p.tabela_atualizada_em, agora)
+    : null;
   return {
     id: p.id,
     nome: p.nome,
@@ -720,10 +726,8 @@ export function modelarMaterialProjeto(p: MaterialProjetoRow, agora: Date = new 
     tem_tabela: !!p.tabela_precos_url,
     tabela_atualizada_em: p.tabela_atualizada_em,
     tabela_dias: diasTabela,
-    aviso_tabela:
-      diasTabela !== null && diasTabela > 30
-        ? `Tabela de ${diasTabela} dias atrás: confirme valores e disponibilidade antes de passar ao cliente.`
-        : undefined,
+    tabela_situacao: situacaoTabela?.estado,
+    aviso_tabela: situacaoTabela ? avisoTabelaSamiQ(situacaoTabela) : undefined,
   };
 }
 

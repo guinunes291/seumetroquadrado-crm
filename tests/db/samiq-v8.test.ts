@@ -896,4 +896,24 @@ describe("área de espera dos arquivos (samiq_anexos)", () => {
     );
     await comoSuperuser(c);
   });
+
+  it("o browser só tem SELECT (nem TRUNCATE, que o RLS não cobre)", async () => {
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT has_table_privilege('authenticated', 'public.samiq_anexos', 'SELECT') AS sel,
+              has_table_privilege('authenticated', 'public.samiq_anexos', 'INSERT') AS ins,
+              has_table_privilege('authenticated', 'public.samiq_anexos', 'UPDATE') AS upd,
+              has_table_privilege('authenticated', 'public.samiq_anexos', 'DELETE') AS del,
+              has_table_privilege('authenticated', 'public.samiq_anexos', 'TRUNCATE') AS trunc,
+              has_table_privilege('anon', 'public.samiq_anexos', 'SELECT') AS anon_sel`,
+    );
+    expect(r.rows[0]).toEqual({
+      sel: true,
+      ins: false,
+      upd: false,
+      del: false,
+      trunc: false,
+      anon_sel: false,
+    });
+  });
 });

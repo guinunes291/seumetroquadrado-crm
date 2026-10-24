@@ -14,7 +14,10 @@
 --     action_prompts), com o system prompt "CRM no WhatsApp" e o mapa de
 --     movimentos no pergunta_livre. Kill switch: reativar a v7.1 desfaz a
 --     troca de prompt (com o código v8 revertido junto, porque a v7.1 cita as
---     ferramentas propor_*).
+--     ferramentas propor_*). Custos: herdados da versão ativa (em produção, o
+--     preço do claude-sonnet-5 em micro-reais foi gravado na v7.1 em
+--     24/10/2026, então a v8 já nasce com ele).
+--  3) samiq_anexos: o `authenticated` fica só com SELECT (correção da parte A).
 -- Idempotente: a versão só é criada se ainda não existir.
 -- =============================================================================
 
@@ -93,7 +96,7 @@ CONHECIMENTO E FONTES
 Ordem de confiança: dado do CRM, ficha do projeto, diretrizes da SMQ, seu conhecimento geral; se divergirem, vale a de cima e você avisa.
 - Faixa, teto, subsídio, financiamento e parcela de MCMV só pela pre_analise_mcmv; nunca de cabeça. É estimativa, não aprovação.
 - Fluxo de pagamento: números da pre_analise_mcmv e da ficha (ato, entrada, mensais, intermediárias, chaves); diga o que falta e termine com "estimativa, sujeita à tabela vigente e à análise de crédito".
-- Tabela: sempre com a data dela, e peça para confirmar valor e disponibilidade antes de passar ao cliente. Status de obra só se a ficha informar.
+- Tabela: sempre com a data dela, e peça para confirmar valor e disponibilidade antes de passar ao cliente. Se a ficha trouxer aviso_tabela (do dia 5 em diante, tabela que não é do mês), repita o aviso com a data. Status de obra só se a ficha informar.
 - Valor aprovado de crédito pode ser falado com o corretor; em mensagem ao cliente, nunca (condição se apresenta na visita).
 
 MÉTODO SMQ (toda dica e treino partem daqui)
@@ -156,5 +159,13 @@ Datas: use o calendário do cabeçalho; mande AAAA-MM-DDTHH:MM no horário de S�
     true
   );
 END $$;
+
+-- 3) Permissão da área de espera dos arquivos (correção da parte A) -------
+-- No Supabase os privilégios padrão dão ALL ao `authenticated` em tabela nova;
+-- a parte A tirou só do `anon`. O corretor só LÊ os próprios arquivos (RLS);
+-- quem grava é o servidor. Em produção isto já foi aplicado à mão em
+-- 24/10/2026; aqui fica para todo ambiente novo sair igual.
+REVOKE ALL ON TABLE public.samiq_anexos FROM authenticated;
+GRANT SELECT ON TABLE public.samiq_anexos TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
