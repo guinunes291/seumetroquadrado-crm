@@ -125,6 +125,11 @@ export const DocumentosDoClienteInput = z.object({
 });
 
 export const CatalogoProjetosInput = z.object({
+  nome: z
+    .string()
+    .max(80)
+    .optional()
+    .describe("Nome do empreendimento ou construtora (busca parcial)"),
   regiao: z.string().max(60).optional().describe("Região, zona ou bairro (busca parcial)"),
   dorms: z.number().int().min(1).max(5).optional().describe("Quantidade de dormitórios"),
   preco_max: z.number().positive().optional().describe("Preço máximo em reais"),
@@ -148,7 +153,7 @@ export const SAMIQ_TOOL_DESCRIPTIONS: Record<SamiQToolName, string> = {
   documentos_do_cliente:
     "Checklist de documentação de um cliente para o financiamento: cada documento com o status (pendente, recebido, aprovado, reprovado).",
   catalogo_projetos:
-    "Empreendimentos ativos da SMQ com região, tipologia, dormitórios, preço a partir de e renda mínima. Filtre por região, dormitórios ou preço máximo.",
+    "Empreendimentos ativos da SMQ com região, tipologia, dormitórios, preço a partir de e renda mínima. Filtre por nome do empreendimento ou construtora, região, dormitórios ou preço máximo.",
   pre_analise_mcmv:
     "Pré-análise MCMV determinística (tabela APROVE 2026): faixa, parcela estimada, financiamento máximo, subsídio, teto do imóvel e, se informar preco_imovel, se cabe e quanto parcelar com a construtora. SEMPRE use esta ferramenta para qualquer número de parcela, teto ou faixa — nunca calcule por conta própria.",
   avaliar_qualificacao:
@@ -216,6 +221,14 @@ export function termoBuscaSamiQ(termo: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
+}
+
+/** Mesmo formato das colunas de busca normalizadas no banco. */
+export function termoSemAcentoSamiQ(termo: string): string {
+  return termoBuscaSamiQ(termo)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 // ---------------------------------------------------------------------------

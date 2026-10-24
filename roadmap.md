@@ -1,3 +1,8 @@
+# Buscas da Sami
+- [x] Criar colunas normalizadas e índices de projetos, preservando políticas e grants existentes.
+- [x] Ajustar ferramentas e testes para nome, acentos e curadoria filtrada.
+- [x] Executar testes (3.102 passaram), conferir Nações Unidas/José no banco e solicitar publicação.
+
 # Telefones de corretores
 - [x] Retirar leads com telefone de corretor preservando histórico: 23 retirados, zero restantes.
 - [x] Bloquear telefone de corretor na busca e no cadastro com conferência global no servidor; testes automatizados.
