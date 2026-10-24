@@ -9,7 +9,12 @@
 // Sem rede, sem banco. Textos sem travessão e sem emoji (padrão SMQ).
 
 import { z } from "zod";
-import { descreverProposta, type PropostaSamiQ } from "@/lib/samiq-propostas";
+import {
+  descreverProposta,
+  MOTIVO_SEM_DESFAZER_LABEL,
+  type MotivoSemDesfazer,
+  type PropostaSamiQ,
+} from "@/lib/samiq-propostas";
 import type { BriefingSamiQ } from "@/lib/samiq-briefing";
 
 /** Header de autenticação server-to-server (o mesmo das edge functions sami-*). */
@@ -599,9 +604,17 @@ export function textoDaDecisao(
 export function textoDoDesfazer(
   resultados: ReadonlyArray<{ id: string; ok: boolean; erro?: string }>,
   acoes: ReadonlyArray<PropostaSamiQ>,
+  /** Itens que o corretor apontou e que não voltam (já desfeitos, fora do prazo, tipo que não volta). */
+  ignoradas: ReadonlyArray<{ acao: PropostaSamiQ; motivo: MotivoSemDesfazer }> = [],
 ): string {
+  const linhasIgnoradas = ignoradas.map(
+    ({ acao, motivo }) =>
+      `${descreverProposta(acao.payload, acao.leadNome).titulo}: ${MOTIVO_SEM_DESFAZER_LABEL[motivo]}.`,
+  );
   if (acoes.length === 0) {
-    return "Não achei nada recente para desfazer nesta conversa (o desfazer vale por 24 h).";
+    return linhasIgnoradas.length
+      ? linhasIgnoradas.join("\n")
+      : "Não achei nada recente para desfazer nesta conversa (o desfazer vale por 24 h).";
   }
   const titulo = (id: string) => {
     const p = acoes.find((x) => x.id === id);
@@ -623,7 +636,7 @@ export function textoDoDesfazer(
   );
   if (mexeuEtapa)
     linhas.push("A etapa do funil não volta sozinha; se precisar, me diga para onde.");
-  return linhas.join("\n");
+  return [...linhas, ...linhasIgnoradas].join("\n");
 }
 
 export function primeiroNome(nome: string | null | undefined): string | null {

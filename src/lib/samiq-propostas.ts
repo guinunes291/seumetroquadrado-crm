@@ -22,6 +22,7 @@ import { z } from "zod";
 import { LEAD_STATUS_LABEL, MOTIVO_PERDA_LABEL, type LeadStatus } from "@/lib/leads";
 import { DOC_LABEL, DOC_STATUS, PERFIL_RENDA } from "@/lib/documentacao-checklist";
 import { fmtDataHoraSP, fmtDiaBr } from "@/lib/samiq-datas";
+import { PRIORIDADE_LABEL } from "@/lib/tarefas";
 
 export const SAMIQ_PROPOSTA_TIPOS = [
   "registrar_contato",
@@ -157,6 +158,31 @@ export const SAMIQ_TIPOS_DESFAZIVEIS = [
 export function podeDesfazerProposta(tipo: SamiQPropostaTipo): boolean {
   return (SAMIQ_TIPOS_DESFAZIVEIS as readonly string[]).includes(tipo);
 }
+
+export type MotivoSemDesfazer = "ja_desfeito" | "nao_desfazivel" | "fora_do_prazo";
+
+/**
+ * Por que um item do recibo não volta pelo DESFAZER agora (null = volta).
+ * O recibo numera tudo o que gravou; quem decide o que dá para reverter é
+ * esta regra, aplicada na hora do pedido (a numeração nunca muda).
+ */
+export function motivoSemDesfazer(
+  p: { tipo: SamiQPropostaTipo; status: string; desfazerAte?: string | null },
+  agora: Date,
+): MotivoSemDesfazer | null {
+  if (p.status === "desfeita") return "ja_desfeito";
+  if ((p.status !== "aceita" && p.status !== "editada") || !podeDesfazerProposta(p.tipo)) {
+    return "nao_desfazivel";
+  }
+  if (!p.desfazerAte || !(Date.parse(p.desfazerAte) > agora.getTime())) return "fora_do_prazo";
+  return null;
+}
+
+export const MOTIVO_SEM_DESFAZER_LABEL: Record<MotivoSemDesfazer, string> = {
+  ja_desfeito: "já foi desfeito",
+  nao_desfazivel: "esse registro não volta pelo DESFAZER; me diga o que corrigir",
+  fora_do_prazo: "passou o prazo de 24 h",
+};
 
 // ---------------------------------------------------------------------------
 // Vocabulários (espelham o que as telas e o banco já usam — nunca inventar valor)
@@ -899,6 +925,38 @@ export function telefoneMascarado(tel: string | null | undefined): string {
 
 export type DescricaoProposta = { titulo: string; detalhes: string[] };
 
+const TIPO_RENDA_LABEL: Record<string, string> = {
+  clt: "CLT",
+  autonomo: "autônoma",
+  servidor: "de servidor público",
+  misto: "mista",
+  outro: "de outro tipo",
+};
+
+const FILIAL_LABEL: Record<string, string> = {
+  "barra-funda": "Barra Funda",
+  liberdade: "Liberdade",
+  belem: "Belém",
+};
+
+function rotuloFilial(slug: string | undefined): string {
+  const chave = (slug ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^filial-/, "");
+  return FILIAL_LABEL[chave] ?? (slug ?? "").trim();
+}
+
+/** "clt" vira "CLT" no recibo; o que o modelo mandar fora da lista sai como veio. */
+function rotuloTipoRenda(tipo: string): string {
+  const chave = tipo
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return TIPO_RENDA_LABEL[chave] ?? tipo.trim();
+}
+
 /** Texto humano do card, da lista do WhatsApp e do retorno da ferramenta. */
 export function descreverProposta(
   payload: PropostaPayload,
@@ -926,7 +984,7 @@ export function descreverProposta(
           : `Tarefa: ${payload.titulo}`,
         detalhes: [
           venc ? `Vence ${venc}` : "Sem vencimento válido",
-          `Prioridade ${payload.prioridade ?? "media"}`,
+          `Prioridade ${PRIORIDADE_LABEL[payload.prioridade ?? "media"].toLowerCase()}`,
         ],
       };
     }
@@ -942,7 +1000,8 @@ export function descreverProposta(
       if (payload.temFgts !== undefined)
         detalhes.push(`Tem FGTS: ${payload.temFgts ? "sim" : "não"}`);
       if (payload.fgtsValor !== undefined) detalhes.push(`FGTS: ${brl(payload.fgtsValor)}`);
-      if (payload.tipoRenda !== undefined) detalhes.push(`Renda ${payload.tipoRenda}`);
+      if (payload.tipoRenda !== undefined)
+        detalhes.push(`Renda ${rotuloTipoRenda(payload.tipoRenda)}`);
       if (payload.faixaMcmv !== undefined) detalhes.push(`Faixa ${payload.faixaMcmv}`);
       if (payload.temperatura !== undefined) detalhes.push(`Temperatura ${payload.temperatura}`);
       if (payload.decisor !== undefined) detalhes.push(`Decisor: ${payload.decisor}`);
@@ -1104,7 +1163,7 @@ export function descreverProposta(
             ? "Encerrar presença de hoje"
             : payload.modo === "casa"
               ? "Check-in em casa"
-              : `Check-in na filial ${payload.filial ?? ""}`.trim(),
+              : `Check-in na filial ${rotuloFilial(payload.filial)}`.trim(),
         detalhes: [],
       };
     case "criar_lead": {

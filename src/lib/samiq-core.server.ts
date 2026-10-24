@@ -49,7 +49,9 @@ import {
 } from "@/lib/samiq-tools";
 import {
   descreverProposta,
+  motivoSemDesfazer,
   type ModoEscritaSamiQ,
+  type MotivoSemDesfazer,
   type PropostaSamiQ,
 } from "@/lib/samiq-propostas";
 import type { ExecutorImediato, PropostaColetada } from "@/lib/samiq-propostas.server";
@@ -161,11 +163,19 @@ export function instrucoesDoCanal(canal: SamiQCanal, origemMidia?: "texto" | "au
   return linhas;
 }
 
-function linhaDeItens(itens: ReadonlyArray<PropostaSamiQ>): string {
+const NAO_VOLTA_PARA_MODELO: Record<MotivoSemDesfazer, string> = {
+  ja_desfeito: "já desfeito",
+  nao_desfazivel: "não volta pelo DESFAZER",
+  fora_do_prazo: "fora das 24 h",
+};
+
+/** Lista numerada do cabeçalho; com `agora`, marca o que não volta pelo DESFAZER. */
+function linhaDeItens(itens: ReadonlyArray<PropostaSamiQ>, agora?: Date): string {
   return itens
     .map((p, i) => {
       const d = descreverProposta(p.payload, p.leadNome);
-      return `${i + 1}) ${d.titulo}${d.detalhes.length ? ` (${d.detalhes.slice(0, 2).join(", ")})` : ""}`;
+      const motivo = agora ? motivoSemDesfazer(p, agora) : null;
+      return `${i + 1}) ${d.titulo}${d.detalhes.length ? ` (${d.detalhes.slice(0, 2).join(", ")})` : ""}${motivo ? ` [${NAO_VOLTA_PARA_MODELO[motivo]}]` : ""}`;
     })
     .join("; ");
 }
@@ -463,6 +473,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
               executadas: recentes.executadas,
               contexto: contextoExecucao,
               registro: controle,
+              agora,
             }),
           );
         }
@@ -515,7 +526,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           ? `Esperando o OK do corretor (numeração do CONFIRMAR): ${linhaDeItens(recentes.pendentes)}.`
           : null,
         recentes.executadas.length
-          ? `Gravado recentemente (numeração do DESFAZER): ${linhaDeItens(recentes.executadas)}.`
+          ? `Gravado recentemente (numeração do DESFAZER): ${linhaDeItens(recentes.executadas, agora)}.`
           : null,
         ...(args.anexos ?? []).slice(0, 5).map(textoDoAnexo),
         localizacao

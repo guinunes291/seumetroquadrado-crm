@@ -18,7 +18,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { consentimentoExplicito, executadasDaDecisao } from "@/lib/samiq-canal";
 import { escolherPorNumero } from "@/lib/samiq-contexto";
-import { descreverProposta, type PropostaSamiQ } from "@/lib/samiq-propostas";
+import { descreverProposta, motivoSemDesfazer, type PropostaSamiQ } from "@/lib/samiq-propostas";
 import { confirmarPropostas, desfazerPropostas, rejeitarPropostas } from "./samiq-confirmar.server";
 import type { ContextoExecucao } from "./samiq-executar.server";
 
@@ -57,8 +57,10 @@ export function criarFerramentasDeControleSamiQ(args: {
   executadas: ReadonlyArray<PropostaSamiQ>;
   contexto?: ContextoExecucao;
   registro: ControleDoTurno;
+  agora?: Date;
 }): ToolSet {
   const { supabase, userId, registro } = args;
+  const agora = args.agora ?? new Date();
   const pendentes = [...args.pendentes];
   const executadas = [...args.executadas];
   const decididas = new Set<string>();
@@ -135,25 +137,38 @@ export function criarFerramentasDeControleSamiQ(args: {
     });
   }
 
-  if (executadas.length > 0) {
+  if (executadas.some((p) => motivoSemDesfazer(p, agora) === null)) {
     out.desfazer_acoes = tool({
       description:
-        "Desfaz ações gravadas recentemente (lista 'Gravado recentemente' do cabeçalho, até 24 h), quando o corretor pedir para apagar, anular ou desfazer. Mudança de etapa do funil não volta sozinha.",
+        "Desfaz ações gravadas recentemente (lista 'Gravado recentemente' do cabeçalho, na numeração do recibo, até 24 h), quando o corretor pedir para apagar, anular ou desfazer. Itens marcados como 'não volta' não se desfazem. Mudança de etapa do funil não volta sozinha.",
       inputSchema: DesfazerAcoesInput,
       execute: async ({ itens }) => {
         const escolhidas = escolher(executadas, itens);
         if (escolhidas === null)
-          return { erro: "item_inexistente", detalhe: `a lista tem ${executadas.length} itens` };
-        if (escolhidas.length === 0) return { erro: "nada_a_desfazer" };
-        const r = await desfazerPropostas({ userId, ids: escolhidas.map((p) => p.id) });
-        for (const p of escolhidas) decididas.add(p.id);
-        const feitas = escolhidas.filter((p) => r.find((x) => x.id === p.id)?.ok);
+          return { erro: "item_inexistente", detalhe: `o recibo tem ${executadas.length} itens` };
+        // Sem número = o recibo todo, só o que ainda volta; com número, explica cada um que não volta.
+        const voltam = escolhidas.filter((p) => motivoSemDesfazer(p, agora) === null);
+        const naoVoltam = (itens?.length ? escolhidas : []).flatMap((p) => {
+          const motivo = motivoSemDesfazer(p, agora);
+          return motivo ? [{ item: titulo(p), desfeito: false, erro: motivo }] : [];
+        });
+        if (voltam.length === 0) {
+          return naoVoltam.length
+            ? { erro: "nada_a_desfazer", resultados: naoVoltam }
+            : { erro: "nada_a_desfazer" };
+        }
+        const r = await desfazerPropostas({ userId, ids: voltam.map((p) => p.id) });
+        for (const p of voltam) decididas.add(p.id);
+        const feitas = voltam.filter((p) => r.find((x) => x.id === p.id)?.ok);
         registro.desfeitas.push(...feitas);
         return {
-          resultados: escolhidas.map((p) => {
-            const x = r.find((y) => y.id === p.id);
-            return { item: titulo(p), desfeito: x?.ok === true, erro: x?.erro };
-          }),
+          resultados: [
+            ...voltam.map((p) => {
+              const x = r.find((y) => y.id === p.id);
+              return { item: titulo(p), desfeito: x?.ok === true, erro: x?.erro };
+            }),
+            ...naoVoltam,
+          ],
         };
       },
     });

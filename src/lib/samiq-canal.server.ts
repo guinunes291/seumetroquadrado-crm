@@ -30,7 +30,7 @@ import {
   type DecisaoResultado,
   type IntencaoCurta,
 } from "@/lib/samiq-canal";
-import type { PropostaSamiQ } from "@/lib/samiq-propostas";
+import type { MotivoSemDesfazer, PropostaSamiQ } from "@/lib/samiq-propostas";
 import { localizacaoValida, type ContextoConversaSamiQ } from "@/lib/samiq-contexto";
 import { SamiQQuotaError } from "./samiq-governance.server";
 import { gravarContextoTurnoSamiQ, gravarTurnoSamiQ } from "./samiq-memoria.server";
@@ -316,6 +316,8 @@ export async function decidirPendentes(args: {
 export async function desfazerPeloCanal(args: {
   corretor: CorretorCanal;
   acoes: PropostaSamiQ[];
+  /** Apontados pelo corretor mas que não voltam (o texto explica cada um). */
+  ignoradas?: Array<{ acao: PropostaSamiQ; motivo: MotivoSemDesfazer }>;
   conversaId: string;
   mensagem: string;
   contexto: ContextoConversaSamiQ;
@@ -325,7 +327,7 @@ export async function desfazerPeloCanal(args: {
   const resultados = acoes.length
     ? await desfazerPropostas({ userId: corretor.id, ids: acoes.map((a) => a.id) })
     : [];
-  const texto = textoDoDesfazer(resultados, acoes);
+  const texto = textoDoDesfazer(resultados, acoes, args.ignoradas ?? []);
   await gravarTurnoSamiQ({
     userId: corretor.id,
     conversaId: args.conversaId,
@@ -333,15 +335,16 @@ export async function desfazerPeloCanal(args: {
     resposta: texto,
     canal: "whatsapp",
   });
-  const desfeitas = new Set(resultados.filter((r) => r.ok).map((r) => r.id));
   await gravarContextoTurnoSamiQ({
     userId: corretor.id,
     conversaId: args.conversaId,
     executionId: null,
     contexto: {
       ...args.contexto,
-      // A numeração do recibo continua a mesma; o que foi desfeito some dela na próxima vez.
-      executadas: (args.contexto.executadas ?? []).filter((id) => !desfeitas.has(id)),
+      // A numeração do DESFAZER é a do recibo que o corretor tem na tela: a
+      // lista fica igual. Item já desfeito pedido de novo cai no filtro de
+      // status da rota ("nada recente para desfazer"), sem renumerar os outros.
+      executadas: args.contexto.executadas ?? [],
       pediu_decisao: false,
       ultima_mensagem_id: args.mensagemId ?? args.contexto.ultima_mensagem_id ?? null,
     },

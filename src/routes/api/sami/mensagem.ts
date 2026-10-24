@@ -31,7 +31,7 @@ import {
   localizacaoValida,
   type ContextoConversaSamiQ,
 } from "@/lib/samiq-contexto";
-import { descreverProposta, podeDesfazerProposta } from "@/lib/samiq-propostas";
+import { descreverProposta, motivoSemDesfazer } from "@/lib/samiq-propostas";
 
 /** Itens na ordem dos ids (a numeração que o corretor viu), sem os que sumiram. */
 function naOrdem<T extends { id: string }>(
@@ -118,18 +118,23 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                   corretor: quem,
                 });
               }
-              const acoes = (
-                await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: escolhidos })
-              ).filter(
-                (a) =>
-                  (a.status === "aceita" || a.status === "editada") &&
-                  podeDesfazerProposta(a.tipo) &&
-                  !!a.desfazerAte &&
-                  Date.parse(a.desfazerAte) > agora.getTime(),
+              const apontadas = naOrdem(
+                escolhidos,
+                await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: escolhidos }),
               );
+              const acoes = apontadas.filter((a) => motivoSemDesfazer(a, agora) === null);
+              // DESFAZER sem número pega o recibo todo: o que não volta fica calado.
+              // Com número, o corretor apontou o item: explica por que não volta.
+              const ignoradas = comando.itens.length
+                ? apontadas.flatMap((a) => {
+                    const motivo = motivoSemDesfazer(a, agora);
+                    return motivo ? [{ acao: a, motivo }] : [];
+                  })
+                : [];
               const r = await canal.desfazerPeloCanal({
                 corretor,
                 acoes,
+                ignoradas,
                 conversaId: conversa.id,
                 mensagem: body.texto,
                 contexto,
@@ -245,15 +250,16 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 }),
               )
             : [];
-          const executadas = contexto.executadas?.length
-            ? (
-                await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: contexto.executadas })
-              ).filter(
-                (a) =>
-                  (a.status === "aceita" || a.status === "editada") &&
-                  !!a.desfazerAte &&
-                  Date.parse(a.desfazerAte) > agora.getTime(),
+          // Último recibo NA NUMERAÇÃO QUE O CORRETOR VIU ("desfaz o 3" = item 3
+          // do recibo). Se nada mais volta, nem entra no cabeçalho.
+          const doRecibo = contexto.executadas?.length
+            ? naOrdem(
+                contexto.executadas,
+                await memoria.acoesPorIdsSamiQ({ userId: corretor.id, ids: contexto.executadas }),
               )
+            : [];
+          const executadas = doRecibo.some((a) => motivoSemDesfazer(a, agora) === null)
+            ? doRecibo
             : [];
           const anexosServer = await import("@/lib/samiq-anexos.server");
           const anexos = (

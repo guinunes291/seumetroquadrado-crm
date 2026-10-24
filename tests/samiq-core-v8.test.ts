@@ -407,6 +407,76 @@ describe("um turno do WhatsApp com o CRM inteiro", () => {
     expect(JSON.stringify(retorno)).toContain("sem_ok_explicito");
   });
 
+  it("'desfaz o 2': a numeração é a do recibo, mesmo com item que não volta antes dele", async () => {
+    const checkin: PropostaSamiQ = {
+      id: "exe-1",
+      tipo: "fazer_checkin",
+      payload: { tipo: "fazer_checkin", modo: "loja", filial: "barra-funda" },
+      leadNome: null,
+      status: "aceita",
+      desfazerAte: null,
+    };
+    const contato: PropostaSamiQ = {
+      id: "exe-2",
+      tipo: "registrar_contato",
+      payload: { tipo: "registrar_contato", leadId: LEAD, canal: "ligacao", resultado: "atendeu" },
+      leadNome: "Maria Silva",
+      status: "aceita",
+      desfazerAte: "2026-10-25T12:00:00Z",
+    };
+    m.desfazer.mockResolvedValueOnce([{ id: "exe-2", ok: true }]);
+    let retornoDoUm: unknown;
+    m.passos = [
+      (o) => {
+        const prompt = JSON.stringify(o.prompt);
+        expect(prompt).toContain(
+          "Gravado recentemente (numeração do DESFAZER): 1) Check-in na filial Barra Funda [não volta pelo DESFAZER]; 2) Contato com Maria Silva",
+        );
+        expect(nomesDasFerramentas(o)).toContain("desfazer_acoes");
+        return chamar(["desfazer_acoes", { itens: [1] }]);
+      },
+      (o) => {
+        retornoDoUm = o.prompt.at(-1);
+        return chamar(["desfazer_acoes", { itens: [2] }]);
+      },
+      () => falar("Pronto, tirei o contato."),
+    ];
+    const r = await responder(
+      {
+        recentes: { pendentes: [], executadas: [checkin, contato] },
+        contexto: { executadas: ["exe-1", "exe-2"] },
+      },
+      "desfaz o 1 e o 2",
+    );
+    // o check-in não vai ao banco: o modelo recebe o motivo
+    expect(JSON.stringify(retornoDoUm)).toContain("nao_desfazivel");
+    expect(m.desfazer).toHaveBeenCalledTimes(1);
+    expect(m.desfazer).toHaveBeenCalledWith(expect.objectContaining({ ids: ["exe-2"] }));
+    expect(r.textoCanal).toContain("Desfeito: Contato com Maria Silva.");
+    // a lista do recibo continua a mesma para o próximo DESFAZER
+    const ctx = m.gravarContexto.mock.calls[0][0] as { contexto: Record<string, unknown> };
+    expect(ctx.contexto.executadas).toEqual(["exe-1", "exe-2"]);
+  });
+
+  it("recibo velho em que nada mais volta: sem desfazer_acoes e sem linha no cabeçalho", async () => {
+    const velho: PropostaSamiQ = {
+      id: "exe-9",
+      tipo: "anotar",
+      payload: { tipo: "anotar", leadId: LEAD, nota: "liga depois das 18h" },
+      leadNome: "Maria Silva",
+      status: "aceita",
+      desfazerAte: "2026-10-23T12:00:00Z", // antes de AGORA
+    };
+    m.passos = [
+      (o) => {
+        expect(nomesDasFerramentas(o)).not.toContain("desfazer_acoes");
+        return falar("Esse registro já passou das 24 h. Me diz o que corrigir que eu anoto.");
+      },
+    ];
+    await responder({ recentes: { pendentes: [], executadas: [velho] } }, "apaga aquela nota");
+    expect(m.desfazer).not.toHaveBeenCalled();
+  });
+
   it("falha no meio do turno depois de gravar: o recibo sai mesmo assim (o corretor não reenvia e duplica)", async () => {
     m.passos = [
       () => chamar(["registrar_contato", { leadId: LEAD, canal: "ligacao", resultado: "atendeu" }]),
