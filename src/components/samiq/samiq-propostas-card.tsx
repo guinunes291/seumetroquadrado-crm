@@ -18,6 +18,7 @@ import {
   PencilSimple,
   PhoneCall,
   UserGear,
+  UserPlus,
   Warning,
   X,
   type Icon as IconComponent,
@@ -56,6 +57,7 @@ const ICONE: Record<SamiQPropostaTipo, IconComponent> = {
   atualizar_qualificacao: UserGear,
   agendar_visita: CalendarPlus,
   mudar_etapa: Funnel,
+  criar_lead: UserPlus,
 };
 
 /** Queries que uma escrita da Sami pode ter mudado — invalida em bloco. */

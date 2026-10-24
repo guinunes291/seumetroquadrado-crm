@@ -11,9 +11,10 @@ const LEAD = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b";
 describe("ferramentas propor_*", () => {
   const supabase = {} as never;
 
-  it("monta as 6 ferramentas e o schema compatível sem lançar", () => {
+  it("monta as 7 ferramentas e o schema compatível sem lançar", () => {
     const tools = criarFerramentasDePropostaSamiQ({ supabase, userId: "u", coletor: [] });
-    expect(Object.keys(tools)).toHaveLength(6);
+    expect(Object.keys(tools)).toHaveLength(7);
+    expect(Object.keys(tools)).toContain("propor_novo_cliente");
     expect(() => compatibilizarFerramentasSamiQ(tools)).not.toThrow();
   });
 

@@ -269,15 +269,24 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       // Onda S5 (D16): skills determinísticas, também só de leitura.
       const { criarFerramentasDeSkillsSamiQ } = await import("./samiq-skills.server");
       Object.assign(tools, criarFerramentasDeSkillsSamiQ({ supabase, userId }));
+      // Cadastro de cliente novo: telefone e nome completo saem do texto ORIGINAL
+      // (antes da redação) e o modelo só aponta a posição. O número nunca passa por ele.
+      const { extrairDadosDeCadastro, descreverDadosOcultos } = await import("./samiq-propostas");
+      const cadastro = extrairDadosDeCadastro(data.pergunta ?? "");
       if (reservation.propostasEnabled) {
         const { criarFerramentasDePropostaSamiQ } = await import("./samiq-propostas.server");
-        Object.assign(tools, criarFerramentasDePropostaSamiQ({ supabase, userId, coletor }));
+        Object.assign(
+          tools,
+          criarFerramentasDePropostaSamiQ({ supabase, userId, coletor, cadastro }),
+        );
       }
+      const linhaDadosOcultos = reservation.propostasEnabled ? descreverDadosOcultos(cadastro) : null;
       const cabecalho = [
         `Ação solicitada: ${meta.label}.`,
         reservation.actionPrompt,
         `Hoje é ${hojeSaoPaulo()} (fuso de São Paulo).`,
         ...doCanal,
+        ...(linhaDadosOcultos ? [linhaDadosOcultos] : []),
         data.leadId
           ? `Cliente em contexto (id ${data.leadId}): ${JSON.stringify(safeContext.cliente ?? {}).slice(0, 2000)}`
           : "Sem cliente em contexto — use buscar_clientes quando o corretor citar um nome.",
