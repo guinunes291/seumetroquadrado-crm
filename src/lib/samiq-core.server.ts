@@ -51,8 +51,8 @@ const RESERVED_INPUT_TOKENS = 10_000;
 // ainda dentro do teto de 50k da RPC.
 const RESERVED_INPUT_TOKENS_COM_FERRAMENTAS = 24_000;
 const MAX_CONTEXT_CHARS = 24_000;
-/** Pergunta do painel (campo de 500) e do WhatsApp (áudio transcrito cabe em 1500). */
-const LIMITE_PERGUNTA: Record<SamiQCanal, number> = { painel: 500, whatsapp: 1500 };
+/** Pergunta do painel (campo de 500) e do WhatsApp (áudio transcrito cabe em 4000). */
+const LIMITE_PERGUNTA: Record<SamiQCanal, number> = { painel: 500, whatsapp: 4000 };
 
 export type ResponderSamiQArgs = {
   supabase: Db;

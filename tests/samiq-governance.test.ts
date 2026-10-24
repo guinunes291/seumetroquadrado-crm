@@ -73,6 +73,22 @@ const ACOES_CHAT = [
 const ACOES_UNIFICADAS = ["match_projetos", "resumo_lead", "mensagem_whatsapp"] as const;
 
 describe("redação/minimização SamiQ", () => {
+  const limitesPergunta = Object.fromEntries(
+    [...(handler.match(/const LIMITE_PERGUNTA[^=]*=\s*\{([^}]+)\}/)?.[1] ?? "").matchAll(/(painel|whatsapp):\s*(\d+)/g)]
+      .map(([, canal, limite]) => [canal, Number(limite)]),
+  );
+
+  it("WhatsApp admite 4000 caracteres, preservando a transcrição de 3000", () => {
+    expect(limitesPergunta.whatsapp).toBe(4000);
+    expect(redactSamiQFreeText("a".repeat(3000), limitesPergunta.whatsapp)).toHaveLength(3000);
+    expect(redactSamiQFreeText("a".repeat(4100), limitesPergunta.whatsapp)).toHaveLength(4000);
+  });
+
+  it("painel continua limitado a 500 caracteres", () => {
+    expect(limitesPergunta.painel).toBe(500);
+    expect(redactSamiQFreeText("a".repeat(600), limitesPergunta.painel)).toHaveLength(500);
+  });
+
   it("remove e-mail, CPF, CNPJ, telefone, identificador longo e endereço", () => {
     const input =
       "Contato maria@example.com, CPF 123.456.789-00, CNPJ 12.345.678/0001-99, " +
