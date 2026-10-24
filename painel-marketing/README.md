@@ -18,12 +18,12 @@ que só enxerga o esquema `marketing`; as vistas `v_*` leem `public` sem dar esc
 
 ## Variáveis de ambiente (Vercel)
 
-| Nome | Para quê |
-| --- | --- |
-| `DATABASE_URL` | Pooler do Supabase (porta 6543) com o usuário `painel_marketing.<ref>` |
-| `META_ACCESS_TOKEN` | Token do usuário do sistema da Meta, só `ads_read` na Fase 1 (opcional) |
-| `META_AD_ACCOUNT_ID` | Conta de anúncios (padrão 382684244661295) |
-| `CRON_SECRET` | Protege a rota do agendamento diário |
+| Nome                 | Para quê                                                                |
+| -------------------- | ----------------------------------------------------------------------- |
+| `DATABASE_URL`       | Pooler do Supabase (porta 6543) com o usuário `painel_marketing.<ref>`  |
+| `META_ACCESS_TOKEN`  | Token do usuário do sistema da Meta, só `ads_read` na Fase 1 (opcional) |
+| `META_AD_ACCOUNT_ID` | Conta de anúncios (padrão 382684244661295)                              |
+| `CRON_SECRET`        | Protege a rota do agendamento diário                                    |
 
 ## Rodar
 
