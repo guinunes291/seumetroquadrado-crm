@@ -67,6 +67,72 @@ export function redactSamiQPii(value: string, maxLength = 600): string {
 }
 
 /**
+ * Marcadores numerados que o servidor sabe desfazer (v8, Sami-CRM).
+ * `[TELEFONE_1]` -> o telefone que o corretor digitou. O modelo nunca vê o
+ * contato do cliente, mas consegue cadastrar um lead ou achar um cliente pelo
+ * telefone: a ferramenta recebe o marcador e o servidor troca pelo valor real
+ * antes de gravar (restaurarPiiDoCorretor).
+ */
+export type MapaPiiCorretor = Record<string, string>;
+
+const MARCADOR_RESTAURAVEL = /\[(TELEFONE|EMAIL|CPF)_\d{1,2}\]/g;
+
+/**
+ * Texto do CORRETOR que vai ao modelo (pergunta e histórico). Diferente do
+ * texto livre vindo do banco, aqui nomes de cliente e de empreendimento
+ * passam (decisão D12: o modelo precisa do sobrenome para achar o cliente
+ * certo e do nome do empreendimento para buscar o material). Telefone, e-mail
+ * e CPF viram marcadores numerados restauráveis; RG, CEP, endereço, data de
+ * nascimento, identificadores longos e dados bancários são redigidos como
+ * sempre e não voltam.
+ */
+export function redigirTextoDoCorretor(
+  value: string,
+  maxLength = 4000,
+): { texto: string; mapa: MapaPiiCorretor } {
+  const mapa: MapaPiiCorretor = {};
+  const contagem: Record<"TELEFONE" | "EMAIL" | "CPF", number> = { TELEFONE: 0, EMAIL: 0, CPF: 0 };
+  const marcar = (tipo: "TELEFONE" | "EMAIL" | "CPF") => (achado: string) => {
+    const valor = achado.trim();
+    const existente = Object.entries(mapa).find(([, v]) => v === valor)?.[0];
+    if (existente) return achado.replace(valor, existente);
+    contagem[tipo] += 1;
+    const chave = `[${tipo}_${contagem[tipo]}]`;
+    mapa[chave] = valor;
+    return achado.replace(valor, chave);
+  };
+  const texto = value
+    .replace(EMAIL_PATTERN, marcar("EMAIL"))
+    .replace(CPF_PATTERN, marcar("CPF"))
+    .replace(CNPJ_PATTERN, "[CNPJ]")
+    .replace(PIS_PASEP_PATTERN, "[PIS_PASEP]")
+    // Telefone antes de RG/identificador: "11987654321" e "98765-4321" são
+    // telefone para o corretor, e o marcador numerado permite usá-lo.
+    .replace(PHONE_PATTERN, marcar("TELEFONE"))
+    .replace(RG_PATTERN, "[RG]")
+    .replace(CEP_PATTERN, "[CEP]")
+    .replace(BIRTH_DATE_PATTERN, "$1[DATA]")
+    .replace(LONG_ID_PATTERN, "[IDENTIFICADOR]")
+    .replace(ADDRESS_PATTERN, "[ENDERECO]")
+    .replace(BANK_ACCOUNT_PATTERN, "$1[DADO_BANCARIO]")
+    .slice(0, maxLength);
+  return { texto, mapa };
+}
+
+/** Troca os marcadores restauráveis pelo valor que o corretor digitou. */
+export function restaurarPiiDoCorretor(value: string, mapa: MapaPiiCorretor): string {
+  if (!value || Object.keys(mapa).length === 0) return value;
+  return value.replace(MARCADOR_RESTAURAVEL, (marcador) => mapa[marcador] ?? marcador);
+}
+
+/** O texto ainda tem algum marcador de PII (restaurável ou não)? */
+export function temMarcadorPii(value: string | null | undefined): boolean {
+  return /\[(TELEFONE|EMAIL|CPF|CNPJ|RG|CEP|PIS_PASEP|IDENTIFICADOR|ENDERECO|DADO_BANCARIO|DATA)(_\d{1,2})?\]/.test(
+    value ?? "",
+  );
+}
+
+/**
  * Texto livre recebe uma segunda camada mais agressiva para nomes completos.
  * Campos estruturados de catálogo não passam por esta função, preservando os
  * nomes públicos dos empreendimentos.

@@ -73,6 +73,12 @@ export type SamiQResposta = {
   custoMesPct?: number | null;
   /** Propostas de escrita (Onda S2) aguardando o toque do corretor no card. */
   propostas?: PropostaSamiQ[];
+  /** v8 (WhatsApp): ações já gravadas neste turno, na ordem do recibo (DESFAZER N). */
+  executadas?: PropostaSamiQ[];
+  /** v8 (WhatsApp): tudo o que espera o OK na conversa, na ordem do CONFIRMAR N. */
+  pendentes?: PropostaSamiQ[];
+  /** v8 (WhatsApp): o texto final do canal (resposta + recibo + pendentes), igual ao gravado na memória. */
+  textoCanal?: string;
 };
 
 type ActionMeta = {

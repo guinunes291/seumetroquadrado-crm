@@ -764,6 +764,20 @@
       "when": 1792813024603,
       "tag": "0108_samiq_novo_cliente",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1792854000000,
+      "tag": "0109_samiq_v8_crm_whatsapp",
+      "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1792854060000,
+      "tag": "0110_samiq_v8_prompt",
+      "breakpoints": true
     }
   ]
 }

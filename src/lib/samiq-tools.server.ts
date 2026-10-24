@@ -14,9 +14,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
 import { rpcWithFallback } from "@/lib/supabase-errors";
+import { filtroOrTelefone } from "@/lib/lead-busca-telefone";
+import { restaurarPiiDoCorretor, type MapaPiiCorretor } from "@/lib/samiq-governance";
 import {
   BuscarClientesInput,
   CatalogoProjetosInput,
+  CreditoDoClienteInput,
+  ListarClientesInput,
+  MaterialDoProjetoInput,
+  MinhaSituacaoInput,
   DetalheClienteInput,
   DocumentosDoClienteInput,
   MeuFunilInput,
@@ -34,6 +40,10 @@ import {
   modelarFunil,
   modelarProjetos,
   modelarTarefas,
+  modelarCredito,
+  modelarMaterialProjeto,
+  modelarSituacao,
+  separarTermoBuscaSamiQ,
   termoSemAcentoSamiQ,
 } from "@/lib/samiq-tools";
 
@@ -51,37 +61,62 @@ function falhaConsulta(ferramenta: string, error: unknown): never {
   throw new Error("consulta_indisponivel");
 }
 
+/** Cliente que apareceu numa consulta: vira a "memória de trabalho" da conversa. */
+export type CitarClienteSamiQ = (c: {
+  id: string;
+  nome: string | null;
+  etapa?: string | null;
+}) => void;
+
 export function criarFerramentasSamiQ(args: {
   supabase: Db;
   userId: string;
   agora?: Date;
+  /** v8: marcadores [TELEFONE_n]/[EMAIL_n] da mensagem do corretor (só o servidor restaura). */
+  mapaPii?: MapaPiiCorretor;
+  /** v8: registra os clientes vistos para o próximo turno achar "ela", "o 2". */
+  citar?: CitarClienteSamiQ;
 }): ToolSet {
   const { supabase, userId } = args;
   const agora = args.agora ?? new Date();
+  const mapaPii = args.mapaPii ?? {};
+  const citar: CitarClienteSamiQ = args.citar ?? (() => {});
 
   return {
     buscar_clientes: tool({
       description: SAMIQ_TOOL_DESCRIPTIONS.buscar_clientes,
       inputSchema: BuscarClientesInput,
       execute: async (input) => {
-        const termo = termoSemAcentoSamiQ(input.termo);
+        // [TELEFONE_1] vira o número que o corretor digitou (o modelo nunca o viu).
+        const bruto = restaurarPiiDoCorretor(input.termo, mapaPii);
+        const { texto, finalTelefone } = separarTermoBuscaSamiQ(bruto);
+        const termo = termoSemAcentoSamiQ(texto);
         const limite = input.limite ?? 8;
-        if (termo.length < 2) return { clientes: [], aviso: "termo curto demais" };
+        if (termo.length < 2 && !finalTelefone) {
+          return { clientes: [], aviso: "termo curto demais" };
+        }
         let query = supabase
           .from("leads")
           .select(
             "id, nome, status, temperatura, projeto_nome, proximo_followup, ultima_interacao, origem, created_at",
           )
           .is("deleted_at", null)
-          .eq("na_lixeira", false)
-          .or(`search_text.ilike.%${termo}%,projeto_nome.ilike.%${termo}%`)
-          .order("ultima_atividade_em", { ascending: false })
-          .limit(limite);
+          .eq("na_lixeira", false);
+        if (termo.length >= 2) {
+          query = query.or(`search_text.ilike.%${termo}%,projeto_nome.ilike.%${termo}%`);
+        }
+        // Dígitos FILTRAM pelo fim do telefone (e164 e texto cru). O telefone não
+        // é selecionado: o modelo nunca vê o número (D12).
+        if (finalTelefone) query = query.or(filtroOrTelefone(finalTelefone));
+        query = query.order("ultima_atividade_em", { ascending: false }).limit(limite);
         if (input.status) query = query.eq("status", input.status);
         if (input.temperatura) query = query.eq("temperatura", input.temperatura);
         const { data, error } = await query;
         if (error) falhaConsulta("buscar_clientes", error);
-        return { clientes: modelarClientes(data ?? [], limite) };
+        const rows = data ?? [];
+        if (rows.length <= 3)
+          for (const r of rows) citar({ id: r.id, nome: r.nome, etapa: r.status });
+        return { clientes: modelarClientes(rows, limite) };
       },
     }),
 
@@ -128,6 +163,7 @@ export function criarFerramentasSamiQ(args: {
         ]);
         if (lead.error) falhaConsulta("detalhe_cliente", lead.error);
         if (!lead.data) return { erro: "cliente_nao_encontrado" };
+        citar({ id: lead.data.id, nome: lead.data.nome, etapa: lead.data.status });
         if (interacoes.error) falhaConsulta("detalhe_cliente", interacoes.error);
         if (tarefas.error) falhaConsulta("detalhe_cliente", tarefas.error);
         if (agendamentos.error) falhaConsulta("detalhe_cliente", agendamentos.error);
@@ -273,6 +309,97 @@ export function criarFerramentasSamiQ(args: {
           return (min ?? 0) <= input.dorms && input.dorms <= (max ?? 99);
         });
         return { projetos: modelarProjetos(rows, limite) };
+      },
+    }),
+
+    listar_clientes: tool({
+      description: SAMIQ_TOOL_DESCRIPTIONS.listar_clientes,
+      inputSchema: ListarClientesInput,
+      execute: async (input) => {
+        const limite = input.limite ?? 10;
+        let query = supabase
+          .from("leads")
+          .select(
+            "id, nome, status, temperatura, projeto_nome, proximo_followup, ultima_interacao, origem, created_at",
+          )
+          .eq("corretor_id", userId)
+          .is("deleted_at", null)
+          .eq("na_lixeira", false);
+        if (input.etapa?.length) query = query.in("status", input.etapa);
+        if (input.temperatura) query = query.eq("temperatura", input.temperatura);
+        if (input.parados_dias) {
+          const corte = new Date(agora.getTime() - input.parados_dias * 86_400_000).toISOString();
+          query = query.or(`ultima_interacao.is.null,ultima_interacao.lt.${corte}`);
+        }
+        query = query
+          .order("ultima_interacao", {
+            ascending: input.ordem === "mais_parados",
+            nullsFirst: input.ordem === "mais_parados",
+          })
+          .limit(limite);
+        const { data, error } = await query;
+        if (error) falhaConsulta("listar_clientes", error);
+        return { clientes: modelarClientes(data ?? [], limite) };
+      },
+    }),
+
+    minha_situacao: tool({
+      description: SAMIQ_TOOL_DESCRIPTIONS.minha_situacao,
+      inputSchema: MinhaSituacaoInput,
+      execute: async () => {
+        const [presenca, emAtendimento, lote] = await Promise.all([
+          supabase.rpc("presenca_minha_v1"),
+          supabase.rpc("em_atendimento_contador_v1", { _corretor: userId }),
+          supabase.rpc("prospeccao_lote_status_v1"),
+        ]);
+        if (presenca.error && emAtendimento.error) falhaConsulta("minha_situacao", presenca.error);
+        return modelarSituacao({
+          presenca: presenca.error ? null : presenca.data,
+          emAtendimento: emAtendimento.error ? null : emAtendimento.data,
+          lote: lote.error ? null : lote.data,
+        });
+      },
+    }),
+
+    material_do_projeto: tool({
+      description: SAMIQ_TOOL_DESCRIPTIONS.material_do_projeto,
+      inputSchema: MaterialDoProjetoInput,
+      execute: async (input) => {
+        const cols =
+          "id, nome, construtora, endereco, logradouro, numero, bairro, cidade, regiao, zona_smq, tipologia, dorms_min, dorms_max, metragem_min, metragem_max, vagas, preco_a_partir, renda_minima, status_entrega, mes_entrega, ano_entrega, status_preco, disponibilidade_resumo, perfil_ideal, argumentos_venda, book_url, tabela_precos_url, tabela_atualizada_em, preco_atualizado_em";
+        let query = supabase.from("projetos").select(cols).eq("ativo", true).is("deleted_at", null);
+        if (input.projetoId) query = query.eq("id", input.projetoId);
+        else if (input.nome && termoSemAcentoSamiQ(input.nome).length >= 2) {
+          query = query.ilike("nome_busca", `%${termoSemAcentoSamiQ(input.nome)}%`);
+        } else return { erro: "informe projetoId ou nome" };
+        const { data, error } = await query.order("nome").limit(3);
+        if (error) falhaConsulta("material_do_projeto", error);
+        const rows = data ?? [];
+        if (rows.length === 0) return { erro: "empreendimento_nao_encontrado" };
+        if (rows.length > 1 && !input.projetoId) {
+          return {
+            varios: rows.map((p) => ({ id: p.id, nome: p.nome, construtora: p.construtora })),
+            aviso: "mais de um empreendimento com esse nome; pergunte qual ou use o id",
+          };
+        }
+        return modelarMaterialProjeto(rows[0], agora);
+      },
+    }),
+
+    credito_do_cliente: tool({
+      description: SAMIQ_TOOL_DESCRIPTIONS.credito_do_cliente,
+      inputSchema: CreditoDoClienteInput,
+      execute: async (input) => {
+        const { data, error } = await supabase
+          .from("analises_credito")
+          .select(
+            "status, banco, modalidade, sistema_amortizacao, valor_financiamento, valor_parcela, prazo_meses, taxa_juros_anual, valor_fgts, valor_subsidio, valor_entrada, valor_imovel_simulacao, renda_familiar, faixa_mcmv, data_aprovacao, validade_ate, observacoes, created_at, updated_at",
+          )
+          .eq("lead_id", input.leadId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        if (error) falhaConsulta("credito_do_cliente", error);
+        return modelarCredito(data ?? []);
       },
     }),
   };

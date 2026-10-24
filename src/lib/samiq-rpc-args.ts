@@ -33,6 +33,37 @@ export interface SamiQRegistrarPropostasArgs {
   _propostas: Json;
 }
 
+/** v8: trava de execução (CONFIRMAR duplo ou retentativa do n8n não executa duas vezes). */
+export interface SamiQReivindicarArgs {
+  _user_id: string;
+  _proposta_id: string;
+}
+
+/** v8: fila do canal (retentativa do n8n e mensagens em sequência do mesmo corretor). */
+export interface SamiQCanalIniciarArgs {
+  _user_id: string;
+  _mensagem_id: string;
+  _janela_seg: number;
+  _forcar: boolean;
+}
+
+export interface SamiQCanalConcluirArgs {
+  _user_id: string;
+  _id: string;
+  /** A tentativa que o samiq_canal_iniciar devolveu: só ela fecha a linha. */
+  _tentativa: string;
+  _status: "respondida" | "falhou";
+  _resposta: Json | null;
+}
+
+/** v8: liga as ações do turno à conversa e guarda a memória de trabalho dela. */
+export interface SamiQContextoTurnoArgs {
+  _user_id: string;
+  _conversa_id: string;
+  _execution_id: string | null;
+  _contexto: Json | null;
+}
+
 // Fronteira tipada das duas RPCs, no molde de features/atendimento/
 // atendimento-rpc.ts: a assinatura gerada declara os campos sem o null, e a
 // ponte por cast duplo estourava o orçamento de escapes de tipo
@@ -51,6 +82,11 @@ type ClientHolder = { rpc: unknown };
 export type SamiQRpc = {
   (fn: "samiq_gravar_turno", args: SamiQGravarTurnoArgs): ResultadoRpc<string>;
   (fn: "samiq_registrar_propostas", args: SamiQRegistrarPropostasArgs): ResultadoRpc<Json>;
+  (fn: "samiq_reivindicar_proposta", args: SamiQReivindicarArgs): ResultadoRpc<boolean>;
+  (fn: "samiq_contexto_turno", args: SamiQContextoTurnoArgs): ResultadoRpc<null>;
+  (fn: "samiq_canal_iniciar", args: SamiQCanalIniciarArgs): ResultadoRpc<Json>;
+  (fn: "samiq_canal_concluir", args: SamiQCanalConcluirArgs): ResultadoRpc<boolean>;
+  (fn: "samiq_modo_escrita_whatsapp", args: Record<string, never>): ResultadoRpc<string>;
 };
 
 export function samiqRpc(client: ClientHolder): SamiQRpc {
