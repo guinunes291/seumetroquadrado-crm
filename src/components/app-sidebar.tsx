@@ -1,24 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  CaretDoubleLeft,
-  CaretDoubleRight,
-  CaretUpDown,
-  Lifebuoy,
-  List,
-  SignOut,
-  User as UserIcon,
-} from "@phosphor-icons/react";
+import { CaretDoubleLeft, CaretDoubleRight, List } from "@phosphor-icons/react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth, useUserRoles, type AppRole } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { usePreference } from "@/hooks/use-preference";
 import { useNavBadges } from "@/features/nav/use-nav-badges";
 import {
-  badgeDaSecao,
-  badgeDoSistema,
-  homeDoSistema,
   secaoAtiva,
   secoesVisiveis,
   sistemaAtivoContextual,
@@ -34,17 +22,16 @@ import { isTypingTarget } from "@/lib/shortcuts";
 import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
 import { CheckinLateral } from "@/features/presenca/checkin-lateral";
 import { houvePedidoCheckinRecente } from "@/features/presenca/use-checkin-obrigatorio";
-import { Button } from "@/components/ui/button";
+import { encerrarSessao } from "@/features/nav/sessao-client";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ItemModulo,
+  ItemTrilhoModulo,
+  ItemTrilhoSecao,
+  type NavItemCtx,
+} from "@/features/nav/sidebar-itens";
+import { MenuDaPessoa } from "@/features/nav/sidebar-conta";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ThemeMenuItems } from "@/components/theme-toggle";
 
 // Sidebar da identidade Lançamento (2026-10, a partir do vídeo de lançamento
 // do CRM): a lista de TODOS os módulos visíveis ao papel, sempre à mão, e as
@@ -52,29 +39,10 @@ import { ThemeMenuItems } from "@/components/theme-toggle";
 // do módulo ativo e um "← Módulos"; trocar de módulo exigia passar pelo hub.
 // A regra dos 2 menus continua: o 1º nível são os módulos (o que era o hub),
 // o 2º as páginas do módulo — e no máximo uma linha de abas dentro da página.
-
-/** Contagem 99+ para não estourar o layout. */
-function badgeText(n: number): string {
-  return n > 99 ? "99+" : String(n);
-}
-
-const PAPEL_LABEL: [AppRole, string][] = [
-  ["admin", "Administrador"],
-  ["superintendente", "Superintendente"],
-  ["gestor", "Gestor"],
-  ["corretor", "Corretor"],
-  ["sdr", "Pré-venda (SDR)"],
-];
-
-function papelPrincipal(roles: AppRole[]): string {
-  return PAPEL_LABEL.find(([r]) => roles.includes(r))?.[1] ?? "";
-}
-
-function iniciais(nome: string): string {
-  const partes = nome.trim().split(/\s+/).filter(Boolean);
-  const letras = (partes[0]?.[0] ?? "") + (partes.length > 1 ? partes[partes.length - 1][0] : "");
-  return letras.toUpperCase() || "?";
-}
+//
+// Desde a quebra em módulos (2026-10): itens da navegação em
+// features/nav/sidebar-itens.tsx, menu da conta em features/nav/sidebar-conta.tsx
+// e o encerramento da sessão em features/nav/sessao-client.ts.
 
 function SidebarContent({
   onNavigate,
@@ -123,210 +91,28 @@ function SidebarContent({
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await encerrarSessao();
     window.location.href = "/auth";
   };
 
-  const countPill = (n: number) =>
-    n > 0 ? (
-      <span
-        aria-label={`${n} pendências`}
-        className="ml-auto shrink-0 rounded-full bg-destructive px-1.5 py-px text-[11px] font-semibold tabular-nums text-destructive-foreground"
-      >
-        {badgeText(n)}
-      </span>
-    ) : null;
-
-  // Seções só aparecem quando há escolha: módulo de uma página só (Modo
-  // Visita) é o próprio item da lista.
-  const mostraSecoes = (s: Sistema) => s.id === ativo?.id && secoesDoAtivo.length > 1;
-
-  const renderSecao = (secao: Secao) => {
-    const active = secaoAcesa?.id === secao.id;
-    return (
-      <li key={secao.id}>
-        <Link
-          to={secao.to}
-          search={secao.search}
-          onClick={onNavigate}
-          aria-current={active ? "page" : undefined}
-          className={cn(
-            "relative flex min-h-11 items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:min-h-9",
-            active
-              ? "bg-claro/[0.07] font-medium text-claro before:absolute before:-left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:rounded-full before:bg-gold"
-              : "text-sidebar-foreground/65 hover:bg-claro/[0.04] hover:text-claro",
-          )}
-        >
-          <span className="flex-1 truncate">{secao.label}</span>
-          {countPill(badgeDaSecao(secao, badges, ctx))}
-        </Link>
-      </li>
-    );
-  };
-
-  const renderModulo = (s: Sistema) => {
-    const Icon = s.icon;
-    const eAtivo = s.id === ativo?.id;
-    const aberto = mostraSecoes(s);
-    return (
-      <li key={s.id}>
-        <Link
-          {...homeDoSistema(s, ctx)}
-          onClick={onNavigate}
-          // Com as seções abertas, quem diz "página atual" é a seção acesa.
-          aria-current={eAtivo && !aberto ? "page" : undefined}
-          className={cn(
-            "flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-[13.5px] transition-colors md:min-h-10",
-            eAtivo
-              ? "bg-claro/[0.09] font-medium text-claro ring-1 ring-inset ring-claro/10"
-              : "text-sidebar-foreground/75 hover:bg-claro/[0.05] hover:text-claro",
-          )}
-        >
-          <Icon className="h-[18px] w-[18px] shrink-0" weight="regular" />
-          <span className="flex-1 truncate" title={s.titulo}>
-            {s.titulo}
-          </span>
-          {!aberto && countPill(badgeDoSistema(s, badges, ctx))}
-        </Link>
-        {aberto && (
-          <ul
-            aria-label={`Páginas de ${s.titulo}`}
-            className="mb-1.5 ml-[21px] mt-1 space-y-0.5 border-l border-claro/10 pl-2.5"
-          >
-            {secoesDoAtivo.map(renderSecao)}
-          </ul>
-        )}
-      </li>
-    );
-  };
-
-  // ---- Modo trilho (colapsado): só ícones com tooltip. A search vai junto no
-  // Link — sem ela o destino cai na visão errada (ex.: fase do pipeline).
-  const railClasses = (active: boolean) =>
-    cn(
-      "relative mx-auto flex h-11 w-11 items-center justify-center rounded-lg transition-colors",
-      active
-        ? "bg-claro/[0.09] text-claro ring-1 ring-inset ring-claro/10"
-        : "text-sidebar-foreground/70 hover:bg-claro/[0.05] hover:text-claro",
-    );
-
-  const railDot = (n: number) =>
-    n > 0 ? (
-      <span
-        aria-label={`${n} pendências`}
-        className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive"
-      />
-    ) : null;
-
-  const renderRailModulo = (s: Sistema) => {
-    const Icon = s.icon;
-    const eAtivo = s.id === ativo?.id;
-    const n = badgeDoSistema(s, badges, ctx);
-    return (
-      <li key={s.id}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              {...homeDoSistema(s, ctx)}
-              onClick={onNavigate}
-              aria-current={eAtivo ? "page" : undefined}
-              aria-label={s.titulo}
-              className={railClasses(eAtivo)}
-            >
-              <Icon className="h-5 w-5" weight="regular" />
-              {railDot(n)}
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="flex items-center gap-2">
-            {s.titulo}
-            {n > 0 && <span className="tabular-nums">{badgeText(n)}</span>}
-          </TooltipContent>
-        </Tooltip>
-      </li>
-    );
-  };
-
-  const renderRailSecao = (secao: Secao) => {
-    const Icon = secao.icon;
-    const active = secaoAcesa?.id === secao.id;
-    const n = badgeDaSecao(secao, badges, ctx);
-    return (
-      <li key={secao.id}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              to={secao.to}
-              search={secao.search}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              aria-label={secao.label}
-              className={cn(railClasses(active), "h-9 w-9")}
-            >
-              <Icon className="h-4 w-4" weight={active ? "fill" : "regular"} />
-              {railDot(n)}
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right">{secao.label}</TooltipContent>
-        </Tooltip>
-      </li>
-    );
-  };
+  const nav: NavItemCtx = { ctx, badges, onNavigate, ativo, secaoAcesa, secoesDoAtivo };
+  const renderModulo = (s: Sistema) => <ItemModulo key={s.id} sistema={s} nav={nav} />;
+  const renderRailModulo = (s: Sistema) => <ItemTrilhoModulo key={s.id} sistema={s} nav={nav} />;
+  const renderRailSecao = (secao: Secao) => (
+    <ItemTrilhoSecao key={secao.id} secao={secao} nav={nav} />
+  );
 
   const menuDaPessoa = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Menu da conta"
-          className={cn(
-            "flex min-h-11 items-center gap-2.5 rounded-lg text-left transition-colors hover:bg-claro/[0.05]",
-            collapsed ? "mx-auto w-11 justify-center" : "min-w-0 flex-1 px-2",
-          )}
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-claro/10 text-xs font-semibold text-claro">
-            {iniciais(nome)}
-          </span>
-          {!collapsed && (
-            <>
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-sm font-medium text-claro">{nome}</span>
-                <span className="block truncate text-[11px] text-sidebar-foreground/55">
-                  {papelPrincipal(roles)}
-                </span>
-              </span>
-              <CaretUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground/50" />
-            </>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side={collapsed ? "right" : "top"} align="start" className="w-60">
-        <DropdownMenuLabel className="font-normal">
-          <span className="block truncate text-sm font-medium">{nome}</span>
-          {user?.email && (
-            <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
-          )}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="gap-2">
-          <Link to="/meu-perfil" onClick={onNavigate}>
-            <UserIcon className="h-4 w-4" />
-            Meu perfil
-          </Link>
-        </DropdownMenuItem>
-        {isCorretor && (
-          <DropdownMenuItem onClick={abrirOnboarding} className="gap-2">
-            <Lifebuoy className="h-4 w-4" />
-            Como usar o CRM
-          </DropdownMenuItem>
-        )}
-        <ThemeMenuItems />
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} className="gap-2">
-          <SignOut className="h-4 w-4" />
-          Sair
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <MenuDaPessoa
+      collapsed={collapsed}
+      nome={nome}
+      email={user?.email}
+      roles={roles}
+      isCorretor={isCorretor}
+      onNavigate={onNavigate}
+      abrirOnboarding={abrirOnboarding}
+      handleSignOut={handleSignOut}
+    />
   );
 
   const toggle = onToggleCollapse && (
