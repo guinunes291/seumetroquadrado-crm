@@ -9,7 +9,7 @@ import { BotaoSincronizarCriativos } from "@/components/botao-sincronizar-criati
 import { acaoMarcar, acaoNota } from "./actions";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const TIPOS: Record<string, string> = {
   video: "Vídeo",
