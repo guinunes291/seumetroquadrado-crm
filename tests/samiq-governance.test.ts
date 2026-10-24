@@ -842,7 +842,9 @@ describe("v8 — o CRM inteiro no WhatsApp, com autonomia por risco (migration 2
     expect(handler).toContain("tools.abrir_ferramentas = tool({");
     // texto do corretor: telefone/e-mail/CPF viram marcadores restauráveis só no servidor
     // v8.2: os marcadores das mensagens anteriores (30 min) continuam valendo
-    expect(handler).toContain("redigirTextoDoCorretor(data.pergunta, LIMITE_PERGUNTA[canal], mapaAnterior)");
+    expect(handler).toContain(
+      "redigirTextoDoCorretor(data.pergunta, LIMITE_PERGUNTA[canal], mapaAnterior)",
+    );
     // o que vai para a memória do WhatsApp é o texto que o corretor viu (recibo incluso)
     expect(handler).toContain("resposta: textoCanal ?? texto");
     expect(handler).toContain("gravarContextoTurnoSamiQ({");
