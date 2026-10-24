@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { exigirSessao } from "@/lib/auth";
+import { contarPendentes } from "@/lib/jobs";
 import { acaoSair } from "../login/actions";
 
 export const dynamic = "force-dynamic";
 
-// Os oito botões do Painel. Na Fase 1 só o Diagnóstico funciona; os outros
-// aparecem com a fase em que entram, para ninguém achar que sumiram.
+// Os oito botões do Painel. Os que ainda não funcionam aparecem com a fase em
+// que entram, para ninguém achar que sumiram.
 const BOTOES: { rotulo: string; href?: string; fase?: number }[] = [
   { rotulo: "Diagnóstico", href: "/" },
-  { rotulo: "Nova campanha", fase: 2 },
-  { rotulo: "Ajustar campanha", fase: 2 },
-  { rotulo: "Criar público", fase: 2 },
+  { rotulo: "Nova campanha", href: "/campanhas/nova" },
+  { rotulo: "Ajustar campanha", href: "/campanhas/ajustar" },
+  { rotulo: "Criar público", href: "/publicos/novo" },
   { rotulo: "Biblioteca de criativos", fase: 3 },
   { rotulo: "Editar vídeo", fase: 4 },
   { rotulo: "Gerar vídeo por prompt", fase: 4 },
@@ -19,6 +20,7 @@ const BOTOES: { rotulo: string; href?: string; fase?: number }[] = [
 
 export default async function LayoutPainel({ children }: { children: React.ReactNode }) {
   const sessao = await exigirSessao();
+  const pendentes = await contarPendentes();
   return (
     <div className="min-h-screen">
       <header className="bg-navy text-creme">
@@ -27,6 +29,17 @@ export default async function LayoutPainel({ children }: { children: React.React
             Painel de Marketing <span className="text-aurum">SMQ</span>
           </Link>
           <form action={acaoSair} className="flex items-center gap-4 text-sm">
+            <Link
+              href="/aprovacoes"
+              className="rounded border border-aurum/60 px-3 py-1 hover:bg-navy-claro"
+            >
+              Aprovações
+              {pendentes > 0 && (
+                <span className="ml-2 rounded-full bg-aurum px-2 text-xs font-bold text-navy">
+                  {pendentes}
+                </span>
+              )}
+            </Link>
             <span className="text-creme/70">{sessao.email}</span>
             <button className="rounded border border-aurum/60 px-3 py-1 hover:bg-navy-claro">
               Sair
