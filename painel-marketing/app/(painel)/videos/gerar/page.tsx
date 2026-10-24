@@ -28,6 +28,7 @@ export default async function GerarVideo() {
           acao={acaoGerarVideo}
           rotulo="Ver custo e criar pedido"
           enviandoRotulo="Consultando o Roteirista e o custo no Higgsfield..."
+          destino="ao Higgsfield"
         >
           <Campo rotulo="Empreendimento">
             <select name="empreendimento" className={estiloEntrada} defaultValue="">

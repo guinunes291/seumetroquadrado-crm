@@ -9,11 +9,13 @@ export function FormPedido({
   children,
   rotulo,
   enviandoRotulo = "Preparando o pedido...",
+  destino = "à Meta",
 }: {
   acao: (estado: Estado, form: FormData) => Promise<Estado>;
   children: React.ReactNode;
   rotulo: string;
   enviandoRotulo?: string;
+  destino?: string;
 }) {
   const [estado, enviar, enviando] = useActionState(acao, null);
   return (
@@ -33,7 +35,7 @@ export function FormPedido({
         {enviando ? enviandoRotulo : rotulo}
       </button>
       <p className="text-xs text-cinza">
-        Enviar só cria o pedido. Ele aparece em Aprovações e só chega à Meta quando você aprovar.
+        Enviar só cria o pedido. Ele aparece em Aprovações e só chega {destino} quando você aprovar.
       </p>
     </form>
   );

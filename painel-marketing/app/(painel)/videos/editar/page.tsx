@@ -29,6 +29,7 @@ export default async function EditarVideo() {
           acao={acaoEditarVideo}
           rotulo="Ver custo e criar pedido"
           enviandoRotulo="Consultando o Roteirista e o custo no Higgsfield..."
+          destino="ao Higgsfield"
         >
           <Campo rotulo="Vídeo para editar" dica="MP4. Acima de 30 segundos, o Higgsfield corta.">
             <EnviarArquivo nome="video_url" aceita="video/mp4" />
