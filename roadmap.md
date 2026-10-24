@@ -1,7 +1,7 @@
 # Buscas da Sami
-- [ ] Criar colunas normalizadas e índices de projetos, preservando políticas e grants existentes.
-- [ ] Ajustar ferramentas e testes para nome, acentos e curadoria filtrada.
-- [ ] Executar testes, conferir Nações Unidas/José no banco e publicar.
+- [x] Criar colunas normalizadas e índices de projetos, preservando políticas e grants existentes.
+- [x] Ajustar ferramentas e testes para nome, acentos e curadoria filtrada.
+- [x] Executar testes (3.102 passaram), conferir Nações Unidas/José no banco e solicitar publicação.
 
 # Telefones de corretores
 - [x] Retirar leads com telefone de corretor preservando histórico: 23 retirados, zero restantes.
