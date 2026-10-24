@@ -45,7 +45,7 @@ from (values
   ('- raiz -', 'Raiz Home Clube'), ('leads - raiz', 'Raiz Home Clube'), ('testes raíz', 'Raiz Home Clube'),
   ('aptos raíz', 'Raiz Home Clube'), ('raiz foto', 'Raiz Home Clube'), ('vídeo raíz', 'Raiz Home Clube'),
   ('raíz //', 'Raiz Home Clube'), ('raíz teste', 'Raiz Home Clube'), ('forms raíz', 'Raiz Home Clube'),
-  ('novo video - raíz', 'Raiz Home Clube'), ('leads - raiz', 'Raiz Home Clube'),
+  ('novo video - raíz', 'Raiz Home Clube'),
   ('supreme vila romana', 'Supreme Vila Romana'),
   ('vila romana vibra', 'Vibra Vila Romana'),
   ('jd das perdizes', 'Jardim das Perdizes Sequoia'), ('jardim das perdizes', 'Jardim das Perdizes Sequoia'),
@@ -97,3 +97,5 @@ from (
   left join marketing.meta_campanhas mc on mc.campaign_id = c.campaign_id
 ) x
 left join marketing.empreendimentos e on e.id = x.empreendimento_id;
+
+grant update (custo_teto) on marketing.empreendimentos to painel_marketing;
