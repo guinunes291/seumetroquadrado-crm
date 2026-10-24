@@ -1,5 +1,5 @@
 import "server-only";
-import { sql } from "./db";
+import { conexaoAvulsa, sql } from "./db";
 import { registrar } from "./auditoria";
 import { ErroMeta, contaAnuncios, graph, resultadoDe } from "./meta";
 import { textosDoCriativo, tipoDoCriativo, type CriativoMeta } from "./biblioteca";
@@ -93,13 +93,14 @@ export async function sincronizarCriativos(quem: string) {
       tipo_resultado: r.tipo,
     };
   });
-  const db = sql();
-  // Em lotes pequenos: com 200 linhas (cerca de 4 mil parâmetros) a conexão pelo
-  // pooler do Supabase ficou presa no meio da mensagem e travou a página seguinte.
-  // Favorito, oculto e nota são do Painel e nunca são sobrescritos pela sincronização.
-  for (let k = 0; k < linhas.length; k += 50) {
-    const lote = linhas.slice(k, k + 50);
-    await db`
+  // Em lotes pequenos e numa conexão própria: com 200 linhas (cerca de 4 mil
+  // parâmetros) na conexão compartilhada, a página seguinte ficou presa esperando
+  // o banco. Favorito, oculto e nota são do Painel e nunca são sobrescritos aqui.
+  const db = conexaoAvulsa();
+  try {
+    for (let k = 0; k < linhas.length; k += 50) {
+      const lote = linhas.slice(k, k + 50);
+      await db`
       insert into criativos ${db(lote)}
       on conflict (ad_id) do update set nome = excluded.nome, status = excluded.status,
         campaign_id = excluded.campaign_id, campanha_nome = excluded.campanha_nome,
@@ -110,6 +111,9 @@ export async function sincronizarCriativos(quem: string) {
         impressoes = excluded.impressoes, cliques = excluded.cliques,
         resultados = excluded.resultados, tipo_resultado = excluded.tipo_resultado,
         sincronizado_em = now()`;
+    }
+  } finally {
+    await db.end({ timeout: 5 });
   }
   await registrar(quem, "criativos_sincronizados", `act_${conta}`, {
     anuncios: linhas.length,
