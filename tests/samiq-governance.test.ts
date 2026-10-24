@@ -31,7 +31,16 @@ const s2 = readFileSync(
   join(root, "supabase/migrations/20260907100000_samiq_copiloto_s2.sql"),
   "utf8",
 );
-const propostasTools = readFileSync(join(root, "src/lib/samiq-propostas.server.ts"), "utf8");
+// As ferramentas de escrita foram quebradas em módulos; lê todos juntos.
+const propostasTools = [
+  "src/lib/samiq-propostas.server.ts",
+  "src/lib/samiq-propostas-leitura.server.ts",
+  "src/lib/samiq-propostas-regras.server.ts",
+  "src/lib/samiq-propostas-alvos.server.ts",
+  "src/lib/samiq-propostas-catalogo.ts",
+]
+  .map((arquivo) => readFileSync(join(root, arquivo), "utf8"))
+  .join("\n");
 const s3 = readFileSync(
   join(root, "supabase/migrations/20260908100000_samiq_copiloto_s3.sql"),
   "utf8",
