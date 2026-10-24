@@ -1,6 +1,8 @@
 import { ErroMeta, sincronizarMeta } from "@/lib/meta";
+import { sincronizarCriativos } from "@/lib/criativos";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 // Chamado pelo agendamento diário da Vercel (vercel.json). A Vercel manda
 // "Authorization: Bearer <CRON_SECRET>"; sem esse segredo, nada roda.
@@ -13,7 +15,8 @@ export async function GET(req: Request) {
     return Response.json({ ok: false, motivo: "sem token da Meta" });
   try {
     const r = await sincronizarMeta("agendamento");
-    return Response.json({ ok: true, ...r });
+    const c = await sincronizarCriativos("agendamento");
+    return Response.json({ ok: true, ...r, criativos: c.anuncios });
   } catch (e) {
     return Response.json(
       { ok: false, motivo: e instanceof ErroMeta ? e.traduzido : "falha" },

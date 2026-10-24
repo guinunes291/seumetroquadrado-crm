@@ -10,7 +10,12 @@ import { acaoNovaCampanha } from "../../pedidos/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NovaCampanha() {
+export default async function NovaCampanha({
+  searchParams,
+}: {
+  searchParams: Promise<{ modelo?: string }>;
+}) {
+  const { modelo } = await searchParams;
   let campanhas: CampanhaMeta[] = [];
   let erro: string | null = null;
   try {
@@ -43,7 +48,12 @@ export default async function NovaCampanha() {
               rotulo="Campanha modelo"
               dica="Só campanhas de cadastro (leads), ativas ou pausadas."
             >
-              <select name="modelo" required className={estiloEntrada} defaultValue="">
+              <select
+                name="modelo"
+                required
+                className={estiloEntrada}
+                defaultValue={campanhas.some((c) => c.id === modelo) ? modelo : ""}
+              >
                 <option value="" disabled>
                   Escolha...
                 </option>
