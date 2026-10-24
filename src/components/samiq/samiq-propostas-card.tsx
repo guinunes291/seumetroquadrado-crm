@@ -9,18 +9,36 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   ArrowCounterClockwise,
+  ArrowsClockwise,
+  ArrowsLeftRight,
+  Bank,
+  CalendarCheck,
   CalendarPlus,
+  CalendarX,
   Check,
   CheckCircle,
+  CheckSquare,
   ClipboardText,
+  Clock,
+  ClockCounterClockwise,
+  FileText,
   Funnel,
+  Handshake,
+  HouseLine,
+  ListChecks,
+  MapPin,
   NotePencil,
+  Paperclip,
   PencilSimple,
   PhoneCall,
+  SealCheck,
+  Stack,
   UserGear,
+  UserMinus,
   UserPlus,
   Warning,
   X,
+  XSquare,
   type Icon as IconComponent,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -57,8 +75,35 @@ const ICONE: Record<SamiQPropostaTipo, IconComponent> = {
   atualizar_qualificacao: UserGear,
   agendar_visita: CalendarPlus,
   mudar_etapa: Funnel,
+  registrar_retorno: ClockCounterClockwise,
+  marcar_perdido: UserMinus,
+  trocar_vaga: ArrowsLeftRight,
+  concluir_tarefa: CheckSquare,
+  reagendar_tarefa: Clock,
+  cancelar_tarefa: XSquare,
+  confirmar_visita: CalendarCheck,
+  remarcar_visita: ArrowsClockwise,
+  cancelar_visita: CalendarX,
+  registrar_visita: HouseLine,
+  documentos_checklist: ListChecks,
+  atualizar_documento: FileText,
+  anexar_documento: Paperclip,
+  enviar_analise_credito: Bank,
+  registrar_resultado_credito: SealCheck,
+  registrar_venda: Handshake,
+  fazer_checkin: MapPin,
   criar_lead: UserPlus,
+  pedir_lote: Stack,
 };
+
+/** Tipos com campos editáveis no card (os demais confirmam como a Sami montou). */
+const TIPOS_EDITAVEIS = new Set<SamiQPropostaTipo>([
+  "registrar_contato",
+  "anotar",
+  "criar_tarefa",
+  "agendar_visita",
+  "mudar_etapa",
+]);
 
 /** Queries que uma escrita da Sami pode ter mudado — invalida em bloco. */
 const QUERIES_AFETADAS = new Set([
@@ -74,6 +119,12 @@ const QUERIES_AFETADAS = new Set([
   "agendamentos",
   "agenda-do-dia",
   "pipeline",
+  "documentacoes",
+  "analise-credito",
+  "vendas",
+  "leads-kanban",
+  "lead-detail",
+  "lead-detail:interacoes",
 ]);
 
 type Props = {
@@ -245,7 +296,7 @@ export function SamiQPropostasCard({ propostas, onChange }: Props) {
                     </div>
                     {pendente && !ocupado && (
                       <div className="flex shrink-0 items-center gap-0.5">
-                        {p.tipo !== "atualizar_qualificacao" && (
+                        {TIPOS_EDITAVEIS.has(p.tipo) && (
                           <button
                             type="button"
                             aria-label="Editar item"

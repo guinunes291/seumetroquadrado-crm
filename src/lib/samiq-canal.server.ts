@@ -13,22 +13,34 @@ import { timingSafeEqual } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { ZodType } from "zod";
 
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rateLimit } from "@/lib/rate-limit";
 import {
+  AnexoSamiInput,
+  SAMI_ANEXO_MAX_REQUEST_BYTES,
   SAMI_CANAL_HEADER,
   SAMI_CANAL_MAX_BODY_BYTES,
   SAMI_CANAL_MAX_POR_MINUTO,
   escolherCorretorUnico,
+  mimePelosBytes,
   textoDaDecisao,
+  textoDoDesfazer,
+  type AnexoSami,
   type DecisaoResultado,
   type IntencaoCurta,
 } from "@/lib/samiq-canal";
-import type { PropostaSamiQ } from "@/lib/samiq-propostas";
+import type { ModoEscritaSamiQ, MotivoSemDesfazer, PropostaSamiQ } from "@/lib/samiq-propostas";
+import { localizacaoValida, type ContextoConversaSamiQ } from "@/lib/samiq-contexto";
 import { SamiQQuotaError } from "./samiq-governance.server";
-import { gravarTurnoSamiQ } from "./samiq-memoria.server";
-import { confirmarPropostas, rejeitarPropostas } from "./samiq-confirmar.server";
+import { gravarContextoTurnoSamiQ, gravarTurnoSamiQ } from "./samiq-memoria.server";
+import { samiqRpc } from "@/lib/samiq-rpc-args";
+import { isMissingBackendObject } from "@/lib/supabase-errors";
+import {
+  confirmarPropostas,
+  desfazerPropostas,
+  rejeitarPropostasDetalhado,
+} from "./samiq-confirmar.server";
 
 type Db = SupabaseClient<Database>;
 
@@ -84,6 +96,55 @@ export async function lerCorpoCanalSami<T>(request: Request, schema: ZodType<T>)
     throw new CanalSamiError(422, "corpo_invalido", `Campos inválidos: ${campos.join(", ")}.`);
   }
   return parsed.data;
+}
+
+/**
+ * v8: arquivo do WhatsApp (multipart/form-data, campo `arquivo` + campos de
+ * texto). O tipo vem dos bytes, não do que o remetente declarou.
+ */
+export async function lerArquivoCanalSami(
+  request: Request,
+): Promise<{ campos: AnexoSami; arquivo: Blob; mime: string }> {
+  const tipo = (request.headers.get("content-type") ?? "").toLowerCase();
+  if (!tipo.startsWith("multipart/form-data")) {
+    throw new CanalSamiError(415, "tipo_invalido", "Envie o arquivo como multipart/form-data.");
+  }
+  const declarado = Number(request.headers.get("content-length") ?? "0");
+  if (declarado > SAMI_ANEXO_MAX_REQUEST_BYTES) {
+    throw new CanalSamiError(413, "arquivo_grande", "O arquivo precisa ter até 15 MB.");
+  }
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    throw new CanalSamiError(400, "corpo_invalido", "Não consegui ler o arquivo enviado.");
+  }
+  const texto = (k: string) => {
+    const v = form.get(k);
+    return typeof v === "string" && v.trim() ? v : undefined;
+  };
+  const parsed = AnexoSamiInput.safeParse({
+    corretor_telefone: texto("corretor_telefone"),
+    legenda: texto("legenda"),
+    mensagem_id: texto("mensagem_id"),
+    nome: texto("nome"),
+  });
+  if (!parsed.success) {
+    const campos = [...new Set(parsed.error.issues.map((i) => i.path.join(".") || "(raiz)"))];
+    throw new CanalSamiError(422, "corpo_invalido", `Campos inválidos: ${campos.join(", ")}.`);
+  }
+  const arquivo = form.get("arquivo");
+  if (!arquivo || typeof arquivo === "string") {
+    throw new CanalSamiError(422, "sem_arquivo", "Faltou o arquivo (campo arquivo).");
+  }
+  if (arquivo.size > SAMI_ANEXO_MAX_REQUEST_BYTES) {
+    throw new CanalSamiError(413, "arquivo_grande", "O arquivo precisa ter até 15 MB.");
+  }
+  const mime = mimePelosBytes(new Uint8Array(await arquivo.slice(0, 16).arrayBuffer()));
+  if (!mime) {
+    throw new CanalSamiError(415, "tipo_invalido", "Por aqui eu anexo PDF, JPG, PNG ou WEBP.");
+  }
+  return { campos: parsed.data, arquivo, mime };
 }
 
 /** Corretor ativo pelo telefone (sufixo único) + limite de mensagens por minuto. */
@@ -188,33 +249,55 @@ export async function comSessaoDoCorretor<T>(
 }
 
 /**
- * CONFIRMAR/CANCELAR um pacote pendente pelo WhatsApp — a mesma execução do
- * botão do card (samiq-confirmar.server.ts), com a sessão do corretor.
+ * CONFIRMAR/CANCELAR (tudo ou "CONFIRMAR 2") pelo WhatsApp: a mesma execução
+ * do botão do card (samiq-confirmar.server.ts), com a sessão do corretor. O
+ * recibo sai numerado (DESFAZER N) e o que sobrou volta renumerado.
  */
 export async function decidirPendentes(args: {
   corretor: CorretorCanal;
   decisao: IntencaoCurta;
+  /** Os escolhidos (todos, ou só os números que o corretor mandou). */
   pendentes: PropostaSamiQ[];
+  /** O que continua esperando o OK depois desta decisão. */
+  restantes?: PropostaSamiQ[];
   conversaId: string | null;
   mensagem: string;
+  /** v8: memória da conversa para atualizar as numerações. */
+  contexto?: ContextoConversaSamiQ;
+  mensagemId?: string | null;
 }): Promise<{ texto: string; resultados: DecisaoResultado[] }> {
   const { corretor, decisao, pendentes } = args;
+  const restantes = args.restantes ?? [];
   let resultados: DecisaoResultado[] = [];
   if (pendentes.length > 0) {
     if (decisao === "confirmar") {
+      const localizacao = args.contexto ? localizacaoValida(args.contexto) : null;
       resultados = await comSessaoDoCorretor(corretor, (supabase) =>
         confirmarPropostas({
           supabase,
           userId: corretor.id,
           itens: pendentes.map((p) => ({ id: p.id })),
+          contexto: { localizacao },
         }),
       );
     } else {
-      await rejeitarPropostas({ userId: corretor.id, ids: pendentes.map((p) => p.id) });
-      resultados = pendentes.map((p) => ({ id: p.id, ok: true, status: "rejeitada" }));
+      const r = await rejeitarPropostasDetalhado({
+        userId: corretor.id,
+        ids: pendentes.map((p) => p.id),
+      });
+      resultados = pendentes.map((p) => {
+        const ok = r.find((x) => x.id === p.id)?.ok === true;
+        return { id: p.id, ok, status: ok ? "rejeitada" : "indisponivel" };
+      });
     }
   }
-  const texto = textoDaDecisao(decisao, resultados, pendentes);
+  // Descarte que não pegou (já estava sendo gravado, banco fora): continua na lista.
+  const naoSairam =
+    decisao === "rejeitar"
+      ? pendentes.filter((p) => !resultados.some((r) => r.id === p.id && r.ok))
+      : [];
+  const restantesFinal = [...restantes, ...naoSairam];
+  const texto = textoDaDecisao(decisao, resultados, pendentes, restantesFinal);
   if (args.conversaId && pendentes.length > 0) {
     await gravarTurnoSamiQ({
       userId: corretor.id,
@@ -223,8 +306,232 @@ export async function decidirPendentes(args: {
       resposta: texto,
       canal: "whatsapp",
     });
+    if (args.contexto) {
+      const gravadas =
+        decisao === "confirmar" ? resultados.filter((r) => r.ok).map((r) => r.id) : [];
+      await gravarContextoTurnoSamiQ({
+        userId: corretor.id,
+        conversaId: args.conversaId,
+        executionId: null,
+        contexto: {
+          ...args.contexto,
+          pendentes: restantesFinal.map((p) => p.id),
+          executadas: gravadas.length ? gravadas : (args.contexto.executadas ?? []),
+          pediu_decisao: restantesFinal.length > 0,
+          ambiguos: [],
+          ultima_mensagem_id: args.mensagemId ?? args.contexto.ultima_mensagem_id ?? null,
+        },
+      });
+    }
   }
   return { texto, resultados };
+}
+
+/**
+ * DESFAZER (tudo do último recibo ou "DESFAZER 2"): o mesmo desfazer de 24 h
+ * do painel, pela RPC do servidor. Mudança de etapa não volta (aviso no texto).
+ */
+export async function desfazerPeloCanal(args: {
+  corretor: CorretorCanal;
+  acoes: PropostaSamiQ[];
+  /** Apontados pelo corretor mas que não voltam (o texto explica cada um). */
+  ignoradas?: Array<{ acao: PropostaSamiQ; motivo: MotivoSemDesfazer }>;
+  conversaId: string;
+  mensagem: string;
+  contexto: ContextoConversaSamiQ;
+  mensagemId?: string | null;
+}): Promise<{ texto: string; resultados: Array<{ id: string; ok: boolean; erro?: string }> }> {
+  const { corretor, acoes } = args;
+  const resultados = acoes.length
+    ? await desfazerPropostas({ userId: corretor.id, ids: acoes.map((a) => a.id) })
+    : [];
+  const texto = textoDoDesfazer(resultados, acoes, args.ignoradas ?? []);
+  await gravarTurnoSamiQ({
+    userId: corretor.id,
+    conversaId: args.conversaId,
+    pergunta: args.mensagem,
+    resposta: texto,
+    canal: "whatsapp",
+  });
+  await gravarContextoTurnoSamiQ({
+    userId: corretor.id,
+    conversaId: args.conversaId,
+    executionId: null,
+    contexto: {
+      ...args.contexto,
+      // A numeração do DESFAZER é a do recibo que o corretor tem na tela: a
+      // lista fica igual. Item já desfeito pedido de novo cai no filtro de
+      // status da rota ("nada recente para desfazer"), sem renumerar os outros.
+      executadas: args.contexto.executadas ?? [],
+      pediu_decisao: false,
+      ultima_mensagem_id: args.mensagemId ?? args.contexto.ultima_mensagem_id ?? null,
+    },
+  });
+  return { texto, resultados };
+}
+
+// ---------------------------------------------------------------------------
+// Fila do canal (v8): uma linha por mensagem do WhatsApp no banco.
+//  * retentativa (mesmo id, outra instância, outro minuto) recebe a resposta
+//    guardada: nada é gravado duas vezes e o recibo não se perde;
+//  * duas mensagens seguidas do mesmo corretor rodam uma de cada vez, na
+//    ordem em que chegaram (a memória da conversa não se atropela);
+//  * tudo cabe no tempo do n8n (90 s): a espera na fila desconta do prazo do
+//    turno, e quem esperou demais segue mesmo assim (a memória mescla).
+// ---------------------------------------------------------------------------
+
+/** Tempo total que a rota tem até o n8n desistir (90 s), com folga para a resposta. */
+export const SAMI_CANAL_ORCAMENTO_MS = 82_000;
+/** Quanto uma mensagem espera a anterior do mesmo corretor terminar. */
+export const SAMI_CANAL_ESPERA_FILA_MS = 30_000;
+/** Quanto a retentativa espera a original terminar para devolver a mesma resposta. */
+export const SAMI_CANAL_ESPERA_MESMA_MS = 80_000;
+const SAMI_CANAL_INTERVALO_MS = 1_500;
+/** Processamento mais velho que isto é tratado como abandonado (caiu no meio). */
+const SAMI_CANAL_JANELA_SEG = 100;
+/** O turno nunca começa com menos que isto (melhor estourar o n8n do que não responder). */
+const SAMI_CANAL_PRAZO_MINIMO_MS = 25_000;
+
+export type TurnoDoCanal =
+  | { tipo: "repetida"; resposta: Record<string, unknown> }
+  | { tipo: "em_andamento" }
+  | {
+      tipo: "processar";
+      /** Quanto o turno ainda pode levar (o que sobrou do orçamento depois da fila). */
+      prazoMs: number;
+      concluir: (corpo: Record<string, unknown>) => Promise<void>;
+      falhou: () => Promise<void>;
+    };
+
+type RespostaDaFila =
+  | { acao: "processar"; id: string; tentativa: string | null }
+  | { acao: "repetida"; resposta: Record<string, unknown> | null }
+  | { acao: "aguardar"; motivo: "mesma_mensagem" | "fila" };
+
+/**
+ * Chave de emergência (samiq_politica.whatsapp_modo_escrita): 'confirmar_tudo'
+ * faz as leves voltarem a esperar CONFIRMAR, sem deploy. Sem a coluna ou com
+ * erro de leitura, vale o padrão da v8 (por risco).
+ */
+export async function modoEscritaDoWhatsApp(): Promise<ModoEscritaSamiQ> {
+  try {
+    const { data, error } = await samiqRpc(supabaseAdmin)("samiq_modo_escrita_whatsapp", {});
+    if (error) return "por_risco";
+    return data === "confirmar_tudo" ? "confirmar_tudo" : "por_risco";
+  } catch {
+    return "por_risco";
+  }
+}
+
+function lerRespostaDaFila(data: Json | null): RespostaDaFila | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  if (data.acao === "processar" && typeof data.id === "string") {
+    return {
+      acao: "processar",
+      id: data.id,
+      tentativa: typeof data.tentativa === "string" ? data.tentativa : null,
+    };
+  }
+  if (data.acao === "repetida") {
+    const r = data.resposta;
+    return {
+      acao: "repetida",
+      resposta: r && typeof r === "object" && !Array.isArray(r) ? r : null,
+    };
+  }
+  if (data.acao === "aguardar") {
+    return {
+      acao: "aguardar",
+      motivo: data.motivo === "mesma_mensagem" ? "mesma_mensagem" : "fila",
+    };
+  }
+  return null;
+}
+
+export async function entrarNaFilaDoCanal(args: {
+  corretorId: string;
+  mensagemId?: string | null;
+  /** Testes: relógio e espera de mentira. */
+  relogio?: () => number;
+  dormir?: (ms: number) => Promise<void>;
+}): Promise<TurnoDoCanal> {
+  const relogio = args.relogio ?? Date.now;
+  const dormir = args.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const inicio = relogio();
+  // Sem id do WhatsApp (n8n antigo): não há como reconhecer retentativa, mas a
+  // mensagem entra na fila do mesmo jeito (ordem e memória continuam certas).
+  const mensagemId = args.mensagemId?.trim() || `sem-id:${crypto.randomUUID()}`;
+  const rpc = samiqRpc(supabaseAdmin);
+
+  const pedir = async (forcar: boolean): Promise<RespostaDaFila | null> => {
+    const { data, error } = await rpc("samiq_canal_iniciar", {
+      _user_id: args.corretorId,
+      _mensagem_id: mensagemId.slice(0, 200),
+      _janela_seg: SAMI_CANAL_JANELA_SEG,
+      _forcar: forcar,
+    });
+    if (error) {
+      // Banco sem a fila (migration ainda não aplicada): segue sem ela.
+      if (isMissingBackendObject(error)) return null;
+      throw new CanalSamiError(
+        503,
+        "fila_indisponivel",
+        "O CRM não respondeu agora. Me mande de novo em 1 minuto.",
+      );
+    }
+    return lerRespostaDaFila(data);
+  };
+
+  let r = await pedir(false);
+  while (r && r.acao === "aguardar") {
+    const limite =
+      r.motivo === "mesma_mensagem" ? SAMI_CANAL_ESPERA_MESMA_MS : SAMI_CANAL_ESPERA_FILA_MS;
+    if (relogio() - inicio >= limite) break;
+    await dormir(SAMI_CANAL_INTERVALO_MS);
+    r = await pedir(false);
+  }
+  if (r && r.acao === "aguardar") {
+    // A original ainda roda e vai responder ela mesma: esta cópia fica calada.
+    if (r.motivo === "mesma_mensagem") return { tipo: "em_andamento" };
+    r = await pedir(true);
+    if (r && r.acao === "aguardar") return { tipo: "em_andamento" };
+  }
+  if (r && r.acao === "repetida") {
+    return {
+      tipo: "repetida",
+      resposta: r.resposta ?? { ok: true, tipo: "repetida", texto: "" },
+    };
+  }
+
+  const prazoMs = Math.max(
+    SAMI_CANAL_PRAZO_MINIMO_MS,
+    SAMI_CANAL_ORCAMENTO_MS - (relogio() - inicio),
+  );
+  const id = r && r.acao === "processar" ? r.id : null;
+  const tentativa = r && r.acao === "processar" ? r.tentativa : null;
+  const fechar = async (status: "respondida" | "falhou", corpo: Record<string, unknown> | null) => {
+    if (!id || !tentativa) return;
+    try {
+      const { error } = await rpc("samiq_canal_concluir", {
+        _user_id: args.corretorId,
+        _id: id,
+        _tentativa: tentativa,
+        _status: status,
+        _resposta: corpo ? (JSON.parse(JSON.stringify(corpo)) as Json) : null,
+      });
+      if (error) {
+        console.error(JSON.stringify({ event: "samiq_canal_concluir_failed", code: error.code }));
+      }
+    } catch {
+      console.error(JSON.stringify({ event: "samiq_canal_concluir_failed", code: "exception" }));
+    }
+  };
+  return {
+    tipo: "processar",
+    prazoMs,
+    concluir: (corpo) => fechar("respondida", corpo),
+    falhou: () => fechar("falhou", null),
+  };
 }
 
 /** Erro → resposta JSON com um `texto` que o n8n pode mandar ao corretor. */
@@ -245,6 +552,11 @@ export function responderErroCanal(error: unknown): Response {
       { ok: false, erro: "cota", texto: error.message, retry_after: error.retryAfterSeconds },
       429,
     );
+  }
+  // Erros de anexo (samiq-anexos.server.ts) já têm mensagem para o corretor.
+  if (error instanceof Error && error.name === "AnexoSamiError") {
+    const codigo = (error as Error & { codigo?: string }).codigo ?? "anexo_invalido";
+    return jsonCanal({ ok: false, erro: codigo, texto: error.message }, 422);
   }
   console.error(
     JSON.stringify({

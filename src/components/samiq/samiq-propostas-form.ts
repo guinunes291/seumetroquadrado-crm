@@ -6,6 +6,7 @@
 import {
   PropostaPayloadSchema,
   SAMIQ_DESFAZER_JANELA_HORAS,
+  podeDesfazerProposta,
   type PropostaPayload,
   type PropostaSamiQ,
 } from "@/lib/samiq-propostas";
@@ -105,7 +106,8 @@ export function aplicarEdicao(
         else delete bruto.proximoFollowupEm;
       }
       break;
-    case "atualizar_qualificacao":
+    default:
+      // Demais tipos (v8) confirmam como a Sami montou; o card não edita.
       break;
   }
   const parsed = PropostaPayloadSchema.safeParse(bruto);
@@ -122,7 +124,9 @@ export function podeDesfazerAgora(
   agora: Date = new Date(),
 ): boolean {
   if (proposta.status !== "aceita" && proposta.status !== "editada") return false;
-  if (proposta.tipo === "mudar_etapa") return false;
+  // Etapa, perda, retorno, crédito, venda... passam pela máquina de estados
+  // ou já podem ter sido usados por outra pessoa: não se desfazem pelo botão.
+  if (!podeDesfazerProposta(proposta.tipo)) return false;
   if (!proposta.desfazerAte) return false;
   const ate = new Date(proposta.desfazerAte).getTime();
   return !Number.isNaN(ate) && ate > agora.getTime();

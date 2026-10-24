@@ -31,6 +31,12 @@ export const SAMIQ_TOOL_NAMES = [
   "avaliar_qualificacao",
   "curar_estoque",
   "preparar_visita",
+  // v8 (CRM no WhatsApp): leituras que faltavam para o corretor não abrir o CRM.
+  "listar_clientes",
+  "minha_situacao",
+  "material_do_projeto",
+  "credito_do_cliente",
+  "abrir_ferramentas",
 ] as const;
 
 export type SamiQToolName = (typeof SAMIQ_TOOL_NAMES)[number];
@@ -49,6 +55,11 @@ export const SAMIQ_TOOL_LABELS: Record<SamiQToolName, string> = {
   avaliar_qualificacao: "qualificação",
   curar_estoque: "estoque",
   preparar_visita: "kit de visita",
+  listar_clientes: "carteira",
+  minha_situacao: "check-in e roleta",
+  material_do_projeto: "empreendimento",
+  credito_do_cliente: "crédito",
+  abrir_ferramentas: "ferramentas",
 };
 
 export function isSamiQToolName(value: string): value is SamiQToolName {
@@ -136,10 +147,68 @@ export const CatalogoProjetosInput = z.object({
   limite: z.number().int().min(1).max(15).optional().describe("Padrão 10"),
 });
 
+export const ListarClientesInput = z.object({
+  etapa: z
+    .array(z.enum(LEAD_STATUS))
+    .max(6)
+    .optional()
+    .describe("Etapas do funil para filtrar (ex.: ['em_atendimento'])"),
+  temperatura: z.enum(["quente", "morno", "frio"]).optional(),
+  parados_dias: z
+    .number()
+    .int()
+    .min(1)
+    .max(365)
+    .optional()
+    .describe("Só quem está sem interação há N dias ou mais"),
+  ordem: z
+    .enum(["mais_parados", "mais_recentes"])
+    .optional()
+    .describe("mais_parados = sem contato há mais tempo primeiro; padrão mais_recentes"),
+  limite: z.number().int().min(1).max(20).optional().describe("Padrão 10"),
+});
+
+export const MinhaSituacaoInput = z.object({});
+
+export const MaterialDoProjetoInput = z.object({
+  projetoId: z.string().uuid().optional().describe("id do empreendimento (de catalogo_projetos)"),
+  nome: z.string().max(80).optional().describe("Nome do empreendimento, quando não tiver o id"),
+});
+
+export const CreditoDoClienteInput = z.object({
+  leadId: z.string().uuid(),
+});
+
+/** Grupos de ferramentas que a Sami pode abrir no meio da resposta (samiq-grupos.ts). */
+export const GRUPOS_FERRAMENTAS = [
+  "carteira",
+  "agenda",
+  "tarefas",
+  "funil",
+  "qualificacao",
+  "produtos",
+  "documentos",
+  "credito",
+  "venda",
+  "presenca",
+  "prospeccao",
+] as const;
+export type GrupoFerramentas = (typeof GRUPOS_FERRAMENTAS)[number];
+
+export const AbrirFerramentasInput = z.object({
+  grupos: z
+    .array(z.enum(GRUPOS_FERRAMENTAS))
+    .min(1)
+    .max(6)
+    .describe(
+      "carteira | agenda | tarefas | funil | qualificacao | produtos | documentos | credito | venda | presenca | prospeccao",
+    ),
+});
+
 /** Descrições em PT-BR — é o que o modelo lê para decidir quando chamar. */
 export const SAMIQ_TOOL_DESCRIPTIONS: Record<SamiQToolName, string> = {
   buscar_clientes:
-    "Procura clientes na carteira do corretor pelo nome ou pelo empreendimento de interesse. Devolve id, nome, etapa, temperatura e datas-chave. Use antes de detalhe_cliente quando só tiver o nome.",
+    'Procura clientes na carteira do corretor pelo nome (com sobrenome, de preferência), pelo empreendimento de interesse e/ou pelo telefone (marcador [TELEFONE_n] da mensagem ou os últimos dígitos, ex.: "Lucas 4321"). Devolve id, nome, etapa, temperatura e datas-chave; o telefone nunca aparece. Se vierem dois ou mais clientes com o mesmo nome, pergunte qual antes de gravar.',
   detalhe_cliente:
     "Traz o dossiê resumido de um cliente: perfil financeiro, momento no funil, últimas interações, tarefas abertas, próximos compromissos e status dos documentos.",
   minha_agenda:
@@ -162,6 +231,16 @@ export const SAMIQ_TOOL_DESCRIPTIONS: Record<SamiQToolName, string> = {
     "Curadoria de empreendimentos com estoque real: unidades disponíveis, campanha vigente e se cabe na renda informada, ordenados por aderência e com o motivo de cada posição. Use quando o corretor pedir opções para um cliente.",
   preparar_visita:
     "Kit de preparação para a visita de um cliente: visita agendada, empreendimento com argumentos, documentos pendentes, objeções, simulação rápida e checklist do que confirmar e perguntar. Use na véspera ou quando o corretor disser 'me prepara para a visita'.",
+  listar_clientes:
+    "Lista clientes da carteira do corretor SEM precisar de nome: por etapa, temperatura ou parados há N dias (ex.: 'quem está em atendimento parado há 5 dias', 'meus quentes'). Use para escolher quem sai na troca de vaga ou montar a lista do dia.",
+  minha_situacao:
+    "Situação do corretor hoje: check-in (onde, se está apto para a roleta e por quê), Em atendimento (ocupação x teto, se está lotado, se recebe lead), base e se pode pedir lote de prospecção. Use para 'por que não recebi lead?', 'fiz check-in?', 'quantos tenho em atendimento?'.",
+  material_do_projeto:
+    "Ficha de venda de UM empreendimento: endereço, construtora, entrega, preço a partir de, renda mínima, metragem, vagas, argumentos de venda e se há book e tabela (com a data da tabela). Book, tabela e planta o próprio canal envia quando o corretor pede pelo nome.",
+  credito_do_cliente:
+    "Análise de crédito atual de um cliente: situação (enviada, pendente, aprovada, condicionada, reprovada), banco, financiamento, parcela, prazo, FGTS, subsídio, validade. Valores aprovados são para o corretor, nunca para mensagem ao cliente.",
+  abrir_ferramentas:
+    "Abre mais grupos de ferramentas para os próximos passos desta resposta, quando a que você precisa não está disponível: carteira, agenda, tarefas, funil, qualificacao, produtos, documentos, credito, venda, presenca, prospeccao.",
 };
 
 // ---------------------------------------------------------------------------
@@ -211,6 +290,29 @@ export function intervaloAgendaSamiQ(
     inicioIso: `${inicio}T00:00:00${OFFSET_SP}`,
     fimIso: `${fim}T23:59:59${OFFSET_SP}`,
   };
+}
+
+/**
+ * Separa o que é nome/empreendimento do que é telefone no termo do
+ * buscar_clientes ("Lucas 4321", "final 4321", "lucas final 98765-4321").
+ * Os 4 últimos dígitos bastam para separar homônimos e não expõem o número.
+ * Menos de 4 dígitos não vira filtro de telefone (fica no texto, como antes).
+ */
+export function separarTermoBuscaSamiQ(termo: string): {
+  texto: string;
+  finalTelefone: string | null;
+} {
+  const digitos = (termo.match(/\d[\d\s.-]*\d|\d/g) ?? [])
+    .map((d) => d.replace(/\D/g, ""))
+    .filter((d) => d.length >= 4);
+  if (digitos.length === 0) return { texto: termoBuscaSamiQ(termo), finalTelefone: null };
+  const ultimo = digitos[digitos.length - 1];
+  const texto = termoBuscaSamiQ(
+    termo
+      .replace(/\d[\d\s.-]*\d|\d/g, " ")
+      .replace(/\b(?:final|finais|terminado|termina|tel|telefone|cel|celular|em|com|o|a)\b/gi, " "),
+  );
+  return { texto, finalTelefone: ultimo.slice(-Math.min(ultimo.length, 9)) };
 }
 
 /** Termo de busca seguro para o filtro `.or()` do PostgREST (vírgula e
@@ -538,6 +640,192 @@ export function modelarProjetos(rows: ProjetoRow[], limite = 10): unknown {
         )
       : undefined,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// v8: leituras novas (o que o modelo vê)
+// ---------------------------------------------------------------------------
+
+export type MaterialProjetoRow = {
+  id: string;
+  nome: string | null;
+  construtora: string | null;
+  endereco: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  regiao: string | null;
+  zona_smq: string | null;
+  tipologia: string | null;
+  dorms_min: number | null;
+  dorms_max: number | null;
+  metragem_min: number | null;
+  metragem_max: number | null;
+  vagas: string | null;
+  preco_a_partir: number | null;
+  renda_minima: number | null;
+  status_entrega: string | null;
+  mes_entrega: number | null;
+  ano_entrega: number | null;
+  status_preco: string | null;
+  disponibilidade_resumo: string | null;
+  perfil_ideal: string | null;
+  argumentos_venda: string[] | null;
+  book_url: string | null;
+  tabela_precos_url: string | null;
+  tabela_atualizada_em: string | null;
+  preco_atualizado_em: string | null;
+};
+
+function intervalo(min: number | null, max: number | null, sufixo = ""): string | undefined {
+  if (min == null && max == null) return undefined;
+  if (min != null && max != null && min !== max) return `${min} a ${max}${sufixo}`;
+  return `${min ?? max}${sufixo}`;
+}
+
+/** Ficha do empreendimento: dado público da imobiliária (sem redação de nomes). */
+export function modelarMaterialProjeto(p: MaterialProjetoRow, agora: Date = new Date()): unknown {
+  const ondeFica =
+    p.endereco?.trim() ||
+    [p.logradouro, p.numero, p.bairro, p.cidade].filter(Boolean).join(", ") ||
+    undefined;
+  const diasTabela = p.tabela_atualizada_em
+    ? Math.floor((agora.getTime() - Date.parse(p.tabela_atualizada_em)) / 86_400_000)
+    : null;
+  return {
+    id: p.id,
+    nome: p.nome,
+    construtora: p.construtora,
+    onde_fica: ondeFica,
+    regiao: [p.bairro, p.regiao ?? p.zona_smq].filter(Boolean).join(" · ") || undefined,
+    tipologia: p.tipologia,
+    dormitorios: intervalo(p.dorms_min, p.dorms_max),
+    metragem: intervalo(p.metragem_min, p.metragem_max, " m²"),
+    vagas: p.vagas ?? undefined,
+    preco_a_partir: p.preco_a_partir,
+    renda_minima: p.renda_minima,
+    entrega:
+      [
+        p.status_entrega,
+        p.mes_entrega && p.ano_entrega ? `${p.mes_entrega}/${p.ano_entrega}` : p.ano_entrega,
+      ]
+        .filter(Boolean)
+        .join(" · ") || undefined,
+    status_preco: p.status_preco ?? undefined,
+    disponibilidade: p.disponibilidade_resumo?.slice(0, 200) || undefined,
+    perfil_ideal: p.perfil_ideal?.slice(0, 200) || undefined,
+    argumentos: (p.argumentos_venda ?? []).slice(0, 4).map((a) => String(a).slice(0, 160)),
+    tem_book: !!p.book_url,
+    tem_tabela: !!p.tabela_precos_url,
+    tabela_atualizada_em: p.tabela_atualizada_em,
+    tabela_dias: diasTabela,
+    aviso_tabela:
+      diasTabela !== null && diasTabela > 30
+        ? `Tabela de ${diasTabela} dias atrás: confirme valores e disponibilidade antes de passar ao cliente.`
+        : undefined,
+  };
+}
+
+export type AnaliseCreditoRow = {
+  status: string | null;
+  banco: string | null;
+  modalidade: string | null;
+  sistema_amortizacao: string | null;
+  valor_financiamento: number | null;
+  valor_parcela: number | null;
+  prazo_meses: number | null;
+  taxa_juros_anual: number | null;
+  valor_fgts: number | null;
+  valor_subsidio: number | null;
+  valor_entrada: number | null;
+  valor_imovel_simulacao: number | null;
+  renda_familiar: number | null;
+  faixa_mcmv: string | null;
+  data_aprovacao: string | null;
+  validade_ate: string | null;
+  observacoes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export function modelarCredito(rows: AnaliseCreditoRow[]): unknown {
+  if (rows.length === 0) return { analise: null, aviso: "Nenhuma análise de crédito registrada." };
+  const [atual, ...anteriores] = rows;
+  return {
+    analise: minimizar({
+      situacao: atual.status,
+      banco: atual.banco,
+      modalidade: atual.modalidade,
+      amortizacao: atual.sistema_amortizacao,
+      financiamento: atual.valor_financiamento,
+      parcela: atual.valor_parcela,
+      prazo_meses: atual.prazo_meses,
+      taxa_ano: atual.taxa_juros_anual,
+      fgts: atual.valor_fgts,
+      subsidio: atual.valor_subsidio,
+      entrada: atual.valor_entrada,
+      imovel_simulacao: atual.valor_imovel_simulacao,
+      renda_familiar: atual.renda_familiar,
+      faixa: atual.faixa_mcmv,
+      aprovada_em: atual.data_aprovacao,
+      validade_ate: atual.validade_ate,
+      observacoes: redactSamiQFreeText(atual.observacoes ?? "", 300) || undefined,
+      registrada_em: atual.created_at,
+      atualizada_em: atual.updated_at,
+    }),
+    rodadas_anteriores: anteriores.length,
+  };
+}
+
+export type SituacaoCorretor = {
+  presenca: unknown;
+  emAtendimento: unknown;
+  lote: unknown;
+};
+
+/** Situação do corretor (check-in, Em atendimento, lote) em formato curto. */
+export function modelarSituacao(s: SituacaoCorretor): unknown {
+  const p = (s.presenca ?? {}) as Record<string, unknown>;
+  const c = (p.checkin ?? null) as Record<string, unknown> | null;
+  const e = (s.emAtendimento ?? {}) as Record<string, unknown>;
+  const l = (s.lote ?? {}) as Record<string, unknown>;
+  const filiais = Array.isArray(p.filiais)
+    ? (p.filiais as Array<Record<string, unknown>>).map((f) => ({ slug: f.slug, nome: f.nome }))
+    : undefined;
+  return {
+    checkin_hoje: c
+      ? {
+          modo: c.modo,
+          filial: c.filial_nome ?? c.filial_slug ?? undefined,
+          apto_roleta: c.apto_roleta,
+          motivo: c.motivo ?? undefined,
+          localizacao: c.localizacao ?? undefined,
+          encerrado: !!c.encerrado_em,
+        }
+      : null,
+    presente: p.presente ?? false,
+    vendas_mes_anterior: p.vendas_mes_anterior,
+    vendas_minimas_para_casa: p.vendas_minimas,
+    casa_liberada: p.casa_liberada,
+    exige_localizacao_na_filial: p.exige_localizacao,
+    filiais,
+    em_atendimento: {
+      ocupacao: e.em_atendimento,
+      teto: e.teto,
+      lotado: e.lotado,
+      recebe_lead: e.recebe_lead,
+      minha_base: e.minha_base,
+      teto_base: e.teto_base,
+      retorno_max_dias: e.retorno_max_dias,
+    },
+    lote_prospeccao: {
+      pode_pedir: l.pode_pedir,
+      motivo: l.motivo ?? undefined,
+      vagas: l.vagas ?? undefined,
+      regiao: l.regiao ?? undefined,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
