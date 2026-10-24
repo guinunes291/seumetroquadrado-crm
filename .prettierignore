@@ -14,3 +14,5 @@ public/mercado-geo.json
 # Regras de lint copiadas byte a byte do vibe-coding-toolkit (commit 790a895).
 # Reformatar quebra a correspondência com a origem; ver eslint.config.js.
 eslint-rules/
+painel-marketing/node_modules
+painel-marketing/.next
