@@ -28,7 +28,7 @@ export type CsvLoteResult = { inseridos: number; duplicados: number; erros: CsvL
  */
 export const importarLeadsCsvLote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { rows: CsvLeadRow[]; batchId: string }) => {
+  .validator((input: { rows: CsvLeadRow[]; batchId: string }) => {
     if (!Array.isArray(input?.rows) || input.rows.length > 500)
       throw new Error("Lote inválido (máx. 500 linhas).");
     if (!/^[0-9a-f-]{36}$/i.test(input.batchId)) throw new Error("Lote sem identificador.");

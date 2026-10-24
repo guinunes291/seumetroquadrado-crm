@@ -3,7 +3,7 @@
 // Este módulo é puro (sem banco) para ser testado.
 import { z } from "zod";
 
-export const SAMIQ_MAX_DIRETRIZES = 12;
+export const SAMIQ_MAX_DIRETRIZES = 40;
 
 export const DiretrizSamiInput = z.object({
   texto: z.string().trim().min(5).max(600),

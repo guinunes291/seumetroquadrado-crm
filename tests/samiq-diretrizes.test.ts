@@ -12,7 +12,8 @@ describe("diretrizes aprendidas da Sami", () => {
   });
 
   it("monta o bloco com marcação de conhecimento e teto", () => {
-    const linhas = Array.from({ length: SAMIQ_MAX_DIRETRIZES + 3 }, (_, i) => ({
+    expect(SAMIQ_MAX_DIRETRIZES).toBe(40);
+    const linhas = Array.from({ length: 43 }, (_, i) => ({
       texto: `regra ${i}`,
       tipo: i === 0 ? "conhecimento" : "comportamento",
     }));
@@ -20,7 +21,7 @@ describe("diretrizes aprendidas da Sami", () => {
     expect(bloco.startsWith("\n\nDIRETRIZES APRENDIDAS")).toBe(true);
     expect(bloco).toContain("- [conhecimento] regra 0");
     expect(bloco).toContain("- regra 1");
-    expect(bloco.split("\n").filter((l) => l.startsWith("- "))).toHaveLength(SAMIQ_MAX_DIRETRIZES);
+    expect(bloco.split("\n").filter((l) => l.startsWith("- "))).toHaveLength(40);
   });
 
   it("valida o corpo da rota", () => {
