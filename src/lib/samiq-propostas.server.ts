@@ -198,11 +198,21 @@ export function criarFerramentasDePropostaSamiQ(args: {
                 : `telefone_ref inválido; há ${cadastro.telefones.length} telefone(s) na mensagem`,
           };
         }
-        const nome = (input.nome?.trim() || (input.nome_ref ? cadastro.nomes[input.nome_ref - 1] : "") || "")
-          .replace(/\s+/g, " ")
-          .trim();
+        // O modelo às vezes copia o marcador ("[NOME]") como se fosse o nome.
+        // Marcador não é nome: cai no nome oculto (nome_ref, ou o único que há).
+        const nomeDigitado = (input.nome ?? "").replace(/\s+/g, " ").trim();
+        const ehMarcador = /\[[A-Z_]+\]/.test(nomeDigitado) || /^nome$/i.test(nomeDigitado);
+        const nomeRef = input.nome_ref ?? (cadastro.nomes.length === 1 ? 1 : undefined);
+        const nome =
+          (!ehMarcador && nomeDigitado) || (nomeRef ? (cadastro.nomes[nomeRef - 1] ?? "") : "");
         if (nome.length < 2) {
-          return { erro: "nome_faltando", detalhe: "informe o nome do cliente (nome ou nome_ref)" };
+          return {
+            erro: "nome_faltando",
+            detalhe:
+              cadastro.nomes.length > 1
+                ? `há ${cadastro.nomes.length} nomes ocultos na mensagem; informe nome_ref`
+                : "informe o nome do cliente (nome, ou nome_ref quando ele aparecer como [NOME])",
+          };
         }
         if (await telefoneEhDeCorretor(telefone)) {
           return {
