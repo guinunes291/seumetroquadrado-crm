@@ -1,6 +1,5 @@
 // Leitura e publicação das diretrizes aprendidas da Sami (ver samiq-diretrizes.ts).
 // Falha de leitura nunca derruba a Sami: sem diretriz, segue o prompt versionado.
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   SAMIQ_MAX_DIRETRIZES,
@@ -8,9 +7,6 @@ import {
   type DiretrizSami,
   type LinhaDiretriz,
 } from "./samiq-diretrizes";
-
-// A tabela é nova: o cliente sem tipos evita depender da regeração do types.ts.
-const db = () => supabaseAdmin as unknown as SupabaseClient;
 
 const TTL_MS = 60_000;
 let cache: { em: number; bloco: string } | null = null;
@@ -22,7 +18,7 @@ export function limparCacheDiretrizesSamiQ() {
 export async function blocoDiretrizesSamiQ(agora = Date.now()): Promise<string> {
   if (cache && agora - cache.em < TTL_MS) return cache.bloco;
   try {
-    const { data, error } = await db()
+    const { data, error } = await supabaseAdmin
       .from("samiq_diretrizes")
       .select("texto, tipo")
       .eq("ativa", true)
@@ -39,7 +35,7 @@ export async function blocoDiretrizesSamiQ(agora = Date.now()): Promise<string> 
 }
 
 export async function publicarDiretrizSamiQ(input: DiretrizSami): Promise<{ id: string }> {
-  const { data, error } = await db()
+  const { data, error } = await supabaseAdmin
     .from("samiq_diretrizes")
     .upsert(
       {
