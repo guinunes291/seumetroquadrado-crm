@@ -133,8 +133,9 @@ export function nivelDaAcao(tipo: SamiQPropostaTipo, modo: ModoEscritaSamiQ): Ni
  * O que o desfazer de 24 h consegue reverter de verdade (o banco espelha esta
  * lista em samiq_decidir_proposta/samiq_desfazer_proposta). Fica de fora o
  * que passa pela máquina de estados do funil (etapa, perda, retorno, visita
- * realizada, análise), o que outra pessoa já pode ter usado (venda, lote,
- * cadastro) e o que se refaz na hora (check-in, arquivo).
+ * realizada, análise), o que outra pessoa já pode ter usado (venda, lote)
+ * e o que se refaz na hora (check-in, arquivo). Cadastro novo desfaz indo
+ * para a lixeira, igual ao que já estava em produção.
  */
 export const SAMIQ_TIPOS_DESFAZIVEIS = [
   "registrar_contato",
@@ -149,6 +150,8 @@ export const SAMIQ_TIPOS_DESFAZIVEIS = [
   "remarcar_visita",
   "cancelar_visita",
   "atualizar_documento",
+  // Cadastro novo: o desfazer manda o cliente para a lixeira (migration 0108).
+  "criar_lead",
 ] as const satisfies readonly SamiQPropostaTipo[];
 
 export function podeDesfazerProposta(tipo: SamiQPropostaTipo): boolean {
@@ -297,6 +300,19 @@ export const ORIGENS_CAPTACAO = [
   "portal",
   "outro",
 ] as const;
+
+export const ORIGEM_CAPTACAO_LABEL: Record<(typeof ORIGENS_CAPTACAO)[number], string> = {
+  captacao_corretor: "captação do corretor",
+  indicacao: "indicação",
+  investimento_corretor: "investimento do corretor",
+  whatsapp: "WhatsApp",
+  telefone: "telefone",
+  plantao: "plantão",
+  acao_rua: "ação de rua",
+  site: "site",
+  portal: "portal",
+  outro: "outro",
+};
 
 export const ZONAS_LOTE = ["Norte", "Sul", "Leste", "Oeste", "Centro", "Grande SP"] as const;
 
@@ -713,13 +729,14 @@ export const FazerCheckinPayload = FazerCheckinBase.refine(checkinTemFilial, MSG
 
 export const CriarLeadPayload = z.object({
   tipo: z.literal("criar_lead"),
-  nome: z.string().trim().min(2).max(120),
+  nome: z.string().trim().min(2).max(120).describe("Nome do cliente (com sobrenome, se o corretor disse)"),
+  // Gravado SÓ com dígitos (DDD + número). O modelo manda o marcador
+  // [TELEFONE_n] da mensagem; o servidor troca pelo número e normaliza antes
+  // de validar (mesmo formato do cadastro que já estava em produção).
   telefone: z
     .string()
-    .trim()
-    .min(4)
-    .max(40)
-    .describe("Telefone do cliente; use o marcador [TELEFONE_n] que veio na mensagem"),
+    .regex(/^\d{10,13}$/, "telefone só com dígitos, DDD + número")
+    .describe("Telefone do cliente com DDD (só dígitos)"),
   email: textoOpcional(120).describe("E-mail; use o marcador [EMAIL_n] da mensagem"),
   origem: z.enum(ORIGENS_CAPTACAO).optional().describe("Padrão captacao_corretor"),
   projetoId: uuid.optional(),
@@ -728,6 +745,33 @@ export const CriarLeadPayload = z.object({
   zona: textoOpcional(40),
   observacoes: textoOpcional(500),
 });
+
+/** Entrada da ferramenta criar_lead: o telefone chega como marcador e vira dígitos no servidor. */
+export const CriarLeadFerramentaInput = CriarLeadPayload.omit({ tipo: true }).extend({
+  telefone: z
+    .string()
+    .trim()
+    .min(4)
+    .max(40)
+    .describe("Use o marcador [TELEFONE_n] que veio na mensagem (o servidor troca pelo número)"),
+});
+
+/**
+ * Telefone de cadastro → só dígitos com DDD (10 ou 11), ou null. Aceita +55,
+ * zero de operadora/DDD e máscara. Celular precisa começar com 9.
+ */
+export function normalizarTelefoneCadastro(bruto: string): string | null {
+  let d = String(bruto ?? "").replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("0")) d = d.slice(1); // 011 9xxxx-xxxx
+  if (d.length === 12 || d.length === 13) {
+    if (!d.startsWith("55")) return null;
+    d = d.slice(2);
+  }
+  if (d.length === 11 && d[2] === "0") d = d.slice(0, 2) + d.slice(3);
+  if (d.length !== 10 && d.length !== 11) return null;
+  if (d.length === 11 && d[2] !== "9") return null;
+  return d;
+}
 
 export const PedirLotePayload = z.object({
   tipo: z.literal("pedir_lote"),
@@ -997,15 +1041,19 @@ export function descreverProposta(
               : `Check-in na filial ${payload.filial ?? ""}`.trim(),
         detalhes: [],
       };
-    case "criar_lead":
-      return {
-        titulo: `Cadastrar ${payload.nome}`,
-        detalhes: [
-          telefoneMascarado(payload.telefone),
-          payload.origem ?? "captacao_corretor",
-          ...(payload.projetoNome ? [payload.projetoNome] : []),
-        ],
-      };
+    case "criar_lead": {
+      const detalhes = [
+        `Telefone ${telefoneMascarado(payload.telefone)}`,
+        `Origem: ${ORIGEM_CAPTACAO_LABEL[payload.origem ?? "captacao_corretor"]}`,
+      ];
+      if (payload.projetoNome?.trim()) detalhes.push(`Interesse: ${payload.projetoNome.trim()}`);
+      if (payload.bairro?.trim() || payload.zona?.trim()) {
+        detalhes.push(`Região: ${[payload.bairro?.trim(), payload.zona?.trim()].filter(Boolean).join(", ")}`);
+      }
+      if (payload.observacoes?.trim()) detalhes.push(payload.observacoes.trim());
+      detalhes.push("Entra na sua carteira em Aguardando atendimento");
+      return { titulo: `Cadastrar cliente ${payload.nome}`, detalhes };
+    }
     case "pedir_lote":
       return { titulo: `Pedir lote de 30 leads, zona ${payload.zona}`, detalhes: [] };
   }

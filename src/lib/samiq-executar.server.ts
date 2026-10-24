@@ -1464,12 +1464,15 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       if (out.duplicado) {
         throw new Error(
           out.na_carteira
-            ? `Esse telefone já é do cliente ${out.nome ?? ""} na sua carteira; nada foi criado.`.replace("  ", " ")
-            : "Esse telefone já existe no CRM em outra carteira; nada foi criado. Fale com o gestor.",
+            ? `Esse telefone já é do cliente ${out.nome ?? ""} na sua carteira; nada foi criado. Registre o contato nele.`.replace("  ", " ")
+            : "Esse telefone já existe no CRM em outra carteira; nada foi criado. Fale com o gestor da sua equipe para transferir.",
         );
       }
+      if (!out.lead_id) throw new Error("O CRM não devolveu o cliente criado. Tente de novo.");
       return {
-        lead_id: out.lead_id ?? null,
+        lead_id: out.lead_id,
+        // O desfazer (24 h) manda o cadastro para a lixeira (migration 0108).
+        lead_criado_id: out.lead_id,
         efeito: "cliente cadastrado na sua carteira (Aguardando atendimento, entra na cadência)",
       };
     }

@@ -314,3 +314,57 @@ describe("memória: propostas que voltam ao painel", () => {
     expect(msgs[1].propostas.map((p) => p.id)).toEqual(["a"]);
   });
 });
+
+import {
+  CriarLeadPayload,
+  descreverDadosOcultos,
+  extrairDadosDeCadastro,
+  normalizarTelefoneCadastro,
+} from "../src/lib/samiq-propostas";
+
+describe("cadastro de cliente novo pela Sami (24/10/2026)", () => {
+  it("extrai telefone e nome completo do texto original", () => {
+    const c = extrairDadosDeCadastro(
+      "cadastra a Maria Silva Santos, (11) 99999-8888, indicação do Eduardo, quer Mooca",
+    );
+    expect(c.telefones).toEqual(["11999998888"]);
+    expect(c.nomes).toEqual(["Maria Silva Santos"]);
+    expect(descreverDadosOcultos(c)).toContain("1 (final 8888)");
+    expect(descreverDadosOcultos(c)).toContain("1 (Maria S.)");
+  });
+
+  it("aceita formatos comuns e descarta o que não é telefone", () => {
+    expect(normalizarTelefoneCadastro("+55 11 99999-8888")).toBe("11999998888");
+    expect(normalizarTelefoneCadastro("011 99999 8888")).toBe("11999998888");
+    expect(normalizarTelefoneCadastro("11 3333-4444")).toBe("1133334444");
+    expect(normalizarTelefoneCadastro("1234")).toBeNull();
+    expect(extrairDadosDeCadastro("renda de 4500 e entrada de 20000").telefones).toEqual([]);
+    expect(descreverDadosOcultos({ telefones: [], nomes: [] })).toBeNull();
+  });
+
+  it("payload exige telefone só com dígitos e origem permitida", () => {
+    expect(
+      CriarLeadPayload.safeParse({ tipo: "criar_lead", nome: "Maria", telefone: "11999998888", origem: "indicacao" })
+        .success,
+    ).toBe(true);
+    expect(
+      CriarLeadPayload.safeParse({ tipo: "criar_lead", nome: "Maria", telefone: "(11) 99999-8888", origem: "indicacao" })
+        .success,
+    ).toBe(false);
+    expect(
+      CriarLeadPayload.safeParse({ tipo: "criar_lead", nome: "Maria", telefone: "11999998888", origem: "chatbot" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("descreve o cadastro sem expor o telefone inteiro", () => {
+    const d = descreverProposta(
+      { tipo: "criar_lead", nome: "Maria Silva", telefone: "11999998888", origem: "indicacao", projetoNome: "MA Lapa" },
+      null,
+    );
+    expect(d.titulo).toBe("Cadastrar cliente Maria Silva");
+    expect(d.detalhes.join(" ")).toContain("final 8888");
+    expect(d.detalhes.join(" ")).not.toContain("11999998888");
+    expect(podeDesfazerProposta("criar_lead")).toBe(true);
+  });
+});

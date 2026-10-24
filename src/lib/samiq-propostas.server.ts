@@ -33,6 +33,7 @@ import {
 import { agoraParaModelo, isoComFusoSP } from "@/lib/samiq-datas";
 import type { CitarClienteSamiQ } from "@/lib/samiq-tools.server";
 import { tabelaAnexosSamiQ } from "@/lib/samiq-anexos-tabela";
+import { telefoneEhDeCorretor } from "@/lib/telefone-corretor.server";
 import {
   AgendarVisitaPayload,
   AnexarDocumentoPayload,
@@ -43,7 +44,7 @@ import {
   CancelarVisitaPayload,
   ConcluirTarefaPayload,
   ConfirmarVisitaPayload,
-  CriarLeadPayload,
+  CriarLeadFerramentaInput,
   CriarTarefaPayload,
   DocumentosChecklistPayload,
   EnviarAnaliseCreditoPayload,
@@ -74,6 +75,7 @@ import {
   leadIdDaProposta,
   nivelDaAcao,
   normalizarDatasDoPayload,
+  normalizarTelefoneCadastro,
   perdaOutroTemDetalhe,
   qualificacaoTemCampo,
   trocaTemDados,
@@ -515,33 +517,37 @@ export function criarFerramentasDePropostaSamiQ(args: {
         return { payload };
       }
       case "criar_lead": {
-        const telefone = restaurarPiiDoCorretor(payload.telefone, mapaPii);
-        const email = payload.email ? restaurarPiiDoCorretor(payload.email, mapaPii) : undefined;
-        const sufixos = sufixosTelefone(telefone);
-        if (sufixos.length === 0) {
+        // O telefone já chegou em dígitos (restaurado e normalizado em executar).
+        if (await telefoneEhDeCorretor(payload.telefone)) {
           return {
             payload,
-            bloqueio: { erro: "telefone_invalido", detalhe: "telefone com DDD é obrigatório (peça ao corretor)" },
+            bloqueio: {
+              erro: "telefone_de_corretor",
+              detalhe: "esse telefone é de um corretor da SMQ e não pode ser cadastrado como cliente",
+            },
           };
         }
-        const { data: dup } = await supabase
-          .from("leads")
-          .select("id, nome, status")
-          .is("deleted_at", null)
-          .or(filtroOrTelefone(sufixos[0]))
-          .limit(1);
+        const sufixos = sufixosTelefone(payload.telefone);
+        const { data: dup } = sufixos.length
+          ? await supabase
+              .from("leads")
+              .select("id, nome, status")
+              .is("deleted_at", null)
+              .or(filtroOrTelefone(sufixos[0]))
+              .limit(1)
+          : { data: [] };
         if (dup && dup.length > 0) {
           citar({ id: dup[0].id, nome: dup[0].nome, etapa: dup[0].status });
           return {
             payload,
             bloqueio: {
               erro: "cliente_ja_existe",
-              detalhe: "Esse telefone já é de um cliente da carteira: use o cadastro existente.",
+              detalhe: "Esse telefone já é de um cliente da carteira: registre o contato nele em vez de cadastrar.",
               cliente: { id: dup[0].id, nome: displayNameForSamiQ(dup[0].nome), etapa: dup[0].status },
             },
           };
         }
-        return { payload: { ...payload, telefone, ...(email ? { email } : {}) }, nomeAlvo: displayNameForSamiQ(payload.nome) };
+        return { payload, nomeAlvo: displayNameForSamiQ(payload.nome) };
       }
       case "pedir_lote":
         return { payload, nomeAlvo: null };
@@ -550,9 +556,27 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }
   };
 
-  const executar = async (bruto: PropostaPayload) => {
+  const executar = async (entrada: PropostaPayload) => {
+    let bruto = entrada;
     if (total >= SAMIQ_MAX_PROPOSTAS_POR_TURNO) {
       return { erro: "limite_de_acoes", detalhe: `máximo de ${SAMIQ_MAX_PROPOSTAS_POR_TURNO} ações por resposta` };
+    }
+    // Cadastro: o modelo manda [TELEFONE_n]/[EMAIL_n]; o servidor troca pelo
+    // que o corretor digitou e guarda o telefone só com dígitos.
+    if (bruto.tipo === "criar_lead") {
+      const telefone = normalizarTelefoneCadastro(restaurarPiiDoCorretor(bruto.telefone, mapaPii));
+      if (!telefone) {
+        return {
+          erro: "telefone_invalido",
+          detalhe:
+            "Não achei um telefone com DDD válido nesta mensagem. Peça ao corretor o telefone do cliente (com DDD) e cadastre na mesma mensagem em que ele mandar.",
+        };
+      }
+      const email = bruto.email ? restaurarPiiDoCorretor(bruto.email, mapaPii) : undefined;
+      if (email && /\[(EMAIL|TELEFONE|CPF)/.test(email)) {
+        return { erro: "email_invalido", detalhe: "o e-mail não veio nesta mensagem; cadastre sem e-mail" };
+      }
+      bruto = { ...bruto, telefone, ...(email ? { email } : {}) };
     }
     // Datas sem fuso viram horário de SP antes de validar e gravar.
     const normalizado = normalizarDatasDoPayload(bruto as Record<string, unknown>, (v) => isoComFusoSP(v)) as PropostaPayload;
@@ -749,7 +773,7 @@ export function criarFerramentasDePropostaSamiQ(args: {
     }),
     criar_lead: tool({
       description: D.criar_lead,
-      inputSchema: CriarLeadPayload.omit({ tipo: true }),
+      inputSchema: CriarLeadFerramentaInput,
       execute: (input) => executar({ tipo: "criar_lead", ...input }),
     }),
     pedir_lote: tool({
