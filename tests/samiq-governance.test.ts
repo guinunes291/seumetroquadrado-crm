@@ -74,8 +74,11 @@ const ACOES_UNIFICADAS = ["match_projetos", "resumo_lead", "mensagem_whatsapp"] 
 
 describe("redação/minimização SamiQ", () => {
   const limitesPergunta = Object.fromEntries(
-    [...(handler.match(/const LIMITE_PERGUNTA[^=]*=\s*\{([^}]+)\}/)?.[1] ?? "").matchAll(/(painel|whatsapp):\s*(\d+)/g)]
-      .map(([, canal, limite]) => [canal, Number(limite)]),
+    [
+      ...(handler.match(/const LIMITE_PERGUNTA[^=]*=\s*\{([^}]+)\}/)?.[1] ?? "").matchAll(
+        /(painel|whatsapp):\s*(\d+)/g,
+      ),
+    ].map(([, canal, limite]) => [canal, Number(limite)]),
   );
 
   it("WhatsApp admite 4000 caracteres, preservando a transcrição de 3000", () => {
