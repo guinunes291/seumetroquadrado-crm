@@ -12,6 +12,8 @@ import {
   Car,
   CaretDown,
   Copy,
+  ArrowSquareOut,
+  Wallet,
   Eye,
   EyeSlash,
   MapPin,
@@ -28,6 +30,8 @@ import {
   webhookUrl,
 } from "@/lib/projetos";
 import { useState } from "react";
+import { imagemExibivel } from "@/lib/imagem-url";
+import { MaterialBotao } from "@/features/projetos/produto-card";
 
 export type ProjetoRow = {
   id: string;
@@ -126,8 +130,25 @@ export function ProjetoCard({
 
   return (
     <Card
-      className={`flex flex-col transition-shadow hover:shadow-elev-2 ${!p.ativo ? "opacity-60" : ""}`}
+      className={`flex flex-col overflow-hidden transition-shadow hover:shadow-elev-2 ${!p.ativo ? "opacity-60" : ""}`}
     >
+      {/* Capa como na Vitrine: o produto se reconhece pela foto antes do nome. */}
+      {p.capa_url && (
+        <Link
+          to="/projetos/$projetoId"
+          params={{ projetoId: p.id }}
+          aria-label={`Abrir ficha de ${p.nome}`}
+          className="block aspect-[16/9] overflow-hidden bg-gradient-command"
+        >
+          <img
+            src={imagemExibivel(p.capa_url) ?? undefined}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
+          />
+        </Link>
+      )}
       <CardContent className="p-4 flex-1 flex flex-col gap-3">
         <div className="flex items-start gap-3">
           <div className="h-11 w-11 rounded-md bg-gradient-command flex items-center justify-center shrink-0 shadow-elev-1">
@@ -204,10 +225,20 @@ export function ProjetoCard({
           )}
         </div>
 
-        {precoLabel && (
-          <div className="mt-auto">
-            <p className="text-xs text-muted-foreground">A partir de</p>
-            <p className="font-display text-lg font-semibold tabular-nums">{precoLabel}</p>
+        {(precoLabel || p.renda_minima != null) && (
+          <div className="mt-auto flex flex-wrap items-end justify-between gap-2">
+            {precoLabel && (
+              <div>
+                <p className="text-xs text-muted-foreground">A partir de</p>
+                <p className="font-display text-lg font-semibold tabular-nums">{precoLabel}</p>
+              </div>
+            )}
+            {p.renda_minima != null && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Wallet className="h-3.5 w-3.5" />
+                Renda a partir de {formatBRL(p.renda_minima)}
+              </span>
+            )}
           </div>
         )}
 
@@ -215,18 +246,23 @@ export function ProjetoCard({
           <p className="text-xs text-muted-foreground line-clamp-2">{p.observacoes}</p>
         )}
 
-        <div className="pt-2 border-t flex items-center justify-between">
-          <Badge variant="outline" className="font-mono text-[10px]">
+        {/* Book · Tabela · Ficha na mesma linha do card da Vitrine. */}
+        <div className="grid grid-cols-3 gap-1.5">
+          <MaterialBotao tipo="book" url={p.book_url} nome={p.nome} largo />
+          <MaterialBotao tipo="tabela" url={p.tabela_precos_url} nome={p.nome} largo />
+          <Button size="sm" className="press-scale w-full" asChild>
+            <Link to="/projetos/$projetoId" params={{ projetoId: p.id }}>
+              <ArrowSquareOut className="h-4 w-4" />
+              <span className="ml-1">Ficha</span>
+            </Link>
+          </Button>
+        </div>
+
+        {canManage && (
+          <Badge variant="outline" className="w-fit font-mono text-[10px]">
             {p.slug}
           </Badge>
-          <Link
-            to="/projetos/$projetoId"
-            params={{ projetoId: p.id }}
-            className="text-sm text-primary hover:underline"
-          >
-            Ver detalhes →
-          </Link>
-        </div>
+        )}
 
         {canManage && (
           <div className="rounded-md border bg-muted/30">

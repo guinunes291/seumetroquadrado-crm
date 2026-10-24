@@ -237,7 +237,11 @@ describe("as telas (contratos no fonte)", () => {
     expect(props).toContain("filialSlug: v === SEM_FILIAL ? null : v");
     expect(props).toContain("Filial da campanha");
     expect(props).not.toContain("(respeita zonas)");
-    const queries = read("src/features/distribuicao/queries.ts");
+    // queries.ts virou barrel: mutações de roleta e a consulta de zonas moram
+    // em config-mutations.ts e roletas-queries.ts.
+    const queries = ["config-mutations", "roletas-queries"]
+      .map((m) => read(`src/features/distribuicao/${m}.ts`))
+      .join("\n");
     expect(queries).toContain("_filial_slug: args.filialSlug ?? undefined");
     expect(queries).toContain("_limpar_filial: args.filialSlug === null");
     expect(queries).toContain('supabasePendente.rpc("criar_roleta_campanha"');

@@ -42,7 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   formatBRL,
   formatDormsRange,
@@ -386,33 +386,70 @@ function BotaoMaterial({
   /** Ocupa a célula inteira (linha Book · Tabela · Enviar do card em grade). */
   largo?: boolean;
 }) {
-  const url = tipo === "book" ? item.book_url : item.tabela_precos_url;
+  return (
+    <MaterialBotao
+      tipo={tipo}
+      url={tipo === "book" ? item.book_url : item.tabela_precos_url}
+      nome={item.nome}
+      onAbrir={() => onAbrir(item, tipo)}
+      compacto={compacto}
+      largo={largo}
+    />
+  );
+}
+
+/**
+ * Botão Book/Tabela da prateleira, reaproveitado fora do card (hero da ficha,
+ * card do catálogo) para o material ficar no mesmo lugar em todas as telas.
+ * Sem URL, fica desabilitado com tooltip explicando o porquê — o corretor vê
+ * que o material falta em vez de procurar um botão que não aparece.
+ */
+export function MaterialBotao({
+  tipo,
+  url,
+  nome,
+  onAbrir,
+  compacto,
+  largo,
+  className,
+}: {
+  tipo: MaterialTipo;
+  url: string | null | undefined;
+  nome: string;
+  onAbrir?: () => void;
+  compacto?: boolean;
+  largo?: boolean;
+  className?: string;
+}) {
   const Icone = tipo === "book" ? BookOpen : Table;
   const rotulo = tipo === "book" ? "Book" : "Tabela";
   if (!url) {
+    // Provider próprio: a ficha e o catálogo não ficam sob o da prateleira.
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {/* span wrapper: botão desabilitado não dispara os eventos do tooltip. */}
-          <span className={cn("inline-flex", largo && "w-full")}>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled
-              aria-label={`${rotulo} indisponível`}
-              className={cn(compacto && "px-2", largo && "w-full")}
-            >
-              <Icone className="h-4 w-4" />
-              {!compacto && <span className="ml-1">{rotulo}</span>}
-            </Button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {tipo === "book"
-            ? "Book ainda não cadastrado neste projeto."
-            : "Tabela de preços ainda não cadastrada neste projeto."}
-        </TooltipContent>
-      </Tooltip>
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {/* span wrapper: botão desabilitado não dispara os eventos do tooltip. */}
+            <span className={cn("inline-flex", largo && "w-full")}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                aria-label={`${rotulo} indisponível`}
+                className={cn(compacto && "px-2", largo && "w-full", className)}
+              >
+                <Icone className="h-4 w-4" />
+                {!compacto && <span className="ml-1">{rotulo}</span>}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {tipo === "book"
+              ? "Book ainda não cadastrado neste projeto."
+              : "Tabela de preços ainda não cadastrada neste projeto."}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
   return (
@@ -420,15 +457,15 @@ function BotaoMaterial({
       asChild
       size="sm"
       variant="outline"
-      className={cn("press-scale", compacto && "px-2", largo && "w-full")}
+      className={cn("press-scale", compacto && "px-2", largo && "w-full", className)}
     >
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        title={`Abrir ${rotulo.toLowerCase()} de ${item.nome}`}
-        aria-label={`Abrir ${rotulo.toLowerCase()} de ${item.nome}`}
-        onClick={() => onAbrir(item, tipo)}
+        title={`Abrir ${rotulo.toLowerCase()} de ${nome}`}
+        aria-label={`Abrir ${rotulo.toLowerCase()} de ${nome}`}
+        onClick={() => onAbrir?.()}
       >
         <Icone className="h-4 w-4" />
         {!compacto && <span className="ml-1">{rotulo}</span>}

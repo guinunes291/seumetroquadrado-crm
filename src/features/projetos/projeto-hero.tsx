@@ -4,13 +4,19 @@ import { imagemExibivel } from "@/lib/imagem-url";
 // chips de contexto e preço "a partir de" em dourado. O fio de luz
 // (beam-border) acende SOMENTE quando o projeto está em foco — é o único hero
 // desta tela.
+//
+// Mesmo "primeiro olhar" do card da Vitrine/Projetos em Foco: dorms, m², vagas
+// e entrega já na capa, e Book · Tabela sempre no mesmo lugar (desabilitados
+// com aviso quando faltam) — o corretor não precisa rolar até a ficha técnica.
 
 import { toast } from "sonner";
 import {
-  ArrowSquareOut,
+  Bed,
   CalendarDots,
+  Car,
   Copy,
   MapPin,
+  Ruler,
   Star,
   Wallet,
   type Icon as IconComponent,
@@ -19,8 +25,9 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Button } from "@/components/ui/button";
 import { montarMensagemVenda } from "@/components/projeto-comercial";
 import { formatBRL } from "@/lib/unidades";
-import { formatEntrega } from "@/lib/projetos";
+import { formatDormsRange, formatEntrega, formatM2Range, formatVagasRange } from "@/lib/projetos";
 import { cn } from "@/lib/utils";
+import { MaterialBotao, type MaterialTipo } from "./produto-card";
 
 /** Subconjunto da projeção PROJETO_CRM_SELECT usado pelo hero. */
 export type ProjetoHeroData = {
@@ -33,6 +40,14 @@ export type ProjetoHeroData = {
   status_entrega: string | null;
   mes_entrega: number | null;
   ano_entrega: number | null;
+  dorms_min: number | null;
+  dorms_max: number | null;
+  suites: number | null;
+  metragem_min: number | null;
+  metragem_max: number | null;
+  vagas_min: number | null;
+  vagas_max: number | null;
+  vagas_observacao: string | null;
   renda_minima: number | null;
   preco_a_partir: number | null;
   sob_consulta: boolean;
@@ -60,6 +75,7 @@ export function ProjetoHero({
   emFoco,
   focoMotivo,
   actions,
+  onAbrirMaterial,
 }: {
   projeto: ProjetoHeroData;
   /** Projeto com campanha "em foco" ativa — liga o beam-border. */
@@ -67,9 +83,17 @@ export function ProjetoHero({
   focoMotivo?: string | null;
   /** Slot no topo direito (ex.: voltar para /projetos). */
   actions?: React.ReactNode;
+  /** Registro do clique em Book/Tabela (métrica da prateleira). */
+  onAbrirMaterial?: (tipo: MaterialTipo) => void;
 }) {
   const localizacao = [projeto.bairro, projeto.regiao, projeto.cidade].filter(Boolean).join(" · ");
   const entrega = formatEntrega(projeto.status_entrega, projeto.mes_entrega, projeto.ano_entrega);
+  const dorms = formatDormsRange(projeto.dorms_min, projeto.dorms_max);
+  const metragem = formatM2Range(projeto.metragem_min, projeto.metragem_max);
+  const vagas = formatVagasRange(projeto.vagas_min, projeto.vagas_max, projeto.vagas_observacao);
+  const suites = projeto.suites
+    ? ` · ${projeto.suites} suíte${projeto.suites === 1 ? "" : "s"}`
+    : "";
   // Mesma condição do botão "Copiar mensagem de venda" da aba Comercial.
   const temMunicao =
     projeto.renda_minima != null ||
@@ -128,6 +152,16 @@ export function ProjetoHero({
             <div className="flex flex-wrap gap-1.5 pt-1">
               {localizacao && <HeroChip icon={MapPin}>{localizacao}</HeroChip>}
               {projeto.zona_smq && <HeroChip icon={MapPin}>Zona {projeto.zona_smq}</HeroChip>}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {dorms && (
+                <HeroChip icon={Bed}>
+                  {dorms}
+                  {suites}
+                </HeroChip>
+              )}
+              {metragem && <HeroChip icon={Ruler}>{metragem}</HeroChip>}
+              {vagas && <HeroChip icon={Car}>{vagas}</HeroChip>}
               {entrega && <HeroChip icon={CalendarDots}>{entrega}</HeroChip>}
               {projeto.renda_minima != null && (
                 <HeroChip icon={Wallet}>
@@ -156,6 +190,20 @@ export function ProjetoHero({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <MaterialBotao
+              tipo="book"
+              url={projeto.book_url}
+              nome={projeto.nome}
+              onAbrir={() => onAbrirMaterial?.("book")}
+              className={GLASS_BTN}
+            />
+            <MaterialBotao
+              tipo="tabela"
+              url={projeto.tabela_precos_url}
+              nome={projeto.nome}
+              onAbrir={() => onAbrirMaterial?.("tabela")}
+              className={GLASS_BTN}
+            />
             {temMunicao && (
               <Button
                 size="sm"
@@ -167,20 +215,6 @@ export function ProjetoHero({
                 }}
               >
                 <Copy className="mr-1 h-3.5 w-3.5" /> Copiar mensagem de venda
-              </Button>
-            )}
-            {projeto.book_url && (
-              <Button size="sm" variant="outline" className={GLASS_BTN} asChild>
-                <a href={projeto.book_url} target="_blank" rel="noopener noreferrer">
-                  <ArrowSquareOut className="mr-1 h-3.5 w-3.5" /> Book
-                </a>
-              </Button>
-            )}
-            {projeto.tabela_precos_url && (
-              <Button size="sm" variant="outline" className={GLASS_BTN} asChild>
-                <a href={projeto.tabela_precos_url} target="_blank" rel="noopener noreferrer">
-                  <ArrowSquareOut className="mr-1 h-3.5 w-3.5" /> Tabela de preços
-                </a>
               </Button>
             )}
           </div>

@@ -8,9 +8,6 @@ import {
   type LinhaDiretriz,
 } from "./samiq-diretrizes";
 
-// samiq_diretrizes já está nos types gerados: cliente tipado, sem escape.
-const db = () => supabaseAdmin;
-
 const TTL_MS = 60_000;
 let cache: { em: number; bloco: string } | null = null;
 
@@ -21,7 +18,7 @@ export function limparCacheDiretrizesSamiQ() {
 export async function blocoDiretrizesSamiQ(agora = Date.now()): Promise<string> {
   if (cache && agora - cache.em < TTL_MS) return cache.bloco;
   try {
-    const { data, error } = await db()
+    const { data, error } = await supabaseAdmin
       .from("samiq_diretrizes")
       .select("texto, tipo")
       .eq("ativa", true)
@@ -38,7 +35,7 @@ export async function blocoDiretrizesSamiQ(agora = Date.now()): Promise<string> 
 }
 
 export async function publicarDiretrizSamiQ(input: DiretrizSami): Promise<{ id: string }> {
-  const { data, error } = await db()
+  const { data, error } = await supabaseAdmin
     .from("samiq_diretrizes")
     .upsert(
       {

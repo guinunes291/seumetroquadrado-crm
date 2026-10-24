@@ -11,7 +11,11 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 // A taxonomia do menu vive no registro SISTEMAS (features/nav/sistemas.ts)
 // desde a reorganização em sistemas — os guards leem a fonte de lá.
-const sistemas = read("src/features/nav/sistemas.ts");
+// sistemas.ts virou só reexportação (2026-10): o registro mora nestes arquivos,
+// lidos juntos e na ordem — os trechos esperados abaixo não mudaram.
+const sistemas = ["operacao", "pre-venda", "consulta", "registro", "atalhos"]
+  .map((m) => read(`src/features/nav/sistemas-${m}.ts`))
+  .join("\n");
 const blitz = read("src/routes/_authenticated/blitz.tsx");
 const leadsIndex = read("src/routes/_authenticated/leads.index.tsx");
 const bottomNav = read("src/components/bottom-nav.tsx");

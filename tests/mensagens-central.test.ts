@@ -16,7 +16,11 @@ const central = read("src/features/mensagens/central-mensagens.tsx");
 const client = read("src/features/mensagens/mensagens-client.ts");
 const rota = read("src/routes/_authenticated/mensagens.tsx");
 // O menu vem do registro SISTEMAS desde a reorganização em sistemas.
-const sistemas = read("src/features/nav/sistemas.ts");
+// sistemas.ts virou só reexportação (2026-10): o registro mora nestes arquivos,
+// lidos juntos e na ordem — os trechos esperados abaixo não mudaram.
+const sistemas = ["operacao", "pre-venda", "consulta", "registro", "atalhos"]
+  .map((m) => read(`src/features/nav/sistemas-${m}.ts`))
+  .join("\n");
 
 function msg(parcial: Partial<Mensagem> & { id: string; lead_id: string }): Mensagem {
   return {
