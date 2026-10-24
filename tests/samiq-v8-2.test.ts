@@ -247,3 +247,15 @@ describe("v8.2: o telefone da mensagem anterior continua restaurável por 30 min
     expect(lerContexto({ pii: { mapa: {}, em: "x" } }).pii).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+describe("v8.2b: estado do CRM só vale lido por ferramenta neste turno", () => {
+  it("o cabeçalho do WhatsApp manda ler antes de afirmar, negar ou perguntar 'qual deles?'", () => {
+    const cabecalho = readFileSync(join(process.cwd(), "src/lib/samiq-core-cabecalho.ts"), "utf8");
+    expect(cabecalho).toContain("só vale lido por ferramenta NESTE turno");
+    expect(cabecalho).toContain("liste-os numerados (1, 2, 3)");
+  });
+});

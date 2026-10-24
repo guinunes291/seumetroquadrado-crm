@@ -102,6 +102,12 @@ export function cabecalhoDoTurno({
     !data.leadId && !citadosAntes
       ? 'Sem cliente em contexto: use buscar_clientes quando o corretor citar um nome. Se não achar e o corretor deu nome e telefone (ou pediu para criar), é cliente novo: criar_lead (grupo prospeccao). Pessoa citada há pouco nesta conversa é o "cliente" das mensagens seguintes.'
       : null,
+    // v8.2 (QA 24/10/2026): o modelo respondia "não achei tarefa", "ambos em
+    // aguardando atendimento" e "qual dos dois?" de memória, sem ferramenta, e
+    // errava. Estado do CRM só vale lido NESTE turno.
+    canal === "whatsapp"
+      ? "Estado do CRM (etapa, tarefas, agenda, documentos, crédito, quem tem o mesmo nome) só vale lido por ferramenta NESTE turno: antes de afirmar, negar ou perguntar 'qual deles?', leia (buscar_clientes, detalhe_cliente, minhas_tarefas, minha_agenda). O histórico pode estar desatualizado. Quando buscar_clientes ou uma ação devolver mais de um cliente com o mesmo nome, liste-os numerados (1, 2, 3) na ordem devolvida e peça o número."
+      : null,
     recentes.pendentes.length
       ? `Esperando o OK do corretor (numeração do CONFIRMAR): ${linhaDeItens(recentes.pendentes)}.`
       : null,
