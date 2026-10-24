@@ -122,7 +122,7 @@ export async function registrarPropostasSamiQ(args: {
 }
 
 /** Máximo de turnos (user+assistant) que o canal WhatsApp reenvia ao modelo. */
-export const SAMIQ_HISTORICO_CANAL = 6;
+export const SAMIQ_HISTORICO_CANAL = 10;
 
 /**
  * Onda S4: a conversa "viva" do corretor num canal — a última, se o último
@@ -152,8 +152,8 @@ export async function conversaAtivaSamiQ(args: {
 }
 
 /**
- * Últimos turnos de uma conversa, no formato do histórico do painel (cap de 6
- * mensagens, 1200 chars cada — o mesmo do SamiQInputSchema). Já está redigido
+ * Últimos turnos de uma conversa, no formato do histórico do painel (cap de
+ * SAMIQ_HISTORICO_CANAL mensagens, 1200 chars cada). Já está redigido
  * (PII nunca entrou no banco).
  */
 export async function historicoDaConversaSamiQ(args: {

@@ -7148,6 +7148,7 @@ export type Database = {
           metragem_max: number | null
           metragem_min: number | null
           nome: string
+          nome_busca: string | null
           numero: string | null
           observacoes: string | null
           percentual_comissao: number | null
@@ -7157,6 +7158,7 @@ export type Database = {
           preco_atualizado_em: string | null
           preco_inicial: string | null
           regiao: string | null
+          regiao_busca: string | null
           renda_minima: number | null
           slug: string
           sob_consulta: boolean
@@ -7203,6 +7205,7 @@ export type Database = {
           metragem_max?: number | null
           metragem_min?: number | null
           nome: string
+          nome_busca?: string | null
           numero?: string | null
           observacoes?: string | null
           percentual_comissao?: number | null
@@ -7212,6 +7215,7 @@ export type Database = {
           preco_atualizado_em?: string | null
           preco_inicial?: string | null
           regiao?: string | null
+          regiao_busca?: string | null
           renda_minima?: number | null
           slug: string
           sob_consulta?: boolean
@@ -7258,6 +7262,7 @@ export type Database = {
           metragem_max?: number | null
           metragem_min?: number | null
           nome?: string
+          nome_busca?: string | null
           numero?: string | null
           observacoes?: string | null
           percentual_comissao?: number | null
@@ -7267,6 +7272,7 @@ export type Database = {
           preco_atualizado_em?: string | null
           preco_inicial?: string | null
           regiao?: string | null
+          regiao_busca?: string | null
           renda_minima?: number | null
           slug?: string
           sob_consulta?: boolean
@@ -7455,6 +7461,39 @@ export type Database = {
           vagas_observacao?: string | null
           webhook_token?: string | null
           zona_smq?: string | null
+        }
+        Relationships: []
+      }
+      projetos_backup_20261023_metragem: {
+        Row: {
+          backup_em: string | null
+          construtora: string | null
+          dorms_max: number | null
+          dorms_min: number | null
+          id: string | null
+          metragem_max: number | null
+          metragem_min: number | null
+          nome: string | null
+        }
+        Insert: {
+          backup_em?: string | null
+          construtora?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
+          id?: string | null
+          metragem_max?: number | null
+          metragem_min?: number | null
+          nome?: string | null
+        }
+        Update: {
+          backup_em?: string | null
+          construtora?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
+          id?: string | null
+          metragem_max?: number | null
+          metragem_min?: number | null
+          nome?: string | null
         }
         Relationships: []
       }
@@ -8571,6 +8610,39 @@ export type Database = {
             referencedColumns: ["lead_id"]
           },
         ]
+      }
+      samiq_diretrizes: {
+        Row: {
+          ativa: boolean
+          atualizado_em: string
+          criado_em: string
+          id: string
+          id_origem: string | null
+          origem: string
+          texto: string
+          tipo: string
+        }
+        Insert: {
+          ativa?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          id_origem?: string | null
+          origem?: string
+          texto: string
+          tipo?: string
+        }
+        Update: {
+          ativa?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          id_origem?: string | null
+          origem?: string
+          texto?: string
+          tipo?: string
+        }
+        Relationships: []
       }
       samiq_execucoes: {
         Row: {
@@ -13621,6 +13693,10 @@ export type Database = {
         Args: { _projeto_id: string }
         Returns: string
       }
+      get_roleta_webhook_token: {
+        Args: { _roleta_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -14345,6 +14421,15 @@ export type Database = {
           ultimo_envio: string
           vendas_total: number
         }[]
+      }
+      projetos_regiao_busca_text: {
+        Args: {
+          _bairro: string
+          _cidade: string
+          _regiao: string
+          _zona: string
+        }
+        Returns: string
       }
       prospeccao_lote_status_v1: { Args: never; Returns: Json }
       prospeccao_lotes_painel_v1: {

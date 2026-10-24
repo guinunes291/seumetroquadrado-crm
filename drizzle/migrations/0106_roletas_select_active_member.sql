@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS "authenticated leem roletas" ON public.roletas;
+CREATE POLICY "authenticated leem roletas" ON public.roletas FOR SELECT TO authenticated USING (public.is_active_member(auth.uid()));

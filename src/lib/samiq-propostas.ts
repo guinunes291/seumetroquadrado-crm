@@ -8,6 +8,7 @@
 // descrição humana de cada proposta e as regras de desfazer — sem rede.
 
 import { z } from "zod";
+import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
 
 export const SAMIQ_PROPOSTA_TIPOS = [
   "registrar_contato",
@@ -16,6 +17,7 @@ export const SAMIQ_PROPOSTA_TIPOS = [
   "atualizar_qualificacao",
   "agendar_visita",
   "mudar_etapa",
+  "criar_lead",
 ] as const;
 
 export type SamiQPropostaTipo = (typeof SAMIQ_PROPOSTA_TIPOS)[number];
@@ -27,6 +29,7 @@ export const SAMIQ_PROPOSTA_LABEL: Record<SamiQPropostaTipo, string> = {
   atualizar_qualificacao: "Atualizar qualificação",
   agendar_visita: "Agendar visita",
   mudar_etapa: "Mudar etapa",
+  criar_lead: "Cadastrar cliente",
 };
 
 /** Ferramenta do modelo → tipo de proposta (nomes que o modelo chama). */
@@ -37,6 +40,7 @@ export const SAMIQ_FERRAMENTAS_PROPOSTA = {
   propor_qualificacao: "atualizar_qualificacao",
   propor_visita: "agendar_visita",
   propor_etapa: "mudar_etapa",
+  propor_novo_cliente: "criar_lead",
 } as const satisfies Record<string, SamiQPropostaTipo>;
 
 export type SamiQFerramentaProposta = keyof typeof SAMIQ_FERRAMENTAS_PROPOSTA;
@@ -175,54 +179,65 @@ export const CriarTarefaPayload = z.object({
   prioridade: z.enum(TAREFA_PRIORIDADES_PROPOSTA).optional().describe("Padrão media"),
 });
 
-export const AtualizarQualificacaoPayload = z
-  .object({
-    tipo: z.literal("atualizar_qualificacao"),
-    leadId: uuid,
-    rendaInformada: z
-      .string()
-      .trim()
-      .max(60)
-      .optional()
-      .describe("Renda familiar como o cliente disse, ex.: '4500'"),
-    entradaDisponivel: z.string().trim().max(60).optional(),
-    usaFgts: z.boolean().optional(),
-    temFgts: z.boolean().optional(),
-    tipoRenda: z
-      .string()
-      .trim()
-      .max(40)
-      .optional()
-      .describe("clt | autonomo | servidor | misto | outro"),
-    temperatura: z.enum(TEMPERATURAS).optional(),
-    projetoInteresse: z
-      .string()
-      .trim()
-      .max(120)
-      .optional()
-      .describe("Nome do empreendimento de interesse"),
-    objecoesAdicionar: z.array(textoCurto(80)).max(5).optional(),
-    resumoQualificacao: z
-      .string()
-      .trim()
-      .max(1500)
-      .optional()
-      .describe("Parecer curto de qualificação"),
-  })
-  .refine(
-    (p) =>
-      [
-        p.rendaInformada,
-        p.entradaDisponivel,
-        p.usaFgts,
-        p.temFgts,
-        p.tipoRenda,
-        p.temperatura,
-        p.projetoInteresse,
-        p.resumoQualificacao,
-      ].some((v) => v !== undefined) || (p.objecoesAdicionar?.length ?? 0) > 0,
-    "informe pelo menos um campo para atualizar",
+// Objeto base SEM refine: o zod 4.4+ proíbe .omit() em objeto refinado, e as
+// ferramentas propor_* precisam do schema sem o campo `tipo`.
+export const AtualizarQualificacaoBase = z.object({
+  tipo: z.literal("atualizar_qualificacao"),
+  leadId: uuid,
+  rendaInformada: z
+    .string()
+    .trim()
+    .max(60)
+    .optional()
+    .describe("Renda familiar como o cliente disse, ex.: '4500'"),
+  entradaDisponivel: z.string().trim().max(60).optional(),
+  usaFgts: z.boolean().optional(),
+  temFgts: z.boolean().optional(),
+  tipoRenda: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .describe("clt | autonomo | servidor | misto | outro"),
+  temperatura: z.enum(TEMPERATURAS).optional(),
+  projetoInteresse: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .describe("Nome do empreendimento de interesse"),
+  objecoesAdicionar: z.array(textoCurto(80)).max(5).optional(),
+  resumoQualificacao: z
+    .string()
+    .trim()
+    .max(1500)
+    .optional()
+    .describe("Parecer curto de qualificação"),
+});
+
+type QualificacaoCampos = Omit<z.infer<typeof AtualizarQualificacaoBase>, "tipo" | "leadId">;
+
+/** Regra da qualificação: pelo menos um campo para atualizar. */
+export function qualificacaoTemCampo(p: QualificacaoCampos): boolean {
+  return (
+    [
+      p.rendaInformada,
+      p.entradaDisponivel,
+      p.usaFgts,
+      p.temFgts,
+      p.tipoRenda,
+      p.temperatura,
+      p.projetoInteresse,
+      p.resumoQualificacao,
+    ].some((v) => v !== undefined) || (p.objecoesAdicionar?.length ?? 0) > 0
   );
+}
+export const MSG_QUALIFICACAO_VAZIA = "informe pelo menos um campo para atualizar";
+
+export const AtualizarQualificacaoPayload = AtualizarQualificacaoBase.refine(
+  qualificacaoTemCampo,
+  MSG_QUALIFICACAO_VAZIA,
+);
 
 export const AgendarVisitaPayload = z.object({
   tipo: z.literal("agendar_visita"),
@@ -237,21 +252,56 @@ export const AgendarVisitaPayload = z.object({
     .describe("true (padrão) = também move o cliente para a etapa Agendado"),
 });
 
-export const MudarEtapaPayload = z
-  .object({
-    tipo: z.literal("mudar_etapa"),
-    leadId: uuid,
-    novoStatus: z.enum(ETAPAS_PROPONIVEIS),
-    motivo: z.string().trim().max(1000).optional().describe("Obrigatório ao perder"),
-    motivoCategoria: z.enum(MOTIVOS_PERDA_PROPOSTA).optional().describe("Só ao perder"),
-    proximaAcao: z.string().trim().max(500).optional(),
-    proximoFollowupEm: ISO_DATA_HORA.optional(),
-  })
-  .refine((p) => p.novoStatus !== "perdido" || !!p.motivo?.trim(), "motivo é obrigatório ao perder")
-  .refine(
-    (p) => p.novoStatus !== "aguardando_retorno" || !!p.proximoFollowupEm,
-    "aguardando retorno exige follow-up",
-  );
+export const MudarEtapaBase = z.object({
+  tipo: z.literal("mudar_etapa"),
+  leadId: uuid,
+  novoStatus: z.enum(ETAPAS_PROPONIVEIS),
+  motivo: z.string().trim().max(1000).optional().describe("Obrigatório ao perder"),
+  motivoCategoria: z.enum(MOTIVOS_PERDA_PROPOSTA).optional().describe("Só ao perder"),
+  proximaAcao: z.string().trim().max(500).optional(),
+  proximoFollowupEm: ISO_DATA_HORA.optional(),
+});
+
+type EtapaCampos = Pick<
+  z.infer<typeof MudarEtapaBase>,
+  "novoStatus" | "motivo" | "proximoFollowupEm"
+>;
+export const etapaPerdidoTemMotivo = (p: EtapaCampos) =>
+  p.novoStatus !== "perdido" || !!p.motivo?.trim();
+export const MSG_ETAPA_PERDIDO = "motivo é obrigatório ao perder";
+export const etapaRetornoTemFollowup = (p: EtapaCampos) =>
+  p.novoStatus !== "aguardando_retorno" || !!p.proximoFollowupEm;
+export const MSG_ETAPA_RETORNO = "aguardando retorno exige follow-up";
+
+export const MudarEtapaPayload = MudarEtapaBase.refine(
+  etapaPerdidoTemMotivo,
+  MSG_ETAPA_PERDIDO,
+).refine(etapaRetornoTemFollowup, MSG_ETAPA_RETORNO);
+
+/** Origens que um corretor pode dar a um cliente que ele mesmo cadastra. */
+export const ORIGENS_NOVO_CLIENTE = [
+  "captacao_corretor",
+  "indicacao",
+  "acao_rua",
+  "plantao",
+  "telefone",
+  "whatsapp",
+  "investimento_corretor",
+  "outro",
+] as const;
+
+export const CriarLeadPayload = z.object({
+  tipo: z.literal("criar_lead"),
+  nome: textoCurto(80).describe("Nome do cliente"),
+  telefone: z
+    .string()
+    .regex(/^\d{10,13}$/, "telefone só com dígitos, DDD + número")
+    .describe("Só dígitos, com DDD (ex.: 11999998888)"),
+  origem: z.enum(ORIGENS_NOVO_CLIENTE).describe("Como o cliente chegou"),
+  projetoNome: z.string().trim().max(120).optional().describe("Empreendimento de interesse"),
+  bairro: z.string().trim().max(80).optional().describe("Bairro ou região de interesse"),
+  observacoes: z.string().trim().max(500).optional().describe("O que o corretor já sabe"),
+});
 
 export const PropostaPayloadSchema = z.discriminatedUnion("tipo", [
   RegistrarContatoPayload,
@@ -260,6 +310,7 @@ export const PropostaPayloadSchema = z.discriminatedUnion("tipo", [
   AtualizarQualificacaoPayload,
   AgendarVisitaPayload,
   MudarEtapaPayload,
+  CriarLeadPayload,
 ]);
 
 export type PropostaPayload = z.infer<typeof PropostaPayloadSchema>;
@@ -390,7 +441,92 @@ export function descreverProposta(
       detalhes.push("Não dá para desfazer pelo botão — a etapa segue a máquina de estados");
       return { titulo: `Mover ${quem} para ${payload.novoStatus}`, detalhes };
     }
+    case "criar_lead": {
+      const detalhes = [
+        `Telefone final ${payload.telefone.slice(-4)}`,
+        `Origem: ${ORIGEM_NOVO_CLIENTE_LABEL[payload.origem]}`,
+      ];
+      if (payload.projetoNome?.trim()) detalhes.push(`Interesse: ${payload.projetoNome.trim()}`);
+      if (payload.bairro?.trim()) detalhes.push(`Região: ${payload.bairro.trim()}`);
+      if (payload.observacoes?.trim()) detalhes.push(payload.observacoes.trim());
+      detalhes.push("Entra na sua carteira em Aguardando atendimento");
+      return { titulo: `Cadastrar cliente ${payload.nome}`, detalhes };
+    }
   }
+}
+
+const ORIGEM_NOVO_CLIENTE_LABEL: Record<(typeof ORIGENS_NOVO_CLIENTE)[number], string> = {
+  captacao_corretor: "captação do corretor",
+  indicacao: "indicação",
+  acao_rua: "ação de rua",
+  plantao: "plantão",
+  telefone: "telefone",
+  whatsapp: "WhatsApp",
+  investimento_corretor: "investimento do corretor",
+  outro: "outro",
+};
+
+// ---------------------------------------------------------------------------
+// Dados de cadastro ocultos (24/10/2026). Por privacidade, telefone e nome
+// completo viram marcadores antes de chegarem ao modelo ([TELEFONE], [NOME],
+// [IDENTIFICADOR]). Para cadastrar um cliente novo, o servidor extrai esses
+// dados do texto ORIGINAL e o modelo só aponta a posição (telefone_ref,
+// nome_ref). O número nunca passa pelo modelo.
+
+export type DadosDeCadastro = { telefones: string[]; nomes: string[] };
+
+const TEL_CADASTRO = /(?:\+?55[\s.-]*)?\(?0?[1-9]\d\)?[\s.-]*9?\d{4}[\s.-]?\d{4}\b/g;
+const NOME_COMPLETO =
+  /\b\p{Lu}\p{Ll}{1,}(?:\s+(?:(?:da|de|do|das|dos|e)\s+)?\p{Lu}\p{Ll}{1,}){1,4}\b/gu;
+
+export function normalizarTelefoneCadastro(bruto: string): string | null {
+  let d = bruto.replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("0")) d = d.slice(1); // 011 9xxxx-xxxx
+  if (d.length === 12 || d.length === 13) {
+    if (!d.startsWith("55")) return null;
+    d = d.slice(2);
+  }
+  if (d.length === 11 && d[2] === "0") d = d.slice(0, 2) + d.slice(3);
+  if (d.length !== 10 && d.length !== 11) return null;
+  if (d.length === 11 && d[2] !== "9") return null;
+  return d;
+}
+
+export function extrairDadosDeCadastro(texto: string): DadosDeCadastro {
+  const t = String(texto ?? "");
+  const telefones: string[] = [];
+  for (const m of t.matchAll(TEL_CADASTRO)) {
+    const n = normalizarTelefoneCadastro(m[0]);
+    if (n && !telefones.includes(n)) telefones.push(n);
+  }
+  const nomes: string[] = [];
+  for (const m of t.matchAll(NOME_COMPLETO)) {
+    const n = m[0].replace(/\s+/g, " ").trim();
+    if (!nomes.includes(n)) nomes.push(n);
+  }
+  return { telefones: telefones.slice(0, 5), nomes: nomes.slice(0, 5) };
+}
+
+/** Linha do cabeçalho que diz ao modelo o que ficou oculto e como referenciar. */
+export function descreverDadosOcultos(c: DadosDeCadastro): string | null {
+  if (c.telefones.length === 0 && c.nomes.length === 0) return null;
+  const partes: string[] = [];
+  if (c.telefones.length) {
+    partes.push(
+      `telefones: ${c.telefones.map((t, i) => `${i + 1} (final ${t.slice(-4)})`).join(", ")}`,
+    );
+  }
+  if (c.nomes.length) {
+    partes.push(
+      `nomes completos: ${c.nomes
+        .map((n, i) => {
+          const [p1, p2] = n.split(" ");
+          return `${i + 1} (${p1}${p2 ? ` ${p2[0]}.` : ""})`;
+        })
+        .join(", ")}`,
+    );
+  }
+  return `Dados pessoais ocultos nesta mensagem (você vê marcadores no lugar): ${partes.join("; ")}. Para cadastrar cliente novo use propor_novo_cliente com telefone_ref e nome_ref apontando para essas posições. Não peça o telefone de novo se já há um aqui.`;
 }
 
 /** Texto curto do pacote: "Registrar 3 itens para Maria?" */
@@ -419,4 +555,68 @@ export function foiViaSami(metadata: unknown): boolean {
     typeof metadata === "object" &&
     (metadata as { origem?: unknown }).origem === SAMIQ_ORIGEM
   );
+}
+
+// ---------------------------------------------------------------------------
+// Etapa que o funil não aplicou (23/10/2026). Os triggers de leads devolvem
+// "Em atendimento" a "Aguardando atendimento" quando o lead não tem corretor
+// dono (Bolsão). A RPC não dá erro, então a Sami precisa avisar com clareza.
+
+function rotuloEtapa(s: string): string {
+  return LEAD_STATUS_LABEL[s as LeadStatus] ?? s;
+}
+
+export function mensagemEtapaNaoAplicada(
+  pedida: string,
+  ficou: string,
+  corretorId: string | null,
+): string {
+  const base = `O funil não mudou a etapa: o cliente continua em ${rotuloEtapa(ficou)} (pedido: ${rotuloEtapa(pedida)}).`;
+  if (!corretorId && pedida === "em_atendimento") {
+    return `${base} Ele está sem corretor responsável; atribua um corretor antes de colocá-lo em atendimento.`;
+  }
+  return base;
+}
+
+/** Bloqueio na hora de PROPOR: evita card que o funil vai desfazer. */
+export function etapaBloqueadaSemDono(
+  novoStatus: string,
+  corretorId: string | null,
+): string | null {
+  if (novoStatus === "em_atendimento" && !corretorId) {
+    return "cliente sem corretor responsável: Em atendimento exige um corretor dono (atribuir o lead primeiro); registre o contato e a tarefa sem mudar a etapa";
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Tarefa no mesmo horário (23/10/2026). Um relato vira até 3 propostas que
+// geram tarefa (mudar_etapa, registrar_contato com follow-up e criar_tarefa).
+// Confirmadas juntas, elas criavam 2 ou 3 tarefas abertas para o mesmo
+// cliente no mesmo horário. Regra: uma tarefa aberta do lead até 2 h antes ou
+// depois do novo vencimento é a MESMA tarefa e é reaproveitada.
+
+export const SAMIQ_JANELA_MESMA_TAREFA_MS = 2 * 60 * 60 * 1000;
+
+export type TarefaAbertaResumo = { id: string; data_vencimento: string | null };
+
+/** A tarefa aberta mais próxima do vencimento, dentro da janela; ou null. */
+export function tarefaNoMesmoHorario<T extends TarefaAbertaResumo>(
+  abertas: T[],
+  vencimentoIso: string,
+  janelaMs: number = SAMIQ_JANELA_MESMA_TAREFA_MS,
+): T | null {
+  const alvo = Date.parse(vencimentoIso);
+  if (Number.isNaN(alvo)) return null;
+  let melhor: T | null = null;
+  let menor = Infinity;
+  for (const t of abertas) {
+    if (!t.data_vencimento) continue;
+    const d = Math.abs(Date.parse(t.data_vencimento) - alvo);
+    if (!Number.isNaN(d) && d <= janelaMs && d < menor) {
+      melhor = t;
+      menor = d;
+    }
+  }
+  return melhor;
 }

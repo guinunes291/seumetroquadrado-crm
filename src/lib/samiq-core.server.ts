@@ -51,8 +51,8 @@ const RESERVED_INPUT_TOKENS = 10_000;
 // ainda dentro do teto de 50k da RPC.
 const RESERVED_INPUT_TOKENS_COM_FERRAMENTAS = 24_000;
 const MAX_CONTEXT_CHARS = 24_000;
-/** Pergunta do painel (campo de 500) e do WhatsApp (áudio transcrito cabe em 1500). */
-const LIMITE_PERGUNTA: Record<SamiQCanal, number> = { painel: 500, whatsapp: 1500 };
+/** Pergunta do painel (campo de 500) e do WhatsApp (áudio transcrito cabe em 4000). */
+const LIMITE_PERGUNTA: Record<SamiQCanal, number> = { painel: 500, whatsapp: 4000 };
 
 export type ResponderSamiQArgs = {
   supabase: Db;
@@ -243,9 +243,13 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
     }));
     const doCanal = instrucoesDoCanal(canal, args.origemMidia);
 
+    // Melhoria contínua (23/10/2026): diretrizes aprovadas pelo gestor entram no fim do prompt.
+    const { blocoDiretrizesSamiQ } = await import("./samiq-diretrizes.server");
+    const systemPrompt = reservation.systemPrompt + (await blocoDiretrizesSamiQ());
+
     errorCode = "gateway_error";
-    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
-    const gateway = createLovableAiGatewayProvider(apiKey);
+    const { createGovernedModelGateway } = await import("./ai-gateway.server");
+    const gateway = createGovernedModelGateway(apiKey);
     const model = gateway(reservation.modelId);
 
     let texto = "";
@@ -265,15 +269,24 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       // Onda S5 (D16): skills determinísticas, também só de leitura.
       const { criarFerramentasDeSkillsSamiQ } = await import("./samiq-skills.server");
       Object.assign(tools, criarFerramentasDeSkillsSamiQ({ supabase, userId }));
+      // Cadastro de cliente novo: telefone e nome completo saem do texto ORIGINAL
+      // (antes da redação) e o modelo só aponta a posição. O número nunca passa por ele.
+      const { extrairDadosDeCadastro, descreverDadosOcultos } = await import("./samiq-propostas");
+      const cadastro = extrairDadosDeCadastro(data.pergunta ?? "");
       if (reservation.propostasEnabled) {
         const { criarFerramentasDePropostaSamiQ } = await import("./samiq-propostas.server");
-        Object.assign(tools, criarFerramentasDePropostaSamiQ({ supabase, userId, coletor }));
+        Object.assign(
+          tools,
+          criarFerramentasDePropostaSamiQ({ supabase, userId, coletor, cadastro }),
+        );
       }
+      const linhaDadosOcultos = reservation.propostasEnabled ? descreverDadosOcultos(cadastro) : null;
       const cabecalho = [
         `Ação solicitada: ${meta.label}.`,
         reservation.actionPrompt,
         `Hoje é ${hojeSaoPaulo()} (fuso de São Paulo).`,
         ...doCanal,
+        ...(linhaDadosOcultos ? [linhaDadosOcultos] : []),
         data.leadId
           ? `Cliente em contexto (id ${data.leadId}): ${JSON.stringify(safeContext.cliente ?? {}).slice(0, 2000)}`
           : "Sem cliente em contexto — use buscar_clientes quando o corretor citar um nome.",
@@ -290,7 +303,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       const ferramentas = compatibilizarFerramentasSamiQ(tools);
       const result = await generateText({
         model,
-        system: reservation.systemPrompt,
+        system: systemPrompt,
         messages,
         tools: ferramentas,
         stopWhen: stepCountIs(reservation.maxToolSteps),
@@ -326,7 +339,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       const prompt = parts.join("\n\n");
       const result = await generateText({
         model,
-        system: reservation.systemPrompt,
+        system: systemPrompt,
         prompt,
         maxOutputTokens: reservation.maxOutputTokens,
       });

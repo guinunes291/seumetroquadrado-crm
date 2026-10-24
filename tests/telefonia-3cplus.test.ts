@@ -698,7 +698,11 @@ describe("aba Discador (fiação 3C Plus)", () => {
   const rota = ler("src/routes/_authenticated/discador.tsx");
   const layout = ler("src/routes/_authenticated/route.tsx");
   const corretores = ler("src/features/gestao/corretores-page.tsx");
-  const sistemas = ler("src/features/nav/sistemas.ts");
+  // sistemas.ts virou só reexportação (2026-10): o registro mora nestes arquivos,
+  // lidos juntos e na ordem — os trechos esperados abaixo não mudaram.
+  const sistemas = ["operacao", "pre-venda", "consulta", "registro", "atalhos"]
+    .map((m) => ler(`src/features/nav/sistemas-${m}.ts`))
+    .join("\n");
   const routeTree = ler("src/routeTree.gen.ts");
 
   it("Ligar dispara tcplus-discar com fallback tel: e traduz os códigos do 3C Plus", () => {

@@ -15,6 +15,9 @@ import {
   RESULTADOS_CONTATO,
   conteudoContato,
   fimDaVisita,
+  mensagemEtapaNaoAplicada,
+  SAMIQ_JANELA_MESMA_TAREFA_MS,
+  tarefaNoMesmoHorario,
   metadataViaSami,
   tituloVisita,
   type PropostaPayload,
@@ -71,6 +74,31 @@ async function carregarLead(supabase: Db, leadId: string): Promise<LeadAtual> {
 }
 
 /**
+ * Tarefa aberta do lead no mesmo horário (±2 h), de QUALQUER tipo. Evita que
+ * follow-up automático, follow-up do contato e tarefa explícita virem 2 ou 3
+ * tarefas para o mesmo compromisso.
+ */
+async function tarefaAbertaNoMesmoHorario(
+  supabase: Db,
+  leadId: string,
+  vencimentoIso: string,
+): Promise<{ id: string; titulo: string; tipo: string; prioridade: string; data_vencimento: string | null } | null> {
+  const venc = Date.parse(vencimentoIso);
+  if (Number.isNaN(venc)) return null;
+  const { data, error } = await supabase
+    .from("tarefas")
+    .select("id, titulo, tipo, prioridade, data_vencimento")
+    .eq("lead_id", leadId)
+    .in("status", ["pendente", "em_andamento"])
+    .is("deleted_at", null)
+    .gte("data_vencimento", new Date(venc - SAMIQ_JANELA_MESMA_TAREFA_MS).toISOString())
+    .lte("data_vencimento", new Date(venc + SAMIQ_JANELA_MESMA_TAREFA_MS).toISOString())
+    .limit(10);
+  if (error) erroDb("Não foi possível conferir as tarefas do cliente", error);
+  return tarefaNoMesmoHorario(data ?? [], vencimentoIso);
+}
+
+/**
  * Mesma regra de garantirFollowUpAberto (lib/follow-up.ts), com o client do
  * corretor: dedup por (lead, tipo, ±1 dia) — atualiza a aberta ou cria nova.
  * Devolve o id só quando CRIOU (é o que o desfazer pode apagar).
@@ -87,6 +115,20 @@ async function garantirFollowUp(
     criadoPorId: string;
   },
 ): Promise<{ criou: boolean; tarefaId: string | null }> {
+  // Já existe tarefa aberta do cliente nesse horário (de qualquer tipo):
+  // reaproveita, só acerta o horário. Título e tipo dela ficam (são mais
+  // específicos que o "Follow-up com X" automático).
+  const mesmoHorario = await tarefaAbertaNoMesmoHorario(supabase, args.leadId, args.vencimento);
+  if (mesmoHorario) {
+    if (mesmoHorario.data_vencimento !== args.vencimento) {
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ data_vencimento: args.vencimento })
+        .eq("id", mesmoHorario.id);
+      if (error) erroDb("Não foi possível atualizar o follow-up", error);
+    }
+    return { criou: false, tarefaId: mesmoHorario.id };
+  }
   const vencMs = Date.parse(args.vencimento);
   const { data: abertas, error: selErr } = await supabase
     .from("tarefas")
@@ -213,6 +255,37 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
 
     case "criar_tarefa": {
       const lead = payload.leadId ? await carregarLead(supabase, payload.leadId) : null;
+      const vencimento = new Date(payload.vencimentoEm).toISOString();
+      if (lead) {
+        // Tarefa aberta do cliente no mesmo horário (ex.: o follow-up que o
+        // registro de contato ou a mudança de etapa acabou de criar): vira
+        // ESTA tarefa, com o título e o tipo que o corretor pediu.
+        const existente = await tarefaAbertaNoMesmoHorario(supabase, lead.id, vencimento);
+        if (existente) {
+          const { error: updErr } = await supabase
+            .from("tarefas")
+            .update({
+              titulo: payload.titulo.trim(),
+              tipo: payload.tipoTarefa,
+              prioridade:
+                payload.prioridade ??
+                (existente.prioridade as Database["public"]["Enums"]["tarefa_prioridade"]),
+              data_vencimento: vencimento,
+            })
+            .eq("id", existente.id);
+          if (updErr) erroDb("Não foi possível atualizar a tarefa", updErr);
+          return {
+            tarefa_atualizada_id: existente.id,
+            lead_id: lead.id,
+            tarefa_anterior: {
+              titulo: existente.titulo,
+              tipo: existente.tipo,
+              prioridade: existente.prioridade,
+              data_vencimento: existente.data_vencimento,
+            },
+          };
+        }
+      }
       const { data, error } = await supabase
         .from("tarefas")
         .insert({
@@ -223,7 +296,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           lead_id: lead?.id ?? null,
           corretor_id: lead?.corretor_id ?? userId,
           criado_por: userId,
-          data_vencimento: new Date(payload.vencimentoEm).toISOString(),
+          data_vencimento: vencimento,
           descricao: "Registrado via Sami",
         })
         .select("id")
@@ -354,6 +427,47 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       return resultado;
     }
 
+    case "criar_lead": {
+      // Mesmo caminho do "Novo lead" do painel: criar_lead_dedup decide a
+      // duplicidade por telefone com lock, e o lead nasce na carteira do
+      // corretor em Aguardando atendimento.
+      const observacoes = ["Cadastrado pela Sami (WhatsApp)", payload.observacoes?.trim() || ""]
+        .filter(Boolean)
+        .join("\n");
+      const { data, error } = await supabase.rpc("criar_lead_dedup", {
+        _payload: {
+          nome: payload.nome,
+          telefone: payload.telefone,
+          origem: payload.origem,
+          projeto_nome: payload.projetoNome ?? null,
+          bairro: payload.bairro ?? null,
+          observacoes,
+          corretor_id: userId,
+          status: "aguardando_atendimento",
+        } as Json,
+      });
+      if (error) erroDb("Não foi possível cadastrar o cliente", error);
+      const r = (data ?? {}) as {
+        duplicado?: boolean;
+        lead_id?: string;
+        nome?: string | null;
+        na_carteira?: boolean;
+        bloqueado_etapa?: boolean;
+      };
+      if (!r.lead_id) throw new Error("O CRM não devolveu o cliente criado. Tente de novo.");
+      if (r.duplicado) {
+        if (r.na_carteira) {
+          throw new Error(
+            `Já existe ${r.nome ?? "um cliente"} com este telefone na sua carteira. Registre o contato nele em vez de cadastrar de novo.`,
+          );
+        }
+        throw new Error(
+          "Já existe um cliente com este telefone em outra carteira. Fale com o gestor da sua equipe para transferir.",
+        );
+      }
+      return { lead_id: r.lead_id, lead_criado_id: r.lead_id };
+    }
+
     case "mudar_etapa": {
       const lead = await carregarLead(supabase, payload.leadId);
       const novo = payload.novoStatus as LeadStatus;
@@ -361,7 +475,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       const followup = payload.proximoFollowupEm
         ? new Date(payload.proximoFollowupEm).toISOString()
         : (tpl?.vencimento ?? undefined);
-      const { error } = await supabase.rpc("transicionar_lead", {
+      const { data: transicionado, error } = await supabase.rpc("transicionar_lead", {
         p_lead_id: lead.id,
         p_novo_status: novo,
         p_motivo: payload.motivo?.trim() || undefined,
@@ -370,6 +484,13 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         ...(payload.motivoCategoria ? { p_motivo_categoria: payload.motivoCategoria } : {}),
       });
       if (error) erroDb("O funil recusou a mudança de etapa", error);
+      // Triggers do funil podem devolver o lead à etapa anterior sem erro
+      // (ex.: Em atendimento sem corretor dono volta a Aguardando atendimento).
+      // Sem esta checagem a proposta era marcada "aceita" sem ter mudado nada.
+      const statusFinal = (transicionado as { status?: string } | null)?.status;
+      if (statusFinal && statusFinal !== novo) {
+        throw new Error(mensagemEtapaNaoAplicada(novo, statusFinal, lead.corretor_id));
+      }
       const resultado: ResultadoExecucao = {
         lead_id: lead.id,
         etapa_anterior: lead.status,

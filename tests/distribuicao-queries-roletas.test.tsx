@@ -47,7 +47,10 @@ const CENARIOS: Record<string, { useHook: HookDeConsulta; esperado: unknown }> =
     useHook: () => Q.useRoletas(),
     esperado: {
       chave: [["distribuicao:roletas"]],
-      chamadas: ['pendente.from(roletas).select("*").order("slug")'],
+      // Desde c20e6882 (main): colunas explícitas, sem webhook_token.
+      chamadas: [
+        'pendente.from(roletas).select("id, slug, nome, descricao, ativo, criterio_participacao, exigir_presenca, horario_inicio, horario_fim, permitir_fora_horario, tipo, equipe_fixa, projeto_id, tiers_recalculados_em, filial_id").order("slug")',
+      ],
       dados: [
         { id: "r1", slug: "z-norte", nome: "Zona Norte", ativo: true, filial_id: "f1" },
         { id: "r2", slug: "plantao", nome: "Plantão", ativo: false, filial_id: null },

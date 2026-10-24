@@ -54,7 +54,21 @@ export function FilaPropriedades({
   const [criarProjetoAberto, setCriarProjetoAberto] = useState(false);
 
   const ehCampanha = roleta.tipo === "campanha";
-  const url = `/api/public/webhooks/lead/${roleta.webhook_token ?? ""}`;
+  const [token, setToken] = useState<string | null>(null);
+  const carregarToken = async (): Promise<string | null> => {
+    if (token) return token;
+    const { data, error } = await supabase.rpc("get_roleta_webhook_token", {
+      _roleta_id: roleta.id,
+    });
+    if (error) {
+      toast.error(error.message);
+      return null;
+    }
+    const t = (data as string | null) ?? null;
+    setToken(t);
+    return t;
+  };
+  const urlDe = (t: string | null) => (t ? `/api/public/webhooks/lead/${t}` : null);
 
   const copiar = (texto: string | null, oQue: string) => {
     if (!texto) return;
@@ -212,16 +226,15 @@ export function FilaPropriedades({
             <div className="flex flex-wrap items-center gap-1 text-sm">
               <span className="text-muted-foreground">Token do webhook:</span>
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-                {tokenVisivel
-                  ? (roleta.webhook_token ?? "—")
-                  : roleta.webhook_token
-                    ? `${roleta.webhook_token.slice(0, 6)}…${roleta.webhook_token.slice(-4)}`
-                    : "—"}
+                {tokenVisivel && token ? token : "••••••"}
               </code>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setTokenVisivel((v) => !v)}
+                onClick={async () => {
+                  if (!tokenVisivel && !(await carregarToken())) return;
+                  setTokenVisivel((v) => !v);
+                }}
                 title={tokenVisivel ? "Ocultar" : "Mostrar"}
               >
                 {tokenVisivel ? (
@@ -233,7 +246,7 @@ export function FilaPropriedades({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => copiar(roleta.webhook_token, "Token")}
+                onClick={async () => copiar(await carregarToken(), "Token")}
                 title="Copiar token"
               >
                 <Copy className="h-3.5 w-3.5" />
@@ -241,12 +254,10 @@ export function FilaPropriedades({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() =>
-                  copiar(
-                    typeof window !== "undefined" ? `${window.location.origin}${url}` : url,
-                    "URL",
-                  )
-                }
+                onClick={async () => {
+                  const url = urlDe(await carregarToken());
+                  copiar(url ? `${window.location.origin}${url}` : null, "URL");
+                }}
                 title="Copiar URL completa"
               >
                 URL

@@ -435,7 +435,11 @@ describe("tela e navegação", () => {
     );
     expect(page).toContain('tab === "base" ? (');
     expect(ler("src/routes/_authenticated/sdr.tsx")).toContain('"base", "reaquecer"');
-    const nav = ler("src/features/nav/sistemas.ts");
+    // sistemas.ts virou só reexportação (2026-10): o registro mora nestes arquivos,
+    // lidos juntos e na ordem — os trechos esperados abaixo não mudaram.
+    const nav = ["operacao", "pre-venda", "consulta", "registro", "atalhos"]
+      .map((m) => ler(`src/features/nav/sistemas-${m}.ts`))
+      .join("\n");
     expect(nav).toContain('{ id: "base", label: "Painel", icon: Fire, to: "/sdr" }');
   });
 

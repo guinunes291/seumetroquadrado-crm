@@ -1,0 +1,63 @@
+// Regressão: o zod 4.4+ proíbe .omit() em objeto com refine. As ferramentas
+// propor_* quebravam ANTES de chamar o gateway e toda pergunta livre da Sami
+// (painel e WhatsApp) caía com gateway_error desde set/2026.
+import { describe, expect, it } from "vitest";
+import { criarFerramentasDePropostaSamiQ, type PropostaColetada } from "@/lib/samiq-propostas.server";
+import { vi } from "vitest";
+import { compatibilizarFerramentasSamiQ } from "@/lib/samiq-ferramentas-compat";
+import { AtualizarQualificacaoPayload, MudarEtapaPayload } from "@/lib/samiq-propostas";
+
+const LEAD = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b";
+
+describe("ferramentas propor_*", () => {
+  const supabase = {} as never;
+
+  it("monta as 7 ferramentas e o schema compatível sem lançar", () => {
+    const tools = criarFerramentasDePropostaSamiQ({ supabase, userId: "u", coletor: [] });
+    expect(Object.keys(tools)).toHaveLength(7);
+    expect(Object.keys(tools)).toContain("propor_novo_cliente");
+    expect(() => compatibilizarFerramentasSamiQ(tools)).not.toThrow();
+  });
+
+  it("mantém as regras da qualificação e da etapa no input das ferramentas", () => {
+    const tools = criarFerramentasDePropostaSamiQ({ supabase, userId: "u", coletor: [] });
+    const q = tools.propor_qualificacao.inputSchema as unknown as { safeParse: (v: unknown) => { success: boolean } };
+    expect(q.safeParse({ leadId: LEAD }).success).toBe(false);
+    expect(q.safeParse({ leadId: LEAD, usaFgts: true }).success).toBe(true);
+    const e = tools.propor_etapa.inputSchema as unknown as { safeParse: (v: unknown) => { success: boolean } };
+    expect(e.safeParse({ leadId: LEAD, novoStatus: "perdido" }).success).toBe(false);
+    expect(e.safeParse({ leadId: LEAD, novoStatus: "perdido", motivo: "sem renda" }).success).toBe(true);
+  });
+
+  it("os payloads completos continuam refinados", () => {
+    expect(AtualizarQualificacaoPayload.safeParse({ tipo: "atualizar_qualificacao", leadId: LEAD }).success).toBe(false);
+    expect(MudarEtapaPayload.safeParse({ tipo: "mudar_etapa", leadId: LEAD, novoStatus: "perdido" }).success).toBe(false);
+  });
+});
+
+vi.mock("@/lib/telefone-corretor.server", () => ({ telefoneEhDeCorretor: async () => false }));
+
+describe("propor_novo_cliente: marcador não é nome", () => {
+  it("usa o nome oculto quando o modelo copia [NOME]", async () => {
+    const coletor: PropostaColetada[] = [];
+    // Carteira vazia para o telefone (encadeamento do supabase-js simulado).
+    const fim = { data: [], error: null };
+    const q: Record<string, unknown> = {};
+    for (const m of ["select", "is", "eq", "like", "limit"]) q[m] = () => q;
+    (q as { then: unknown }).then = (res: (v: unknown) => unknown) => Promise.resolve(fim).then(res);
+    const supabaseFake = { from: () => q } as never;
+    const tools = criarFerramentasDePropostaSamiQ({
+      supabase: supabaseFake,
+      userId: "u1",
+      coletor,
+      cadastro: { telefones: ["11900000000"], nomes: ["Teste Sami Cadastro"] },
+    });
+    const tool = tools.propor_novo_cliente as unknown as {
+      execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    };
+    const r = await tool.execute({ nome: "[NOME]", origem: "indicacao" });
+    expect(r.erro).toBeUndefined();
+    expect(coletor).toHaveLength(1);
+    expect(coletor[0].payload).toMatchObject({ tipo: "criar_lead", nome: "Teste Sami Cadastro", telefone: "11900000000" });
+  });
+});
