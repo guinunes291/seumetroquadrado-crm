@@ -21,7 +21,9 @@ export function BotaoSincronizarCriativos({ habilitado }: { habilitado: boolean 
             try {
               setMsg(await acaoSincronizarCriativos());
             } catch {
-              setMsg("A leitura demorou mais que o esperado. Recarregue a página em um minuto para ver o resultado.");
+              setMsg(
+                "A leitura demorou mais que o esperado. Recarregue a página em um minuto para ver o resultado.",
+              );
             }
           })
         }
