@@ -34,7 +34,7 @@ import {
   modelarFunil,
   modelarProjetos,
   modelarTarefas,
-  termoBuscaSamiQ,
+  termoSemAcentoSamiQ,
 } from "@/lib/samiq-tools";
 
 type Db = SupabaseClient<Database>;
@@ -64,7 +64,7 @@ export function criarFerramentasSamiQ(args: {
       description: SAMIQ_TOOL_DESCRIPTIONS.buscar_clientes,
       inputSchema: BuscarClientesInput,
       execute: async (input) => {
-        const termo = termoBuscaSamiQ(input.termo);
+        const termo = termoSemAcentoSamiQ(input.termo);
         const limite = input.limite ?? 8;
         if (termo.length < 2) return { clientes: [], aviso: "termo curto demais" };
         let query = supabase
@@ -74,7 +74,7 @@ export function criarFerramentasSamiQ(args: {
           )
           .is("deleted_at", null)
           .eq("na_lixeira", false)
-          .or(`nome.ilike.%${termo}%,projeto_nome.ilike.%${termo}%`)
+          .or(`search_text.ilike.%${termo}%,projeto_nome.ilike.%${termo}%`)
           .order("ultima_atividade_em", { ascending: false })
           .limit(limite);
         if (input.status) query = query.eq("status", input.status);
@@ -247,6 +247,7 @@ export function criarFerramentasSamiQ(args: {
       inputSchema: CatalogoProjetosInput,
       execute: async (input) => {
         const limite = input.limite ?? 10;
+        const nome = input.nome ? termoSemAcentoSamiQ(input.nome) : "";
         let query = supabase
           .from("projetos")
           .select(
@@ -254,13 +255,12 @@ export function criarFerramentasSamiQ(args: {
           )
           .eq("ativo", true)
           .is("deleted_at", null)
-          .order("preco_a_partir", { ascending: true, nullsFirst: false })
+          .order(nome ? "nome" : "preco_a_partir", { ascending: true, nullsFirst: false })
           .limit(Math.max(limite, 15));
-        const regiao = input.regiao ? termoBuscaSamiQ(input.regiao) : "";
+        if (nome) query = query.ilike("nome_busca", `%${nome}%`);
+        const regiao = input.regiao ? termoSemAcentoSamiQ(input.regiao) : "";
         if (regiao.length >= 2) {
-          query = query.or(
-            `regiao.ilike.%${regiao}%,zona_smq.ilike.%${regiao}%,bairro.ilike.%${regiao}%,cidade.ilike.%${regiao}%`,
-          );
+          query = query.ilike("regiao_busca", `%${regiao}%`);
         }
         if (input.preco_max) query = query.lte("preco_a_partir", input.preco_max);
         const { data, error } = await query;

@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BuscarClientesInput,
+  CatalogoProjetosInput,
   MinhaAgendaInput,
   SAMIQ_TOOL_DESCRIPTIONS,
   SAMIQ_TOOL_LABELS,
@@ -19,6 +20,7 @@ import {
   modelarProjetos,
   modelarTarefas,
   termoBuscaSamiQ,
+  termoSemAcentoSamiQ,
 } from "@/lib/samiq-tools";
 import { displayNameForSamiQ } from "@/lib/samiq-governance";
 import {
@@ -30,6 +32,12 @@ import {
 const UUID = "123e4567-e89b-12d3-a456-426614174000";
 
 describe("catálogo", () => {
+  it("aceita busca parcial por nome do empreendimento ou construtora", () => {
+    expect(CatalogoProjetosInput.parse({ nome: "Nações Unidas" }).nome).toBe("Nações Unidas");
+    expect(CatalogoProjetosInput.parse({ nome: "Vibra" }).nome).toBe("Vibra");
+    expect(CatalogoProjetosInput.parse({})).toEqual({});
+  });
+
   it("toda ferramenta tem descrição em PT-BR e rótulo para o chip", () => {
     for (const name of SAMIQ_TOOL_NAMES) {
       expect(SAMIQ_TOOL_DESCRIPTIONS[name].length).toBeGreaterThan(30);
@@ -73,6 +81,14 @@ describe("datas no fuso de São Paulo", () => {
 });
 
 describe("termo de busca", () => {
+  it("normaliza Nações Unidas, cedilha e acentos para o formato do banco", () => {
+    expect(termoSemAcentoSamiQ("Nações Unidas")).toBe("nacoes unidas");
+    expect(termoSemAcentoSamiQ("José")).toBe("jose");
+    expect(termoSemAcentoSamiQ("  São, (Paulo) %*\\ ")).toBe("sao paulo");
+    expect(termoSemAcentoSamiQ("Jose\u0301")).toBe("jose");
+    expect(termoSemAcentoSamiQ("Á".repeat(200))).toBe("a".repeat(80));
+  });
+
   it("remove sintaxe do PostgREST e curingas", () => {
     expect(termoBuscaSamiQ("Maria, (Silva) %*")).toBe("Maria Silva");
     expect(termoBuscaSamiQ("x".repeat(200)).length).toBe(80);

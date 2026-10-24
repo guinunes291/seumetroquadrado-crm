@@ -6,7 +6,7 @@
 import { tool, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { SAMIQ_TOOL_DESCRIPTIONS, termoBuscaSamiQ } from "@/lib/samiq-tools";
+import { SAMIQ_TOOL_DESCRIPTIONS, termoSemAcentoSamiQ } from "@/lib/samiq-tools";
 import { minimizeSamiQContext } from "@/lib/samiq-governance";
 import {
   AvaliarQualificacaoInput,
@@ -40,14 +40,14 @@ function falhaSkill(ferramenta: string, error: unknown): never {
 const minimizar = (v: unknown) => minimizeSamiQContext(v, { maxArray: 20, maxString: 300 });
 
 async function projetoPorNome(supabase: Db, nome: string | null | undefined) {
-  const termo = nome ? termoBuscaSamiQ(nome) : "";
+  const termo = nome ? termoSemAcentoSamiQ(nome) : "";
   if (termo.length < 2) return null;
   const { data } = await supabase
     .from("projetos")
     .select(PROJETO_CURADORIA_COLS)
     .eq("ativo", true)
     .is("deleted_at", null)
-    .ilike("nome", `%${termo}%`)
+    .ilike("nome_busca", `%${termo}%`)
     .limit(1)
     .maybeSingle();
   return (data as ProjetoCuradoriaRow | null) ?? null;
@@ -88,13 +88,16 @@ export function criarFerramentasDeSkillsSamiQ(args: {
       description: SAMIQ_TOOL_DESCRIPTIONS.curar_estoque,
       inputSchema: CurarEstoqueInput,
       execute: async (input) => {
+        let projetosQuery = supabase
+          .from("projetos")
+          .select(PROJETO_CURADORIA_COLS)
+          .eq("ativo", true)
+          .is("deleted_at", null);
+        const regiao = input.regiao ? termoSemAcentoSamiQ(input.regiao) : "";
+        if (regiao) projetosQuery = projetosQuery.ilike("regiao_busca", `%${regiao}%`);
+        if (input.preco_max) projetosQuery = projetosQuery.lte("preco_a_partir", input.preco_max);
         const [projetos, unidades, focos] = await Promise.all([
-          supabase
-            .from("projetos")
-            .select(PROJETO_CURADORIA_COLS)
-            .eq("ativo", true)
-            .is("deleted_at", null)
-            .limit(60),
+          projetosQuery.limit(300),
           supabase
             .from("unidades")
             .select("projeto_id, status, valor, dormitorios, tipologia, vagas")
