@@ -39,8 +39,14 @@ export const MensagemSamiInput = z.object({
   anexo_id: z.string().uuid().optional(),
   /** v8: localização compartilhada pelo corretor (check-in na filial). */
   localizacao: LocalizacaoSamiInput.optional(),
-  /** v8: id da mensagem no WhatsApp (rastreio). */
+  /** v8: id da mensagem no WhatsApp (retentativa do n8n não repete ação). */
   mensagem_id: z.string().trim().max(200).optional(),
+  /**
+   * v8: o que o n8n sabe e o CRM não (material enviado fora do CRM, últimas
+   * mensagens do WhatsApp). Vai SEPARADO do texto: assim "CONFIRMAR 2" chega
+   * puro ao interpretador de comandos e o contexto vai só para o cabeçalho.
+   */
+  contexto_canal: z.string().trim().max(3000).optional(),
 });
 export type MensagemSami = z.infer<typeof MensagemSamiInput>;
 

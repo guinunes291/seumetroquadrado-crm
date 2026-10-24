@@ -3,7 +3,7 @@
 //
 // Chamador: o fluxo n8n (servidor a servidor) com header `x-sami-key`. Corpo:
 // { corretor_telefone, texto, origem_midia?, lead_id?, nova_conversa?,
-//   anexo_id?, localizacao?, mensagem_id? }.
+//   anexo_id?, localizacao?, mensagem_id?, contexto_canal? }.
 // Resposta: sempre com `texto` pronto para enviar de volta ao corretor
 // (vazio + ignorar=true quando é retentativa de uma mensagem ainda em curso).
 //
@@ -291,6 +291,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               recentes: { pendentes, executadas },
               anexos,
               localizacao: loc,
+              contextoCanal: body.contexto_canal ?? null,
               agora,
               data: {
                 action: "pergunta_livre",

@@ -294,6 +294,27 @@ describe("um turno do WhatsApp com o CRM inteiro", () => {
     expect(m.confirmar).not.toHaveBeenCalled();
   });
 
+  it("contexto do n8n vai para o cabeçalho (sem telefone), nunca para a pergunta do corretor", async () => {
+    m.passos = [
+      (o) => {
+        const prompt = JSON.stringify(o.prompt);
+        expect(prompt).toContain("Contexto do WhatsApp");
+        expect(prompt).toContain("enviou o book do Vibra Sabará");
+        // telefone do cliente que o n8n citou não chega ao modelo
+        expect(prompt).not.toContain("98765-4321");
+        return falar("Anotado.");
+      },
+    ];
+    const r = await responder(
+      {
+        contextoCanal:
+          "Últimas mensagens: corretor enviou o book do Vibra Sabará para (11) 98765-4321 ontem.",
+      },
+      "ela gostou do book",
+    );
+    expect(r.texto).toBe("Anotado.");
+  });
+
   it("painel: nada grava na hora, tudo vira card; sem texto de canal nem memória de trabalho", async () => {
     m.passos = [
       () => chamar(["registrar_contato", { leadId: LEAD, canal: "ligacao", resultado: "atendeu" }]),

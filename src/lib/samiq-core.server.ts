@@ -90,8 +90,11 @@ const MAX_CONTEXT_CHARS = 24_000;
 const LIMITE_PERGUNTA: Record<SamiQCanal, number> = { painel: 500, whatsapp: 4000 };
 /** Histórico: o WhatsApp reenvia 16 mensagens de até 1200 caracteres (a conversa É o CRM). */
 const LIMITE_HISTORICO: Record<SamiQCanal, number> = { painel: 600, whatsapp: 1200 };
-/** Teto de tempo do turno (o n8n espera a resposta; o painel mostra "pensando"). */
-const TEMPO_MAXIMO_MS: Record<SamiQCanal, number> = { painel: 60_000, whatsapp: 100_000 };
+/**
+ * Teto de tempo do turno. WhatsApp abaixo do timeout do n8n (90 s): se o n8n
+ * desistir antes, o corretor vê erro mas o que foi gravado fica, e ele reenvia.
+ */
+const TEMPO_MAXIMO_MS: Record<SamiQCanal, number> = { painel: 60_000, whatsapp: 75_000 };
 /** Ferramentas de controle da fila da conversa: ativas sempre que existem. */
 const FERRAMENTAS_DE_CONTROLE = ["confirmar_pendentes", "descartar_pendentes", "desfazer_acoes"];
 
@@ -137,6 +140,8 @@ export type ResponderSamiQArgs = {
   /** Arquivos ainda não anexados (o desta mensagem primeiro), no máximo 5. */
   anexos?: AnexoDoTurno[];
   localizacao?: LocalizacaoDoTurno | null;
+  /** v8: contexto que só o n8n tem (material enviado fora do CRM, últimas mensagens). */
+  contextoCanal?: string | null;
   agora?: Date;
 };
 
@@ -520,6 +525,9 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
             : null,
         Object.keys(mapaPii).length
           ? "Os marcadores [TELEFONE_n], [EMAIL_n] e [CPF_n] desta mensagem valem só nela: use-os direto nas ferramentas (buscar_clientes, criar_lead), sem pedir o dado de novo."
+          : null,
+        args.contextoCanal?.trim()
+          ? `Contexto do WhatsApp (o que foi enviado fora do CRM; use para entender a mensagem, não responda a ele): ${redactSamiQPii(args.contextoCanal, 1500)}`
           : null,
       ].filter((l): l is string => !!l);
       const messages: ModelMessage[] = [
