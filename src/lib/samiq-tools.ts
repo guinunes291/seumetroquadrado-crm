@@ -125,7 +125,11 @@ export const DocumentosDoClienteInput = z.object({
 });
 
 export const CatalogoProjetosInput = z.object({
-  nome: z.string().max(80).optional().describe("Nome do empreendimento ou construtora (busca parcial)"),
+  nome: z
+    .string()
+    .max(80)
+    .optional()
+    .describe("Nome do empreendimento ou construtora (busca parcial)"),
   regiao: z.string().max(60).optional().describe("Região, zona ou bairro (busca parcial)"),
   dorms: z.number().int().min(1).max(5).optional().describe("Quantidade de dormitórios"),
   preco_max: z.number().positive().optional().describe("Preço máximo em reais"),
