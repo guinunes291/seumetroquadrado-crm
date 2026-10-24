@@ -34,6 +34,10 @@ const BIRTH_DATE_PATTERN =
   /(\b(?:nascimento|nascido(?:a)?\s+em|data\s+de\s+nascimento)\s*[:=-]?\s*)\d{1,2}[/. -]\d{1,2}[/. -]\d{2,4}\b/gi;
 const PHONE_PATTERN = /(?:\+?55\s*)?(?:\(?\d{2}\)?[\s.-]*)?\d{4,5}[\s.-]*\d{4}\b/g;
 const LONG_ID_PATTERN = /\b\d{10,14}\b/g;
+// Celular (9 + 8 dígitos, com ou sem DDD/espaço). Vem ANTES do RG: "11 930785691"
+// tem 9 dígitos colados e o RG_PATTERN o lia como RG, então o histórico da
+// conversa guardava "11 [RG]" e o telefone do cliente sumia do contexto.
+const MOBILE_PATTERN = /(?<![\d.])(?:\+?55\s*)?(?:\(?\d{2}\)?[\s.-]*)?9\d{4}[\s.-]?\d{4}\b/g;
 const ADDRESS_PATTERN = /\b(?:rua|avenida|av\.|travessa|alameda)\s+[^,;\n]{3,80}/gi;
 const LABELED_NAME_PATTERN =
   /(\b(?:nome(?:\s+completo)?|cliente)\s*[:=-]\s*)[\p{L}]+(?:\s+[\p{L}]+){1,5}/giu;
@@ -55,6 +59,7 @@ export function redactSamiQPii(value: string, maxLength = 600): string {
     .replace(CPF_PATTERN, "[CPF]")
     .replace(CNPJ_PATTERN, "[CNPJ]")
     .replace(PIS_PASEP_PATTERN, "[PIS_PASEP]")
+    .replace(MOBILE_PATTERN, "[TELEFONE]")
     .replace(RG_PATTERN, "[RG]")
     .replace(CEP_PATTERN, "[CEP]")
     .replace(BIRTH_DATE_PATTERN, "$1[DATA]")
@@ -161,6 +166,35 @@ export function firstNameForSamiQ(value: unknown): string | null {
   const first = value.trim().split(/\s+/)[0]?.slice(0, 40) ?? "";
   if (!first || /\d/.test(first)) return null;
   return redactSamiQPii(first, 40);
+}
+
+// Perfis que não são pessoa (o número da empresa, contas de equipe ou de
+// teste). "Seu Metro Quadrado" virava "Seu" e a Sami chamava o dono de "Seu".
+const NOME_INSTITUCIONAL =
+  /\b(metro quadrado|smq|imobiliaria|equipe|admin|administrador|suporte|teste|comercial|plantao)\b/;
+const PRIMEIRO_NOME_INVALIDO = new Set([
+  "seu",
+  "sua",
+  "o",
+  "a",
+  "time",
+  "conta",
+  "usuario",
+  "corretor",
+]);
+
+/** Primeiro nome para a Sami chamar o corretor; null quando o perfil não é de uma pessoa. */
+export function primeiroNomeDoCorretor(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normal = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (!normal || NOME_INSTITUCIONAL.test(normal)) return null;
+  const primeiro = normal.split(/\s+/)[0] ?? "";
+  if (PRIMEIRO_NOME_INVALIDO.has(primeiro)) return null;
+  return firstNameForSamiQ(value);
 }
 
 export function minimizeSamiQContext(

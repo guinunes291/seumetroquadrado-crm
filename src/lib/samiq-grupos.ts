@@ -120,7 +120,10 @@ const PISTAS: Array<[GrupoFerramentas, RegExp]> = [
   ],
   [
     "prospeccao",
-    /\b(lead novo|cadastr|novo cliente|indicacao|indicou|captei|captacao|lote|prospec|base nova|pedir leads?|mais leads)/,
+    // "criar lead", "novo lead", "cria um cliente", "adiciona esse contato"...
+    // (teste real de 24/10: "Consegue criar um novo lead pra mim?" não abria
+    // o grupo e a Sami dizia que preparou sem ter a ferramenta.)
+    /\b(leads?|cadastr|novo cliente|cliente novo|indicacao|indicou|captei|captacao|lote|prospec|base nova|(cri|adicion|inclu|insir|salv)\w* (um |uma |o |a |esse |essa |este |esta )?(novo |nova )?(cliente|contato|pessoa))/,
   ],
   [
     "carteira",
@@ -138,6 +141,8 @@ export function gruposPelaMensagem(args: {
   contextoRecente?: string;
   temAnexo?: boolean;
   temLocalizacao?: boolean;
+  /** A mensagem trouxe um telefone ([TELEFONE_n]): quase sempre é lead novo ou busca. */
+  temTelefone?: boolean;
 }): GrupoFerramentas[] {
   const alvo = normalizar(`${args.texto}\n${args.contextoRecente ?? ""}`);
   const grupos = new Set<GrupoFerramentas>();
@@ -145,6 +150,8 @@ export function gruposPelaMensagem(args: {
   if (args.temAnexo) grupos.add("documentos");
   if (args.temLocalizacao) grupos.add("presenca");
   if (grupos.size === 0) for (const g of GRUPOS_PADRAO) grupos.add(g);
+  // Telefone na mensagem: o cadastro tem que estar à mão (soma, não substitui).
+  if (args.temTelefone) grupos.add("prospeccao");
   return [...grupos];
 }
 

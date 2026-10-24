@@ -11,11 +11,13 @@
 import { z } from "zod";
 import {
   descreverProposta,
+  SAMIQ_PROPOSTA_LABEL,
   MOTIVO_SEM_DESFAZER_LABEL,
   type MotivoSemDesfazer,
   type PropostaSamiQ,
 } from "@/lib/samiq-propostas";
 import type { BriefingSamiQ } from "@/lib/samiq-briefing";
+import { SAMIQ_TOOL_LABELS } from "@/lib/samiq-tools";
 
 /** Header de autenticação server-to-server (o mesmo das edge functions sami-*). */
 export const SAMI_CANAL_HEADER = "x-sami-key";
@@ -579,6 +581,21 @@ export function textoDasPendentes(pendentes: ReadonlyArray<ItemDescritivel>): st
   return `Preciso do seu OK para:\n${textoDasPropostas(pendentes)}\n${instrucao}`;
 }
 
+// Nome interno de ferramenta não é para o corretor ("veja sua fila (minha_fila)").
+const ROTULO_DA_FERRAMENTA: Record<string, string> = {
+  ...SAMIQ_TOOL_LABELS,
+  ...Object.fromEntries(Object.entries(SAMIQ_PROPOSTA_LABEL).map(([k, v]) => [k, v.toLowerCase()])),
+};
+const NOME_ENTRE_PARENTESES = /\s*[(`]\s*[a-z]+(?:_[a-z]+)+\s*[)`]/g;
+const NOME_SOLTO = /(?<![\w/.-])([a-z]+(?:_[a-z]+)+)(?![\w/-])/g;
+
+/** Tira nomes de ferramenta do texto: entre parênteses some, solto vira o rótulo. */
+export function semNomeDeFerramenta(texto: string): string {
+  return texto
+    .replace(NOME_ENTRE_PARENTESES, "")
+    .replace(NOME_SOLTO, (nome: string) => ROTULO_DA_FERRAMENTA[nome] ?? nome);
+}
+
 /** Resposta da Sami + recibo + pendentes, prontos para o WhatsApp. */
 export function textoParaWhatsApp(resposta: {
   texto: string;
@@ -594,7 +611,7 @@ export function textoParaWhatsApp(resposta: {
   const pendentes = resposta.pendentes ?? resposta.propostas ?? [];
   const desfeitas = resposta.desfeitas ?? [];
   const descartadas = resposta.descartadas ?? [];
-  const texto = resposta.texto.trim();
+  const texto = semNomeDeFerramenta(resposta.texto.trim());
   const titulos = (itens: ReadonlyArray<ItemDescritivel>) =>
     itens.map((p) => descreverProposta(p.payload, p.leadNome).titulo).join("; ");
   const extras = [
@@ -625,16 +642,26 @@ function semComandoRepetido(texto: string): string {
 // responda CONFIRMAR" e também "registrei", "agendei", "gravei" na primeira
 // pessoa quando NADA foi gravado.
 const COMANDO_DE_DECISAO = /\b(CONFIRMAR|CANCELAR|DESFAZER)\b/;
+// v8.1 (teste real de 24/10): "preparei dois passos pro Guilherme: a criação
+// do lead..." e "Preparei a criação do lead" passavam. "Visita" fica de fora de
+// propósito: "preparei o roteiro da visita" é o kit (leitura) e é verdade.
 const JA_PREPAREI =
-  /\bprepar(ei|ado|ados|ada|adas)\b[^.!?\n]{0,60}\b(registros?|pacote|propostas?|tarefas?|contato|lan[çc]amentos?)\b/i;
+  /\bprepar(ei|ado|ados|ada|adas)\b[^.!?\n]{0,90}\b(registros?|pacotes?|propostas?|tarefas?|contatos?|lan[çc]amentos?|leads?|cadastros?|cria[çc](ão|ao|ões|oes)|passos|lembretes?|follow-?ups?|agendamentos?|retornos?|anota[çc](ão|ao|ões|oes))\b/i;
+// "Confirma pra mim que eu gravo os dois?" sem nada pendente é a mesma promessa.
+const PEDE_CONFIRMACAO =
+  /\bconfirm(a|e|ar|as)\b[^.!?\n]{0,50}\b(grav|registr|cri|salv|cadastr|lan[çc]|agend)|^confirma(s|r)? (pra|para) mim\W*$/i;
 const JA_GRAVEI =
   /\b(registrei|gravei|agendei|anotei|lancei|lancei|marquei|remarquei|cancelei|conclu[ií]|atualizei|cadastrei|anexei|criei a tarefa|criei um lembrete|fiz o check-?in|movi|perdi o cliente|enviei para (a )?an[aá]lise)\b/i;
 const PROMESSA_DE_REGISTRO = {
-  test: (f: string) => COMANDO_DE_DECISAO.test(f) || JA_PREPAREI.test(f) || JA_GRAVEI.test(f),
+  test: (f: string) =>
+    COMANDO_DE_DECISAO.test(f) ||
+    JA_PREPAREI.test(f) ||
+    JA_GRAVEI.test(f) ||
+    PEDE_CONFIRMACAO.test(f),
 };
 
 export const SAMIQ_AVISO_SEM_REGISTRO =
-  "Atenção: nesta resposta eu não gravei nada no CRM. Me conte de novo o que aconteceu com o cliente que eu registro.";
+  "Atenção: nesta resposta eu não gravei nada no CRM e não há nada esperando o seu CONFIRMAR. Me peça de novo (com o nome do cliente) que eu faço.";
 
 export function semRegistroFantasma(texto: string): string {
   if (!PROMESSA_DE_REGISTRO.test(texto)) return texto;

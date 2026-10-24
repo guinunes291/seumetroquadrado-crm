@@ -241,7 +241,7 @@ export const SAMIQ_TOOL_DESCRIPTIONS: Record<SamiQToolName, string> = {
   credito_do_cliente:
     "Análise de crédito atual de um cliente: situação (enviada, pendente, aprovada, condicionada, reprovada), banco, financiamento, parcela, prazo, FGTS, subsídio, validade. Valores aprovados são para o corretor, nunca para mensagem ao cliente.",
   abrir_ferramentas:
-    "Abre mais grupos de ferramentas para os próximos passos desta resposta, quando a que você precisa não está disponível: carteira, agenda, tarefas, funil, qualificacao, produtos, documentos, credito, venda, presenca, prospeccao.",
+    "Abre mais grupos de ferramentas para os próximos passos desta resposta. Toda ação do CRM existe em algum grupo: se a que você precisa não está disponível, abra o grupo e use no passo seguinte (nunca diga que não consegue, nem que preparou algo sem a ferramenta). Grupos: carteira (fila, funil, lista de clientes, situação, tarefas, agenda), agenda (agendar, confirmar, remarcar, cancelar e registrar visita), tarefas (concluir, reagendar, cancelar), funil (retorno, perdido, troca de vaga, mudar etapa), qualificacao, produtos (catálogo, material, estoque), documentos, credito, venda, presenca (check-in), prospeccao (criar_lead para cadastrar cliente novo, pedir lote).",
 };
 
 // ---------------------------------------------------------------------------

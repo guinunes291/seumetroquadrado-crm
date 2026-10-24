@@ -25,6 +25,7 @@ import {
   displayNameForSamiQ,
   estimateSamiQTokens,
   firstNameForSamiQ,
+  primeiroNomeDoCorretor,
   minimizeSamiQContext,
   redactSamiQFreeText,
   redactSamiQPii,
@@ -493,6 +494,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           contextoRecente: ultimaDaSami,
           temAnexo: (args.anexos?.length ?? 0) > 0,
           temLocalizacao: !!localizacao,
+          temTelefone: Object.keys(mapaPii).some((k) => k.startsWith("[TELEFONE_")),
         }),
       );
       tools.abrir_ferramentas = tool({
@@ -514,7 +516,9 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
         `Agora: ${agoraParaModelo(agora)} (São Paulo). Hoje é ${hojeSaoPaulo(agora)}. Próximos dias: ${calendarioParaModelo(agora)}. Datas nas ferramentas: AAAA-MM-DDTHH:MM no horário de São Paulo.`,
         ...doCanal,
         args.corretorNome
-          ? `Corretor: ${firstNameForSamiQ(args.corretorNome) ?? "corretor"}.`
+          ? primeiroNomeDoCorretor(args.corretorNome)
+            ? `Corretor: ${primeiroNomeDoCorretor(args.corretorNome)}.`
+            : "Corretor: perfil da empresa, sem nome de pessoa (não chame pelo nome)."
           : null,
         data.leadId
           ? `Cliente em contexto (id ${data.leadId}): ${JSON.stringify(safeContext.cliente ?? {}).slice(0, 2000)}`
@@ -523,7 +527,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           ? `Clientes citados nesta conversa (o mais recente primeiro): ${citadosAntes}.`
           : null,
         !data.leadId && !citadosAntes
-          ? "Sem cliente em contexto: use buscar_clientes quando o corretor citar um nome."
+          ? 'Sem cliente em contexto: use buscar_clientes quando o corretor citar um nome. Se não achar e o corretor deu nome e telefone (ou pediu para criar), é cliente novo: criar_lead (grupo prospeccao). Pessoa citada há pouco nesta conversa é o "cliente" das mensagens seguintes.'
           : null,
         recentes.pendentes.length
           ? `Esperando o OK do corretor (numeração do CONFIRMAR): ${linhaDeItens(recentes.pendentes)}.`
@@ -542,7 +546,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           : null,
         // Chave de emergência ligada: o prompt fala de leves gravando na hora.
         canal === "whatsapp" && (args.modoEscrita ?? "confirmar_tudo") === "confirmar_tudo"
-          ? "Hoje TODAS as ações esperam o CONFIRMAR do corretor (nada grava na hora): diga o que preparou."
+          ? "Hoje TODAS as ações esperam o CONFIRMAR do corretor: para registrar, cadastrar ou agendar, CHAME a ferramenta (ela deixa o item esperando o CONFIRMAR, nada grava na hora). Só diga que preparou o que uma ferramenta devolveu como pendente neste turno; sem ferramenta chamada, nada foi preparado."
           : null,
         Object.keys(mapaPii).length
           ? "Os marcadores [TELEFONE_n], [EMAIL_n] e [CPF_n] desta mensagem valem só nela: use-os direto nas ferramentas (buscar_clientes, criar_lead), sem pedir o dado de novo."
