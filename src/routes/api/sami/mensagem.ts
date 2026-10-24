@@ -31,7 +31,11 @@ import {
   localizacaoValida,
   type ContextoConversaSamiQ,
 } from "@/lib/samiq-contexto";
-import { descreverProposta, motivoSemDesfazer } from "@/lib/samiq-propostas";
+import {
+  descreverProposta,
+  motivoSemDesfazer,
+  SAMIQ_TIPOS_SO_COM_CONFIRMAR,
+} from "@/lib/samiq-propostas";
 
 /** Itens na ordem dos ids (a numeração que o corretor viu), sem os que sumiram. */
 function naOrdem<T extends { id: string }>(
@@ -175,6 +179,21 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 });
               }
               const escolhidas = naOrdem(escolhidosIds, aindaPendentes);
+              // "ok", "pode", 👍 não gravam venda, perda, troca de vaga e crédito:
+              // para esses, só a palavra CONFIRMAR (nada é gravado nem descartado).
+              if (comando.acao === "confirmar" && !comando.forte) {
+                const criticas = escolhidas.filter((p) => SAMIQ_TIPOS_SO_COM_CONFIRMAR.has(p.tipo));
+                if (criticas.length > 0) {
+                  const numeros = criticas.map((p) => mostrados.indexOf(p.id) + 1).join(" e ");
+                  return responder({
+                    ok: true,
+                    tipo: "decisao",
+                    texto: `Venda, perda, troca de vaga e crédito só gravam com a palavra CONFIRMAR. Responda CONFIRMAR ${numeros} para gravar.`,
+                    conversa_id: conversa.id,
+                    corretor: quem,
+                  });
+                }
+              }
               const restantes = aindaPendentes.filter(
                 (p) => !escolhidas.some((e) => e.id === p.id),
               );

@@ -22,9 +22,20 @@ type Resultado<T = unknown> = {
   count?: number | null;
 };
 
+/**
+ * timestamptz como o PostgREST manda: ISO com a precisão inteira do banco
+ * (microssegundos) e o fuso, ex. "2026-10-25T13:00:00.123456+00:00". Passar
+ * por Date cortaria os microssegundos, e o desfazer da v8 (que compara o
+ * valor atual com o que a Sami deixou) acharia que o corretor mexeu depois.
+ */
+function isoDoPostgres(v: string): string {
+  const iso = v.replace(" ", "T");
+  return /[+-]\d\d$/.test(iso) ? `${iso}:00` : iso;
+}
+
 const TIPOS_COMO_POSTGREST: Record<number, (v: string) => unknown> = {
-  1184: (v) => new Date(v).toISOString(), // timestamptz
-  1114: (v) => new Date(`${v}Z`).toISOString(), // timestamp
+  1184: isoDoPostgres, // timestamptz
+  1114: (v) => v.replace(" ", "T"), // timestamp (sem fuso, como o PostgREST)
   1700: (v) => Number(v), // numeric
   20: (v) => Number(v), // int8
 };

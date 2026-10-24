@@ -52,7 +52,7 @@ describe("entrarNaFilaDoCanal", () => {
     const { entrarNaFilaDoCanal, SAMI_CANAL_ORCAMENTO_MS } =
       await import("@/lib/samiq-canal.server");
     const r0 = relogio();
-    m.respostas.push({ data: { acao: "processar", id: "fila-1" }, error: null });
+    m.respostas.push({ data: { acao: "processar", id: "fila-1", tentativa: "t-1" }, error: null });
     const t = await entrarNaFilaDoCanal({
       corretorId: "u1",
       mensagemId: "wamid.A",
@@ -71,6 +71,7 @@ describe("entrarNaFilaDoCanal", () => {
       fn: "samiq_canal_concluir",
       args: {
         _id: "fila-1",
+        _tentativa: "t-1",
         _status: "respondida",
         _resposta: { ok: true, texto: "Gravei no CRM: ..." },
       },
@@ -97,7 +98,7 @@ describe("entrarNaFilaDoCanal", () => {
     m.respostas.push(
       { data: { acao: "aguardar", motivo: "fila" }, error: null },
       { data: { acao: "aguardar", motivo: "fila" }, error: null },
-      { data: { acao: "processar", id: "fila-2" }, error: null },
+      { data: { acao: "processar", id: "fila-2", tentativa: "t-2" }, error: null },
     );
     const t = await entrarNaFilaDoCanal({
       corretorId: "u1",
@@ -118,7 +119,7 @@ describe("entrarNaFilaDoCanal", () => {
     for (let i = 0; i < voltas; i++) {
       m.respostas.push({ data: { acao: "aguardar", motivo: "fila" }, error: null });
     }
-    m.respostas.push({ data: { acao: "processar", id: "fila-3" }, error: null });
+    m.respostas.push({ data: { acao: "processar", id: "fila-3", tentativa: "t-3" }, error: null });
     const t = await entrarNaFilaDoCanal({
       corretorId: "u1",
       mensagemId: "wamid.C",
@@ -163,7 +164,7 @@ describe("entrarNaFilaDoCanal", () => {
 
   it("sem id do WhatsApp (n8n antigo): entra na fila com um id próprio", async () => {
     const { entrarNaFilaDoCanal } = await import("@/lib/samiq-canal.server");
-    m.respostas.push({ data: { acao: "processar", id: "fila-5" }, error: null });
+    m.respostas.push({ data: { acao: "processar", id: "fila-5", tentativa: "t-5" }, error: null });
     await entrarNaFilaDoCanal({ corretorId: "u1", mensagemId: null });
     expect(String(m.chamadas[0].args._mensagem_id)).toMatch(/^sem-id:/);
   });

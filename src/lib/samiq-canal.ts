@@ -446,6 +446,20 @@ const MOLDURA_DA_ESCOLHA = new Set([
   "esse",
 ]);
 
+const DIA_OU_ORDINAL = new Set(["segunda", "quarta", "quinta"]);
+const FALA_DE_DATA = new Set([
+  "na",
+  "no",
+  "de",
+  "da",
+  "do",
+  "dia",
+  "feira",
+  "ate",
+  "proxima",
+  "proximo",
+]);
+
 /**
  * Resposta à pergunta "qual Maria? 1) ... 2) ...": o ÚNICO candidato que o
  * corretor escolheu ("2", "a 2", "é a segunda", "a última", "opção 3"), na
@@ -460,6 +474,9 @@ export function escolherCandidato(texto: string, candidatos: ReadonlyArray<strin
   const resto = palavras.filter((p) => !MOLDURA_DA_ESCOLHA.has(p));
   if (resto.length !== 1) return null;
   const w = resto[0];
+  // "segunda", "quarta" e "quinta" também são dias da semana: "na segunda",
+  // "a de quinta" falam de data, não da opção 2 ou 5 da lista.
+  if (DIA_OU_ORDINAL.has(w) && palavras.some((p) => FALA_DE_DATA.has(p))) return null;
   const n = /^\d{1,2}$/.test(w)
     ? Number(w)
     : (ORDINAIS[w] ?? (w === "ultima" || w === "ultimo" ? candidatos.length : null));

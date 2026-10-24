@@ -404,7 +404,7 @@ export type TurnoDoCanal =
     };
 
 type RespostaDaFila =
-  | { acao: "processar"; id: string }
+  | { acao: "processar"; id: string; tentativa: string | null }
   | { acao: "repetida"; resposta: Record<string, unknown> | null }
   | { acao: "aguardar"; motivo: "mesma_mensagem" | "fila" };
 
@@ -426,7 +426,11 @@ export async function modoEscritaDoWhatsApp(): Promise<ModoEscritaSamiQ> {
 function lerRespostaDaFila(data: Json | null): RespostaDaFila | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   if (data.acao === "processar" && typeof data.id === "string") {
-    return { acao: "processar", id: data.id };
+    return {
+      acao: "processar",
+      id: data.id,
+      tentativa: typeof data.tentativa === "string" ? data.tentativa : null,
+    };
   }
   if (data.acao === "repetida") {
     const r = data.resposta;
@@ -504,12 +508,14 @@ export async function entrarNaFilaDoCanal(args: {
     SAMI_CANAL_ORCAMENTO_MS - (relogio() - inicio),
   );
   const id = r && r.acao === "processar" ? r.id : null;
+  const tentativa = r && r.acao === "processar" ? r.tentativa : null;
   const fechar = async (status: "respondida" | "falhou", corpo: Record<string, unknown> | null) => {
-    if (!id) return;
+    if (!id || !tentativa) return;
     try {
       const { error } = await rpc("samiq_canal_concluir", {
         _user_id: args.corretorId,
         _id: id,
+        _tentativa: tentativa,
         _status: status,
         _resposta: corpo ? (JSON.parse(JSON.stringify(corpo)) as Json) : null,
       });

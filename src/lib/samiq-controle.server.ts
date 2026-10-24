@@ -18,7 +18,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { consentimentoExplicito, executadasDaDecisao } from "@/lib/samiq-canal";
 import { escolherPorNumero } from "@/lib/samiq-contexto";
-import { descreverProposta, motivoSemDesfazer, type PropostaSamiQ } from "@/lib/samiq-propostas";
+import {
+  descreverProposta,
+  motivoSemDesfazer,
+  SAMIQ_TIPOS_SO_COM_CONFIRMAR,
+  type PropostaSamiQ,
+} from "@/lib/samiq-propostas";
 import {
   confirmarPropostas,
   desfazerPropostas,
@@ -49,18 +54,6 @@ export const ConfirmarPendentesInput = z.object({
     .describe("Números dos itens que o corretor aprovou, na lista 'Esperando o OK'"),
 });
 
-/**
- * Venda, perda, troca de vaga e crédito mexem em comissão, carteira e roleta:
- * só gravam com o CONFIRMAR do próprio corretor (comando curto), nunca por
- * interpretação de linguagem natural.
- */
-export const SAMIQ_TIPOS_SO_COM_CONFIRMAR = new Set<string>([
-  "marcar_perdido",
-  "trocar_vaga",
-  "registrar_venda",
-  "enviar_analise_credito",
-  "registrar_resultado_credito",
-]);
 export const DescartarPendentesInput = z.object({
   itens: z
     .array(z.number().int().min(1).max(20))

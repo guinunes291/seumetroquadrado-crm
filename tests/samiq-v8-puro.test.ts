@@ -269,3 +269,15 @@ describe("nível de risco de cada ação", () => {
     expect(leadIdDaProposta({ tipo: "pedir_lote", zona: "Leste" })).toBeNull();
   });
 });
+
+describe("candidatos de homônimos no mesmo turno", () => {
+  it("mesma lista duas vezes vale; duas listas diferentes = nenhuma vale para 'a 2'", async () => {
+    const { anotarAmbiguos, ambiguosParaMemoria } = await import("@/lib/samiq-contexto");
+    const a = { lista: [] as string[], conflito: false };
+    anotarAmbiguos(a, ["maria1", "maria2"]);
+    anotarAmbiguos(a, ["maria1", "maria2"]); // contato + nota na mesma Maria
+    expect(ambiguosParaMemoria(a)).toEqual(["maria1", "maria2"]);
+    anotarAmbiguos(a, ["joao1", "joao2"]); // e um João ambíguo na mesma mensagem
+    expect(ambiguosParaMemoria(a)).toEqual([]);
+  });
+});

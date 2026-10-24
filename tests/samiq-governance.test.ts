@@ -837,6 +837,10 @@ describe("v8 — o CRM inteiro no WhatsApp, com autonomia por risco (migration 2
     expect(canalServer).toContain('rpc("samiq_canal_iniciar", {');
     expect(canalServer).toContain('rpc("samiq_canal_concluir", {');
     expect(mensagem).toContain("comando.forte || contexto.pediu_decisao");
+    // "ok"/👍 não gravam venda, perda, troca de vaga e crédito
+    expect(mensagem).toMatch(
+      /comando\.acao === "confirmar" && !comando\.forte[\s\S]*SAMIQ_TIPOS_SO_COM_CONFIRMAR\.has\(p\.tipo\)/,
+    );
     expect(mensagem).toContain("canal.decidirPendentes({");
     expect(mensagem).toContain("canal.desfazerPeloCanal({");
   });

@@ -153,3 +153,23 @@ export function conversasComContexto(client: { from: unknown }): ConversaContext
   const from = client.from as (tabela: string) => ConversaContextoQuery;
   return from.call(client, "samiq_conversas");
 }
+
+/**
+ * Candidatos das perguntas "qual cliente?" de UM turno. Duas listas
+ * diferentes (duas Marias e dois Joões na mesma mensagem) = conflito: "a 2"
+ * não saberia de qual lista, então nenhuma vale e o corretor diz o nome.
+ */
+export type AmbiguosDoTurno = { lista: string[]; conflito: boolean };
+
+export function anotarAmbiguos(estado: AmbiguosDoTurno, ids: ReadonlyArray<string>): void {
+  const outraLista =
+    estado.lista.length > 0 &&
+    (estado.lista.length !== ids.length || estado.lista.some((x, i) => x !== ids[i]));
+  if (outraLista) estado.conflito = true;
+  estado.lista = [...ids];
+}
+
+/** O que vai para a memória da conversa (vazio quando houve conflito). */
+export function ambiguosParaMemoria(estado: AmbiguosDoTurno): string[] {
+  return estado.conflito ? [] : estado.lista;
+}

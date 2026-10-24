@@ -50,6 +50,8 @@ export interface SamiQCanalIniciarArgs {
 export interface SamiQCanalConcluirArgs {
   _user_id: string;
   _id: string;
+  /** A tentativa que o samiq_canal_iniciar devolveu: só ela fecha a linha. */
+  _tentativa: string;
   _status: "respondida" | "falhou";
   _resposta: Json | null;
 }

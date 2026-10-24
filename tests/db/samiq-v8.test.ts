@@ -695,17 +695,28 @@ describe("fila do canal (samiq_canal_iniciar / samiq_canal_concluir)", () => {
       msg,
       forcar,
     ]);
-    return r.rows[0].r as { acao: string; id?: string; motivo?: string; resposta?: unknown };
+    return r.rows[0].r as {
+      acao: string;
+      id?: string;
+      tentativa?: string;
+      motivo?: string;
+      resposta?: unknown;
+    };
   }
-  async function concluir(id: string, status: string, resposta: object | null) {
+  async function concluir(
+    r: { id?: string; tentativa?: string },
+    status: string,
+    resposta: object | null,
+  ) {
     await comoSuperuser(c);
-    const r = await c.query(`SELECT public.samiq_canal_concluir($1, $2, $3, $4::jsonb) AS ok`, [
+    const q = await c.query(`SELECT public.samiq_canal_concluir($1, $2, $3, $4, $5::jsonb) AS ok`, [
       corretorA.id,
-      id,
+      r.id,
+      r.tentativa,
       status,
       resposta === null ? null : JSON.stringify(resposta),
     ]);
-    return r.rows[0].ok as boolean;
+    return q.rows[0].ok as boolean;
   }
 
   it("retentativa recebe a resposta guardada; a mensagem seguinte espera a anterior, em ordem", async () => {
@@ -717,7 +728,7 @@ describe("fila do canal (samiq_canal_iniciar / samiq_canal_concluir)", () => {
     // mensagens seguintes entram na fila, na ordem de chegada
     expect(await iniciar("wamid.2")).toEqual({ acao: "aguardar", motivo: "fila" });
     expect(await iniciar("wamid.3")).toEqual({ acao: "aguardar", motivo: "fila" });
-    expect(await concluir(a.id!, "respondida", { ok: true, texto: "Gravei no CRM: 1) ..." })).toBe(
+    expect(await concluir(a, "respondida", { ok: true, texto: "Gravei no CRM: 1) ..." })).toBe(
       true,
     );
     expect(await iniciar("wamid.1")).toEqual({
@@ -736,7 +747,7 @@ describe("fila do canal (samiq_canal_iniciar / samiq_canal_concluir)", () => {
   it("falhou volta para a fila; processamento travado há muito tempo é retomado", async () => {
     await c.query(`DELETE FROM public.samiq_canal_mensagens`);
     const a = await iniciar("wamid.9");
-    expect(await concluir(a.id!, "falhou", null)).toBe(true);
+    expect(await concluir(a, "falhou", null)).toBe(true);
     expect((await iniciar("wamid.9")).acao).toBe("processar");
     await c.query(
       `UPDATE public.samiq_canal_mensagens SET iniciado_em = now() - interval '10 minutes' WHERE mensagem_id = 'wamid.9'`,
@@ -745,9 +756,29 @@ describe("fila do canal (samiq_canal_iniciar / samiq_canal_concluir)", () => {
     // status inventado não entra
     expect(
       await errCode(
-        c.query(`SELECT public.samiq_canal_concluir($1, $2, 'ok', NULL)`, [corretorA.id, a.id]),
+        c.query(`SELECT public.samiq_canal_concluir($1, $2, $3, 'ok', NULL)`, [
+          corretorA.id,
+          a.id,
+          a.tentativa,
+        ]),
       ),
     ).toBe("22023");
+  });
+
+  it("original lenta que perdeu a vez não fecha a linha de quem assumiu", async () => {
+    await c.query(`DELETE FROM public.samiq_canal_mensagens`);
+    const original = await iniciar("wamid.lenta");
+    await c.query(
+      `UPDATE public.samiq_canal_mensagens SET iniciado_em = now() - interval '10 minutes' WHERE mensagem_id = 'wamid.lenta'`,
+    );
+    const retentativa = await iniciar("wamid.lenta");
+    expect(retentativa.acao).toBe("processar");
+    expect(retentativa.tentativa).not.toBe(original.tentativa);
+    // a original termina atrasada: não fecha (a retentativa continua dona)
+    expect(await concluir(original, "respondida", { texto: "velha" })).toBe(false);
+    expect(await iniciar("wamid.lenta")).toEqual({ acao: "aguardar", motivo: "mesma_mensagem" });
+    expect(await concluir(retentativa, "respondida", { texto: "nova" })).toBe(true);
+    expect(await iniciar("wamid.lenta")).toEqual({ acao: "repetida", resposta: { texto: "nova" } });
   });
 
   it("linha de mais de 3 dias some; o browser não lê nem grava a fila", async () => {

@@ -378,6 +378,23 @@ describe("um turno do WhatsApp com o CRM inteiro", () => {
     expect(ctx.contexto.pediu_decisao).toBe(false);
   });
 
+  it("chave de emergência: no WhatsApp em confirmar_tudo, nada grava na hora e o cabeçalho avisa", async () => {
+    m.passos = [
+      (o) => {
+        expect(JSON.stringify(o.prompt)).toContain("Hoje TODAS as ações esperam o CONFIRMAR");
+        return chamar([
+          "registrar_contato",
+          { leadId: LEAD, canal: "ligacao", resultado: "atendeu" },
+        ]);
+      },
+      () => falar("Preparei o contato."),
+    ];
+    const r = await responder({ modoEscrita: "confirmar_tudo" }, "liguei pra Maria Silva");
+    expect(m.confirmar).not.toHaveBeenCalled();
+    expect(r.propostas?.map((p) => p.tipo)).toEqual(["registrar_contato"]);
+    expect(r.textoCanal).toContain("Preciso do seu OK para:\n1) Contato com Maria Silva");
+  });
+
   it("'a 2' depois de 'qual Maria?': libera só o candidato 2 e avisa o modelo do id", async () => {
     m.passos = [
       (o) => {

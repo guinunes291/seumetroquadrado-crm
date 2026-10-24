@@ -280,6 +280,11 @@ describe("consentimento natural e escolha pela lista", () => {
       ["é a segunda", "m2"],
       ["a da última", "m3"],
       ["a 2 mesmo", "m2"],
+      ["a segunda", "m2"],
+      // dia da semana não é opção da lista
+      ["na segunda", null],
+      ["a de quinta", null],
+      ["segunda-feira", null],
       // não escolhem: número no meio de um relato, pronome, "essa" sem dizer qual
       ["liguei 3 vezes hoje", null],
       ["ela atendeu e quer visitar sabado", null],

@@ -559,8 +559,14 @@ CREATE TABLE IF NOT EXISTS public.samiq_canal_mensagens (
   chegou_em timestamptz NOT NULL DEFAULT clock_timestamp(),
   iniciado_em timestamptz,
   concluido_em timestamptz,
+  -- Quem está processando agora: só essa tentativa fecha a linha (uma
+  -- original lenta que perdeu a vez não marca como respondida a que assumiu).
+  tentativa uuid,
   UNIQUE (user_id, mensagem_id)
 );
+
+-- Base que rodou uma versão anterior desta migration (só ambientes de teste).
+ALTER TABLE public.samiq_canal_mensagens ADD COLUMN IF NOT EXISTS tentativa uuid;
 
 CREATE INDEX IF NOT EXISTS samiq_canal_mensagens_fila_idx
   ON public.samiq_canal_mensagens (user_id, status, chegou_em);
@@ -638,9 +644,10 @@ BEGIN
   END IF;
 
   UPDATE public.samiq_canal_mensagens
-     SET status = 'processando', iniciado_em = _agora
-   WHERE id = _m.id;
-  RETURN jsonb_build_object('acao', 'processar', 'id', _m.id);
+     SET status = 'processando', iniciado_em = _agora, tentativa = gen_random_uuid()
+   WHERE id = _m.id
+  RETURNING * INTO _m;
+  RETURN jsonb_build_object('acao', 'processar', 'id', _m.id, 'tentativa', _m.tentativa);
 END;
 $$;
 
@@ -649,9 +656,12 @@ REVOKE ALL ON FUNCTION public.samiq_canal_iniciar(uuid, text, integer, boolean)
 GRANT EXECUTE ON FUNCTION public.samiq_canal_iniciar(uuid, text, integer, boolean)
   TO service_role;
 
+DROP FUNCTION IF EXISTS public.samiq_canal_concluir(uuid, uuid, text, jsonb);
+
 CREATE OR REPLACE FUNCTION public.samiq_canal_concluir(
   _user_id uuid,
   _id uuid,
+  _tentativa uuid,
   _status text,
   _resposta jsonb DEFAULT NULL
 )
@@ -676,15 +686,18 @@ BEGIN
            ELSE NULL
          END,
          concluido_em = clock_timestamp()
-   WHERE id = _id AND user_id = _user_id;
+   WHERE id = _id
+     AND user_id = _user_id
+     AND status = 'processando'
+     AND tentativa = _tentativa;
   GET DIAGNOSTICS _n = ROW_COUNT;
   RETURN _n = 1;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.samiq_canal_concluir(uuid, uuid, text, jsonb)
+REVOKE ALL ON FUNCTION public.samiq_canal_concluir(uuid, uuid, uuid, text, jsonb)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.samiq_canal_concluir(uuid, uuid, text, jsonb)
+GRANT EXECUTE ON FUNCTION public.samiq_canal_concluir(uuid, uuid, uuid, text, jsonb)
   TO service_role;
 
 -- 9) Chave de emergência do WhatsApp --------------------------------------

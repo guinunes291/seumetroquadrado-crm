@@ -159,6 +159,19 @@ export function podeDesfazerProposta(tipo: SamiQPropostaTipo): boolean {
   return (SAMIQ_TIPOS_DESFAZIVEIS as readonly string[]).includes(tipo);
 }
 
+/**
+ * Venda, perda, troca de vaga e crédito mexem em comissão, carteira e roleta:
+ * só gravam com a palavra CONFIRMAR do próprio corretor. "ok", "pode", 👍 e
+ * linguagem natural não bastam (valem para visita, cadastro e o resto).
+ */
+export const SAMIQ_TIPOS_SO_COM_CONFIRMAR: ReadonlySet<string> = new Set<SamiQPropostaTipo>([
+  "marcar_perdido",
+  "trocar_vaga",
+  "registrar_venda",
+  "enviar_analise_credito",
+  "registrar_resultado_credito",
+]);
+
 export type MotivoSemDesfazer = "ja_desfeito" | "nao_desfazivel" | "fora_do_prazo";
 
 /**

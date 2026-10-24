@@ -60,8 +60,11 @@ import { compatibilizarFerramentasSamiQ } from "@/lib/samiq-ferramentas-compat";
 import { agoraParaModelo, calendarioParaModelo } from "@/lib/samiq-datas";
 import { ferramentasAtivas, gruposPelaMensagem } from "@/lib/samiq-grupos";
 import {
+  ambiguosParaMemoria,
+  anotarAmbiguos,
   mesclarClientes,
   textoClientesCitados,
+  type AmbiguosDoTurno,
   type ClienteCitado,
   type ContextoConversaSamiQ,
 } from "@/lib/samiq-contexto";
@@ -376,7 +379,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
     // Memória de trabalho que este turno deixa para o próximo.
     const citados: Array<Omit<ClienteCitado, "em">> = [];
     // Candidatos da pergunta "qual Maria?" deste turno (vazio = sem pergunta).
-    const ambiguos: string[] = [];
+    const ambiguos: AmbiguosDoTurno = { lista: [], conflito: false };
 
     if (usarFerramentas) {
       // Texto do corretor: nomes passam (D12); telefone, e-mail e CPF viram
@@ -452,9 +455,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
             textoDoCorretor,
             leadIdEmContexto: data.leadId,
             liberados,
-            aoAmbiguo: (ids) => {
-              ambiguos.splice(0, ambiguos.length, ...ids);
-            },
+            aoAmbiguo: (ids) => anotarAmbiguos(ambiguos, ids),
             mapaPii,
             citar,
             agora,
@@ -538,6 +539,10 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
             : null,
         escolhido
           ? `Na lista "qual cliente?" o corretor escolheu o cliente de id ${escolhido}: use esse id.`
+          : null,
+        // Chave de emergência ligada: o prompt fala de leves gravando na hora.
+        canal === "whatsapp" && (args.modoEscrita ?? "confirmar_tudo") === "confirmar_tudo"
+          ? "Hoje TODAS as ações esperam o CONFIRMAR do corretor (nada grava na hora): diga o que preparou."
           : null,
         Object.keys(mapaPii).length
           ? "Os marcadores [TELEFONE_n], [EMAIL_n] e [CPF_n] desta mensagem valem só nela: use-os direto nas ferramentas (buscar_clientes, criar_lead), sem pedir o dado de novo."
@@ -750,7 +755,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           // da Sami não terminou perguntando outra coisa ("quer o briefing?").
           pediu_decisao:
             mostrarPendentes && pendentesConversa.length > 0 && !falaComPergunta(texto),
-          ambiguos,
+          ambiguos: ambiguosParaMemoria(ambiguos),
           localizacao: contexto.localizacao ?? null,
           anexo_pendente:
             (args.anexos ?? []).find(
