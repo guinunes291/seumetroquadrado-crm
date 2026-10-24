@@ -1,3 +1,4 @@
+import path from "node:path";
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 
@@ -6,6 +7,13 @@ import tsconfigPaths from "vite-tsconfig-paths";
 // normal — exige DATABASE_URL acessível (local: npm run db:up && db:apply).
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  // tests/db fica fora do "include" do tsconfig: o alias explícito deixa os
+  // testes de banco importarem o código do app (ex.: o executor da Sami).
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   test: {
     environment: "node",
     include: ["tests/db/**/*.test.ts"],
