@@ -2,7 +2,8 @@
 // propor_* quebravam ANTES de chamar o gateway e toda pergunta livre da Sami
 // (painel e WhatsApp) caía com gateway_error desde set/2026.
 import { describe, expect, it } from "vitest";
-import { criarFerramentasDePropostaSamiQ } from "@/lib/samiq-propostas.server";
+import { criarFerramentasDePropostaSamiQ, type PropostaColetada } from "@/lib/samiq-propostas.server";
+import { vi } from "vitest";
 import { compatibilizarFerramentasSamiQ } from "@/lib/samiq-ferramentas-compat";
 import { AtualizarQualificacaoPayload, MudarEtapaPayload } from "@/lib/samiq-propostas";
 
@@ -31,5 +32,32 @@ describe("ferramentas propor_*", () => {
   it("os payloads completos continuam refinados", () => {
     expect(AtualizarQualificacaoPayload.safeParse({ tipo: "atualizar_qualificacao", leadId: LEAD }).success).toBe(false);
     expect(MudarEtapaPayload.safeParse({ tipo: "mudar_etapa", leadId: LEAD, novoStatus: "perdido" }).success).toBe(false);
+  });
+});
+
+vi.mock("@/lib/telefone-corretor.server", () => ({ telefoneEhDeCorretor: async () => false }));
+
+describe("propor_novo_cliente: marcador não é nome", () => {
+  it("usa o nome oculto quando o modelo copia [NOME]", async () => {
+    const coletor: PropostaColetada[] = [];
+    // Carteira vazia para o telefone (encadeamento do supabase-js simulado).
+    const fim = { data: [], error: null };
+    const q: Record<string, unknown> = {};
+    for (const m of ["select", "is", "eq", "like", "limit"]) q[m] = () => q;
+    (q as { then: unknown }).then = (res: (v: unknown) => unknown) => Promise.resolve(fim).then(res);
+    const supabaseFake = { from: () => q } as never;
+    const tools = criarFerramentasDePropostaSamiQ({
+      supabase: supabaseFake,
+      userId: "u1",
+      coletor,
+      cadastro: { telefones: ["11900000000"], nomes: ["Teste Sami Cadastro"] },
+    });
+    const tool = tools.propor_novo_cliente as unknown as {
+      execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    };
+    const r = await tool.execute({ nome: "[NOME]", origem: "indicacao" });
+    expect(r.erro).toBeUndefined();
+    expect(coletor).toHaveLength(1);
+    expect(coletor[0].payload).toMatchObject({ tipo: "criar_lead", nome: "Teste Sami Cadastro", telefone: "11900000000" });
   });
 });
