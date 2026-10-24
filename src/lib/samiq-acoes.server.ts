@@ -11,7 +11,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { PropostaSamiQ } from "@/lib/samiq-propostas";
-import type { ExecutorImediato, PropostaColetada } from "@/lib/samiq-propostas.server";
+import type {
+  ExecutorImediato,
+  PropostaColetada,
+  ResultadoImediato,
+} from "@/lib/samiq-propostas.server";
 import { registrarPropostasSamiQ } from "./samiq-memoria.server";
 import { confirmarPropostas } from "./samiq-confirmar.server";
 import type { ContextoExecucao } from "./samiq-executar.server";
@@ -29,9 +33,24 @@ export function criarExecucaoImediata(args: {
 }): { executar: ExecutorImediato; executadas: AcaoExecutada[] } {
   const executadas: AcaoExecutada[] = [];
   let contador = 0;
+  // O modelo pode pedir várias ações no mesmo passo e o AI SDK roda as
+  // ferramentas em paralelo. Duas ações no mesmo cliente ao mesmo tempo
+  // (contato com objeção + qualificação com objeção) leem a ficha antes da
+  // outra gravar e uma apaga a outra. Aqui elas entram em fila: uma de cada
+  // vez, na ordem em que chegaram (é a ordem do recibo e do DESFAZER).
+  let fila: Promise<unknown> = Promise.resolve();
 
-  const executar: ExecutorImediato = async (coletada: PropostaColetada) => {
+  const executar: ExecutorImediato = (coletada: PropostaColetada) => {
     const ordem = ++contador;
+    const vez = fila.then(() => executarUma(coletada, ordem));
+    fila = vez.catch(() => undefined);
+    return vez;
+  };
+
+  const executarUma = async (
+    coletada: PropostaColetada,
+    ordem: number,
+  ): Promise<ResultadoImediato> => {
     const [proposta] = await registrarPropostasSamiQ({
       userId: args.userId,
       executionId: args.executionId,

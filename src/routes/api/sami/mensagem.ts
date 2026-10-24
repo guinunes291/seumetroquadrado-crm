@@ -46,19 +46,34 @@ export const Route = createFileRoute("/api/sami/mensagem")({
     handlers: {
       POST: async ({ request }) => {
         const canal = await import("@/lib/samiq-canal.server");
-        let reserva: { liberar: () => void } | null = null;
+        let falhou: (() => Promise<void>) | null = null;
         try {
           canal.autenticarCanalSami(request);
           const body = await canal.lerCorpoCanalSami(request, MensagemSamiInput);
           const corretor = await canal.resolverCorretorPorTelefone(body.corretor_telefone);
           const quem = { id: corretor.id, nome: corretor.nome };
-          reserva = canal.reservarMensagemDoCanal(corretor.id, body.mensagem_id);
-          if (!reserva) {
+          // Fila no banco: retentativa recebe a resposta guardada (nada grava
+          // duas vezes, o recibo não se perde) e mensagens seguidas do mesmo
+          // corretor rodam uma de cada vez, na ordem em que chegaram.
+          const fila = await canal.entrarNaFilaDoCanal({
+            corretorId: corretor.id,
+            mensagemId: body.mensagem_id,
+          });
+          if (fila.tipo === "repetida") {
+            return canal.jsonCanal({ ...fila.resposta, repetida: true });
+          }
+          if (fila.tipo === "em_andamento") {
             return canal.jsonCanal(
               { ok: true, tipo: "em_andamento", ignorar: true, texto: "" },
               202,
             );
           }
+          falhou = fila.falhou;
+          /** Responde e guarda a resposta para uma eventual retentativa. */
+          const responder = async (corpo: Record<string, unknown>) => {
+            await fila.concluir(corpo);
+            return canal.jsonCanal(corpo);
+          };
           const memoria = await import("@/lib/samiq-memoria.server");
           const agora = new Date();
           const conversa = body.nova_conversa
@@ -70,23 +85,6 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 conversaId: conversa.id,
               })
             : {};
-
-          // 0) Retentativa do n8n já respondida: devolve a mesma resposta, sem refazer nada.
-          if (conversa && body.mensagem_id && lido.ultima_mensagem_id === body.mensagem_id) {
-            const ultimas = await memoria.historicoDaConversaSamiQ({
-              userId: corretor.id,
-              conversaId: conversa.id,
-              max: 2,
-            });
-            const ultima = [...ultimas].reverse().find((m) => m.role === "assistant");
-            return canal.jsonCanal({
-              ok: true,
-              tipo: "repetida",
-              texto: ultima?.content ?? "",
-              conversa_id: conversa.id,
-              corretor: quem,
-            });
-          }
 
           const contexto: ContextoConversaSamiQ = {
             ...lido,
@@ -110,7 +108,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               const ids = contexto.executadas ?? [];
               const escolhidos = escolherPorNumero(ids, comando.itens);
               if (escolhidos === null) {
-                return canal.jsonCanal({
+                return responder({
                   ok: true,
                   tipo: "desfazer",
                   texto: `O último recibo tem ${ids.length} ${ids.length === 1 ? "item" : "itens"}. Mande DESFAZER com um número dessa lista (ex.: DESFAZER 1).`,
@@ -140,7 +138,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 contexto,
                 mensagemId: body.mensagem_id,
               });
-              return canal.jsonCanal({
+              return responder({
                 ok: true,
                 tipo: "desfazer",
                 texto: r.texto,
@@ -168,7 +166,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
             if (aindaPendentes.length > 0 && (comando.forte || contexto.pediu_decisao)) {
               const escolhidosIds = escolherPorNumero(mostrados, comando.itens);
               if (escolhidosIds === null) {
-                return canal.jsonCanal({
+                return responder({
                   ok: true,
                   tipo: "decisao",
                   texto: `A lista tem ${mostrados.length} ${mostrados.length === 1 ? "item" : "itens"}. Mande CONFIRMAR ou CANCELAR com um número dela (ex.: CONFIRMAR 1).`,
@@ -190,7 +188,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 contexto,
                 mensagemId: body.mensagem_id,
               });
-              return canal.jsonCanal({
+              return responder({
                 ok: true,
                 tipo: "decisao",
                 texto:
@@ -204,7 +202,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               });
             }
             if (comando.forte && comando.acao === "confirmar" && aindaPendentes.length === 0) {
-              return canal.jsonCanal({
+              return responder({
                 ok: true,
                 tipo: "decisao",
                 texto:
@@ -223,9 +221,11 @@ export const Route = createFileRoute("/api/sami/mensagem")({
             soNumeros &&
             conversa &&
             contexto.pediu_decisao &&
-            (contexto.pendentes?.length ?? 0) > 0
+            (contexto.pendentes?.length ?? 0) > 0 &&
+            // "2" depois de "qual Maria? 1) ... 2) ..." é a escolha do cliente.
+            !contexto.ambiguos?.length
           ) {
-            return canal.jsonCanal({
+            return responder({
               ok: true,
               tipo: "decisao",
               texto: textoNumeroSemComando(soNumeros),
@@ -298,6 +298,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               anexos,
               localizacao: loc,
               contextoCanal: body.contexto_canal ?? null,
+              tempoMaximoMs: fila.prazoMs,
               agora,
               data: {
                 action: "pergunta_livre",
@@ -316,7 +317,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               efeito: p.efeito ?? null,
               ...descreverProposta(p.payload, p.leadNome),
             }));
-          return canal.jsonCanal({
+          return responder({
             ok: true,
             tipo: "resposta",
             texto: resposta.textoCanal ?? textoParaWhatsApp(resposta),
@@ -333,9 +334,8 @@ export const Route = createFileRoute("/api/sami/mensagem")({
             corretor: quem,
           });
         } catch (error) {
+          await falhou?.();
           return canal.responderErroCanal(error);
-        } finally {
-          reserva?.liberar();
         }
       },
     },

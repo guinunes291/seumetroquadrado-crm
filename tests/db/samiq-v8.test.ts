@@ -102,7 +102,7 @@ async function proposta(id: string) {
 async function desfazer(userId: string, id: string) {
   await comoSuperuser(c);
   const r = await c.query(`SELECT public.samiq_desfazer_proposta($1, $2) AS r`, [userId, id]);
-  return r.rows[0].r as { desfeito: boolean; itens: string[] };
+  return r.rows[0].r as { desfeito: boolean; itens: string[]; mantidos: string[] };
 }
 
 /** Grava e confirma uma ação com o `resultado` que o executor teria devolvido. */
@@ -353,6 +353,7 @@ describe("desfazer em 24 h (samiq_desfazer_proposta v8)", () => {
     expect(await desfazer(corretorA.id, id)).toEqual({
       desfeito: true,
       itens: ["tarefa_restaurada"],
+      mantidos: [],
     });
     const t = await c.query(
       `SELECT status, data_conclusao, resultado FROM public.tarefas WHERE id = $1`,
@@ -499,6 +500,290 @@ describe("desfazer em 24 h (samiq_desfazer_proposta v8)", () => {
       (await c.query(`SELECT na_lixeira FROM public.leads WHERE id = $1`, [novo])).rows[0]
         .na_lixeira,
     ).toBe(true);
+  });
+});
+
+describe("desfazer não atropela o que mudou depois da Sami", () => {
+  it("visita confirmada pela Sami e cancelada na tela: continua cancelada, com o motivo", async () => {
+    const visita = await novaVisita("confirmado");
+    const id = await gravada(
+      "confirmar_visita",
+      { agendamentoId: visita },
+      {
+        agendamento_anterior: { id: visita, status: "agendado", motivo_cancelamento: null },
+        lead_id: leadA,
+      },
+    );
+    await c.query(
+      `UPDATE public.agendamentos SET status = 'cancelado', motivo_cancelamento = 'cliente desistiu' WHERE id = $1`,
+      [visita],
+    );
+    const r = await desfazer(corretorA.id, id);
+    expect(r.desfeito).toBe(true);
+    expect(r.itens).not.toContain("agendamento_restaurado");
+    expect(r.mantidos).toContain("agendamento_restaurado");
+    const v = await c.query(
+      `SELECT status::text AS status, motivo_cancelamento FROM public.agendamentos WHERE id = $1`,
+      [visita],
+    );
+    expect(v.rows[0]).toEqual({ status: "cancelado", motivo_cancelamento: "cliente desistiu" });
+  });
+
+  it("visita criada pela Sami que já foi realizada não some da agenda", async () => {
+    const visita = await novaVisita("realizado");
+    const id = await gravada(
+      "agendar_visita",
+      { leadId: leadA, inicioEm: "2026-11-03T13:00:00Z" },
+      { agendamento_id: visita, lead_id: leadA },
+    );
+    const r = await desfazer(corretorA.id, id);
+    expect(r.mantidos).toContain("agendamento");
+    const v = await c.query(
+      `SELECT status::text AS status, deleted_at IS NULL AS viva FROM public.agendamentos WHERE id = $1`,
+      [visita],
+    );
+    expect(v.rows[0]).toEqual({ status: "realizado", viva: true });
+  });
+
+  it("tarefa concluída pela Sami e reaberta e reagendada na tela: fica como o corretor deixou", async () => {
+    const tarefa = await novaTarefa();
+    await c.query(
+      `UPDATE public.tarefas SET status = 'concluida', data_conclusao = now(), resultado = 'Concluída via Sami' WHERE id = $1`,
+      [tarefa],
+    );
+    const depoisDaSami = (
+      await c.query(
+        `SELECT status::text AS status, data_vencimento FROM public.tarefas WHERE id = $1`,
+        [tarefa],
+      )
+    ).rows[0] as { status: string; data_vencimento: Date };
+    const id = await gravada(
+      "concluir_tarefa",
+      { tarefaId: tarefa },
+      {
+        tarefa_atualizada_id: tarefa,
+        tarefa_anterior: {
+          id: tarefa,
+          status: "pendente",
+          data_vencimento: "2026-11-02T13:00:00Z",
+          data_conclusao: null,
+          resultado: null,
+        },
+        tarefa_depois: {
+          status: depoisDaSami.status,
+          data_vencimento: depoisDaSami.data_vencimento.toISOString(),
+        },
+        lead_id: leadA,
+      },
+    );
+    // o corretor reabre e joga para outro dia na tela
+    await c.query(
+      `UPDATE public.tarefas SET status = 'pendente', data_conclusao = NULL, resultado = NULL, data_vencimento = '2026-11-10T13:00:00Z' WHERE id = $1`,
+      [tarefa],
+    );
+    const r = await desfazer(corretorA.id, id);
+    expect(r.mantidos).toContain("tarefa_restaurada");
+    const t = await c.query(`SELECT data_vencimento FROM public.tarefas WHERE id = $1`, [tarefa]);
+    expect((t.rows[0].data_vencimento as Date).toISOString()).toBe("2026-11-10T13:00:00.000Z");
+  });
+
+  it("tarefa criada pela Sami e já feita vira história (não some)", async () => {
+    const tarefa = await novaTarefa({ status: "concluida", resultado: "liguei" });
+    const id = await gravada(
+      "criar_tarefa",
+      {
+        leadId: leadA,
+        titulo: "Ligar",
+        tipoTarefa: "ligacao",
+        vencimentoEm: "2026-11-02T13:00:00Z",
+      },
+      { tarefa_id: tarefa, lead_id: leadA },
+    );
+    const r = await desfazer(corretorA.id, id);
+    expect(r.itens).not.toContain("tarefa");
+    expect(r.mantidos).toContain("tarefa");
+    expect(
+      (
+        await c.query(`SELECT deleted_at IS NULL AS viva FROM public.tarefas WHERE id = $1`, [
+          tarefa,
+        ])
+      ).rows[0].viva,
+    ).toBe(true);
+  });
+
+  it("ficha: campo que o corretor mudou na tela fica; o que continua como a Sami deixou volta", async () => {
+    await c.query(
+      `UPDATE public.leads SET renda_estimada = 3200, decisor = 'esposa' WHERE id = $1`,
+      [leadA],
+    );
+    const id = await gravada(
+      "atualizar_qualificacao",
+      { leadId: leadA, rendaEstimada: 3200, decisor: "esposa" },
+      {
+        lead_id: leadA,
+        lead_anterior: { renda_estimada: 2500, decisor: null },
+        lead_depois: { renda_estimada: 3200, decisor: "esposa" },
+      },
+    );
+    await c.query(`UPDATE public.leads SET renda_estimada = 4000 WHERE id = $1`, [leadA]);
+    const r = await desfazer(corretorA.id, id);
+    expect(r.itens).toContain("lead");
+    expect(r.mantidos).toEqual(["ficha:renda_estimada"]);
+    const l = await c.query(
+      `SELECT renda_estimada::float AS renda, decisor FROM public.leads WHERE id = $1`,
+      [leadA],
+    );
+    expect(l.rows[0]).toEqual({ renda: 4000, decisor: null });
+  });
+
+  it("documento criado que já ganhou arquivo não volta a pendente", async () => {
+    const doc = (
+      await c.query(
+        `INSERT INTO public.documentacoes (lead_id, corretor_id, tipo, status, recebido_em, url) VALUES ($1, $2, 'holerites', 'recebido', now(), 'https://exemplo/holerite.pdf') RETURNING id`,
+        [leadA, corretorA.id],
+      )
+    ).rows[0].id as string;
+    const id = await gravada(
+      "atualizar_documento",
+      { leadId: leadA, documento: "holerites", status: "recebido" },
+      { lead_id: leadA, documento_criado_id: doc },
+    );
+    const r = await desfazer(corretorA.id, id);
+    expect(r.mantidos).toContain("documento");
+    expect(
+      (await c.query(`SELECT status FROM public.documentacoes WHERE id = $1`, [doc])).rows[0]
+        .status,
+    ).toBe("recebido");
+  });
+});
+
+describe("fila do canal (samiq_canal_iniciar / samiq_canal_concluir)", () => {
+  async function iniciar(msg: string, forcar = false, userId = corretorA.id) {
+    await comoSuperuser(c);
+    const r = await c.query(`SELECT public.samiq_canal_iniciar($1, $2, 100, $3) AS r`, [
+      userId,
+      msg,
+      forcar,
+    ]);
+    return r.rows[0].r as { acao: string; id?: string; motivo?: string; resposta?: unknown };
+  }
+  async function concluir(id: string, status: string, resposta: object | null) {
+    await comoSuperuser(c);
+    const r = await c.query(`SELECT public.samiq_canal_concluir($1, $2, $3, $4::jsonb) AS ok`, [
+      corretorA.id,
+      id,
+      status,
+      resposta === null ? null : JSON.stringify(resposta),
+    ]);
+    return r.rows[0].ok as boolean;
+  }
+
+  it("retentativa recebe a resposta guardada; a mensagem seguinte espera a anterior, em ordem", async () => {
+    await c.query(`DELETE FROM public.samiq_canal_mensagens`);
+    const a = await iniciar("wamid.1");
+    expect(a.acao).toBe("processar");
+    // retentativa enquanto a original roda: espera (não processa de novo)
+    expect(await iniciar("wamid.1")).toEqual({ acao: "aguardar", motivo: "mesma_mensagem" });
+    // mensagens seguintes entram na fila, na ordem de chegada
+    expect(await iniciar("wamid.2")).toEqual({ acao: "aguardar", motivo: "fila" });
+    expect(await iniciar("wamid.3")).toEqual({ acao: "aguardar", motivo: "fila" });
+    expect(await concluir(a.id!, "respondida", { ok: true, texto: "Gravei no CRM: 1) ..." })).toBe(
+      true,
+    );
+    expect(await iniciar("wamid.1")).toEqual({
+      acao: "repetida",
+      resposta: { ok: true, texto: "Gravei no CRM: 1) ..." },
+    });
+    // a 3 chegou depois da 2: a 2 vai primeiro
+    expect(await iniciar("wamid.3")).toEqual({ acao: "aguardar", motivo: "fila" });
+    expect((await iniciar("wamid.2")).acao).toBe("processar");
+    // espera longa demais: a 3 pode pular a fila
+    expect((await iniciar("wamid.3", true)).acao).toBe("processar");
+    // outro corretor não espera ninguém
+    expect((await iniciar("wamid.1", false, corretorB.id)).acao).toBe("processar");
+  });
+
+  it("falhou volta para a fila; processamento travado há muito tempo é retomado", async () => {
+    await c.query(`DELETE FROM public.samiq_canal_mensagens`);
+    const a = await iniciar("wamid.9");
+    expect(await concluir(a.id!, "falhou", null)).toBe(true);
+    expect((await iniciar("wamid.9")).acao).toBe("processar");
+    await c.query(
+      `UPDATE public.samiq_canal_mensagens SET iniciado_em = now() - interval '10 minutes' WHERE mensagem_id = 'wamid.9'`,
+    );
+    expect((await iniciar("wamid.9")).acao).toBe("processar");
+    // status inventado não entra
+    expect(
+      await errCode(
+        c.query(`SELECT public.samiq_canal_concluir($1, $2, 'ok', NULL)`, [corretorA.id, a.id]),
+      ),
+    ).toBe("22023");
+  });
+
+  it("linha de mais de 3 dias some; o browser não lê nem grava a fila", async () => {
+    await c.query(`DELETE FROM public.samiq_canal_mensagens`);
+    await iniciar("wamid.velha");
+    await c.query(
+      `UPDATE public.samiq_canal_mensagens SET chegou_em = now() - interval '4 days', status = 'respondida' WHERE mensagem_id = 'wamid.velha'`,
+    );
+    await iniciar("wamid.nova");
+    expect(
+      (
+        await c.query(
+          `SELECT count(*)::int AS n FROM public.samiq_canal_mensagens WHERE mensagem_id = 'wamid.velha'`,
+        )
+      ).rows[0].n,
+    ).toBe(0);
+    await comoUsuario(c, corretorA.id);
+    expect(await errCode(c.query(`SELECT * FROM public.samiq_canal_mensagens`))).toBe("42501");
+    expect(
+      await errCode(c.query(`SELECT public.samiq_canal_iniciar($1, 'x')`, [corretorA.id])),
+    ).toBe("42501");
+    await comoSuperuser(c);
+  });
+});
+
+describe("memória: pendentes de dois turnos ao mesmo tempo não somem", () => {
+  it("o turno que grava por último mantém no fim da lista o que o outro deixou esperando OK", async () => {
+    const exec = await reservar(corretorA.id);
+    await comoSuperuser(c);
+    const conversa = (
+      await c.query(
+        `SELECT public.samiq_gravar_turno($1, NULL, $2, 'marca a Maria', 'Preciso do seu OK', '{}', $3, 'whatsapp') AS id`,
+        [corretorA.id, leadA, exec],
+      )
+    ).rows[0].id as string;
+    const p1 = await registrar(corretorA.id, exec, "agendar_visita", {
+      leadId: leadA,
+      inicioEm: "2026-11-03T13:00:00Z",
+    });
+    const p2 = await registrar(corretorA.id, exec, "marcar_perdido", {
+      leadId: leadA,
+      categoria: "sem_perfil",
+    });
+    const p3 = await registrar(corretorA.id, exec, "registrar_retorno", {
+      leadId: leadA,
+      retornoEm: "2026-11-20T13:00:00Z",
+    });
+    const gravar = (pendentes: string[]) =>
+      c.query(`SELECT public.samiq_contexto_turno($1, $2, NULL, $3::jsonb)`, [
+        corretorA.id,
+        conversa,
+        JSON.stringify({ pendentes, pediu_decisao: true }),
+      ]);
+    // turno 1 deixou p1 e p2; turno 2 (que rodou junto) grava só o p3
+    await gravar([p1, p2]);
+    await gravar([p3]);
+    const lido = async () =>
+      (
+        (await c.query(`SELECT contexto FROM public.samiq_conversas WHERE id = $1`, [conversa]))
+          .rows[0].contexto as { pendentes: string[] }
+      ).pendentes;
+    expect(await lido()).toEqual([p3, p1, p2]);
+    // decidido não volta: o descarte do p1 tira ele da lista de vez
+    expect(await decidir(corretorA.id, p1, "rejeitada")).toBe(true);
+    await gravar([p3]);
+    expect(await lido()).toEqual([p3, p2]);
   });
 });
 

@@ -19,7 +19,11 @@ import type { Database } from "@/integrations/supabase/types";
 import { consentimentoExplicito, executadasDaDecisao } from "@/lib/samiq-canal";
 import { escolherPorNumero } from "@/lib/samiq-contexto";
 import { descreverProposta, motivoSemDesfazer, type PropostaSamiQ } from "@/lib/samiq-propostas";
-import { confirmarPropostas, desfazerPropostas, rejeitarPropostas } from "./samiq-confirmar.server";
+import {
+  confirmarPropostas,
+  desfazerPropostas,
+  rejeitarPropostasDetalhado,
+} from "./samiq-confirmar.server";
 import type { ContextoExecucao } from "./samiq-executar.server";
 
 type Db = SupabaseClient<Database>;
@@ -37,7 +41,26 @@ const Itens = z
   .optional()
   .describe("Números dos itens na lista do cabeçalho; vazio = todos");
 
-export const ConfirmarPendentesInput = z.object({ itens: Itens });
+export const ConfirmarPendentesInput = z.object({
+  itens: z
+    .array(z.number().int().min(1).max(20))
+    .min(1)
+    .max(20)
+    .describe("Números dos itens que o corretor aprovou, na lista 'Esperando o OK'"),
+});
+
+/**
+ * Venda, perda, troca de vaga e crédito mexem em comissão, carteira e roleta:
+ * só gravam com o CONFIRMAR do próprio corretor (comando curto), nunca por
+ * interpretação de linguagem natural.
+ */
+export const SAMIQ_TIPOS_SO_COM_CONFIRMAR = new Set<string>([
+  "marcar_perdido",
+  "trocar_vaga",
+  "registrar_venda",
+  "enviar_analise_credito",
+  "registrar_resultado_credito",
+]);
 export const DescartarPendentesInput = z.object({
   itens: z
     .array(z.number().int().min(1).max(20))
@@ -83,7 +106,7 @@ export function criarFerramentasDeControleSamiQ(args: {
   if (pendentes.length > 0) {
     out.confirmar_pendentes = tool({
       description:
-        "Grava itens que estão esperando o OK do corretor (lista 'Esperando o OK' do cabeçalho), quando ele disse que pode em linguagem natural ('pode marcar', 'isso, grava'). Se ele pediu mudança ('sim, mas às 15h'), NÃO confirme: crie o item corrigido e descarte o antigo.",
+        "Grava itens que estão esperando o OK do corretor (lista 'Esperando o OK' do cabeçalho), pelo número, quando ele disse que pode em linguagem natural ('pode marcar', 'isso, grava'). Se ele pediu mudança ('sim, mas às 15h'), NÃO confirme: crie o item corrigido e descarte o antigo. Venda, perda, troca de vaga e crédito só com o CONFIRMAR dele.",
       inputSchema: ConfirmarPendentesInput,
       execute: async ({ itens }) => {
         if (!consentimentoExplicito(args.textoDoCorretor)) {
@@ -98,6 +121,14 @@ export function criarFerramentasDeControleSamiQ(args: {
           return { erro: "item_inexistente", detalhe: `a lista tem ${pendentes.length} itens` };
         if (escolhidas.length === 0)
           return { erro: "nada_a_confirmar", detalhe: "esses itens já foram decididos" };
+        const criticas = escolhidas.filter((p) => SAMIQ_TIPOS_SO_COM_CONFIRMAR.has(p.tipo));
+        if (criticas.length > 0) {
+          const numeros = criticas.map((p) => pendentes.indexOf(p) + 1).join(" e ");
+          return {
+            erro: "precisa_confirmar",
+            detalhe: `Venda, perda, troca de vaga e crédito só gravam com o comando do corretor. Nada foi gravado. Peça para ele responder CONFIRMAR ${numeros}.`,
+          };
+        }
         const resultados = await confirmarPropostas({
           supabase,
           userId,
@@ -129,10 +160,17 @@ export function criarFerramentasDeControleSamiQ(args: {
         if (escolhidas === null)
           return { erro: "item_inexistente", detalhe: `a lista tem ${pendentes.length} itens` };
         if (escolhidas.length === 0) return { erro: "nada_a_descartar" };
-        await rejeitarPropostas({ userId, ids: escolhidas.map((p) => p.id) });
-        for (const p of escolhidas) decididas.add(p.id);
-        registro.descartadas.push(...escolhidas);
-        return { descartados: escolhidas.map(titulo) };
+        const r = await rejeitarPropostasDetalhado({ userId, ids: escolhidas.map((p) => p.id) });
+        const sairam = escolhidas.filter((p) => r.find((x) => x.id === p.id)?.ok);
+        for (const p of sairam) decididas.add(p.id);
+        registro.descartadas.push(...sairam);
+        const ficaram = escolhidas.filter((p) => !sairam.includes(p));
+        return {
+          descartados: sairam.map(titulo),
+          ...(ficaram.length
+            ? { nao_descartados: ficaram.map(titulo), erro: "ja_em_gravacao_ou_crm_fora" }
+            : {}),
+        };
       },
     });
   }
@@ -165,7 +203,13 @@ export function criarFerramentasDeControleSamiQ(args: {
           resultados: [
             ...voltam.map((p) => {
               const x = r.find((y) => y.id === p.id);
-              return { item: titulo(p), desfeito: x?.ok === true, erro: x?.erro };
+              return {
+                item: titulo(p),
+                desfeito: x?.ok === true,
+                erro: x?.erro,
+                // Partes que o corretor mudou na tela depois da Sami ficaram como ele deixou.
+                ...(x?.mantidos?.length ? { mantidos: x.mantidos } : {}),
+              };
             }),
             ...naoVoltam,
           ],

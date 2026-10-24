@@ -221,6 +221,86 @@ describe("contato, nota, tarefa e ficha (leves)", () => {
   });
 });
 
+describe("desfazer de verdade, com o que o corretor fez depois", () => {
+  it("contato sem data de retorno reaproveita o follow-up que já existia; o DESFAZER não o apaga", async () => {
+    const id = await lead("aguardando_retorno");
+    await comoSuperuser(c);
+    const amanha = new Date(Date.now() + 86_400_000).toISOString();
+    const existente = (
+      await c.query(
+        `INSERT INTO public.tarefas (titulo, tipo, status, prioridade, lead_id, corretor_id, criado_por, data_vencimento)
+         VALUES ('Retornar a cliente', 'follow_up', 'pendente', 'alta', $1, $2, $2, $3) RETURNING id`,
+        [id, corretor.id, amanha],
+      )
+    ).rows[0].id as string;
+    const { id: pid, row } = await ok(
+      { tipo: "registrar_contato", leadId: id, canal: "ligacao", resultado: "atendeu" },
+      id,
+    );
+    if (row.resultado?.tarefa_atualizada_id || row.resultado?.tarefa_id) {
+      // o CRM escolheu a tarefa: se for a que já existia, ela NÃO é "criada"
+      expect(row.resultado?.tarefa_id).not.toBe(existente);
+    }
+    const [d] = await desfazerPropostas({ userId: corretor.id, ids: [pid] });
+    expect(d.ok, d.erro).toBe(true);
+    await comoSuperuser(c);
+    const t = await c.query(
+      `SELECT deleted_at IS NULL AS viva, status::text AS status FROM public.tarefas WHERE id = $1`,
+      [existente],
+    );
+    expect(t.rows[0]).toEqual({ viva: true, status: "pendente" });
+  });
+
+  it("qualificação: desfazer devolve o que a Sami mudou e mantém o campo que o corretor editou depois", async () => {
+    const id = await lead("em_atendimento");
+    const { id: pid } = await ok(
+      { tipo: "atualizar_qualificacao", leadId: id, rendaEstimada: 3200, decisor: "esposa" },
+      id,
+    );
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET renda_estimada = 4100 WHERE id = $1`, [id]);
+    const [d] = await desfazerPropostas({ userId: corretor.id, ids: [pid] });
+    expect(d.ok, d.erro).toBe(true);
+    expect(d.mantidos).toEqual(["ficha:renda_estimada"]);
+    await comoSuperuser(c);
+    const l = await c.query(
+      `SELECT renda_estimada::float AS renda, decisor FROM public.leads WHERE id = $1`,
+      [id],
+    );
+    expect(l.rows[0]).toEqual({ renda: 4100, decisor: null });
+  });
+
+  it("duas ações no mesmo campo: DESFAZER de tudo volta na ordem certa (pilha)", async () => {
+    const id = await lead("em_atendimento");
+    const a = await ok(
+      { tipo: "atualizar_qualificacao", leadId: id, objecoesAdicionar: ["acha longe"] },
+      id,
+    );
+    const b = await ok(
+      {
+        tipo: "registrar_contato",
+        leadId: id,
+        canal: "whatsapp",
+        resultado: "interessado",
+        objecoes: ["entrada alta"],
+        followupEm: daquiDias(3),
+      },
+      id,
+    );
+    await comoSuperuser(c);
+    expect(
+      (await c.query(`SELECT objecoes FROM public.leads WHERE id = $1`, [id])).rows[0].objecoes,
+    ).toEqual(["acha longe", "entrada alta"]);
+    // recibo: 1) qualificação, 2) contato. "DESFAZER" desfaz os dois.
+    const r = await desfazerPropostas({ userId: corretor.id, ids: [a.id, b.id] });
+    expect(r.map((x) => x.ok)).toEqual([true, true]);
+    await comoSuperuser(c);
+    expect(
+      (await c.query(`SELECT objecoes FROM public.leads WHERE id = $1`, [id])).rows[0].objecoes,
+    ).toEqual([]);
+  });
+});
+
 describe("tarefas", () => {
   it("concluir, reagendar e cancelar uma tarefa da carteira", async () => {
     const id = await lead("em_atendimento");

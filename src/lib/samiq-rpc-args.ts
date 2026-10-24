@@ -39,6 +39,21 @@ export interface SamiQReivindicarArgs {
   _proposta_id: string;
 }
 
+/** v8: fila do canal (retentativa do n8n e mensagens em sequência do mesmo corretor). */
+export interface SamiQCanalIniciarArgs {
+  _user_id: string;
+  _mensagem_id: string;
+  _janela_seg: number;
+  _forcar: boolean;
+}
+
+export interface SamiQCanalConcluirArgs {
+  _user_id: string;
+  _id: string;
+  _status: "respondida" | "falhou";
+  _resposta: Json | null;
+}
+
 /** v8: liga as ações do turno à conversa e guarda a memória de trabalho dela. */
 export interface SamiQContextoTurnoArgs {
   _user_id: string;
@@ -67,6 +82,8 @@ export type SamiQRpc = {
   (fn: "samiq_registrar_propostas", args: SamiQRegistrarPropostasArgs): ResultadoRpc<Json>;
   (fn: "samiq_reivindicar_proposta", args: SamiQReivindicarArgs): ResultadoRpc<boolean>;
   (fn: "samiq_contexto_turno", args: SamiQContextoTurnoArgs): ResultadoRpc<null>;
+  (fn: "samiq_canal_iniciar", args: SamiQCanalIniciarArgs): ResultadoRpc<Json>;
+  (fn: "samiq_canal_concluir", args: SamiQCanalConcluirArgs): ResultadoRpc<boolean>;
 };
 
 export function samiqRpc(client: ClientHolder): SamiQRpc {

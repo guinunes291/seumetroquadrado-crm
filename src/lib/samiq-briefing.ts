@@ -40,13 +40,7 @@ export type BriefingDados = {
 };
 
 export type BriefingIcone =
-  | "agenda"
-  | "confirmar"
-  | "followup"
-  | "responder"
-  | "esfriando"
-  | "docs"
-  | "novos";
+  "agenda" | "confirmar" | "followup" | "responder" | "esfriando" | "docs" | "novos";
 
 export type BriefingLinha = {
   chave: string;

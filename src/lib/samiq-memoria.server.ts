@@ -187,6 +187,12 @@ export async function gravarContextoTurnoSamiQ(args: {
   }
 }
 
+/** O "efeito" que o executor guardou (ex.: "entrou em Em atendimento"). */
+function efeitoDoResultado(resultado: Json | null): string | null {
+  if (!resultado || typeof resultado !== "object" || Array.isArray(resultado)) return null;
+  return typeof resultado.efeito === "string" ? resultado.efeito : null;
+}
+
 /** Ações pelos ids, na ordem pedida (é a numeração que o corretor viu). */
 export async function acoesPorIdsSamiQ(args: {
   userId: string;
@@ -197,7 +203,7 @@ export async function acoesPorIdsSamiQ(args: {
   try {
     const { data, error } = await supabaseAdmin
       .from("samiq_propostas")
-      .select("id, tipo, payload, lead_nome, status, desfazer_ate, erro, decidido_em")
+      .select("id, tipo, payload, lead_nome, status, desfazer_ate, erro, decidido_em, resultado")
       .eq("user_id", args.userId)
       .in("id", ids)
       .limit(20);
@@ -217,6 +223,7 @@ export async function acoesPorIdsSamiQ(args: {
           status: row.status as PropostaSamiQ["status"],
           desfazerAte: row.desfazer_ate,
           erro: row.erro,
+          efeito: efeitoDoResultado(row.resultado),
           decididoEm: row.decidido_em,
         },
       ];

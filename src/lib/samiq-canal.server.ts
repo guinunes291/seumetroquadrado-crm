@@ -13,7 +13,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { ZodType } from "zod";
 
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rateLimit } from "@/lib/rate-limit";
 import {
@@ -34,7 +34,13 @@ import type { MotivoSemDesfazer, PropostaSamiQ } from "@/lib/samiq-propostas";
 import { localizacaoValida, type ContextoConversaSamiQ } from "@/lib/samiq-contexto";
 import { SamiQQuotaError } from "./samiq-governance.server";
 import { gravarContextoTurnoSamiQ, gravarTurnoSamiQ } from "./samiq-memoria.server";
-import { confirmarPropostas, desfazerPropostas, rejeitarPropostas } from "./samiq-confirmar.server";
+import { samiqRpc } from "@/lib/samiq-rpc-args";
+import { isMissingBackendObject } from "@/lib/supabase-errors";
+import {
+  confirmarPropostas,
+  desfazerPropostas,
+  rejeitarPropostasDetalhado,
+} from "./samiq-confirmar.server";
 
 type Db = SupabaseClient<Database>;
 
@@ -275,11 +281,23 @@ export async function decidirPendentes(args: {
         }),
       );
     } else {
-      await rejeitarPropostas({ userId: corretor.id, ids: pendentes.map((p) => p.id) });
-      resultados = pendentes.map((p) => ({ id: p.id, ok: true, status: "rejeitada" }));
+      const r = await rejeitarPropostasDetalhado({
+        userId: corretor.id,
+        ids: pendentes.map((p) => p.id),
+      });
+      resultados = pendentes.map((p) => {
+        const ok = r.find((x) => x.id === p.id)?.ok === true;
+        return { id: p.id, ok, status: ok ? "rejeitada" : "indisponivel" };
+      });
     }
   }
-  const texto = textoDaDecisao(decisao, resultados, pendentes, restantes);
+  // Descarte que não pegou (já estava sendo gravado, banco fora): continua na lista.
+  const naoSairam =
+    decisao === "rejeitar"
+      ? pendentes.filter((p) => !resultados.some((r) => r.id === p.id && r.ok))
+      : [];
+  const restantesFinal = [...restantes, ...naoSairam];
+  const texto = textoDaDecisao(decisao, resultados, pendentes, restantesFinal);
   if (args.conversaId && pendentes.length > 0) {
     await gravarTurnoSamiQ({
       userId: corretor.id,
@@ -297,9 +315,9 @@ export async function decidirPendentes(args: {
         executionId: null,
         contexto: {
           ...args.contexto,
-          pendentes: restantes.map((p) => p.id),
+          pendentes: restantesFinal.map((p) => p.id),
           executadas: gravadas.length ? gravadas : (args.contexto.executadas ?? []),
-          pediu_decisao: restantes.length > 0,
+          pediu_decisao: restantesFinal.length > 0,
           ambiguos: [],
           ultima_mensagem_id: args.mensagemId ?? args.contexto.ultima_mensagem_id ?? null,
         },
@@ -352,26 +370,147 @@ export async function desfazerPeloCanal(args: {
   return { texto, resultados };
 }
 
-// Retentativa do n8n enquanto a primeira chamada ainda roda (mesma instância):
-// a segunda não processa de novo (ações gravadas na hora não duplicam). Entre
-// instâncias, a guarda é o ultima_mensagem_id da memória da conversa.
-let EM_ANDAMENTO = new Map<string, number>();
-const JANELA_EM_ANDAMENTO_MS = 5 * 60_000;
+// ---------------------------------------------------------------------------
+// Fila do canal (v8): uma linha por mensagem do WhatsApp no banco.
+//  * retentativa (mesmo id, outra instância, outro minuto) recebe a resposta
+//    guardada: nada é gravado duas vezes e o recibo não se perde;
+//  * duas mensagens seguidas do mesmo corretor rodam uma de cada vez, na
+//    ordem em que chegaram (a memória da conversa não se atropela);
+//  * tudo cabe no tempo do n8n (90 s): a espera na fila desconta do prazo do
+//    turno, e quem esperou demais segue mesmo assim (a memória mescla).
+// ---------------------------------------------------------------------------
 
-export function reservarMensagemDoCanal(
-  userId: string,
-  mensagemId: string | null | undefined,
-): { liberar: () => void } | null {
-  if (!mensagemId) return { liberar: () => {} };
-  const chave = `${userId}:${mensagemId}`;
-  const agora = Date.now();
-  if (EM_ANDAMENTO.size > 500) {
-    EM_ANDAMENTO = new Map([...EM_ANDAMENTO].filter(([, t]) => agora - t < JANELA_EM_ANDAMENTO_MS));
+/** Tempo total que a rota tem até o n8n desistir (90 s), com folga para a resposta. */
+export const SAMI_CANAL_ORCAMENTO_MS = 82_000;
+/** Quanto uma mensagem espera a anterior do mesmo corretor terminar. */
+export const SAMI_CANAL_ESPERA_FILA_MS = 30_000;
+/** Quanto a retentativa espera a original terminar para devolver a mesma resposta. */
+export const SAMI_CANAL_ESPERA_MESMA_MS = 80_000;
+const SAMI_CANAL_INTERVALO_MS = 1_500;
+/** Processamento mais velho que isto é tratado como abandonado (caiu no meio). */
+const SAMI_CANAL_JANELA_SEG = 100;
+/** O turno nunca começa com menos que isto (melhor estourar o n8n do que não responder). */
+const SAMI_CANAL_PRAZO_MINIMO_MS = 25_000;
+
+export type TurnoDoCanal =
+  | { tipo: "repetida"; resposta: Record<string, unknown> }
+  | { tipo: "em_andamento" }
+  | {
+      tipo: "processar";
+      /** Quanto o turno ainda pode levar (o que sobrou do orçamento depois da fila). */
+      prazoMs: number;
+      concluir: (corpo: Record<string, unknown>) => Promise<void>;
+      falhou: () => Promise<void>;
+    };
+
+type RespostaDaFila =
+  | { acao: "processar"; id: string }
+  | { acao: "repetida"; resposta: Record<string, unknown> | null }
+  | { acao: "aguardar"; motivo: "mesma_mensagem" | "fila" };
+
+function lerRespostaDaFila(data: Json | null): RespostaDaFila | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  if (data.acao === "processar" && typeof data.id === "string") {
+    return { acao: "processar", id: data.id };
   }
-  if (agora - (EM_ANDAMENTO.get(chave) ?? 0) < JANELA_EM_ANDAMENTO_MS) return null;
-  EM_ANDAMENTO.set(chave, agora);
-  // Liberar = marcar como antiga (a mesma mensagem pode voltar depois de pronta).
-  return { liberar: () => void EM_ANDAMENTO.set(chave, 0) };
+  if (data.acao === "repetida") {
+    const r = data.resposta;
+    return {
+      acao: "repetida",
+      resposta: r && typeof r === "object" && !Array.isArray(r) ? r : null,
+    };
+  }
+  if (data.acao === "aguardar") {
+    return {
+      acao: "aguardar",
+      motivo: data.motivo === "mesma_mensagem" ? "mesma_mensagem" : "fila",
+    };
+  }
+  return null;
+}
+
+export async function entrarNaFilaDoCanal(args: {
+  corretorId: string;
+  mensagemId?: string | null;
+  /** Testes: relógio e espera de mentira. */
+  relogio?: () => number;
+  dormir?: (ms: number) => Promise<void>;
+}): Promise<TurnoDoCanal> {
+  const relogio = args.relogio ?? Date.now;
+  const dormir = args.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const inicio = relogio();
+  // Sem id do WhatsApp (n8n antigo): não há como reconhecer retentativa, mas a
+  // mensagem entra na fila do mesmo jeito (ordem e memória continuam certas).
+  const mensagemId = args.mensagemId?.trim() || `sem-id:${crypto.randomUUID()}`;
+  const rpc = samiqRpc(supabaseAdmin);
+
+  const pedir = async (forcar: boolean): Promise<RespostaDaFila | null> => {
+    const { data, error } = await rpc("samiq_canal_iniciar", {
+      _user_id: args.corretorId,
+      _mensagem_id: mensagemId.slice(0, 200),
+      _janela_seg: SAMI_CANAL_JANELA_SEG,
+      _forcar: forcar,
+    });
+    if (error) {
+      // Banco sem a fila (migration ainda não aplicada): segue sem ela.
+      if (isMissingBackendObject(error)) return null;
+      throw new CanalSamiError(
+        503,
+        "fila_indisponivel",
+        "O CRM não respondeu agora. Me mande de novo em 1 minuto.",
+      );
+    }
+    return lerRespostaDaFila(data);
+  };
+
+  let r = await pedir(false);
+  while (r && r.acao === "aguardar") {
+    const limite =
+      r.motivo === "mesma_mensagem" ? SAMI_CANAL_ESPERA_MESMA_MS : SAMI_CANAL_ESPERA_FILA_MS;
+    if (relogio() - inicio >= limite) break;
+    await dormir(SAMI_CANAL_INTERVALO_MS);
+    r = await pedir(false);
+  }
+  if (r && r.acao === "aguardar") {
+    // A original ainda roda e vai responder ela mesma: esta cópia fica calada.
+    if (r.motivo === "mesma_mensagem") return { tipo: "em_andamento" };
+    r = await pedir(true);
+    if (r && r.acao === "aguardar") return { tipo: "em_andamento" };
+  }
+  if (r && r.acao === "repetida") {
+    return {
+      tipo: "repetida",
+      resposta: r.resposta ?? { ok: true, tipo: "repetida", texto: "" },
+    };
+  }
+
+  const prazoMs = Math.max(
+    SAMI_CANAL_PRAZO_MINIMO_MS,
+    SAMI_CANAL_ORCAMENTO_MS - (relogio() - inicio),
+  );
+  const id = r && r.acao === "processar" ? r.id : null;
+  const fechar = async (status: "respondida" | "falhou", corpo: Record<string, unknown> | null) => {
+    if (!id) return;
+    try {
+      const { error } = await rpc("samiq_canal_concluir", {
+        _user_id: args.corretorId,
+        _id: id,
+        _status: status,
+        _resposta: corpo ? (JSON.parse(JSON.stringify(corpo)) as Json) : null,
+      });
+      if (error) {
+        console.error(JSON.stringify({ event: "samiq_canal_concluir_failed", code: error.code }));
+      }
+    } catch {
+      console.error(JSON.stringify({ event: "samiq_canal_concluir_failed", code: "exception" }));
+    }
+  };
+  return {
+    tipo: "processar",
+    prazoMs,
+    concluir: (corpo) => fechar("respondida", corpo),
+    falhou: () => fechar("falhou", null),
+  };
 }
 
 /** Erro → resposta JSON com um `texto` que o n8n pode mandar ao corretor. */

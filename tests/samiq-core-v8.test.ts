@@ -241,9 +241,15 @@ describe("um turno do WhatsApp com o CRM inteiro", () => {
     // leve: registrada e executada pelo núcleo do CONFIRMAR, na hora
     expect(m.confirmar).toHaveBeenCalledTimes(1);
     expect(r.executadas?.map((p) => [p.tipo, p.status])).toEqual([["registrar_contato", "aceita"]]);
-    // pesada: pendente, registrada depois do turno na conversa
+    // pesada: pendente, registrada ANTES do texto (a lista só mostra o que existe);
+    // conversa nova liga depois pelo execution_id (samiq_contexto_turno)
     expect(r.propostas?.map((p) => p.tipo)).toEqual(["agendar_visita"]);
-    expect(m.registrar).toHaveBeenLastCalledWith(expect.objectContaining({ conversaId: "conv-1" }));
+    expect(m.registrar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ conversaId: null, executionId: "exec-1" }),
+    );
+    expect(m.registrar.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      m.gravarTurno.mock.invocationCallOrder[0],
+    );
     // data sem fuso virou horário de SP
     expect(r.propostas?.[0].payload).toMatchObject({ inicioEm: "2026-10-31T10:00:00-03:00" });
 
@@ -331,7 +337,57 @@ describe("um turno do WhatsApp com o CRM inteiro", () => {
     expect(m.confirmar).not.toHaveBeenCalled();
     expect(r.propostas?.map((p) => p.tipo)).toEqual(["registrar_contato"]);
     expect(r.textoCanal).toBeUndefined();
-    expect(m.gravarContexto).not.toHaveBeenCalled();
+    // painel não tem memória de trabalho: só liga as pendentes à conversa nova
+    expect(m.gravarContexto).toHaveBeenCalledTimes(1);
+    expect(m.gravarContexto).toHaveBeenCalledWith(
+      expect.objectContaining({ conversaId: "conv-1", executionId: "exec-1", contexto: null }),
+    );
+  });
+
+  it("pendente que não foi guardada não aparece na lista: o corretor é avisado", async () => {
+    m.registrar.mockResolvedValueOnce([]);
+    m.passos = [
+      () =>
+        chamar([
+          "agendar_visita",
+          { leadId: LEAD, inicioEm: "2026-10-31T10:00", local: "Vibra Sabará" },
+        ]),
+      () => falar("Preparei a visita."),
+    ];
+    const r = await responder({}, "marca a Maria Silva sábado 10h");
+    expect(r.textoCanal).not.toContain("Preciso do seu OK");
+    expect(r.textoCanal).toContain(
+      "Não consegui guardar 1 item que precisava do seu OK. Me diga de novo que eu preparo.",
+    );
+    const ctx = m.gravarContexto.mock.calls[0][0] as { contexto: Record<string, unknown> };
+    expect(ctx.contexto).toMatchObject({ pendentes: [], pediu_decisao: false });
+  });
+
+  it("Sami perguntou outra coisa junto com a lista: 'sim' não decide sozinho no próximo turno", async () => {
+    m.passos = [
+      () =>
+        chamar([
+          "agendar_visita",
+          { leadId: LEAD, inicioEm: "2026-10-31T10:00", local: "Vibra Sabará" },
+        ]),
+      () => falar("Preparei a visita. Quer que eu já monte o briefing?"),
+    ];
+    await responder({}, "marca a Maria Silva sábado 10h");
+    const ctx = m.gravarContexto.mock.calls[0][0] as { contexto: Record<string, unknown> };
+    expect((ctx.contexto.pendentes as string[]).length).toBe(1);
+    expect(ctx.contexto.pediu_decisao).toBe(false);
+  });
+
+  it("'a 2' depois de 'qual Maria?': libera só o candidato 2 e avisa o modelo do id", async () => {
+    m.passos = [
+      (o) => {
+        expect(JSON.stringify(o.prompt)).toContain(
+          `Na lista \\"qual cliente?\\" o corretor escolheu o cliente de id ${LEAD}`,
+        );
+        return falar("Fechado, é a Maria Silva do Vibra.");
+      },
+    ];
+    await responder({ contexto: { ambiguos: ["outra-maria", LEAD, "terceira-maria"] } }, "a 2");
   });
 
   it("'pode marcar a visita': confirma a pendente pela fila da conversa e limpa a lista", async () => {

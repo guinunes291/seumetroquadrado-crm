@@ -74,7 +74,9 @@ export async function confirmarPropostas(args: {
       .eq("id", item.id)
       .eq("user_id", userId)
       .maybeSingle();
-    if (error || !row || (row.status !== "pendente" && row.status !== "falhou")) {
+    // 'executando' entra: a reivindicação no banco só devolve a que travou há
+    // mais de 5 minutos (processo caiu no meio); a que está rodando agora não.
+    if (error || !row || !["pendente", "falhou", "executando"].includes(row.status)) {
       resultados.push({ id: item.id, ok: false, status: "indisponivel" });
       continue;
     }
@@ -165,8 +167,12 @@ export async function confirmarPropostas(args: {
   return resultados;
 }
 
-export async function rejeitarPropostas(args: { userId: string; ids: string[] }): Promise<number> {
-  let rejeitadas = 0;
+/** Descarta uma a uma e diz quais saíram de fato (a que já estava sendo gravada não sai). */
+export async function rejeitarPropostasDetalhado(args: {
+  userId: string;
+  ids: string[];
+}): Promise<Array<{ id: string; ok: boolean }>> {
+  const out: Array<{ id: string; ok: boolean }> = [];
   for (const id of args.ids.slice(0, 20)) {
     const { data: ok, error } = await supabaseAdmin.rpc("samiq_decidir_proposta", {
       _user_id: args.userId,
@@ -176,15 +182,19 @@ export async function rejeitarPropostas(args: { userId: string; ids: string[] })
       _resultado: null,
       _erro: undefined,
     });
-    if (!error && ok === true) rejeitadas += 1;
+    out.push({ id, ok: !error && ok === true });
   }
-  return rejeitadas;
+  return out;
+}
+
+export async function rejeitarPropostas(args: { userId: string; ids: string[] }): Promise<number> {
+  return (await rejeitarPropostasDetalhado(args)).filter((r) => r.ok).length;
 }
 
 export async function desfazerProposta(args: {
   userId: string;
   id: string;
-}): Promise<{ desfeito: boolean; itens: string[] }> {
+}): Promise<{ desfeito: boolean; itens: string[]; mantidos: string[] }> {
   const { data: out, error } = await supabaseAdmin.rpc("samiq_desfazer_proposta", {
     _user_id: args.userId,
     _proposta_id: args.id,
@@ -199,25 +209,37 @@ export async function desfazerProposta(args: {
     if (msg.includes("confirmada")) throw new Error("Esta ação não foi gravada.");
     throw new Error("Não foi possível desfazer este registro.");
   }
-  const obj = (out ?? {}) as { desfeito?: boolean; itens?: string[] };
-  return { desfeito: obj.desfeito === true, itens: Array.isArray(obj.itens) ? obj.itens : [] };
+  const obj = (out ?? {}) as { desfeito?: boolean; itens?: string[]; mantidos?: string[] };
+  return {
+    desfeito: obj.desfeito === true,
+    itens: Array.isArray(obj.itens) ? obj.itens : [],
+    // O que ficou como estava porque alguém mudou depois da Sami.
+    mantidos: Array.isArray(obj.mantidos) ? obj.mantidos : [],
+  };
 }
 
 /** v8: DESFAZER pelo WhatsApp — uma ou várias ações, cada uma com o próprio resultado. */
 export async function desfazerPropostas(args: {
   userId: string;
   ids: string[];
-}): Promise<Array<{ id: string; ok: boolean; erro?: string }>> {
-  const out: Array<{ id: string; ok: boolean; erro?: string }> = [];
-  for (const id of args.ids.slice(0, 20)) {
+}): Promise<Array<{ id: string; ok: boolean; erro?: string; mantidos?: string[] }>> {
+  const ids = args.ids.slice(0, 20);
+  const porId = new Map<string, { id: string; ok: boolean; erro?: string; mantidos?: string[] }>();
+  // Do mais recente para o mais antigo (ordem do recibo ao contrário): duas
+  // ações no mesmo campo voltam na ordem certa, como uma pilha.
+  for (const id of [...ids].reverse()) {
     try {
       const r = await desfazerProposta({ userId: args.userId, id });
-      out.push({ id, ok: r.desfeito });
+      porId.set(id, {
+        id,
+        ok: r.desfeito,
+        ...(r.mantidos.length ? { mantidos: r.mantidos } : {}),
+      });
     } catch (e) {
-      out.push({ id, ok: false, erro: mensagemErro(e) });
+      porId.set(id, { id, ok: false, erro: mensagemErro(e) });
     }
   }
-  return out;
+  return ids.map((id) => porId.get(id) ?? { id, ok: false });
 }
 
 /** JSON com chaves ordenadas: "editada" só quando o conteúdo mudou de fato. */

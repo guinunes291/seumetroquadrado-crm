@@ -620,7 +620,7 @@ describe("Onda S4 — um cérebro, dois canais (migration 20260909100000)", () =
     // o canal nunca grava por conta própria: confirmar passa pelo mesmo núcleo do card
     expect(canalServer).not.toMatch(/\.(insert|update|delete|upsert)\(/);
     expect(canalServer).toContain("confirmarPropostas({");
-    expect(canalServer).toContain("rejeitarPropostas({");
+    expect(canalServer).toContain("rejeitarPropostasDetalhado({");
     expect(canalServer).not.toContain("generateText");
   });
 
@@ -801,8 +801,10 @@ describe("v8 — o CRM inteiro no WhatsApp, com autonomia por risco (migration 2
   it("controle da fila pela conversa: OK explícito em código, sem escrita própria", () => {
     expect(controle).toContain("consentimentoExplicito(args.textoDoCorretor)");
     expect(controle).toContain("confirmarPropostas(");
-    expect(controle).toContain("rejeitarPropostas(");
+    expect(controle).toContain("rejeitarPropostasDetalhado(");
     expect(controle).toContain("desfazerPropostas(");
+    // venda, perda, troca de vaga e crédito: só com o CONFIRMAR do corretor
+    expect(controle).toContain("SAMIQ_TIPOS_SO_COM_CONFIRMAR.has(p.tipo)");
     expect(controle).not.toMatch(/\.(insert|update|delete|upsert)\(|\.rpc\(|supabaseAdmin/);
   });
 
@@ -823,12 +825,17 @@ describe("v8 — o CRM inteiro no WhatsApp, com autonomia por risco (migration 2
   });
 
   it("rota de mensagem: retentativa não repete ação; comando curto decide sem modelo", () => {
-    expect(mensagem).toContain("canal.reservarMensagemDoCanal(corretor.id, body.mensagem_id)");
-    expect(mensagem).toContain("lido.ultima_mensagem_id === body.mensagem_id");
+    // fila no banco: a retentativa recebe a resposta guardada
+    expect(mensagem).toContain("canal.entrarNaFilaDoCanal({");
+    expect(mensagem).toContain('if (fila.tipo === "repetida")');
+    expect(mensagem).toContain("await fila.concluir(corpo);");
+    expect(mensagem).toMatch(/catch \(error\) \{\s*await falhou\?\.\(\);/);
+    expect(mensagem).toContain("tempoMaximoMs: fila.prazoMs");
+    expect(canalServer).toContain('rpc("samiq_canal_iniciar", {');
+    expect(canalServer).toContain('rpc("samiq_canal_concluir", {');
     expect(mensagem).toContain("comando.forte || contexto.pediu_decisao");
     expect(mensagem).toContain("canal.decidirPendentes({");
     expect(mensagem).toContain("canal.desfazerPeloCanal({");
-    expect(mensagem).toMatch(/finally \{\s*reserva\?\.liberar\(\);/);
   });
 
   it("anexo: tipo pelos bytes, área de espera privada, conteúdo nunca vai ao modelo", () => {

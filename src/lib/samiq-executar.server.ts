@@ -60,6 +60,11 @@ export type ExecutarArgs = {
 const DIA_MS = 24 * 60 * 60 * 1000;
 const HORA_MS = 60 * 60 * 1000;
 
+/** Linha do banco como Json (cópia sem undefined, para guardar no resultado). */
+function paraJson(valor: unknown): Json {
+  return JSON.parse(JSON.stringify(valor ?? null)) as Json;
+}
+
 function erroDb(contexto: string, error: { message?: string; code?: string } | null): never {
   const detalhe = error?.message ? ` (${error.message.slice(0, 140)})` : "";
   throw new Error(`${contexto}${detalhe}`);
@@ -146,7 +151,7 @@ async function garantirFollowUp(
     corretorId: string;
     criadoPorId: string;
   },
-): Promise<{ criou: boolean; tarefaId: string | null }> {
+): Promise<{ criou: boolean; tarefaId: string | null; anterior?: Json }> {
   const mesmoHorario = await tarefaAbertaNoMesmoHorario(supabase, args.leadId, args.vencimento);
   if (mesmoHorario) {
     if (mesmoHorario.data_vencimento !== args.vencimento) {
@@ -156,12 +161,12 @@ async function garantirFollowUp(
         .eq("id", mesmoHorario.id);
       if (error) erroDb("Não foi possível atualizar o follow-up", error);
     }
-    return { criou: false, tarefaId: mesmoHorario.id };
+    return { criou: false, tarefaId: mesmoHorario.id, anterior: paraJson(mesmoHorario) };
   }
   const vencMs = Date.parse(args.vencimento);
   const { data: abertas, error: selErr } = await supabase
     .from("tarefas")
-    .select("id")
+    .select("id, titulo, tipo, prioridade, data_vencimento")
     .eq("lead_id", args.leadId)
     .eq("tipo", args.tipo)
     .in("status", ["pendente", "em_andamento"])
@@ -180,7 +185,7 @@ async function garantirFollowUp(
       })
       .eq("id", abertas[0].id);
     if (error) erroDb("Não foi possível atualizar o follow-up", error);
-    return { criou: false, tarefaId: abertas[0].id };
+    return { criou: false, tarefaId: abertas[0].id, anterior: paraJson(abertas[0]) };
   }
   const { data, error } = await supabase
     .from("tarefas")
@@ -288,21 +293,86 @@ async function registrarContatoOficial(
   return (data ?? {}) as ContatoRpc;
 }
 
-/** Follow-ups abertos do lead a ±1 dia (o registrar_contato_lead reaproveita um deles). */
-async function followUpsAbertosPerto(supabase: Db, leadId: string, iso: string): Promise<string[]> {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return [];
-  const { data } = await supabase
+/**
+ * Follow-up garantido por uma ação: o criado o desfazer apaga; o que já
+ * existia (e a Sami só mudou) volta ao que era, se ninguém mexeu depois.
+ */
+async function anotarFollowUp(
+  supabase: Db,
+  resultado: ResultadoExecucao,
+  fu: { criou: boolean; tarefaId: string | null; anterior?: Json },
+): Promise<void> {
+  if (!fu.tarefaId) return;
+  if (fu.criou) {
+    resultado.tarefa_id = fu.tarefaId;
+    return;
+  }
+  if (fu.anterior && !resultado.tarefa_atualizada_id) {
+    resultado.tarefa_atualizada_id = fu.tarefaId;
+    resultado.tarefa_anterior = fu.anterior;
+    resultado.tarefa_depois = await estadoDepoisDaTarefa(supabase, fu.tarefaId);
+  }
+}
+
+type EstadoTarefa = {
+  id: string;
+  titulo: string;
+  tipo: string;
+  status: string;
+  prioridade: string;
+  data_vencimento: string | null;
+  data_conclusao: string | null;
+  resultado: string | null;
+};
+
+/**
+ * Tarefas abertas do lead ANTES de uma ação que pode reaproveitar uma delas
+ * (o registrar_contato_lead escolhe a data padrão sozinho quando o corretor
+ * não diz quando volta). Com isso o desfazer sabe o que foi criado e o que já
+ * existia, e devolve a que já existia ao estado de antes em vez de apagá-la.
+ */
+async function tarefasAbertasDoLead(supabase: Db, leadId: string): Promise<EstadoTarefa[]> {
+  const { data, error } = await supabase
     .from("tarefas")
-    .select("id")
+    .select("id, titulo, tipo, status, prioridade, data_vencimento, data_conclusao, resultado")
     .eq("lead_id", leadId)
-    .eq("tipo", "follow_up")
     .in("status", ["pendente", "em_andamento"])
     .is("deleted_at", null)
-    .gte("data_vencimento", new Date(t - DIA_MS).toISOString())
-    .lte("data_vencimento", new Date(t + DIA_MS).toISOString())
-    .limit(10);
-  return (data ?? []).map((r) => r.id);
+    .limit(100);
+  if (error) erroDb("Não foi possível conferir as tarefas do cliente", error);
+  return (data ?? []) as EstadoTarefa[];
+}
+
+/**
+ * Como a tarefa ficou depois da Sami: o desfazer só devolve o estado anterior
+ * se ninguém mexeu nela depois (senão mantém o que o corretor fez na tela).
+ */
+async function estadoDepoisDaTarefa(supabase: Db, id: string): Promise<Json | undefined> {
+  const { data } = await supabase
+    .from("tarefas")
+    .select("status, data_vencimento")
+    .eq("id", id)
+    .maybeSingle();
+  return data
+    ? ({ status: data.status, data_vencimento: data.data_vencimento } as Json)
+    : undefined;
+}
+
+/** Valores das colunas da ficha logo depois da gravação (o desfazer compara com eles). */
+async function fichaDepois(
+  supabase: Db,
+  leadId: string,
+  colunas: string[],
+): Promise<Record<string, Json> | undefined> {
+  if (colunas.length === 0) return undefined;
+  const { data } = await supabase
+    .from("leads")
+    .select(colunas.join(", "))
+    .eq("id", leadId)
+    .maybeSingle();
+  const linha = paraJson(data);
+  if (!linha || typeof linha !== "object" || Array.isArray(linha)) return undefined;
+  return Object.fromEntries(colunas.map((c) => [c, linha[c] ?? null]));
 }
 
 /** Duas tarefas abertas no mesmo horário exato (cadência + retorno): fica a mais nova. */
@@ -372,7 +442,9 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
     case "registrar_contato": {
       const lead = await carregarLead(supabase, payload.leadId);
       const followup = payload.followupEm ? new Date(payload.followupEm).toISOString() : null;
-      const antes = followup ? await followUpsAbertosPerto(supabase, lead.id, followup) : [];
+      // Sem data dita, o CRM escolhe o follow-up (amanhã) e pode reaproveitar
+      // uma tarefa que o corretor já tinha: guarda TODAS as abertas antes.
+      const antes = await tarefasAbertasDoLead(supabase, lead.id);
       const out = await registrarContatoOficial(supabase, {
         leadId: lead.id,
         canal: payload.canal,
@@ -389,8 +461,14 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         etapa_nova: out.status ?? lead.status,
       };
       if (out.tarefa_id) {
-        if (antes.includes(out.tarefa_id)) resultado.tarefa_atualizada_id = out.tarefa_id;
-        else resultado.tarefa_id = out.tarefa_id;
+        const existia = antes.find((t) => t.id === out.tarefa_id);
+        if (existia) {
+          resultado.tarefa_atualizada_id = out.tarefa_id;
+          resultado.tarefa_anterior = paraJson(existia);
+          resultado.tarefa_depois = await estadoDepoisDaTarefa(supabase, out.tarefa_id);
+        } else {
+          resultado.tarefa_id = out.tarefa_id;
+        }
       }
       const avisos: string[] = [];
       if (out.interacao_id) {
@@ -423,7 +501,10 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
         const objecoes = payload.objecoes;
         await auxiliar(avisos, "objeções", async () => {
           const obj = await unirObjecoes(supabase, lead, objecoes);
-          if (obj.alterou) resultado.lead_anterior = { objecoes: obj.anterior };
+          if (obj.alterou) {
+            resultado.lead_anterior = { objecoes: obj.anterior };
+            resultado.lead_depois = await fichaDepois(supabase, lead.id, ["objecoes"]);
+          }
         });
       }
       const efeitos: string[] = [];
@@ -488,6 +569,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
               prioridade: existente.prioridade,
               data_vencimento: existente.data_vencimento,
             },
+            tarefa_depois: await estadoDepoisDaTarefa(supabase, existente.id),
             efeito: "aproveitei a tarefa que já existia nesse horário",
           };
         }
@@ -566,6 +648,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       return {
         lead_id: lead.id,
         lead_anterior: anterior,
+        lead_depois: await fichaDepois(supabase, lead.id, Object.keys(anterior)),
         campos: Object.keys(patch),
         efeito: null,
       };
@@ -640,7 +723,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
               corretorId: lead.corretor_id ?? userId,
               criadoPorId: userId,
             });
-            if (fu.criou) resultado.tarefa_id = fu.tarefaId;
+            await anotarFollowUp(supabase, resultado, fu);
           });
           if (avisos.length) resultado.avisos = avisos;
         }
@@ -687,7 +770,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
             corretorId: lead.corretor_id ?? userId,
             criadoPorId: userId,
           });
-          if (fu.criou) resultado.tarefa_id = fu.tarefaId;
+          await anotarFollowUp(supabase, resultado, fu);
         });
         if (avisos.length) resultado.avisos = avisos;
       }
@@ -746,7 +829,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           corretorId: lead.corretor_id ?? userId,
           criadoPorId: userId,
         });
-        if (fu.criou) resultado.tarefa_id = fu.tarefaId;
+        await anotarFollowUp(supabase, resultado, fu);
         resultado.etapa_nova = (await statusAtual(supabase, lead.id)) ?? lead.status;
         resultado.efeito = `contato gravado e tarefa de retorno ${fmtDataHoraSP(retorno)}; o funil não levou para Aguardando retorno (${(rErr.message ?? "").slice(0, 100)})${
           contato.lotado ? `; ${textoLotado(contato.lotado)}` : ""
@@ -849,7 +932,13 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       }
       const { error } = await supabase.from("tarefas").update(patch).eq("id", t.id);
       if (error) erroDb("Não foi possível atualizar a tarefa", error);
-      return { tarefa_atualizada_id: t.id, tarefa_anterior: anterior, lead_id: t.lead_id, efeito };
+      return {
+        tarefa_atualizada_id: t.id,
+        tarefa_anterior: anterior,
+        tarefa_depois: await estadoDepoisDaTarefa(supabase, t.id),
+        lead_id: t.lead_id,
+        efeito,
+      };
     }
 
     case "confirmar_visita":
@@ -998,7 +1087,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
               corretorId: a.corretor_id ?? userId,
               criadoPorId: userId,
             });
-            if (fu.criou) resultado.tarefa_id = fu.tarefaId;
+            await anotarFollowUp(supabase, resultado, fu);
           });
           if (avisos.length) resultado.avisos = avisos;
         }
@@ -1106,7 +1195,14 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
             .update({ deleted_at: new Date().toISOString() })
             .eq("id", autoGerado);
         }
-        erroDb("O CRM recusou o resultado da visita", vErr);
+        // A passagem por Agendado já aconteceu e o funil não volta: o recibo
+        // diz isso em vez de fingir que nada mudou.
+        erroDb(
+          etapaAntes !== lead.status
+            ? "O CRM recusou o resultado da visita (o cliente ficou em Agendado; me diga de novo como foi)"
+            : "O CRM recusou o resultado da visita",
+          vErr,
+        );
       }
       const resultado: ResultadoExecucao = {
         lead_id: lead.id,
@@ -1126,7 +1222,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
             corretorId: lead.corretor_id ?? userId,
             criadoPorId: userId,
           });
-          if (fu.criou) resultado.tarefa_id = fu.tarefaId;
+          await anotarFollowUp(supabase, resultado, fu);
         });
       }
       if (avisos.length) resultado.avisos = avisos;
@@ -1223,8 +1319,13 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           observacoes: doc.observacoes,
           recebido_em: doc.recebido_em,
         };
+        resultado.documento_depois = { status: payload.status };
       }
       const depois = await statusAtual(supabase, lead.id);
+      if (depois && depois !== lead.status) {
+        resultado.etapa_anterior = lead.status;
+        resultado.etapa_nova = depois;
+      }
       resultado.efeito = `${docLabel(payload.documento)}: ${payload.status}${
         depois && depois !== lead.status
           ? `; pasta montada, cliente foi para ${rotuloEtapa(depois)}`
@@ -1319,7 +1420,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
             corretorId: lead.corretor_id ?? userId,
             criadoPorId: userId,
           });
-          if (fu.criou) resultado.tarefa_id = fu.tarefaId;
+          await anotarFollowUp(supabase, resultado, fu);
         });
       }
       if (avisos.length) resultado.avisos = avisos;

@@ -17,7 +17,7 @@ import {
   interpretarRespostaCurta,
   mimePelosBytes,
   numerosSoltos,
-  pareceEscolha,
+  escolherCandidato,
   primeiroNome,
   semRegistroFantasma,
   sufixoTelefone,
@@ -270,13 +270,38 @@ describe("consentimento natural e escolha pela lista", () => {
     }
   });
 
-  it("'a 2', 'o primeiro', 'essa' são escolha; frase comum não", () => {
-    for (const t of ["a 2", "2", "o primeiro", "é a segunda", "essa", "a da última"]) {
-      expect(pareceEscolha(t), t).toBe(true);
+  it("escolha na lista de homônimos libera UM candidato; frase comum não libera ninguém", () => {
+    const ids = ["m1", "m2", "m3"];
+    const casos: Array<[string, string | null]> = [
+      ["2", "m2"],
+      ["a 2", "m2"],
+      ["opção 3", "m3"],
+      ["o primeiro", "m1"],
+      ["é a segunda", "m2"],
+      ["a da última", "m3"],
+      ["a 2 mesmo", "m2"],
+      // não escolhem: número no meio de um relato, pronome, "essa" sem dizer qual
+      ["liguei 3 vezes hoje", null],
+      ["ela atendeu e quer visitar sabado", null],
+      ["ele nao atendeu", null],
+      ["essa", null],
+      ["5", null],
+      ["", null],
+    ];
+    for (const [t, esperado] of casos) expect(escolherCandidato(t, ids), t).toBe(esperado);
+    expect(escolherCandidato("2", [])).toBeNull();
+  });
+
+  it("relato com palavra de OK no meio não é OK", () => {
+    for (const t of [
+      "A Maria disse que vai pensar, registra",
+      "registra o contato com o João, ele vai visitar sábado",
+      "ok, ela atendeu e quer visitar",
+      "pode marcar, depois eu vejo o horário com ela",
+    ]) {
+      expect(consentimentoExplicito(t), t).toBe(false);
     }
-    for (const t of ["liguei pra Maria", "quem tem visita hoje", ""]) {
-      expect(pareceEscolha(t), t).toBe(false);
-    }
+    expect(consentimentoExplicito("sim, pode marcar a visita da Maria")).toBe(true);
   });
 });
 
@@ -416,8 +441,28 @@ describe("textos para o WhatsApp", () => {
     );
     expect(t).toContain("Gravei no CRM:\n1) Contato com Maria da Silva (entrou em Em atendimento");
     expect(t).toContain("Não consegui gravar: Visita de Maria da Silva (Data no passado).");
-    expect(textoDaDecisao("rejeitar", [], [contato, visita])).toBe(
-      "Descartei 2 itens. Nada disso foi gravado.",
+    expect(
+      textoDaDecisao(
+        "rejeitar",
+        [
+          { id: P1, ok: true, status: "rejeitada" },
+          { id: P2, ok: true, status: "rejeitada" },
+        ],
+        [contato, visita],
+      ),
+    ).toBe("Descartei 2 itens. Nada disso foi gravado.");
+    // descarte que não pegou (já estava sendo gravado) não vira "descartei"
+    expect(
+      textoDaDecisao(
+        "rejeitar",
+        [
+          { id: P1, ok: true, status: "rejeitada" },
+          { id: P2, ok: false, status: "indisponivel" },
+        ],
+        [contato, visita],
+      ),
+    ).toBe(
+      "Descartei 1 item. Nada disso foi gravado.\n\nNão consegui descartar: Visita de Maria da Silva (já estava sendo gravado ou o CRM não respondeu).",
     );
     expect(textoDaDecisao("confirmar", [], [])).toMatch(/^Não há nada esperando confirmação/);
     const parcial = textoDaDecisao(

@@ -328,6 +328,8 @@ describe("escrita como corretor + desfazer", () => {
     expect(out.rows[0].r).toEqual({
       desfeito: true,
       itens: ["interacao", "tarefa", "agendamento", "lead"],
+      // v8: o que o corretor mudou depois da Sami (nada, aqui) fica como está
+      mantidos: [],
     });
 
     const estado = await c.query(

@@ -144,7 +144,7 @@ Se não conseguir responder com os dados disponíveis, comece a resposta exatame
 - Cliente novo: criar_lead com o nome e o marcador [TELEFONE_n] da MESMA mensagem; se o telefone já existir, use o cliente existente.
 - Lote de prospecção: pedir_lote com a zona (confira antes em minha_situacao).
 - Qualificação Corretor: mudar_etapa (única etapa avulsa; as outras vêm pelo desfecho).
-- "Pode marcar", "isso, grava": confirmar_pendentes. Corrigiu um item que espera OK: crie o item certo e descartar_pendentes no antigo. "Apaga aquele registro": desfazer_acoes.
+- "Pode marcar", "isso, grava": confirmar_pendentes com o número do item (venda, perda, troca de vaga e crédito só com o CONFIRMAR dele). Corrigiu um item que espera OK: crie o item certo e descartar_pendentes no antigo. "Apaga aquele registro": desfazer_acoes.
 - Consultas: minha_fila (quem procurar agora), minha_agenda, minhas_tarefas, meu_funil, listar_clientes (por etapa, temperatura ou parados), detalhe_cliente, material_do_projeto, catalogo_projetos, curar_estoque, pre_analise_mcmv, avaliar_qualificacao, preparar_visita.
 Datas: use o calendário do cabeçalho; mande AAAA-MM-DDTHH:MM no horário de São Paulo. Depois de gravar, responda curto: o resultado (efeito que a ferramenta devolveu) e o próximo passo do método.$acao$),
     GREATEST(_base.max_output_tokens, 2000),

@@ -365,28 +365,111 @@ const CORRECAO = new Set([
   "ainda",
 ]);
 
-export function consentimentoExplicito(texto: string): boolean {
-  const bruto = (texto ?? "").trim();
-  if (!bruto || bruto.length > 280) return false;
-  if (/[❌👎?]/u.test(bruto)) return false;
-  const palavras = palavrasDe(bruto);
-  if (palavras.some((p) => CORRECAO.has(p))) return false;
-  return /[✅👍]/u.test(bruto) || palavras.some((p) => OK_NATURAL.has(p));
-}
+/** Marcas de relato (fato novo), não de OK: "ela disse que vai pensar". */
+const RELATO = new Set([
+  "disse",
+  "falou",
+  "ficou",
+  "pensar",
+  "acha",
+  "achou",
+  "talvez",
+  "liguei",
+  "ligou",
+  "atendeu",
+  "pediu",
+  "quer",
+  "queria",
+  "vai",
+  "vou",
+  "depois",
+  "quando",
+  "se",
+  "comprou",
+  "desistiu",
+  "veio",
+  "visitou",
+]);
 
 /**
- * A mensagem parece RESPOSTA a uma lista de opções ("a 2", "o primeiro",
- * "essa")? Usado para liberar a trava de homônimos quando o corretor escolhe
- * pelo número da lista que a própria Sami mostrou.
+ * OK em linguagem natural para itens que esperam confirmação: mensagem curta
+ * (até 10 palavras) que ABRE com a palavra de OK ("pode marcar", "isso, grava
+ * a visita", "👍"), sem correção ("mas", "muda") e sem relato ("ela disse que
+ * vai pensar"). Relato com "registra" no meio é fato novo, não OK.
  */
-export function pareceEscolha(texto: string): boolean {
-  const t = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-  if (!t || t.length > 120) return false;
-  return (
-    /(^|\D)[1-8](\D|$)/.test(t) ||
-    /\b(primeir|segund|terceir|quart|quint|ultim)/.test(t) ||
-    /^(e |eh |sim,? )?(essa|esse|ela|ele|isso|a mesma|o mesmo|dela|dele)\b/.test(t)
-  );
+export function consentimentoExplicito(texto: string): boolean {
+  const bruto = (texto ?? "").trim();
+  if (!bruto || bruto.length > 120) return false;
+  if (/[❌👎?]/u.test(bruto)) return false;
+  const palavras = palavrasDe(bruto.replace(/[✅👍]/gu, " ok "));
+  if (palavras.length === 0 || palavras.length > 10) return false;
+  if (palavras.some((p) => CORRECAO.has(p))) return false;
+  if (palavras.slice(1).some((p) => RELATO.has(p))) return false;
+  return OK_NATURAL.has(palavras[0]);
+}
+
+const ORDINAIS: Record<string, number> = {
+  primeira: 1,
+  primeiro: 1,
+  segunda: 2,
+  segundo: 2,
+  terceira: 3,
+  terceiro: 3,
+  quarta: 4,
+  quarto: 4,
+  quinta: 5,
+  quinto: 5,
+};
+/** Palavras que podem cercar a escolha sem mudar o sentido ("é a 2", "a da segunda", "opção 3"). */
+const MOLDURA_DA_ESCOLHA = new Set([
+  "a",
+  "o",
+  "e",
+  "eh",
+  "da",
+  "do",
+  "de",
+  "na",
+  "no",
+  "numero",
+  "num",
+  "n",
+  "opcao",
+  "item",
+  "sim",
+  "isso",
+  "mesmo",
+  "mesma",
+  "pode",
+  "ser",
+  "essa",
+  "esse",
+]);
+
+/**
+ * Resposta à pergunta "qual Maria? 1) ... 2) ...": o ÚNICO candidato que o
+ * corretor escolheu ("2", "a 2", "é a segunda", "a última", "opção 3"), na
+ * ordem da lista que a Sami mostrou. Qualquer outra coisa devolve null e a
+ * trava continua: frase com número ("liguei 3 vezes"), pronome ("ela
+ * atendeu"), ou "essa" sem dizer qual.
+ */
+export function escolherCandidato(texto: string, candidatos: ReadonlyArray<string>): string | null {
+  if (candidatos.length === 0) return null;
+  const palavras = palavrasDe(texto ?? "");
+  if (palavras.length === 0 || palavras.length > 5) return null;
+  const resto = palavras.filter((p) => !MOLDURA_DA_ESCOLHA.has(p));
+  if (resto.length !== 1) return null;
+  const w = resto[0];
+  const n = /^\d{1,2}$/.test(w)
+    ? Number(w)
+    : (ORDINAIS[w] ?? (w === "ultima" || w === "ultimo" ? candidatos.length : null));
+  if (!n || n < 1 || n > candidatos.length) return null;
+  return candidatos[n - 1] ?? null;
+}
+
+/** A fala da Sami terminou perguntando outra coisa? Então "sim"/"não" não decidem a lista. */
+export function falaComPergunta(texto: string): boolean {
+  return /\?/.test(texto ?? "");
 }
 
 /** "1", "1 e 3", "2,3": só números (resposta à lista, sem dizer o que fazer com ela). */
@@ -592,7 +675,18 @@ export function textoDaDecisao(
   }
   const linhas: Array<string | null> = [];
   if (decisao === "rejeitar") {
-    linhas.push(`Descartei ${plural(propostas.length, "item", "itens")}. Nada disso foi gravado.`);
+    const sairam = propostas.filter((p) => resultados.some((r) => r.id === p.id && r.ok));
+    const ficaram = propostas.filter((p) => !sairam.includes(p));
+    if (sairam.length) {
+      linhas.push(`Descartei ${plural(sairam.length, "item", "itens")}. Nada disso foi gravado.`);
+    }
+    if (ficaram.length) {
+      linhas.push(
+        `Não consegui descartar: ${ficaram
+          .map((p) => descreverProposta(p.payload, p.leadNome).titulo)
+          .join("; ")} (já estava sendo gravado ou o CRM não respondeu).`,
+      );
+    }
   } else {
     linhas.push(textoDasExecutadas(executadasDaDecisao(propostas, resultados)));
   }
@@ -601,8 +695,22 @@ export function textoDaDecisao(
 }
 
 /** Texto do DESFAZER. */
+const MANTIDO_LABEL: Record<string, string> = {
+  tarefa: "a tarefa (já foi feita ou cancelada)",
+  tarefa_restaurada: "a tarefa (mudou depois)",
+  agendamento: "a visita (já foi realizada ou cancelada)",
+  agendamento_novo: "a visita nova (já foi realizada ou cancelada)",
+  agendamento_restaurado: "a visita (mudou depois)",
+  documento: "o documento (mudou depois ou já tem arquivo)",
+};
+
+function rotuloMantido(m: string): string {
+  if (m.startsWith("ficha:")) return `${m.slice(6).replace(/_/g, " ")} na ficha`;
+  return MANTIDO_LABEL[m] ?? m.replace(/_/g, " ");
+}
+
 export function textoDoDesfazer(
-  resultados: ReadonlyArray<{ id: string; ok: boolean; erro?: string }>,
+  resultados: ReadonlyArray<{ id: string; ok: boolean; erro?: string; mantidos?: string[] }>,
   acoes: ReadonlyArray<PropostaSamiQ>,
   /** Itens que o corretor apontou e que não voltam (já desfeitos, fora do prazo, tipo que não volta). */
   ignoradas: ReadonlyArray<{ acao: PropostaSamiQ; motivo: MotivoSemDesfazer }> = [],
@@ -629,10 +737,16 @@ export function textoDoDesfazer(
       `Não desfiz: ${falhas.map((r) => `${titulo(r.id)}${r.erro ? ` (${r.erro})` : ""}`).join("; ")}.`,
     );
   }
+  const mantidos = [...new Set(feitos.flatMap((r) => (r.mantidos ?? []).map(rotuloMantido)))];
+  if (mantidos.length) {
+    linhas.push(`Deixei como está o que mudou depois: ${mantidos.join("; ")}.`);
+  }
   const mexeuEtapa = acoes.some(
     (a) =>
       feitos.some((f) => f.id === a.id) &&
-      (a.tipo === "registrar_contato" || a.tipo === "agendar_visita"),
+      (a.tipo === "registrar_contato" ||
+        a.tipo === "agendar_visita" ||
+        /entrou em|foi para/.test(a.efeito ?? "")),
   );
   if (mexeuEtapa)
     linhas.push("A etapa do funil não volta sozinha; se precisar, me diga para onde.");

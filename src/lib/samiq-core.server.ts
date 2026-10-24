@@ -65,7 +65,7 @@ import {
   type ClienteCitado,
   type ContextoConversaSamiQ,
 } from "@/lib/samiq-contexto";
-import { pareceEscolha, textoParaWhatsApp } from "@/lib/samiq-canal";
+import { escolherCandidato, falaComPergunta, textoParaWhatsApp } from "@/lib/samiq-canal";
 import { leadStatusLabel } from "@/lib/leads";
 import { finishSamiQExecution, reserveSamiQExecution } from "./samiq-governance.server";
 import {
@@ -144,6 +144,8 @@ export type ResponderSamiQArgs = {
   localizacao?: LocalizacaoDoTurno | null;
   /** v8: contexto que só o n8n tem (material enviado fora do CRM, últimas mensagens). */
   contextoCanal?: string | null;
+  /** v8: o que sobrou do tempo do n8n depois da fila (o turno nunca passa disso). */
+  tempoMaximoMs?: number;
   agora?: Date;
 };
 
@@ -396,11 +398,11 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
         if (i >= 0) citados.splice(i, 1);
         citados.push({ id: c.id, nome: displayNameForSamiQ(c.nome), etapa: c.etapa ?? null });
       };
-      // "a 2" depois de "qual Maria? 1) ... 2) ...": a escolha é do corretor.
-      const liberados =
-        contexto.ambiguos?.length && pareceEscolha(data.pergunta ?? "")
-          ? new Set(contexto.ambiguos)
-          : undefined;
+      // "a 2" depois de "qual Maria? 1) ... 2) ...": libera SÓ o escolhido.
+      const escolhido = contexto.ambiguos?.length
+        ? escolherCandidato(data.pergunta ?? "", contexto.ambiguos)
+        : null;
+      const liberados = escolhido ? new Set([escolhido]) : undefined;
       // Trava de homônimos lê o texto CRU do corretor (este turno e os dele antes).
       const textoDoCorretor = [
         ...(data.historico ?? []).filter((m) => m.role === "user").map((m) => m.content),
@@ -534,6 +536,9 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           : canal === "whatsapp"
             ? "Sem localização recente: check-in na filial precisa dela (peça pelo clipe, Localização)."
             : null,
+        escolhido
+          ? `Na lista "qual cliente?" o corretor escolheu o cliente de id ${escolhido}: use esse id.`
+          : null,
         Object.keys(mapaPii).length
           ? "Os marcadores [TELEFONE_n], [EMAIL_n] e [CPF_n] desta mensagem valem só nela: use-os direto nas ferramentas (buscar_clientes, criar_lead), sem pedir o dado de novo."
           : null,
@@ -567,7 +572,7 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           prepareStep: () => ({ activeTools: ativas() }),
           stopWhen: stepCountIs(reservation.maxToolSteps),
           maxOutputTokens: reservation.maxOutputTokens,
-          timeout: { totalMs: TEMPO_MAXIMO_MS[canal] },
+          timeout: { totalMs: Math.min(TEMPO_MAXIMO_MS[canal], args.tempoMaximoMs ?? Infinity) },
         });
         telemetria = contarFerramentasSamiQ(result.steps);
         texto = result.text.trim();
@@ -667,17 +672,37 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       ...controle.descartadas.map((p) => p.id),
     ]);
     const pendentesAntes = (args.recentes?.pendentes ?? []).filter((p) => !decididas.has(p.id));
-    const pendentesNovas = coletor.map((c) => ({ payload: c.payload, leadNome: c.leadNome }));
-    const mostrarPendentes = pendentesNovas.length > 0 || decididas.size > 0;
+
+    // ----- Ações que esperam o OK: persistem como 'pendente' ANTES do texto,
+    // para a lista "Preciso do seu OK" só ter o que existe de fato. Conversa
+    // nova liga depois, pelo execution_id (samiq_contexto_turno). -----
+    let propostas: PropostaSamiQ[] = [];
+    if (coletor.length > 0) {
+      propostas = await registrarPropostasSamiQ({
+        userId,
+        executionId: reservation.executionId,
+        conversaId: data.conversaId ?? null,
+        coletadas: coletor,
+      });
+    }
+    const naoGuardadas = Math.min(coletor.length, 20) - propostas.length;
+    const mostrarPendentes = propostas.length > 0 || decididas.size > 0;
     const textoCanal =
       canal === "whatsapp"
-        ? textoParaWhatsApp({
-            texto,
-            executadas: gravadas,
-            pendentes: mostrarPendentes ? [...pendentesAntes, ...pendentesNovas] : [],
-            desfeitas: controle.desfeitas,
-            descartadas: controle.descartadas,
-          })
+        ? [
+            textoParaWhatsApp({
+              texto,
+              executadas: gravadas,
+              pendentes: mostrarPendentes ? [...pendentesAntes, ...propostas] : [],
+              desfeitas: controle.desfeitas,
+              descartadas: controle.descartadas,
+            }),
+            naoGuardadas > 0
+              ? `Não consegui guardar ${naoGuardadas === 1 ? "1 item que precisava" : `${naoGuardadas} itens que precisavam`} do seu OK. Me diga de novo que eu preparo.`
+              : null,
+          ]
+            .filter((p): p is string => !!p)
+            .join("\n\n")
         : undefined;
 
     // ----- Memória (D11): o turno vai para a conversa do canal, já redigido -----
@@ -697,14 +722,13 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       canal,
     });
 
-    // ----- Ações que esperam o OK: persistem como 'pendente' até o corretor decidir -----
-    let propostas: PropostaSamiQ[] = [];
-    if (coletor.length > 0) {
-      propostas = await registrarPropostasSamiQ({
+    // Painel: conversa que nasceu agora recebe as pendentes do turno.
+    if (conversaId && canal !== "whatsapp" && propostas.length > 0 && !data.conversaId) {
+      await gravarContextoTurnoSamiQ({
         userId,
-        executionId: reservation.executionId,
         conversaId,
-        coletadas: coletor,
+        executionId: reservation.executionId,
+        contexto: null,
       });
     }
 
@@ -722,8 +746,10 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           pendentes: pendentesConversa.map((p) => p.id),
           // DESFAZER N vale para o último recibo que o corretor viu.
           executadas: gravadasOk.length ? gravadasOk.map((p) => p.id) : (contexto.executadas ?? []),
-          // "sim"/"ok" só decidem quando ESTA mensagem pediu o OK.
-          pediu_decisao: mostrarPendentes && pendentesConversa.length > 0,
+          // "sim"/"ok" só decidem quando ESTA mensagem pediu o OK e a fala
+          // da Sami não terminou perguntando outra coisa ("quer o briefing?").
+          pediu_decisao:
+            mostrarPendentes && pendentesConversa.length > 0 && !falaComPergunta(texto),
           ambiguos,
           localizacao: contexto.localizacao ?? null,
           anexo_pendente:
