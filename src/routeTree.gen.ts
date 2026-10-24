@@ -97,6 +97,7 @@ import { Route as ApiPublicAgendamentoIcsRouteImport } from './routes/api/public
 import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
+import { Route as ApiSamiAnexoRouteImport } from './routes/api/sami/anexo'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
 import { Route as ApiSamiDiretrizesRouteImport } from './routes/api/sami/diretrizes'
 import { Route as ApiSamiMensagemRouteImport } from './routes/api/sami/mensagem'
@@ -599,6 +600,11 @@ const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
   path: '/api/public/vitrine',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSamiAnexoRoute = ApiSamiAnexoRouteImport.update({
+  id: '/api/sami/anexo',
+  path: '/api/sami/anexo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSamiBriefingRoute = ApiSamiBriefingRouteImport.update({
   id: '/api/sami/briefing',
   path: '/api/sami/briefing',
@@ -869,6 +875,7 @@ export interface FileRoutesByFullPath {
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -992,6 +999,7 @@ export interface FileRoutesByTo {
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -1117,6 +1125,7 @@ export interface FileRoutesById {
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -1242,6 +1251,7 @@ export interface FileRouteTypes {
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
+    | '/api/sami/anexo'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1365,6 +1375,7 @@ export interface FileRouteTypes {
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
+    | '/api/sami/anexo'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1489,6 +1500,7 @@ export interface FileRouteTypes {
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
+    | '/api/sami/anexo'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1552,6 +1564,7 @@ export interface RootRouteChildren {
   ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
+  ApiSamiAnexoRoute: typeof ApiSamiAnexoRoute
   ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
   ApiSamiDiretrizesRoute: typeof ApiSamiDiretrizesRoute
   ApiSamiMensagemRoute: typeof ApiSamiMensagemRoute
@@ -2194,6 +2207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicVitrineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sami/anexo': {
+      id: '/api/sami/anexo'
+      path: '/api/sami/anexo'
+      fullPath: '/api/sami/anexo'
+      preLoaderRoute: typeof ApiSamiAnexoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sami/briefing': {
       id: '/api/sami/briefing'
       path: '/api/sami/briefing'
@@ -2643,6 +2663,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
+  ApiSamiAnexoRoute: ApiSamiAnexoRoute,
   ApiSamiBriefingRoute: ApiSamiBriefingRoute,
   ApiSamiDiretrizesRoute: ApiSamiDiretrizesRoute,
   ApiSamiMensagemRoute: ApiSamiMensagemRoute,

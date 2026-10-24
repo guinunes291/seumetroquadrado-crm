@@ -1,8 +1,12 @@
-// Confirmação de propostas — o núcleo (Onda S2, extraído na Onda S4 para servir
-// ao painel e ao WhatsApp). Confirmar executa com a SESSÃO DO CORRETOR
+// Confirmação de ações — o núcleo (Onda S2, extraído na Onda S4 para servir
+// ao painel e ao WhatsApp; v8 serve também a execução imediata das ações
+// "direto"). Confirmar executa com a SESSÃO DO CORRETOR
 // (samiq-executar.server.ts, RLS) e registra a decisão; rejeitar e desfazer
-// só mexem no estado da proposta. O modelo nunca chega aqui: só o botão do
-// card ou a resposta "CONFIRMAR" do corretor no WhatsApp.
+// só mexem no estado da proposta pelas RPCs do servidor.
+//
+// v8: antes de executar, a ação é REIVINDICADA no banco
+// (samiq_reivindicar_proposta). Dois CONFIRMAR seguidos, um clique duplo no
+// card ou a retentativa do n8n não executam a mesma ação duas vezes.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -14,7 +18,8 @@ import {
   SAMIQ_PROPOSTA_TIPOS,
   type PropostaPayload,
 } from "@/lib/samiq-propostas";
-import { executarPropostaSamiQ } from "./samiq-executar.server";
+import { samiqRpc } from "@/lib/samiq-rpc-args";
+import { executarPropostaSamiQ, type ContextoExecucao } from "./samiq-executar.server";
 
 type Db = SupabaseClient<Database>;
 
@@ -30,22 +35,39 @@ export type ResultadoConfirmacao = {
   status: "aceita" | "editada" | "falhou" | "indisponivel";
   erro?: string;
   desfazerAte?: string | null;
+  /** v8: o que aconteceu de fato (ex.: "entrou em Em atendimento"). */
+  efeito?: string | null;
 };
 
 function mensagemErro(error: unknown): string {
   if (error instanceof Error) return error.message.slice(0, 300);
-  return "Falha ao executar a proposta.";
+  return "Falha ao executar a ação.";
+}
+
+/** true = pode executar; false = outra execução já pegou (ou a ação não está mais pendente). */
+async function reivindicar(userId: string, propostaId: string): Promise<boolean> {
+  try {
+    const { data, error } = await samiqRpc(supabaseAdmin)("samiq_reivindicar_proposta", {
+      _user_id: userId,
+      _proposta_id: propostaId,
+    });
+    if (error) return isMissingBackendObject(error);
+    return data === true;
+  } catch {
+    return true;
+  }
 }
 
 export async function confirmarPropostas(args: {
   supabase: Db;
   userId: string;
   itens: ItemConfirmacao[];
+  contexto?: ContextoExecucao;
 }): Promise<ResultadoConfirmacao[]> {
   const { supabase, userId } = args;
   const resultados: ResultadoConfirmacao[] = [];
 
-  for (const item of args.itens.slice(0, 10)) {
+  for (const item of args.itens.slice(0, 20)) {
     const { data: row, error } = await supabaseAdmin
       .from("samiq_propostas")
       .select("id, tipo, payload, status, execution_id, lead_id")
@@ -79,6 +101,11 @@ export async function confirmarPropostas(args: {
       continue;
     }
 
+    if (!(await reivindicar(userId, row.id))) {
+      resultados.push({ id: row.id, ok: false, status: "indisponivel", erro: "já está sendo gravada" });
+      continue;
+    }
+
     const editada = jsonEstavel(payloadFinal) !== jsonEstavel(row.payload);
     try {
       const resultado = await executarPropostaSamiQ({
@@ -87,6 +114,7 @@ export async function confirmarPropostas(args: {
         propostaId: row.id,
         executionId: row.execution_id,
         payload: payloadFinal,
+        contexto: args.contexto,
       });
       const status = editada ? "editada" : "aceita";
       const { error: decErr } = await supabaseAdmin.rpc("samiq_decidir_proposta", {
@@ -107,11 +135,13 @@ export async function confirmarPropostas(args: {
         .select("desfazer_ate")
         .eq("id", row.id)
         .maybeSingle();
+      const efeito = typeof resultado.efeito === "string" ? resultado.efeito : null;
       resultados.push({
         id: row.id,
         ok: true,
         status,
         desfazerAte: atualizada?.desfazer_ate ?? null,
+        efeito,
       });
     } catch (e) {
       const erro = mensagemErro(e);
@@ -132,7 +162,7 @@ export async function confirmarPropostas(args: {
 
 export async function rejeitarPropostas(args: { userId: string; ids: string[] }): Promise<number> {
   let rejeitadas = 0;
-  for (const id of args.ids.slice(0, 10)) {
+  for (const id of args.ids.slice(0, 20)) {
     const { data: ok, error } = await supabaseAdmin.rpc("samiq_decidir_proposta", {
       _user_id: args.userId,
       _proposta_id: id,
@@ -158,12 +188,31 @@ export async function desfazerProposta(args: {
     if (isMissingBackendObject(error)) throw new Error("Desfazer ainda não está disponível.");
     const msg = (error.message ?? "").toLowerCase();
     if (msg.includes("expirada")) throw new Error("A janela de 24 h para desfazer já passou.");
-    if (msg.includes("etapa")) throw new Error("Mudança de etapa não se desfaz pelo botão.");
-    if (msg.includes("confirmada")) throw new Error("Esta proposta não foi confirmada.");
+    if (msg.includes("nao se desfaz") || msg.includes("etapa")) {
+      throw new Error("Essa ação passa pelo funil e não se desfaz por aqui.");
+    }
+    if (msg.includes("confirmada")) throw new Error("Esta ação não foi gravada.");
     throw new Error("Não foi possível desfazer este registro.");
   }
   const obj = (out ?? {}) as { desfeito?: boolean; itens?: string[] };
   return { desfeito: obj.desfeito === true, itens: Array.isArray(obj.itens) ? obj.itens : [] };
+}
+
+/** v8: DESFAZER pelo WhatsApp — uma ou várias ações, cada uma com o próprio resultado. */
+export async function desfazerPropostas(args: {
+  userId: string;
+  ids: string[];
+}): Promise<Array<{ id: string; ok: boolean; erro?: string }>> {
+  const out: Array<{ id: string; ok: boolean; erro?: string }> = [];
+  for (const id of args.ids.slice(0, 20)) {
+    try {
+      const r = await desfazerProposta({ userId: args.userId, id });
+      out.push({ id, ok: r.desfeito });
+    } catch (e) {
+      out.push({ id, ok: false, erro: mensagemErro(e) });
+    }
+  }
+  return out;
 }
 
 /** JSON com chaves ordenadas: "editada" só quando o conteúdo mudou de fato. */

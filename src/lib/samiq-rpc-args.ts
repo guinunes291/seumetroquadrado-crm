@@ -33,6 +33,20 @@ export interface SamiQRegistrarPropostasArgs {
   _propostas: Json;
 }
 
+/** v8: trava de execução (CONFIRMAR duplo ou retentativa do n8n não executa duas vezes). */
+export interface SamiQReivindicarArgs {
+  _user_id: string;
+  _proposta_id: string;
+}
+
+/** v8: liga as ações do turno à conversa e guarda a memória de trabalho dela. */
+export interface SamiQContextoTurnoArgs {
+  _user_id: string;
+  _conversa_id: string;
+  _execution_id: string | null;
+  _contexto: Json | null;
+}
+
 // Fronteira tipada das duas RPCs, no molde de features/atendimento/
 // atendimento-rpc.ts: a assinatura gerada declara os campos sem o null, e a
 // ponte por cast duplo estourava o orçamento de escapes de tipo
@@ -51,6 +65,8 @@ type ClientHolder = { rpc: unknown };
 export type SamiQRpc = {
   (fn: "samiq_gravar_turno", args: SamiQGravarTurnoArgs): ResultadoRpc<string>;
   (fn: "samiq_registrar_propostas", args: SamiQRegistrarPropostasArgs): ResultadoRpc<Json>;
+  (fn: "samiq_reivindicar_proposta", args: SamiQReivindicarArgs): ResultadoRpc<boolean>;
+  (fn: "samiq_contexto_turno", args: SamiQContextoTurnoArgs): ResultadoRpc<null>;
 };
 
 export function samiqRpc(client: ClientHolder): SamiQRpc {

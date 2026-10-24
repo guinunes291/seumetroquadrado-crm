@@ -17,18 +17,24 @@ import type { Database } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rateLimit } from "@/lib/rate-limit";
 import {
+  AnexoSamiInput,
+  SAMI_ANEXO_MAX_REQUEST_BYTES,
   SAMI_CANAL_HEADER,
   SAMI_CANAL_MAX_BODY_BYTES,
   SAMI_CANAL_MAX_POR_MINUTO,
   escolherCorretorUnico,
+  mimePelosBytes,
   textoDaDecisao,
+  textoDoDesfazer,
+  type AnexoSami,
   type DecisaoResultado,
   type IntencaoCurta,
 } from "@/lib/samiq-canal";
 import type { PropostaSamiQ } from "@/lib/samiq-propostas";
+import { localizacaoValida, type ContextoConversaSamiQ } from "@/lib/samiq-contexto";
 import { SamiQQuotaError } from "./samiq-governance.server";
-import { gravarTurnoSamiQ } from "./samiq-memoria.server";
-import { confirmarPropostas, rejeitarPropostas } from "./samiq-confirmar.server";
+import { gravarContextoTurnoSamiQ, gravarTurnoSamiQ } from "./samiq-memoria.server";
+import { confirmarPropostas, desfazerPropostas, rejeitarPropostas } from "./samiq-confirmar.server";
 
 type Db = SupabaseClient<Database>;
 
@@ -84,6 +90,55 @@ export async function lerCorpoCanalSami<T>(request: Request, schema: ZodType<T>)
     throw new CanalSamiError(422, "corpo_invalido", `Campos inválidos: ${campos.join(", ")}.`);
   }
   return parsed.data;
+}
+
+/**
+ * v8: arquivo do WhatsApp (multipart/form-data, campo `arquivo` + campos de
+ * texto). O tipo vem dos bytes, não do que o remetente declarou.
+ */
+export async function lerArquivoCanalSami(
+  request: Request,
+): Promise<{ campos: AnexoSami; arquivo: Blob; mime: string }> {
+  const tipo = (request.headers.get("content-type") ?? "").toLowerCase();
+  if (!tipo.startsWith("multipart/form-data")) {
+    throw new CanalSamiError(415, "tipo_invalido", "Envie o arquivo como multipart/form-data.");
+  }
+  const declarado = Number(request.headers.get("content-length") ?? "0");
+  if (declarado > SAMI_ANEXO_MAX_REQUEST_BYTES) {
+    throw new CanalSamiError(413, "arquivo_grande", "O arquivo precisa ter até 15 MB.");
+  }
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    throw new CanalSamiError(400, "corpo_invalido", "Não consegui ler o arquivo enviado.");
+  }
+  const texto = (k: string) => {
+    const v = form.get(k);
+    return typeof v === "string" && v.trim() ? v : undefined;
+  };
+  const parsed = AnexoSamiInput.safeParse({
+    corretor_telefone: texto("corretor_telefone"),
+    legenda: texto("legenda"),
+    mensagem_id: texto("mensagem_id"),
+    nome: texto("nome"),
+  });
+  if (!parsed.success) {
+    const campos = [...new Set(parsed.error.issues.map((i) => i.path.join(".") || "(raiz)"))];
+    throw new CanalSamiError(422, "corpo_invalido", `Campos inválidos: ${campos.join(", ")}.`);
+  }
+  const arquivo = form.get("arquivo");
+  if (!arquivo || typeof arquivo === "string") {
+    throw new CanalSamiError(422, "sem_arquivo", "Faltou o arquivo (campo arquivo).");
+  }
+  if (arquivo.size > SAMI_ANEXO_MAX_REQUEST_BYTES) {
+    throw new CanalSamiError(413, "arquivo_grande", "O arquivo precisa ter até 15 MB.");
+  }
+  const mime = mimePelosBytes(new Uint8Array(await arquivo.slice(0, 16).arrayBuffer()));
+  if (!mime) {
+    throw new CanalSamiError(415, "tipo_invalido", "Por aqui eu anexo PDF, JPG, PNG ou WEBP.");
+  }
+  return { campos: parsed.data, arquivo, mime };
 }
 
 /** Corretor ativo pelo telefone (sufixo único) + limite de mensagens por minuto. */
@@ -188,25 +243,35 @@ export async function comSessaoDoCorretor<T>(
 }
 
 /**
- * CONFIRMAR/CANCELAR um pacote pendente pelo WhatsApp — a mesma execução do
- * botão do card (samiq-confirmar.server.ts), com a sessão do corretor.
+ * CONFIRMAR/CANCELAR (tudo ou "CONFIRMAR 2") pelo WhatsApp: a mesma execução
+ * do botão do card (samiq-confirmar.server.ts), com a sessão do corretor. O
+ * recibo sai numerado (DESFAZER N) e o que sobrou volta renumerado.
  */
 export async function decidirPendentes(args: {
   corretor: CorretorCanal;
   decisao: IntencaoCurta;
+  /** Os escolhidos (todos, ou só os números que o corretor mandou). */
   pendentes: PropostaSamiQ[];
+  /** O que continua esperando o OK depois desta decisão. */
+  restantes?: PropostaSamiQ[];
   conversaId: string | null;
   mensagem: string;
+  /** v8: memória da conversa para atualizar as numerações. */
+  contexto?: ContextoConversaSamiQ;
+  mensagemId?: string | null;
 }): Promise<{ texto: string; resultados: DecisaoResultado[] }> {
   const { corretor, decisao, pendentes } = args;
+  const restantes = args.restantes ?? [];
   let resultados: DecisaoResultado[] = [];
   if (pendentes.length > 0) {
     if (decisao === "confirmar") {
+      const localizacao = args.contexto ? localizacaoValida(args.contexto) : null;
       resultados = await comSessaoDoCorretor(corretor, (supabase) =>
         confirmarPropostas({
           supabase,
           userId: corretor.id,
           itens: pendentes.map((p) => ({ id: p.id })),
+          contexto: { localizacao },
         }),
       );
     } else {
@@ -214,7 +279,7 @@ export async function decidirPendentes(args: {
       resultados = pendentes.map((p) => ({ id: p.id, ok: true, status: "rejeitada" }));
     }
   }
-  const texto = textoDaDecisao(decisao, resultados, pendentes);
+  const texto = textoDaDecisao(decisao, resultados, pendentes, restantes);
   if (args.conversaId && pendentes.length > 0) {
     await gravarTurnoSamiQ({
       userId: corretor.id,
@@ -223,8 +288,80 @@ export async function decidirPendentes(args: {
       resposta: texto,
       canal: "whatsapp",
     });
+    if (args.contexto) {
+      const gravadas = decisao === "confirmar" ? resultados.filter((r) => r.ok).map((r) => r.id) : [];
+      await gravarContextoTurnoSamiQ({
+        userId: corretor.id,
+        conversaId: args.conversaId,
+        executionId: null,
+        contexto: {
+          ...args.contexto,
+          pendentes: restantes.map((p) => p.id),
+          executadas: gravadas.length ? gravadas : (args.contexto.executadas ?? []),
+          pediu_decisao: restantes.length > 0,
+          ambiguos: [],
+          ultima_mensagem_id: args.mensagemId ?? args.contexto.ultima_mensagem_id ?? null,
+        },
+      });
+    }
   }
   return { texto, resultados };
+}
+
+/**
+ * DESFAZER (tudo do último recibo ou "DESFAZER 2"): o mesmo desfazer de 24 h
+ * do painel, pela RPC do servidor. Mudança de etapa não volta (aviso no texto).
+ */
+export async function desfazerPeloCanal(args: {
+  corretor: CorretorCanal;
+  acoes: PropostaSamiQ[];
+  conversaId: string;
+  mensagem: string;
+  contexto: ContextoConversaSamiQ;
+  mensagemId?: string | null;
+}): Promise<{ texto: string; resultados: Array<{ id: string; ok: boolean; erro?: string }> }> {
+  const { corretor, acoes } = args;
+  const resultados = acoes.length ? await desfazerPropostas({ userId: corretor.id, ids: acoes.map((a) => a.id) }) : [];
+  const texto = textoDoDesfazer(resultados, acoes);
+  await gravarTurnoSamiQ({
+    userId: corretor.id,
+    conversaId: args.conversaId,
+    pergunta: args.mensagem,
+    resposta: texto,
+    canal: "whatsapp",
+  });
+  const desfeitas = new Set(resultados.filter((r) => r.ok).map((r) => r.id));
+  await gravarContextoTurnoSamiQ({
+    userId: corretor.id,
+    conversaId: args.conversaId,
+    executionId: null,
+    contexto: {
+      ...args.contexto,
+      // A numeração do recibo continua a mesma; o que foi desfeito some dela na próxima vez.
+      executadas: (args.contexto.executadas ?? []).filter((id) => !desfeitas.has(id)),
+      pediu_decisao: false,
+      ultima_mensagem_id: args.mensagemId ?? args.contexto.ultima_mensagem_id ?? null,
+    },
+  });
+  return { texto, resultados };
+}
+
+// Retentativa do n8n enquanto a primeira chamada ainda roda (mesma instância):
+// a segunda não processa de novo (ações gravadas na hora não duplicam). Entre
+// instâncias, a guarda é o ultima_mensagem_id da memória da conversa.
+const EM_ANDAMENTO = new Map<string, number>();
+
+export function reservarMensagemDoCanal(
+  userId: string,
+  mensagemId: string | null | undefined,
+): { liberar: () => void } | null {
+  if (!mensagemId) return { liberar: () => {} };
+  const chave = `${userId}:${mensagemId}`;
+  const agora = Date.now();
+  for (const [k, t] of EM_ANDAMENTO) if (agora - t > 5 * 60_000) EM_ANDAMENTO.delete(k);
+  if (EM_ANDAMENTO.has(chave)) return null;
+  EM_ANDAMENTO.set(chave, agora);
+  return { liberar: () => void EM_ANDAMENTO.delete(chave) };
 }
 
 /** Erro → resposta JSON com um `texto` que o n8n pode mandar ao corretor. */
@@ -245,6 +382,11 @@ export function responderErroCanal(error: unknown): Response {
       { ok: false, erro: "cota", texto: error.message, retry_after: error.retryAfterSeconds },
       429,
     );
+  }
+  // Erros de anexo (samiq-anexos.server.ts) já têm mensagem para o corretor.
+  if (error instanceof Error && error.name === "AnexoSamiError") {
+    const codigo = (error as Error & { codigo?: string }).codigo ?? "anexo_invalido";
+    return jsonCanal({ ok: false, erro: codigo, texto: error.message }, 422);
   }
   console.error(
     JSON.stringify({

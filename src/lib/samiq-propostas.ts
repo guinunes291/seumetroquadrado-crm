@@ -1,14 +1,27 @@
-// Núcleo PURO das PROPOSTAS de escrita da Sami (Onda S2 — decisões D1, D2,
-// D5 e D7 em docs/samiq/2026-09-05-decisoes-copiloto.md).
+// Núcleo PURO das AÇÕES de escrita da Sami (Onda S2 → v8 "CRM no WhatsApp").
 //
-// Doutrina: o modelo nunca grava. As ferramentas `propor_*` produzem uma
-// proposta tipada; o painel mostra um card "Registrar N itens?"; um toque do
-// corretor executa (samiq-executar.server.ts) com a sessão DELE (RLS) e marca
-// o registro com origem 'samiq'. Aqui vivem os contratos (zod), os rótulos, a
-// descrição humana de cada proposta e as regras de desfazer — sem rede.
+// Doutrina (S2): o modelo nunca grava sozinho. Cada ferramenta de escrita
+// produz uma ação tipada (zod); a execução acontece em
+// samiq-executar.server.ts com a SESSÃO DO CORRETOR (RLS, triggers e autor
+// iguais aos da tela) e fica registrada em samiq_propostas com o resultado
+// (ids gravados + snapshot) para o desfazer de 24 h.
+//
+// v8 (24/10/2026, decisão do Guilherme): autonomia POR RISCO no WhatsApp.
+//  * "direto": o que a tela faz num clique e se desfaz (contato, nota,
+//    tarefa, qualificação, confirmar/remarcar visita, documento, check-in)
+//    grava na hora; o corretor pode responder DESFAZER.
+//  * "confirmar": o que muda a etapa do funil, mexe com outra pessoa ou não
+//    tem volta (perda, retorno, visita, análise, venda, cadastro, lote) espera
+//    o CONFIRMAR do corretor.
+// No painel do CRM tudo continua pelo card (um toque já é o atalho).
+//
+// Aqui vivem os contratos, os rótulos, a descrição humana de cada ação e as
+// regras de desfazer — sem rede.
 
 import { z } from "zod";
-import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
+import { LEAD_STATUS_LABEL, MOTIVO_PERDA_LABEL, type LeadStatus } from "@/lib/leads";
+import { DOC_LABEL, DOC_STATUS, PERFIL_RENDA } from "@/lib/documentacao-checklist";
+import { fmtDataHoraSP, fmtDiaBr } from "@/lib/samiq-datas";
 
 export const SAMIQ_PROPOSTA_TIPOS = [
   "registrar_contato",
@@ -17,6 +30,26 @@ export const SAMIQ_PROPOSTA_TIPOS = [
   "atualizar_qualificacao",
   "agendar_visita",
   "mudar_etapa",
+  // v8 — CRM no WhatsApp
+  "registrar_retorno",
+  "marcar_perdido",
+  "trocar_vaga",
+  "concluir_tarefa",
+  "reagendar_tarefa",
+  "cancelar_tarefa",
+  "confirmar_visita",
+  "remarcar_visita",
+  "cancelar_visita",
+  "registrar_visita",
+  "documentos_checklist",
+  "atualizar_documento",
+  "anexar_documento",
+  "enviar_analise_credito",
+  "registrar_resultado_credito",
+  "registrar_venda",
+  "fazer_checkin",
+  "criar_lead",
+  "pedir_lote",
 ] as const;
 
 export type SamiQPropostaTipo = (typeof SAMIQ_PROPOSTA_TIPOS)[number];
@@ -28,22 +61,102 @@ export const SAMIQ_PROPOSTA_LABEL: Record<SamiQPropostaTipo, string> = {
   atualizar_qualificacao: "Atualizar qualificação",
   agendar_visita: "Agendar visita",
   mudar_etapa: "Mudar etapa",
+  registrar_retorno: "Retorno combinado",
+  marcar_perdido: "Marcar como perdido",
+  trocar_vaga: "Trocar vaga em atendimento",
+  concluir_tarefa: "Concluir tarefa",
+  reagendar_tarefa: "Reagendar tarefa",
+  cancelar_tarefa: "Cancelar tarefa",
+  confirmar_visita: "Confirmar visita",
+  remarcar_visita: "Remarcar visita",
+  cancelar_visita: "Cancelar visita",
+  registrar_visita: "Resultado da visita",
+  documentos_checklist: "Checklist de documentos",
+  atualizar_documento: "Atualizar documento",
+  anexar_documento: "Anexar documento",
+  enviar_analise_credito: "Enviar para análise de crédito",
+  registrar_resultado_credito: "Resultado do crédito",
+  registrar_venda: "Registrar venda",
+  fazer_checkin: "Check-in",
+  criar_lead: "Cadastrar cliente",
+  pedir_lote: "Pedir lote de prospecção",
 };
 
-/** Ferramenta do modelo → tipo de proposta (nomes que o modelo chama). */
-export const SAMIQ_FERRAMENTAS_PROPOSTA = {
-  propor_registro_contato: "registrar_contato",
-  propor_anotacao: "anotar",
-  propor_tarefa: "criar_tarefa",
-  propor_qualificacao: "atualizar_qualificacao",
-  propor_visita: "agendar_visita",
-  propor_etapa: "mudar_etapa",
-} as const satisfies Record<string, SamiQPropostaTipo>;
+/** Ferramenta do modelo → tipo da ação. Na v8 o nome da ferramenta é o próprio tipo. */
+export const SAMIQ_FERRAMENTAS_PROPOSTA = Object.fromEntries(
+  SAMIQ_PROPOSTA_TIPOS.map((tipo) => [tipo, tipo]),
+) as { readonly [K in SamiQPropostaTipo]: K };
 
 export type SamiQFerramentaProposta = keyof typeof SAMIQ_FERRAMENTAS_PROPOSTA;
 
 // ---------------------------------------------------------------------------
-// Vocabulários (espelham o que as telas já usam — nunca inventar valor novo)
+// Autonomia por risco (v8)
+// ---------------------------------------------------------------------------
+
+export type NivelAcao = "direto" | "confirmar";
+
+export const SAMIQ_NIVEL_ACAO: Record<SamiQPropostaTipo, NivelAcao> = {
+  registrar_contato: "direto",
+  anotar: "direto",
+  criar_tarefa: "direto",
+  atualizar_qualificacao: "direto",
+  agendar_visita: "confirmar",
+  mudar_etapa: "confirmar",
+  registrar_retorno: "confirmar",
+  marcar_perdido: "confirmar",
+  trocar_vaga: "confirmar",
+  concluir_tarefa: "direto",
+  reagendar_tarefa: "direto",
+  cancelar_tarefa: "direto",
+  confirmar_visita: "direto",
+  remarcar_visita: "direto",
+  cancelar_visita: "confirmar",
+  registrar_visita: "confirmar",
+  documentos_checklist: "direto",
+  atualizar_documento: "direto",
+  anexar_documento: "direto",
+  enviar_analise_credito: "confirmar",
+  registrar_resultado_credito: "confirmar",
+  registrar_venda: "confirmar",
+  fazer_checkin: "direto",
+  criar_lead: "confirmar",
+  pedir_lote: "confirmar",
+};
+
+export type ModoEscritaSamiQ = "por_risco" | "confirmar_tudo";
+
+export function nivelDaAcao(tipo: SamiQPropostaTipo, modo: ModoEscritaSamiQ): NivelAcao {
+  return modo === "por_risco" ? SAMIQ_NIVEL_ACAO[tipo] : "confirmar";
+}
+
+/**
+ * O que o desfazer de 24 h consegue reverter de verdade (o banco espelha esta
+ * lista em samiq_decidir_proposta/samiq_desfazer_proposta). Fica de fora o
+ * que passa pela máquina de estados do funil (etapa, perda, retorno, visita
+ * realizada, análise), o que outra pessoa já pode ter usado (venda, lote,
+ * cadastro) e o que se refaz na hora (check-in, arquivo).
+ */
+export const SAMIQ_TIPOS_DESFAZIVEIS = [
+  "registrar_contato",
+  "anotar",
+  "criar_tarefa",
+  "atualizar_qualificacao",
+  "agendar_visita",
+  "concluir_tarefa",
+  "reagendar_tarefa",
+  "cancelar_tarefa",
+  "confirmar_visita",
+  "remarcar_visita",
+  "cancelar_visita",
+  "atualizar_documento",
+] as const satisfies readonly SamiQPropostaTipo[];
+
+export function podeDesfazerProposta(tipo: SamiQPropostaTipo): boolean {
+  return (SAMIQ_TIPOS_DESFAZIVEIS as readonly string[]).includes(tipo);
+}
+
+// ---------------------------------------------------------------------------
+// Vocabulários (espelham o que as telas e o banco já usam — nunca inventar valor)
 // ---------------------------------------------------------------------------
 
 export const CANAIS_CONTATO = [
@@ -56,7 +169,17 @@ export const CANAIS_CONTATO = [
   "outro",
 ] as const;
 
-/** Mesmos resultados do RegistrarContatoDialog — o título vira a timeline. */
+export const CANAL_LABEL: Record<(typeof CANAIS_CONTATO)[number], string> = {
+  ligacao: "Ligação",
+  whatsapp: "WhatsApp",
+  visita: "Visita",
+  reuniao: "Reunião",
+  email: "E-mail",
+  sms: "SMS",
+  outro: "Outro canal",
+};
+
+/** Mesmos títulos de registrar_contato_lead (é o que aparece na timeline). */
 export const RESULTADOS_CONTATO = {
   atendeu: "Contato — atendeu",
   nao_atendeu: "Contato — não atendeu",
@@ -88,13 +211,16 @@ export const TAREFA_TIPOS_PROPOSTA = [
 export const TAREFA_PRIORIDADES_PROPOSTA = ["baixa", "media", "alta", "urgente"] as const;
 
 /**
- * Etapas que a Sami pode propor. Ficam FORA as que exigem os modais
- * obrigatórios com dados próprios (visita realizada → feedback; análise de
- * crédito → parecer; contrato fechado / pós-venda → venda aprovada) e as
- * etapas de entrada (novo, aguardando_*). 'agendado' entra pela proposta de
- * visita (que cria o compromisso e move o lead num gesto só).
+ * Etapa que a ferramenta mudar_etapa ainda oferece (v8). Todo o resto tem
+ * caminho próprio, igual à tela: Em atendimento é consequência do contato;
+ * Aguardando retorno sai por registrar_retorno; Agendado por agendar_visita;
+ * Visita realizada por registrar_visita; Análise por enviar_analise_credito;
+ * Perdido por marcar_perdido; Venda pela aprovação da gestão.
  */
-export const ETAPAS_PROPONIVEIS = [
+export const ETAPAS_PROPONIVEIS = ["qualificacao_corretor"] as const;
+
+/** Etapas aceitas em propostas antigas (até a v7) — só para validar o que já está no banco. */
+const ETAPAS_DE_PAYLOAD_ANTIGO = [
   "em_atendimento",
   "aguardando_retorno",
   "qualificacao_corretor",
@@ -121,17 +247,81 @@ export const MOTIVOS_PERDA_PROPOSTA = [
 
 const TEMPERATURAS = ["quente", "morno", "frio"] as const;
 
+export const FAIXAS_MCMV = ["F1", "F2", "F3", "F4"] as const;
+
+/** Prioridades do card "Perfil do cliente" (perfil-cliente-card.tsx). */
+export const PRIORIDADES_CLIENTE = [
+  "lazer_completo",
+  "perto_metro",
+  "pet",
+  "seguranca",
+  "pronto_para_morar",
+  "home_office",
+  "varanda",
+  "area_verde",
+  "escola_perto",
+] as const;
+
+/** Leitura de interesse e objeção principal do Modo Visita (salvar_modo_visita). */
+export const INTERESSES_VISITA = ["alto", "medio", "baixo", "sem_interesse"] as const;
+export const OBJECOES_VISITA = [
+  "sem_objecao",
+  "preco_parcela",
+  "entrada_alta",
+  "credito_renda",
+  "estourou_teto",
+  "metragem",
+  "localizacao",
+  "prazo_entrega",
+  "condominio",
+  "decisor_ausente",
+  "quer_comparar",
+  "timing_adiou",
+  "outro",
+] as const;
+
+export const ETAPAS_APOS_VISITA = ["visita_realizada", "aguardando_retorno", "analise_credito"] as const;
+
+/** Slugs de documento do checklist (lib/documentacao-checklist.ts). */
+export const DOCUMENTOS_TIPOS = Object.keys(DOC_LABEL) as [string, ...string[]];
+
+export const ORIGENS_CAPTACAO = [
+  "captacao_corretor",
+  "indicacao",
+  "investimento_corretor",
+  "whatsapp",
+  "telefone",
+  "plantao",
+  "acao_rua",
+  "site",
+  "portal",
+  "outro",
+] as const;
+
+export const ZONAS_LOTE = ["Norte", "Sul", "Leste", "Oeste", "Centro", "Grande SP"] as const;
+
+export const MODALIDADES_CREDITO = ["mcmv", "sbpe", "pro_cotista", "outro"] as const;
+
 const ISO_DATA_HORA = z
   .string()
   .min(10)
   .max(40)
-  .refine((v) => !Number.isNaN(Date.parse(v)), "data/hora inválida (use ISO 8601)");
+  .refine((v) => !Number.isNaN(Date.parse(v)), "data/hora inválida (use ISO 8601, ex.: 2026-10-25T10:00:00-03:00)");
+
+const DIA_ISO = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "use AAAA-MM-DD")
+  .refine((v) => !Number.isNaN(Date.parse(`${v}T12:00:00Z`)), "data inválida");
+
+const MES_ISO = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "use AAAA-MM");
 
 const uuid = z.string().uuid();
 const textoCurto = (max: number) => z.string().trim().min(1).max(max);
+const textoOpcional = (max: number) => z.string().trim().max(max).optional();
+const valor = z.number().positive().max(100_000_000);
 
 // ---------------------------------------------------------------------------
-// Contratos de cada proposta (o modelo preenche; servidor e card validam)
+// Contratos de cada ação (o modelo preenche; servidor e card validam)
 // ---------------------------------------------------------------------------
 
 export const RegistrarContatoPayload = z.object({
@@ -152,6 +342,9 @@ export const RegistrarContatoPayload = z.object({
   followupEm: ISO_DATA_HORA.nullable()
     .optional()
     .describe("Quando retornar (ISO 8601 com fuso); null = sem follow-up"),
+  proximoPasso: textoOpcional(200).describe(
+    "O que fazer no follow-up, ex.: 'Enviar simulação' (padrão: Follow-up com o cliente)",
+  ),
   objecoes: z
     .array(textoCurto(80))
     .max(5)
@@ -177,7 +370,7 @@ export const CriarTarefaPayload = z.object({
 });
 
 // Objeto base SEM refine: o zod 4.4+ proíbe .omit() em objeto refinado, e as
-// ferramentas propor_* precisam do schema sem o campo `tipo`.
+// ferramentas precisam do schema sem o campo `tipo`.
 export const AtualizarQualificacaoBase = z.object({
   tipo: z.literal("atualizar_qualificacao"),
   leadId: uuid,
@@ -187,22 +380,35 @@ export const AtualizarQualificacaoBase = z.object({
     .max(60)
     .optional()
     .describe("Renda familiar como o cliente disse, ex.: '4500'"),
+  rendaEstimada: valor.optional().describe("Renda familiar em reais, número (ex.: 4500)"),
   entradaDisponivel: z.string().trim().max(60).optional(),
   usaFgts: z.boolean().optional(),
   temFgts: z.boolean().optional(),
+  fgtsValor: z.number().min(0).max(10_000_000).optional().describe("Saldo de FGTS em reais"),
   tipoRenda: z
     .string()
     .trim()
     .max(40)
     .optional()
     .describe("clt | autonomo | servidor | misto | outro"),
+  faixaMcmv: z.enum(FAIXAS_MCMV).optional(),
   temperatura: z.enum(TEMPERATURAS).optional(),
+  decisor: textoOpcional(120).describe("Quem decide junto (ex.: 'esposa', 'compra sozinho')"),
+  zona: textoOpcional(40).describe("Zona de interesse (Norte, Sul, Leste, Oeste, Centro)"),
+  bairro: textoOpcional(80).describe("Bairro de interesse"),
+  dormsDesejados: z.number().int().min(1).max(5).optional(),
+  precisaVaga: z.boolean().optional(),
+  prioridades: z.array(z.enum(PRIORIDADES_CLIENTE)).max(9).optional().describe(
+    "Prioridades do cliente (substitui a lista atual)",
+  ),
+  notaPerfil: textoOpcional(1200).describe("Nota do perfil do cliente (o que ele valoriza)"),
+  projetoId: uuid.optional().describe("id do empreendimento de interesse (de catalogo_projetos)"),
   projetoInteresse: z
     .string()
     .trim()
     .max(120)
     .optional()
-    .describe("Nome do empreendimento de interesse"),
+    .describe("Nome do empreendimento de interesse (só quando não há id)"),
   objecoesAdicionar: z.array(textoCurto(80)).max(5).optional(),
   resumoQualificacao: z
     .string()
@@ -214,19 +420,32 @@ export const AtualizarQualificacaoBase = z.object({
 
 type QualificacaoCampos = Omit<z.infer<typeof AtualizarQualificacaoBase>, "tipo" | "leadId">;
 
+const CAMPOS_QUALIFICACAO: ReadonlyArray<keyof QualificacaoCampos> = [
+  "rendaInformada",
+  "rendaEstimada",
+  "entradaDisponivel",
+  "usaFgts",
+  "temFgts",
+  "fgtsValor",
+  "tipoRenda",
+  "faixaMcmv",
+  "temperatura",
+  "decisor",
+  "zona",
+  "bairro",
+  "dormsDesejados",
+  "precisaVaga",
+  "prioridades",
+  "notaPerfil",
+  "projetoId",
+  "projetoInteresse",
+  "resumoQualificacao",
+];
+
 /** Regra da qualificação: pelo menos um campo para atualizar. */
 export function qualificacaoTemCampo(p: QualificacaoCampos): boolean {
   return (
-    [
-      p.rendaInformada,
-      p.entradaDisponivel,
-      p.usaFgts,
-      p.temFgts,
-      p.tipoRenda,
-      p.temperatura,
-      p.projetoInteresse,
-      p.resumoQualificacao,
-    ].some((v) => v !== undefined) || (p.objecoesAdicionar?.length ?? 0) > 0
+    CAMPOS_QUALIFICACAO.some((c) => p[c] !== undefined) || (p.objecoesAdicionar?.length ?? 0) > 0
   );
 }
 export const MSG_QUALIFICACAO_VAZIA = "informe pelo menos um campo para atualizar";
@@ -252,11 +471,16 @@ export const AgendarVisitaPayload = z.object({
 export const MudarEtapaBase = z.object({
   tipo: z.literal("mudar_etapa"),
   leadId: uuid,
-  novoStatus: z.enum(ETAPAS_PROPONIVEIS),
+  novoStatus: z.enum(ETAPAS_DE_PAYLOAD_ANTIGO),
   motivo: z.string().trim().max(1000).optional().describe("Obrigatório ao perder"),
   motivoCategoria: z.enum(MOTIVOS_PERDA_PROPOSTA).optional().describe("Só ao perder"),
   proximaAcao: z.string().trim().max(500).optional(),
   proximoFollowupEm: ISO_DATA_HORA.optional(),
+});
+
+/** O que a FERRAMENTA mudar_etapa aceita na v8 (o payload antigo continua válido no banco). */
+export const MudarEtapaFerramentaBase = MudarEtapaBase.extend({
+  novoStatus: z.enum(ETAPAS_PROPONIVEIS).describe("qualificacao_corretor"),
 });
 
 type EtapaCampos = Pick<
@@ -275,6 +499,241 @@ export const MudarEtapaPayload = MudarEtapaBase.refine(
   MSG_ETAPA_PERDIDO,
 ).refine(etapaRetornoTemFollowup, MSG_ETAPA_RETORNO);
 
+// --- v8: funil ---------------------------------------------------------------
+
+export const RegistrarRetornoPayload = z.object({
+  tipo: z.literal("registrar_retorno"),
+  leadId: uuid,
+  desfecho: z.enum(["pediu_retorno", "esfriou"]).describe("pediu_retorno | esfriou"),
+  retornoEm: ISO_DATA_HORA.describe("Data/hora combinada para retornar (futura)"),
+  nota: textoOpcional(500).describe("O que foi combinado"),
+  canal: z.enum(CANAIS_CONTATO).optional().describe("Canal do contato que gerou o retorno (padrão ligacao)"),
+});
+
+export const MarcarPerdidoBase = z.object({
+  tipo: z.literal("marcar_perdido"),
+  leadId: uuid,
+  categoria: z.enum(MOTIVOS_PERDA_PROPOSTA),
+  detalhe: textoOpcional(500).describe("Obrigatório quando a categoria é 'outro'"),
+});
+export const perdaOutroTemDetalhe = (p: { categoria: string; detalhe?: string }) =>
+  p.categoria !== "outro" || !!p.detalhe?.trim();
+export const MSG_PERDA_OUTRO = "descreva o motivo quando a categoria é 'outro'";
+export const MarcarPerdidoPayload = MarcarPerdidoBase.refine(perdaOutroTemDetalhe, MSG_PERDA_OUTRO);
+
+export const TrocarVagaBase = z.object({
+  tipo: z.literal("trocar_vaga"),
+  entraLeadId: uuid.describe("Cliente que entra em Em atendimento"),
+  saiLeadId: uuid.describe("Cliente em Em atendimento que libera a vaga"),
+  desfecho: z.enum(["pediu_retorno", "esfriou", "perdido"]).describe("O que aconteceu com quem sai"),
+  retornoEm: ISO_DATA_HORA.optional().describe("Quem sai: data do retorno (pediu_retorno/esfriou)"),
+  categoria: z.enum(MOTIVOS_PERDA_PROPOSTA).optional().describe("Quem sai: categoria da perda"),
+  detalhe: textoOpcional(500),
+  contato: z.enum(["ligacao", "whatsapp"]).optional().describe("Contato com quem entra, se foi agora"),
+  proximoPasso: textoOpcional(200).describe("Próximo passo de quem entra"),
+  proximoFollowupEm: ISO_DATA_HORA.optional().describe("Data do próximo passo de quem entra"),
+});
+export const trocaTemDados = (p: {
+  desfecho: string;
+  retornoEm?: string;
+  categoria?: string;
+  entraLeadId: string;
+  saiLeadId: string;
+}) =>
+  p.entraLeadId !== p.saiLeadId &&
+  (p.desfecho === "perdido" ? !!p.categoria : !!p.retornoEm);
+export const MSG_TROCA = "troca precisa de dois clientes diferentes; retorno exige data e perda exige categoria";
+export const TrocarVagaPayload = TrocarVagaBase.refine(trocaTemDados, MSG_TROCA);
+
+// --- v8: tarefas -------------------------------------------------------------
+
+export const ConcluirTarefaPayload = z.object({
+  tipo: z.literal("concluir_tarefa"),
+  tarefaId: uuid.describe("id da tarefa (de minhas_tarefas ou detalhe_cliente)"),
+  resultado: textoOpcional(300).describe("Como foi (opcional)"),
+});
+
+export const ReagendarTarefaPayload = z.object({
+  tipo: z.literal("reagendar_tarefa"),
+  tarefaId: uuid,
+  novoVencimentoEm: ISO_DATA_HORA.describe("Novo vencimento, ISO 8601 com fuso"),
+});
+
+export const CancelarTarefaPayload = z.object({
+  tipo: z.literal("cancelar_tarefa"),
+  tarefaId: uuid,
+  motivo: textoOpcional(300),
+});
+
+// --- v8: visitas -------------------------------------------------------------
+
+export const ConfirmarVisitaPayload = z.object({
+  tipo: z.literal("confirmar_visita"),
+  agendamentoId: uuid.describe("id da visita (de minha_agenda ou detalhe_cliente)"),
+});
+
+export const RemarcarVisitaPayload = z.object({
+  tipo: z.literal("remarcar_visita"),
+  agendamentoId: uuid,
+  novoInicioEm: ISO_DATA_HORA.describe("Novo início, ISO 8601 com fuso"),
+  duracaoMin: z.number().int().min(15).max(480).optional().describe("Padrão: a mesma da visita"),
+});
+
+export const CancelarVisitaPayload = z.object({
+  tipo: z.literal("cancelar_visita"),
+  agendamentoId: uuid,
+  motivo: textoCurto(300).describe("Por que cancelou"),
+});
+
+export const RegistrarVisitaBase = z.object({
+  tipo: z.literal("registrar_visita"),
+  leadId: uuid,
+  agendamentoId: uuid.optional().describe("id da visita; vazio = a visita aberta do cliente"),
+  compareceu: z.boolean().describe("true = foi à visita; false = não compareceu"),
+  interesse: z.enum(INTERESSES_VISITA).optional().describe("Só quando compareceu"),
+  objecaoPrincipal: z.enum(OBJECOES_VISITA).optional(),
+  observacoes: textoOpcional(2000).describe("Como foi a visita"),
+  proximaEtapa: z
+    .enum(ETAPAS_APOS_VISITA)
+    .optional()
+    .describe("Padrão: visita_realizada (compareceu) ou aguardando_retorno (não veio)"),
+  proximoPasso: textoOpcional(200),
+  proximoFollowupEm: ISO_DATA_HORA.optional().describe("Data do próximo passo"),
+  reagendarPara: ISO_DATA_HORA.optional().describe("Nova visita, se já remarcou"),
+  realizadaEm: ISO_DATA_HORA.optional().describe("Quando foi (só se a visita não estava agendada)"),
+});
+export const visitaSemComparecimentoSemInteresse = (p: { compareceu: boolean; interesse?: string; proximaEtapa?: string }) =>
+  p.compareceu || (!p.interesse && p.proximaEtapa !== "visita_realizada");
+export const MSG_VISITA_SEM_COMPARECIMENTO =
+  "sem comparecimento não há leitura de interesse nem visita realizada";
+export const RegistrarVisitaPayload = RegistrarVisitaBase.refine(
+  visitaSemComparecimentoSemInteresse,
+  MSG_VISITA_SEM_COMPARECIMENTO,
+);
+
+// --- v8: documentos ----------------------------------------------------------
+
+export const DocumentosChecklistPayload = z.object({
+  tipo: z.literal("documentos_checklist"),
+  leadId: uuid,
+  perfil: z.enum(PERFIL_RENDA as [string, ...string[]]).describe("clt | autonomo | empresario | aposentado"),
+  casado: z.boolean().optional(),
+  usaFgts: z.boolean().optional(),
+  declaraIr: z.boolean().optional(),
+});
+
+export const AtualizarDocumentoPayload = z.object({
+  tipo: z.literal("atualizar_documento"),
+  leadId: uuid,
+  documento: z.enum(DOCUMENTOS_TIPOS).describe("Tipo do documento (slug do checklist)"),
+  status: z.enum(DOC_STATUS as [string, ...string[]]).describe("pendente | recebido | aprovado | reprovado"),
+  observacao: textoOpcional(300),
+});
+
+export const AnexarDocumentoPayload = z.object({
+  tipo: z.literal("anexar_documento"),
+  leadId: uuid,
+  anexoId: uuid.describe("id do arquivo recebido no WhatsApp (vem no cabeçalho)"),
+  documento: z.enum(DOCUMENTOS_TIPOS).describe("Tipo do documento (slug do checklist)"),
+});
+
+// --- v8: crédito e venda -----------------------------------------------------
+
+export const EnviarAnaliseCreditoPayload = z.object({
+  tipo: z.literal("enviar_analise_credito"),
+  leadId: uuid,
+  situacao: z.enum(["enviada", "pendente"]).optional().describe("enviada (padrão) | pendente (faltam docs)"),
+  observacoes: textoOpcional(1000),
+});
+
+export const RegistrarResultadoCreditoBase = z.object({
+  tipo: z.literal("registrar_resultado_credito"),
+  leadId: uuid,
+  resultado: z.enum(["aprovada", "aprovada_condicionada", "reprovada"]),
+  motivo: textoOpcional(500).describe("Reprovada: motivo. Condicionada: a condição do banco"),
+  banco: textoOpcional(60),
+  modalidade: z.enum(MODALIDADES_CREDITO).optional(),
+  sistemaAmortizacao: z.enum(["price", "sac"]).optional(),
+  valorFinanciamento: valor.optional(),
+  valorParcela: valor.optional(),
+  prazoMeses: z.number().int().min(1).max(480).optional(),
+  taxaJurosAnual: z.number().min(0).max(100).optional().describe("% ao ano"),
+  valorFgts: z.number().min(0).max(10_000_000).optional(),
+  valorSubsidio: z.number().min(0).max(10_000_000).optional(),
+  valorEntrada: z.number().min(0).max(100_000_000).optional(),
+  valorImovel: valor.optional().describe("Valor do imóvel usado na simulação"),
+  rendaFamiliar: valor.optional(),
+  validadeAte: DIA_ISO.optional().describe("Validade da aprovação, AAAA-MM-DD"),
+});
+export const creditoCoerente = (p: {
+  resultado: string;
+  motivo?: string;
+  valorFinanciamento?: number;
+  valorParcela?: number;
+}) =>
+  (p.resultado === "aprovada" || !!p.motivo?.trim()) &&
+  !(p.valorFinanciamento && p.valorParcela && p.valorParcela >= p.valorFinanciamento);
+export const MSG_CREDITO =
+  "reprovada/condicionada exigem motivo; a parcela tem de ser menor que o financiamento";
+export const RegistrarResultadoCreditoPayload = RegistrarResultadoCreditoBase.refine(
+  creditoCoerente,
+  MSG_CREDITO,
+);
+
+export const RegistrarVendaBase = z.object({
+  tipo: z.literal("registrar_venda"),
+  leadId: uuid,
+  projetoId: uuid.optional().describe("id do empreendimento (de catalogo_projetos)"),
+  projetoNome: textoOpcional(120).describe("Nome do empreendimento quando não há id"),
+  unidade: textoOpcional(60).describe("Torre/apto, ex.: 'T2 ap 104'"),
+  valorVenda: valor.describe("Valor da venda em reais"),
+  dataAssinatura: DIA_ISO.describe("AAAA-MM-DD, hoje ou antes"),
+  previsaoRecebimento: MES_ISO.describe("Mês previsto para receber da construtora, AAAA-MM"),
+  contratoAssinado: z.boolean().optional(),
+  atoPago: z.boolean().optional(),
+  aptoRepasse: z.boolean().optional(),
+  observacoes: textoOpcional(500),
+});
+export const vendaTemProjeto = (p: { projetoId?: string; projetoNome?: string }) =>
+  !!p.projetoId || !!p.projetoNome?.trim();
+export const MSG_VENDA_PROJETO = "informe o empreendimento (id ou nome)";
+export const RegistrarVendaPayload = RegistrarVendaBase.refine(vendaTemProjeto, MSG_VENDA_PROJETO);
+
+// --- v8: presença e prospecção -----------------------------------------------
+
+export const FazerCheckinBase = z.object({
+  tipo: z.literal("fazer_checkin"),
+  modo: z.enum(["loja", "casa", "sair"]).describe("loja (filial) | casa | sair (encerrar presença)"),
+  filial: textoOpcional(40).describe("Slug da filial: barra-funda | liberdade | belem"),
+});
+export const checkinTemFilial = (p: { modo: string; filial?: string }) =>
+  p.modo !== "loja" || !!p.filial?.trim();
+export const MSG_CHECKIN_FILIAL = "check-in na loja precisa da filial";
+export const FazerCheckinPayload = FazerCheckinBase.refine(checkinTemFilial, MSG_CHECKIN_FILIAL);
+
+export const CriarLeadPayload = z.object({
+  tipo: z.literal("criar_lead"),
+  nome: z.string().trim().min(2).max(120),
+  telefone: z
+    .string()
+    .trim()
+    .min(4)
+    .max(40)
+    .describe("Telefone do cliente; use o marcador [TELEFONE_n] que veio na mensagem"),
+  email: textoOpcional(120).describe("E-mail; use o marcador [EMAIL_n] da mensagem"),
+  origem: z.enum(ORIGENS_CAPTACAO).optional().describe("Padrão captacao_corretor"),
+  projetoId: uuid.optional(),
+  projetoNome: textoOpcional(120),
+  bairro: textoOpcional(80),
+  zona: textoOpcional(40),
+  observacoes: textoOpcional(500),
+});
+
+export const PedirLotePayload = z.object({
+  tipo: z.literal("pedir_lote"),
+  zona: z.enum(ZONAS_LOTE),
+});
+
 export const PropostaPayloadSchema = z.discriminatedUnion("tipo", [
   RegistrarContatoPayload,
   AnotarPayload,
@@ -282,11 +741,30 @@ export const PropostaPayloadSchema = z.discriminatedUnion("tipo", [
   AtualizarQualificacaoPayload,
   AgendarVisitaPayload,
   MudarEtapaPayload,
+  RegistrarRetornoPayload,
+  MarcarPerdidoPayload,
+  TrocarVagaPayload,
+  ConcluirTarefaPayload,
+  ReagendarTarefaPayload,
+  CancelarTarefaPayload,
+  ConfirmarVisitaPayload,
+  RemarcarVisitaPayload,
+  CancelarVisitaPayload,
+  RegistrarVisitaPayload,
+  DocumentosChecklistPayload,
+  AtualizarDocumentoPayload,
+  AnexarDocumentoPayload,
+  EnviarAnaliseCreditoPayload,
+  RegistrarResultadoCreditoPayload,
+  RegistrarVendaPayload,
+  FazerCheckinPayload,
+  CriarLeadPayload,
+  PedirLotePayload,
 ]);
 
 export type PropostaPayload = z.infer<typeof PropostaPayloadSchema>;
 
-/** Proposta como o painel recebe (persistida em samiq_propostas). */
+/** Ação como o painel e o WhatsApp recebem (persistida em samiq_propostas). */
 export type PropostaSamiQ = {
   id: string;
   tipo: SamiQPropostaTipo;
@@ -294,17 +772,14 @@ export type PropostaSamiQ = {
   /** Nome do cliente resolvido no servidor (o modelo só manda o id). */
   leadNome: string | null;
   status: "pendente" | "aceita" | "editada" | "rejeitada" | "desfeita" | "falhou";
-  /** Até quando dá para desfazer (24 h após confirmar); null = não desfaz. */
+  /** Até quando dá para desfazer (24 h após gravar); null = não desfaz. */
   desfazerAte?: string | null;
   erro?: string | null;
+  /** Texto curto do que aconteceu de fato ao gravar (v8, ex.: "entrou em Em atendimento"). */
+  efeito?: string | null;
 };
 
 export const SAMIQ_DESFAZER_JANELA_HORAS = 24;
-
-/** Mudança de etapa passa pela máquina de estados do funil — não se desfaz por botão. */
-export function podeDesfazerProposta(tipo: SamiQPropostaTipo): boolean {
-  return tipo !== "mudar_etapa";
-}
 
 /** Conteúdo da interação = resumo do corretor; sem resumo, o próprio resultado. */
 export function conteudoContato(p: z.infer<typeof RegistrarContatoPayload>): string {
@@ -325,25 +800,25 @@ export function tituloVisita(
   return p.local?.trim() ? `Visita - ${p.local.trim()}` : `Visita - ${leadNome ?? "cliente"}`;
 }
 
-function fmtDataHora(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-    .format(d)
-    .replace(",", "");
+function rotuloEtapa(s: string): string {
+  return LEAD_STATUS_LABEL[s as LeadStatus] ?? s;
+}
+
+function brl(n: number | undefined | null): string | null {
+  if (n === undefined || n === null || !Number.isFinite(n)) return null;
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+/** "(11) 9****-4321": o corretor reconhece o número sem o WhatsApp repetir o telefone inteiro. */
+export function telefoneMascarado(tel: string | null | undefined): string {
+  const d = (tel ?? "").replace(/\D/g, "");
+  if (d.length < 8) return "telefone informado";
+  return `final ${d.slice(-4)}`;
 }
 
 export type DescricaoProposta = { titulo: string; detalhes: string[] };
 
-/** Texto humano do card e do retorno da ferramenta (o que o modelo "vê"). */
+/** Texto humano do card, da lista do WhatsApp e do retorno da ferramenta. */
 export function descreverProposta(
   payload: PropostaPayload,
   leadNome: string | null,
@@ -351,67 +826,188 @@ export function descreverProposta(
   const quem = leadNome ?? "cliente";
   switch (payload.tipo) {
     case "registrar_contato": {
-      const detalhes = [`${payload.canal} · ${RESULTADO_CONTATO_LABEL[payload.resultado]}`];
+      const detalhes = [
+        `${CANAL_LABEL[payload.canal]}, ${RESULTADO_CONTATO_LABEL[payload.resultado].toLowerCase()}`,
+      ];
       if (payload.resumo?.trim()) detalhes.push(payload.resumo.trim());
       if (payload.objecoes?.length) detalhes.push(`Objeções: ${payload.objecoes.join(", ")}`);
-      const fu = fmtDataHora(payload.followupEm);
-      detalhes.push(fu ? `Follow-up: ${fu}` : "Sem follow-up");
-      return { titulo: `Registrar contato com ${quem}`, detalhes };
+      const fu = fmtDataHoraSP(payload.followupEm);
+      detalhes.push(fu ? `Follow-up ${fu}` : "Sem follow-up");
+      return { titulo: `Contato com ${quem}`, detalhes };
     }
     case "anotar":
-      return { titulo: `Anotar sobre ${quem}`, detalhes: [payload.nota] };
+      return { titulo: `Nota sobre ${quem}`, detalhes: [payload.nota] };
     case "criar_tarefa": {
-      const venc = fmtDataHora(payload.vencimentoEm);
+      const venc = fmtDataHoraSP(payload.vencimentoEm);
       return {
-        titulo: payload.leadId
-          ? `Tarefa para ${quem}: ${payload.titulo}`
-          : `Tarefa: ${payload.titulo}`,
-        detalhes: [
-          `${payload.tipoTarefa} · prioridade ${payload.prioridade ?? "media"}`,
-          venc ? `Vence: ${venc}` : "Sem vencimento válido",
-        ],
+        titulo: payload.leadId ? `Tarefa de ${quem}: ${payload.titulo}` : `Tarefa: ${payload.titulo}`,
+        detalhes: [venc ? `Vence ${venc}` : "Sem vencimento válido", `Prioridade ${payload.prioridade ?? "media"}`],
       };
     }
     case "atualizar_qualificacao": {
       const detalhes: string[] = [];
       if (payload.rendaInformada !== undefined) detalhes.push(`Renda: ${payload.rendaInformada}`);
-      if (payload.entradaDisponivel !== undefined)
-        detalhes.push(`Entrada: ${payload.entradaDisponivel}`);
-      if (payload.usaFgts !== undefined)
-        detalhes.push(`Usa FGTS: ${payload.usaFgts ? "sim" : "não"}`);
-      if (payload.temFgts !== undefined)
-        detalhes.push(`Tem FGTS: ${payload.temFgts ? "sim" : "não"}`);
-      if (payload.tipoRenda !== undefined) detalhes.push(`Tipo de renda: ${payload.tipoRenda}`);
-      if (payload.temperatura !== undefined) detalhes.push(`Temperatura: ${payload.temperatura}`);
-      if (payload.projetoInteresse !== undefined)
-        detalhes.push(`Projeto: ${payload.projetoInteresse}`);
-      if (payload.objecoesAdicionar?.length)
-        detalhes.push(`Objeções: ${payload.objecoesAdicionar.join(", ")}`);
-      if (payload.resumoQualificacao !== undefined)
-        detalhes.push(`Parecer: ${payload.resumoQualificacao}`);
-      return { titulo: `Atualizar qualificação de ${quem}`, detalhes };
+      if (payload.rendaEstimada !== undefined) detalhes.push(`Renda: ${brl(payload.rendaEstimada)}`);
+      if (payload.entradaDisponivel !== undefined) detalhes.push(`Entrada: ${payload.entradaDisponivel}`);
+      if (payload.usaFgts !== undefined) detalhes.push(`Usa FGTS: ${payload.usaFgts ? "sim" : "não"}`);
+      if (payload.temFgts !== undefined) detalhes.push(`Tem FGTS: ${payload.temFgts ? "sim" : "não"}`);
+      if (payload.fgtsValor !== undefined) detalhes.push(`FGTS: ${brl(payload.fgtsValor)}`);
+      if (payload.tipoRenda !== undefined) detalhes.push(`Renda ${payload.tipoRenda}`);
+      if (payload.faixaMcmv !== undefined) detalhes.push(`Faixa ${payload.faixaMcmv}`);
+      if (payload.temperatura !== undefined) detalhes.push(`Temperatura ${payload.temperatura}`);
+      if (payload.decisor !== undefined) detalhes.push(`Decisor: ${payload.decisor}`);
+      if (payload.zona !== undefined || payload.bairro !== undefined)
+        detalhes.push(`Região: ${[payload.bairro, payload.zona].filter(Boolean).join(", ")}`);
+      if (payload.dormsDesejados !== undefined) detalhes.push(`${payload.dormsDesejados} dorm.`);
+      if (payload.precisaVaga !== undefined) detalhes.push(`Vaga: ${payload.precisaVaga ? "sim" : "não"}`);
+      if (payload.prioridades?.length) detalhes.push(`Prioridades: ${payload.prioridades.join(", ")}`);
+      if (payload.notaPerfil !== undefined) detalhes.push(`Perfil: ${payload.notaPerfil}`);
+      if (payload.projetoInteresse !== undefined) detalhes.push(`Projeto: ${payload.projetoInteresse}`);
+      else if (payload.projetoId) detalhes.push("Projeto de interesse atualizado");
+      if (payload.objecoesAdicionar?.length) detalhes.push(`Objeções: ${payload.objecoesAdicionar.join(", ")}`);
+      if (payload.resumoQualificacao !== undefined) detalhes.push(`Parecer: ${payload.resumoQualificacao}`);
+      return { titulo: `Qualificação de ${quem}`, detalhes };
     }
     case "agendar_visita": {
-      const quando = fmtDataHora(payload.inicioEm);
-      const detalhes = [quando ? `Quando: ${quando}` : "Data inválida"];
-      if (payload.local?.trim()) detalhes.push(`Onde: ${payload.local.trim()}`);
-      detalhes.push(
-        payload.moverParaAgendado === false
-          ? "Mantém a etapa atual"
-          : "Move o cliente para Agendado",
-      );
-      return { titulo: `Agendar visita com ${quem}`, detalhes };
+      const quando = fmtDataHoraSP(payload.inicioEm);
+      const detalhes = [quando ?? "Data inválida"];
+      if (payload.local?.trim()) detalhes.push(payload.local.trim());
+      detalhes.push(payload.moverParaAgendado === false ? "Mantém a etapa" : "Move para Agendado");
+      return { titulo: `Visita de ${quem}`, detalhes };
     }
     case "mudar_etapa": {
       const detalhes: string[] = [];
       if (payload.motivo?.trim()) detalhes.push(`Motivo: ${payload.motivo.trim()}`);
-      if (payload.motivoCategoria) detalhes.push(`Categoria: ${payload.motivoCategoria}`);
+      if (payload.motivoCategoria) detalhes.push(MOTIVO_PERDA_LABEL[payload.motivoCategoria]);
       if (payload.proximaAcao?.trim()) detalhes.push(`Próxima ação: ${payload.proximaAcao.trim()}`);
-      const fu = fmtDataHora(payload.proximoFollowupEm);
-      if (fu) detalhes.push(`Follow-up: ${fu}`);
-      detalhes.push("Não dá para desfazer pelo botão — a etapa segue a máquina de estados");
-      return { titulo: `Mover ${quem} para ${payload.novoStatus}`, detalhes };
+      const fu = fmtDataHoraSP(payload.proximoFollowupEm);
+      if (fu) detalhes.push(`Follow-up ${fu}`);
+      return { titulo: `Mover ${quem} para ${rotuloEtapa(payload.novoStatus)}`, detalhes };
     }
+    case "registrar_retorno": {
+      const quando = fmtDataHoraSP(payload.retornoEm);
+      const detalhes = [
+        payload.desfecho === "esfriou" ? "Esfriou (fica frio)" : "Pediu retorno",
+        quando ? `Retornar ${quando}` : "Data inválida",
+      ];
+      if (payload.nota?.trim()) detalhes.push(payload.nota.trim());
+      return { titulo: `${quem} para Aguardando retorno`, detalhes };
+    }
+    case "marcar_perdido": {
+      const detalhes = [MOTIVO_PERDA_LABEL[payload.categoria]];
+      if (payload.detalhe?.trim()) detalhes.push(payload.detalhe.trim());
+      detalhes.push("Sai da sua carteira (vai para outro corretor ou para a base)");
+      return { titulo: `Perder ${quem}`, detalhes };
+    }
+    case "trocar_vaga": {
+      const sai =
+        payload.desfecho === "perdido"
+          ? `sai como perdido (${payload.categoria ? MOTIVO_PERDA_LABEL[payload.categoria] : "sem categoria"})`
+          : `sai para retorno ${fmtDataHoraSP(payload.retornoEm) ?? ""}`.trim();
+      return { titulo: `Troca de vaga: entra ${quem}`, detalhes: [sai] };
+    }
+    case "concluir_tarefa":
+      return {
+        titulo: "Concluir tarefa",
+        detalhes: payload.resultado?.trim() ? [payload.resultado.trim()] : [],
+      };
+    case "reagendar_tarefa":
+      return {
+        titulo: "Reagendar tarefa",
+        detalhes: [`Para ${fmtDataHoraSP(payload.novoVencimentoEm) ?? "data inválida"}`],
+      };
+    case "cancelar_tarefa":
+      return { titulo: "Cancelar tarefa", detalhes: payload.motivo?.trim() ? [payload.motivo.trim()] : [] };
+    case "confirmar_visita":
+      return { titulo: `Visita de ${quem} confirmada`, detalhes: [] };
+    case "remarcar_visita":
+      return {
+        titulo: `Remarcar visita de ${quem}`,
+        detalhes: [`Para ${fmtDataHoraSP(payload.novoInicioEm) ?? "data inválida"}`],
+      };
+    case "cancelar_visita":
+      return { titulo: `Cancelar visita de ${quem}`, detalhes: [payload.motivo] };
+    case "registrar_visita": {
+      const detalhes = [payload.compareceu ? "Foi à visita" : "Não compareceu"];
+      if (payload.interesse) detalhes.push(`Interesse ${payload.interesse.replace("_", " ")}`);
+      const etapa =
+        payload.proximaEtapa ?? (payload.compareceu ? "visita_realizada" : "aguardando_retorno");
+      if (payload.reagendarPara) detalhes.push(`Nova visita ${fmtDataHoraSP(payload.reagendarPara) ?? ""}`.trim());
+      detalhes.push(`Vai para ${rotuloEtapa(etapa)}`);
+      return { titulo: `Resultado da visita de ${quem}`, detalhes };
+    }
+    case "documentos_checklist":
+      return {
+        titulo: `Checklist de documentos de ${quem}`,
+        detalhes: [
+          `Perfil ${payload.perfil}`,
+          [payload.casado ? "casado" : null, payload.usaFgts ? "usa FGTS" : null, payload.declaraIr ? "declara IR" : null]
+            .filter(Boolean)
+            .join(", ") || "sem extras",
+        ],
+      };
+    case "atualizar_documento":
+      return {
+        titulo: `${DOC_LABEL[payload.documento] ?? payload.documento} de ${quem}`,
+        detalhes: [`Status ${payload.status}`, ...(payload.observacao?.trim() ? [payload.observacao.trim()] : [])],
+      };
+    case "anexar_documento":
+      return {
+        titulo: `Anexar ${DOC_LABEL[payload.documento] ?? payload.documento} de ${quem}`,
+        detalhes: ["Arquivo recebido no WhatsApp"],
+      };
+    case "enviar_analise_credito":
+      return {
+        titulo: `Enviar ${quem} para análise de crédito`,
+        detalhes: [
+          payload.situacao === "pendente" ? "Pendente (faltam documentos)" : "Enviada ao banco",
+          ...(payload.observacoes?.trim() ? [payload.observacoes.trim()] : []),
+        ],
+      };
+    case "registrar_resultado_credito": {
+      const rotulo =
+        payload.resultado === "aprovada"
+          ? "Aprovada"
+          : payload.resultado === "aprovada_condicionada"
+            ? "Aprovada com condição"
+            : "Reprovada";
+      const detalhes = [rotulo];
+      if (payload.motivo?.trim()) detalhes.push(payload.motivo.trim());
+      const fin = brl(payload.valorFinanciamento);
+      const parc = brl(payload.valorParcela);
+      if (fin || parc) detalhes.push([fin && `financiamento ${fin}`, parc && `parcela ${parc}`].filter(Boolean).join(", "));
+      return { titulo: `Crédito de ${quem}`, detalhes };
+    }
+    case "registrar_venda":
+      return {
+        titulo: `Venda de ${quem}`,
+        detalhes: [
+          [payload.projetoNome, payload.unidade].filter(Boolean).join(" ") || "Empreendimento cadastrado",
+          `${brl(payload.valorVenda)}, assinatura ${fmtDiaBr(payload.dataAssinatura) ?? payload.dataAssinatura}`,
+          "Vai para aprovação da gestão",
+        ],
+      };
+    case "fazer_checkin":
+      return {
+        titulo:
+          payload.modo === "sair"
+            ? "Encerrar presença de hoje"
+            : payload.modo === "casa"
+              ? "Check-in em casa"
+              : `Check-in na filial ${payload.filial ?? ""}`.trim(),
+        detalhes: [],
+      };
+    case "criar_lead":
+      return {
+        titulo: `Cadastrar ${payload.nome}`,
+        detalhes: [
+          telefoneMascarado(payload.telefone),
+          payload.origem ?? "captacao_corretor",
+          ...(payload.projetoNome ? [payload.projetoNome] : []),
+        ],
+      };
+    case "pedir_lote":
+      return { titulo: `Pedir lote de 30 leads, zona ${payload.zona}`, detalhes: [] };
   }
 }
 
@@ -434,23 +1030,18 @@ export function metadataViaSami(args: { executionId?: string | null; propostaId:
   };
 }
 
-/** Interação registrada pela Sami? (lê metadata.origem) */
+/** Interação registrada pela Sami? (metadata.origem, ou metadata.via quando a
+ *  interação veio de uma RPC oficial que grava a própria origem). */
 export function foiViaSami(metadata: unknown): boolean {
-  return (
-    !!metadata &&
-    typeof metadata === "object" &&
-    (metadata as { origem?: unknown }).origem === SAMIQ_ORIGEM
-  );
+  if (!metadata || typeof metadata !== "object") return false;
+  const m = metadata as { origem?: unknown; via?: unknown };
+  return m.origem === SAMIQ_ORIGEM || m.via === SAMIQ_ORIGEM;
 }
 
 // ---------------------------------------------------------------------------
 // Etapa que o funil não aplicou (23/10/2026). Os triggers de leads devolvem
 // "Em atendimento" a "Aguardando atendimento" quando o lead não tem corretor
 // dono (Bolsão). A RPC não dá erro, então a Sami precisa avisar com clareza.
-
-function rotuloEtapa(s: string): string {
-  return LEAD_STATUS_LABEL[s as LeadStatus] ?? s;
-}
 
 export function mensagemEtapaNaoAplicada(
   pedida: string,
@@ -476,11 +1067,10 @@ export function etapaBloqueadaSemDono(
 }
 
 // ---------------------------------------------------------------------------
-// Tarefa no mesmo horário (23/10/2026). Um relato vira até 3 propostas que
+// Tarefa no mesmo horário (23/10/2026). Um relato vira até 3 ações que
 // geram tarefa (mudar_etapa, registrar_contato com follow-up e criar_tarefa).
-// Confirmadas juntas, elas criavam 2 ou 3 tarefas abertas para o mesmo
-// cliente no mesmo horário. Regra: uma tarefa aberta do lead até 2 h antes ou
-// depois do novo vencimento é a MESMA tarefa e é reaproveitada.
+// Regra: uma tarefa aberta do lead até 2 h antes ou depois do novo vencimento
+// é a MESMA tarefa e é reaproveitada.
 
 export const SAMIQ_JANELA_MESMA_TAREFA_MS = 2 * 60 * 60 * 1000;
 
@@ -505,4 +1095,82 @@ export function tarefaNoMesmoHorario<T extends TarefaAbertaResumo>(
     }
   }
   return melhor;
+}
+
+// ---------------------------------------------------------------------------
+// Normalização na hora de propor (v8): datas sem fuso viram horário de SP.
+// Feita no servidor antes de validar/gravar, para o payload persistido já
+// ficar certo (e o card/WhatsApp mostrar a hora que o corretor disse).
+
+const CAMPOS_DATA_HORA = [
+  "followupEm",
+  "vencimentoEm",
+  "inicioEm",
+  "proximoFollowupEm",
+  "retornoEm",
+  "novoVencimentoEm",
+  "novoInicioEm",
+  "reagendarPara",
+  "realizadaEm",
+] as const;
+
+export function normalizarDatasDoPayload<T extends Record<string, unknown>>(
+  payload: T,
+  normalizar: (iso: string) => string,
+): T {
+  const out: Record<string, unknown> = { ...payload };
+  for (const campo of CAMPOS_DATA_HORA) {
+    const v = out[campo];
+    if (typeof v === "string" && v.trim()) out[campo] = normalizar(v);
+  }
+  return out as T;
+}
+
+/** Datas que precisam estar no futuro na hora de propor (com 5 min de tolerância). */
+export function datasQueDevemSerFuturas(payload: PropostaPayload): Array<{ campo: string; iso: string }> {
+  const out: Array<{ campo: string; iso: string }> = [];
+  const add = (campo: string, iso: string | null | undefined) => {
+    if (iso) out.push({ campo, iso });
+  };
+  switch (payload.tipo) {
+    case "registrar_contato":
+      add("followupEm", payload.followupEm);
+      break;
+    case "criar_tarefa":
+      add("vencimentoEm", payload.vencimentoEm);
+      break;
+    case "agendar_visita":
+      add("inicioEm", payload.inicioEm);
+      break;
+    case "mudar_etapa":
+      add("proximoFollowupEm", payload.proximoFollowupEm);
+      break;
+    case "registrar_retorno":
+      add("retornoEm", payload.retornoEm);
+      break;
+    case "trocar_vaga":
+      add("retornoEm", payload.retornoEm);
+      add("proximoFollowupEm", payload.proximoFollowupEm);
+      break;
+    case "reagendar_tarefa":
+      add("novoVencimentoEm", payload.novoVencimentoEm);
+      break;
+    case "remarcar_visita":
+      add("novoInicioEm", payload.novoInicioEm);
+      break;
+    case "registrar_visita":
+      add("proximoFollowupEm", payload.proximoFollowupEm);
+      add("reagendarPara", payload.reagendarPara);
+      break;
+    default:
+      break;
+  }
+  return out;
+}
+
+/** O cliente (lead) de cada ação — para a checagem de carteira e o nome no texto. */
+export function leadIdDaProposta(payload: PropostaPayload): string | null {
+  if (payload.tipo === "trocar_vaga") return payload.entraLeadId;
+  if ("leadId" in payload && typeof payload.leadId === "string") return payload.leadId;
+  return null;
 }
