@@ -101,3 +101,29 @@ export function useDemandaPrateleira() {
       ),
   });
 }
+
+export type LeadContexto = {
+  id: string;
+  nome: string;
+  telefone: string | null;
+  status: string | null;
+  /** Texto livre no cadastro do lead ("4.000", "R$ 4 mil"); vira número em parseRenda. */
+  renda_informada: string | null;
+};
+
+/** O lead em contexto quando a prateleira abre a partir do dossiê. */
+export function useLeadDaPrateleira(leadId: string | undefined) {
+  return useQuery({
+    queryKey: ["prateleira-lead", leadId],
+    enabled: !!leadId,
+    queryFn: async (): Promise<LeadContexto | null> => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, nome, telefone, status, renda_informada")
+        .eq("id", leadId!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as LeadContexto | null) ?? null;
+    },
+  });
+}
