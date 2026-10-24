@@ -15,7 +15,16 @@ export function BotaoSincronizarCriativos({ habilitado }: { habilitado: boolean 
     <div className="text-right">
       <button
         disabled={pendente}
-        onClick={() => iniciar(async () => setMsg(await acaoSincronizarCriativos()))}
+        onClick={() =>
+          iniciar(async () => {
+            // Se a resposta não chegar (tempo esgotado, rede), avisa sem derrubar a página.
+            try {
+              setMsg(await acaoSincronizarCriativos());
+            } catch {
+              setMsg("A leitura demorou mais que o esperado. Recarregue a página em um minuto para ver o resultado.");
+            }
+          })
+        }
         className="rounded-md bg-navy px-3 py-1.5 text-sm font-semibold text-creme hover:bg-navy-claro disabled:opacity-60"
       >
         {pendente ? "Lendo todos os anúncios..." : "Atualizar da Meta"}

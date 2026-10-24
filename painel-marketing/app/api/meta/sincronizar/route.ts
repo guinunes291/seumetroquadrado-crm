@@ -2,7 +2,7 @@ import { ErroMeta, sincronizarMeta } from "@/lib/meta";
 import { sincronizarCriativos } from "@/lib/criativos";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 // Chamado pelo agendamento diário da Vercel (vercel.json). A Vercel manda
 // "Authorization: Bearer <CRON_SECRET>"; sem esse segredo, nada roda.
