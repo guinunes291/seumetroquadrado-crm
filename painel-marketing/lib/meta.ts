@@ -34,9 +34,13 @@ export class ErroMeta extends Error {
 export function traduzirErroMeta(codigo?: number, sub?: number): string {
   if (codigo === 190)
     return "O acesso à Meta expirou ou foi revogado. Gere um token novo para o usuário do sistema.";
-  if (codigo === 200 || codigo === 10)
-    return "O token não tem a permissão necessária (ads_read). Libere a permissão no usuário do sistema.";
-  if (codigo === 4 || codigo === 17 || codigo === 32 || codigo === 613)
+  if (codigo === 200 || codigo === 10 || codigo === 294)
+    return "O token não tem a permissão necessária (ads_read para ler, ads_management para alterar). Libere a permissão no usuário do sistema.";
+  if (codigo === 368)
+    return "A Meta bloqueou a ação por política ou por segurança da conta. Veja a Qualidade da Conta no Business Suite.";
+  if (codigo === 2635 || codigo === 2654)
+    return "A Meta recusou a configuração do público (lista pequena demais, origem inválida ou termos pendentes).";
+  if (codigo === 4 || codigo === 17 || codigo === 32 || codigo === 613 || codigo === 80004)
     return "A Meta limitou o número de consultas. Tente de novo em alguns minutos.";
   if (codigo === 100) return "A Meta recusou a consulta (parâmetro inválido ou conta errada).";
   if (codigo === 2 || codigo === 1)
@@ -44,9 +48,31 @@ export function traduzirErroMeta(codigo?: number, sub?: number): string {
   return `A Meta devolveu um erro (código ${codigo ?? "?"}${sub ? `/${sub}` : ""}).`;
 }
 
-async function graph<T>(caminho: string, params: Record<string, string>): Promise<T[]> {
+function tokenMeta(): string {
   const token = process.env.META_ACCESS_TOKEN;
   if (!token) throw new ErroMeta("O Painel ainda não tem o token da Meta configurado.");
+  return token;
+}
+
+export function contaAnuncios(): string {
+  return process.env.META_AD_ACCOUNT_ID ?? "382684244661295";
+}
+
+type CorpoGraph = { error?: { code?: number; error_subcode?: number; error_user_msg?: string } };
+
+function erroDoCorpo(corpo: CorpoGraph): ErroMeta {
+  const e = corpo.error;
+  const base = traduzirErroMeta(e?.code, e?.error_subcode);
+  // error_user_msg é o texto que a própria Meta escreve para o anunciante; ajuda
+  // a entender recusas de política ou de configuração.
+  return new ErroMeta(
+    e?.error_user_msg ? `${base} Detalhe da Meta: ${e.error_user_msg}` : base,
+    e?.code,
+  );
+}
+
+export async function graph<T>(caminho: string, params: Record<string, string>): Promise<T[]> {
+  const token = tokenMeta();
   const itens: T[] = [];
   let url: string | null =
     `https://graph.facebook.com/${VERSAO}/${caminho}?` +
@@ -59,14 +85,8 @@ async function graph<T>(caminho: string, params: Record<string, string>): Promis
     const corpo = (await r.json()) as {
       data?: T[];
       paging?: { next?: string };
-      error?: { code?: number; error_subcode?: number };
-    };
-    if (!r.ok || corpo.error) {
-      throw new ErroMeta(
-        traduzirErroMeta(corpo.error?.code, corpo.error?.error_subcode),
-        corpo.error?.code,
-      );
-    }
+    } & CorpoGraph;
+    if (!r.ok || corpo.error) throw erroDoCorpo(corpo);
     itens.push(...(corpo.data ?? []));
     url = corpo.paging?.next ?? null;
   }
@@ -84,8 +104,48 @@ export function resultadoDe(acoes: Acao[] | undefined): { valor: number; tipo: s
   return { valor: 0, tipo: "nenhum" };
 }
 
+// Leitura de um objeto só (campanha, conjunto, público).
+export async function graphObjeto<T>(caminho: string, campos: string): Promise<T> {
+  const r = await fetch(
+    `https://graph.facebook.com/${VERSAO}/${caminho}?` + new URLSearchParams({ fields: campos }),
+    { headers: { Authorization: `Bearer ${tokenMeta()}` }, cache: "no-store" },
+  );
+  const corpo = (await r.json()) as T & CorpoGraph;
+  if (!r.ok || corpo.error) throw erroDoCorpo(corpo);
+  return corpo;
+}
+
+// Escrita na Meta. Nunca repete sozinha: se a resposta não chega, a mudança pode
+// já ter sido aplicada, e repetir poderia duplicar campanha ou orçamento.
+export class SemResposta extends ErroMeta {}
+
+export async function graphPost<T>(caminho: string, params: Record<string, unknown>): Promise<T> {
+  const corpoForm = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    corpoForm.set(k, typeof v === "string" ? v : JSON.stringify(v));
+  }
+  let r: Response;
+  try {
+    r = await fetch(`https://graph.facebook.com/${VERSAO}/${caminho}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenMeta()}` },
+      body: corpoForm,
+      cache: "no-store",
+      signal: AbortSignal.timeout(45_000),
+    });
+  } catch {
+    throw new SemResposta(
+      "A Meta não respondeu a tempo. A mudança pode ter sido aplicada: confira no Gerenciador de Anúncios antes de pedir de novo.",
+    );
+  }
+  const corpo = (await r.json().catch(() => ({}))) as T & CorpoGraph;
+  if (!r.ok || corpo.error) throw erroDoCorpo(corpo);
+  return corpo;
+}
+
 export async function sincronizarMeta(quem: string) {
-  const conta = process.env.META_AD_ACCOUNT_ID ?? "382684244661295";
+  const conta = contaAnuncios();
   const [campanhas, insights] = await Promise.all([
     graph<Campanha>(`act_${conta}/campaigns`, { fields: "id,name,effective_status,objective" }),
     graph<Insight>(`act_${conta}/insights`, {
