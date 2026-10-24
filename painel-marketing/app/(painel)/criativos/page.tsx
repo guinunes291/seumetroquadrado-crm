@@ -30,6 +30,7 @@ type Busca = {
   fav?: string;
   ocultos?: string;
   ar?: string;
+  cat?: string;
 };
 
 function Marcar({
@@ -59,7 +60,10 @@ function Cartao({ c, empNome }: { c: Criativo; empNome: string | null }) {
   const texto = [c.titulo, c.texto].filter(Boolean).join("\n");
   const problemas = texto ? verificarTexto(texto) : [];
   const preco = texto ? temPreco(texto) : false;
-  const vencedor = ehVencedor(c.resultados, c.custo_por_resultado);
+  // Anúncio de vagas nunca é vencedor: o custo dele não se compara ao de imóvel.
+  const vencedor =
+    c.categoria === "vendas" && ehVencedor(c.resultados, c.custo_por_resultado, c.custo_teto);
+  const teto = c.custo_teto ?? CUSTO_TETO;
   const foto = c.imagem ?? c.miniatura;
   const unidade = RESULTADO[c.tipo_resultado ?? "nenhum"] ?? "resultados";
   return (
@@ -109,7 +113,7 @@ function Cartao({ c, empNome }: { c: Criativo; empNome: string | null }) {
           <div>
             <dt className="text-cinza">Custo cada</dt>
             <dd
-              className={`font-semibold ${c.custo_por_resultado !== null && c.custo_por_resultado > CUSTO_TETO ? "text-alerta" : "text-navy"}`}
+              className={`font-semibold ${c.categoria === "vendas" && c.custo_por_resultado !== null && c.custo_por_resultado > teto ? "text-alerta" : "text-navy"}`}
             >
               {c.custo_por_resultado !== null ? moeda(c.custo_por_resultado) : "sem"}
             </dd>
@@ -204,6 +208,7 @@ export default async function Biblioteca({ searchParams }: { searchParams: Promi
     favoritos: b.fav === "1",
     ocultos: b.ocultos === "1",
     noAr: b.ar === "1",
+    categoria: b.cat === "vagas" ? "recrutamento" : "vendas",
   };
   const [lista, resumo, emps] = await Promise.all([
     listarCriativos(filtro),
@@ -211,7 +216,10 @@ export default async function Biblioteca({ searchParams }: { searchParams: Promi
     listar(),
   ]);
   const nomes = new Map(emps.map((e) => [e.id, e.nome]));
-  const vencedores = lista.filter((c) => ehVencedor(c.resultados, c.custo_por_resultado)).length;
+  const vencedores = lista.filter(
+    (c) =>
+      c.categoria === "vendas" && ehVencedor(c.resultados, c.custo_por_resultado, c.custo_teto),
+  ).length;
   const sel = "rounded-md border border-navy/20 bg-white px-2 py-1.5 text-sm";
 
   return (
@@ -221,7 +229,9 @@ export default async function Biblioteca({ searchParams }: { searchParams: Promi
           <h1 className="text-2xl">Biblioteca de criativos</h1>
           <p className="mt-1 text-sm text-cinza">
             Todos os anúncios que já gastaram, com o resultado de todo o período. Vencedor é quem
-            tem pelo menos {VOLUME_MINIMO} resultados a até {moeda(CUSTO_TETO)} cada. Favoritar,
+            tem pelo menos {VOLUME_MINIMO} resultados a até o teto do empreendimento (
+            {moeda(CUSTO_TETO)}
+            quando ele não tem teto próprio). Anúncios de vagas ficam em Categoria. Favoritar,
             esconder e anotar ficam só aqui: nada muda na Meta.
           </p>
           <p className="mt-1 text-xs text-cinza">
@@ -243,6 +253,17 @@ export default async function Biblioteca({ searchParams }: { searchParams: Promi
                 {e.nome}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="text-xs text-cinza">
+          Categoria
+          <select
+            name="cat"
+            defaultValue={b.cat === "vagas" ? "vagas" : ""}
+            className={`mt-1 block ${sel}`}
+          >
+            <option value="">Imóveis</option>
+            <option value="vagas">Vagas de corretor</option>
           </select>
         </label>
         <label className="text-xs text-cinza">

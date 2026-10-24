@@ -2,14 +2,27 @@ import "server-only";
 import { sql } from "./db";
 import { registrar } from "./auditoria";
 
-export type Empreendimento = { id: number; nome: string; apelidos: string[] };
+export type Empreendimento = {
+  id: number;
+  nome: string;
+  apelidos: string[];
+  custo_teto: number | null;
+};
 
 export async function listar(): Promise<Empreendimento[]> {
-  const linhas = await sql()<{ id: number; nome: string; apelidos: string[] | null }[]>`
-    select e.id::int as id, e.nome, array_remove(array_agg(a.apelido order by a.apelido), null) as apelidos
+  const linhas = await sql()<
+    { id: number; nome: string; apelidos: string[] | null; custo_teto: number | null }[]
+  >`
+    select e.id::int as id, e.nome, e.custo_teto::float8 as custo_teto,
+      array_remove(array_agg(a.apelido order by a.apelido), null) as apelidos
     from empreendimentos e left join empreendimento_apelidos a on a.empreendimento_id = e.id
     where e.ativo group by e.id order by e.nome`;
-  return linhas.map((l) => ({ id: l.id, nome: l.nome, apelidos: l.apelidos ?? [] }));
+  return linhas.map((l) => ({
+    id: l.id,
+    nome: l.nome,
+    apelidos: l.apelidos ?? [],
+    custo_teto: l.custo_teto,
+  }));
 }
 
 export async function pendentes() {
@@ -94,4 +107,17 @@ export async function ligarCampanha(
     empreendimento_id: id,
     antes: antes ?? null,
   });
+}
+
+// Teto de custo por resultado do empreendimento, usado para marcar vencedores
+// na Biblioteca. Vazio volta ao teto geral. O registro guarda o valor anterior.
+export async function definirTeto(quem: string, id: number, valor: string) {
+  const n = Number(valor.replace(",", "."));
+  const teto = valor.trim() === "" ? null : Number.isFinite(n) && n > 0 ? n : undefined;
+  if (teto === undefined || !Number.isFinite(id) || id <= 0) return;
+  const [antes] = await sql()<{ custo_teto: number | null }[]>`
+    select custo_teto::float8 from empreendimentos where id = ${id}`;
+  if (!antes) return;
+  await sql()`update empreendimentos set custo_teto = ${teto} where id = ${id}`;
+  await registrar(quem, "teto_definido", String(id), { antes: antes.custo_teto, depois: teto });
 }

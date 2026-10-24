@@ -146,6 +146,8 @@ export type Criativo = {
   custo_por_resultado: number | null;
   ctr: number | null;
   sincronizado_em: string;
+  categoria: "vendas" | "recrutamento";
+  custo_teto: number | null;
 };
 
 export type Filtro = {
@@ -155,6 +157,9 @@ export type Filtro = {
   favoritos?: boolean;
   ocultos?: boolean;
   noAr?: boolean;
+  // Anúncios de vagas de corretor ficam à parte: não entram como vencedores
+  // nem se misturam aos de imóvel.
+  categoria?: "vendas" | "recrutamento";
 };
 
 export async function listarCriativos(f: Filtro): Promise<Criativo[]> {
@@ -171,10 +176,11 @@ export async function listarCriativos(f: Filtro): Promise<Criativo[]> {
       titulo, texto, link_publicacao, gasto::float8 as gasto, impressoes::float8 as impressoes,
       resultados::float8 as resultados, tipo_resultado, favorito, oculto, nota,
       empreendimento_id::int as empreendimento_id, custo_por_resultado::float8 as custo_por_resultado,
-      ctr::float8 as ctr, sincronizado_em::text
+      ctr::float8 as ctr, sincronizado_em::text, categoria, custo_teto::float8 as custo_teto
     from v_criativos
     where gasto > 0
       and oculto = ${f.ocultos ?? false}
+      and categoria = ${f.categoria ?? "vendas"}
       ${f.empreendimento ? db`and empreendimento_id = ${f.empreendimento}` : db``}
       ${f.tipo ? db`and tipo = ${f.tipo}` : db``}
       ${f.favoritos ? db`and favorito` : db``}
