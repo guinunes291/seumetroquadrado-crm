@@ -17,6 +17,7 @@ export const SAMIQ_PROPOSTA_TIPOS = [
   "atualizar_qualificacao",
   "agendar_visita",
   "mudar_etapa",
+  "criar_lead",
 ] as const;
 
 export type SamiQPropostaTipo = (typeof SAMIQ_PROPOSTA_TIPOS)[number];
@@ -28,6 +29,7 @@ export const SAMIQ_PROPOSTA_LABEL: Record<SamiQPropostaTipo, string> = {
   atualizar_qualificacao: "Atualizar qualificação",
   agendar_visita: "Agendar visita",
   mudar_etapa: "Mudar etapa",
+  criar_lead: "Cadastrar cliente",
 };
 
 /** Ferramenta do modelo → tipo de proposta (nomes que o modelo chama). */
@@ -38,6 +40,7 @@ export const SAMIQ_FERRAMENTAS_PROPOSTA = {
   propor_qualificacao: "atualizar_qualificacao",
   propor_visita: "agendar_visita",
   propor_etapa: "mudar_etapa",
+  propor_novo_cliente: "criar_lead",
 } as const satisfies Record<string, SamiQPropostaTipo>;
 
 export type SamiQFerramentaProposta = keyof typeof SAMIQ_FERRAMENTAS_PROPOSTA;
@@ -275,6 +278,31 @@ export const MudarEtapaPayload = MudarEtapaBase.refine(
   MSG_ETAPA_PERDIDO,
 ).refine(etapaRetornoTemFollowup, MSG_ETAPA_RETORNO);
 
+/** Origens que um corretor pode dar a um cliente que ele mesmo cadastra. */
+export const ORIGENS_NOVO_CLIENTE = [
+  "captacao_corretor",
+  "indicacao",
+  "acao_rua",
+  "plantao",
+  "telefone",
+  "whatsapp",
+  "investimento_corretor",
+  "outro",
+] as const;
+
+export const CriarLeadPayload = z.object({
+  tipo: z.literal("criar_lead"),
+  nome: textoCurto(80).describe("Nome do cliente"),
+  telefone: z
+    .string()
+    .regex(/^\d{10,13}$/, "telefone só com dígitos, DDD + número")
+    .describe("Só dígitos, com DDD (ex.: 11999998888)"),
+  origem: z.enum(ORIGENS_NOVO_CLIENTE).describe("Como o cliente chegou"),
+  projetoNome: z.string().trim().max(120).optional().describe("Empreendimento de interesse"),
+  bairro: z.string().trim().max(80).optional().describe("Bairro ou região de interesse"),
+  observacoes: z.string().trim().max(500).optional().describe("O que o corretor já sabe"),
+});
+
 export const PropostaPayloadSchema = z.discriminatedUnion("tipo", [
   RegistrarContatoPayload,
   AnotarPayload,
@@ -282,6 +310,7 @@ export const PropostaPayloadSchema = z.discriminatedUnion("tipo", [
   AtualizarQualificacaoPayload,
   AgendarVisitaPayload,
   MudarEtapaPayload,
+  CriarLeadPayload,
 ]);
 
 export type PropostaPayload = z.infer<typeof PropostaPayloadSchema>;
@@ -412,7 +441,92 @@ export function descreverProposta(
       detalhes.push("Não dá para desfazer pelo botão — a etapa segue a máquina de estados");
       return { titulo: `Mover ${quem} para ${payload.novoStatus}`, detalhes };
     }
+    case "criar_lead": {
+      const detalhes = [
+        `Telefone final ${payload.telefone.slice(-4)}`,
+        `Origem: ${ORIGEM_NOVO_CLIENTE_LABEL[payload.origem]}`,
+      ];
+      if (payload.projetoNome?.trim()) detalhes.push(`Interesse: ${payload.projetoNome.trim()}`);
+      if (payload.bairro?.trim()) detalhes.push(`Região: ${payload.bairro.trim()}`);
+      if (payload.observacoes?.trim()) detalhes.push(payload.observacoes.trim());
+      detalhes.push("Entra na sua carteira em Aguardando atendimento");
+      return { titulo: `Cadastrar cliente ${payload.nome}`, detalhes };
+    }
   }
+}
+
+const ORIGEM_NOVO_CLIENTE_LABEL: Record<(typeof ORIGENS_NOVO_CLIENTE)[number], string> = {
+  captacao_corretor: "captação do corretor",
+  indicacao: "indicação",
+  acao_rua: "ação de rua",
+  plantao: "plantão",
+  telefone: "telefone",
+  whatsapp: "WhatsApp",
+  investimento_corretor: "investimento do corretor",
+  outro: "outro",
+};
+
+// ---------------------------------------------------------------------------
+// Dados de cadastro ocultos (24/10/2026). Por privacidade, telefone e nome
+// completo viram marcadores antes de chegarem ao modelo ([TELEFONE], [NOME],
+// [IDENTIFICADOR]). Para cadastrar um cliente novo, o servidor extrai esses
+// dados do texto ORIGINAL e o modelo só aponta a posição (telefone_ref,
+// nome_ref). O número nunca passa pelo modelo.
+
+export type DadosDeCadastro = { telefones: string[]; nomes: string[] };
+
+const TEL_CADASTRO = /(?:\+?55[\s.-]*)?\(?0?[1-9]\d\)?[\s.-]*9?\d{4}[\s.-]?\d{4}\b/g;
+const NOME_COMPLETO =
+  /\b\p{Lu}\p{Ll}{1,}(?:\s+(?:(?:da|de|do|das|dos|e)\s+)?\p{Lu}\p{Ll}{1,}){1,4}\b/gu;
+
+export function normalizarTelefoneCadastro(bruto: string): string | null {
+  let d = bruto.replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("0")) d = d.slice(1); // 011 9xxxx-xxxx
+  if (d.length === 12 || d.length === 13) {
+    if (!d.startsWith("55")) return null;
+    d = d.slice(2);
+  }
+  if (d.length === 11 && d[2] === "0") d = d.slice(0, 2) + d.slice(3);
+  if (d.length !== 10 && d.length !== 11) return null;
+  if (d.length === 11 && d[2] !== "9") return null;
+  return d;
+}
+
+export function extrairDadosDeCadastro(texto: string): DadosDeCadastro {
+  const t = String(texto ?? "");
+  const telefones: string[] = [];
+  for (const m of t.matchAll(TEL_CADASTRO)) {
+    const n = normalizarTelefoneCadastro(m[0]);
+    if (n && !telefones.includes(n)) telefones.push(n);
+  }
+  const nomes: string[] = [];
+  for (const m of t.matchAll(NOME_COMPLETO)) {
+    const n = m[0].replace(/\s+/g, " ").trim();
+    if (!nomes.includes(n)) nomes.push(n);
+  }
+  return { telefones: telefones.slice(0, 5), nomes: nomes.slice(0, 5) };
+}
+
+/** Linha do cabeçalho que diz ao modelo o que ficou oculto e como referenciar. */
+export function descreverDadosOcultos(c: DadosDeCadastro): string | null {
+  if (c.telefones.length === 0 && c.nomes.length === 0) return null;
+  const partes: string[] = [];
+  if (c.telefones.length) {
+    partes.push(
+      `telefones: ${c.telefones.map((t, i) => `${i + 1} (final ${t.slice(-4)})`).join(", ")}`,
+    );
+  }
+  if (c.nomes.length) {
+    partes.push(
+      `nomes completos: ${c.nomes
+        .map((n, i) => {
+          const [p1, p2] = n.split(" ");
+          return `${i + 1} (${p1}${p2 ? ` ${p2[0]}.` : ""})`;
+        })
+        .join(", ")}`,
+    );
+  }
+  return `Dados pessoais ocultos nesta mensagem (você vê marcadores no lugar): ${partes.join("; ")}. Para cadastrar cliente novo use propor_novo_cliente com telefone_ref e nome_ref apontando para essas posições. Não peça o telefone de novo se já há um aqui.`;
 }
 
 /** Texto curto do pacote: "Registrar 3 itens para Maria?" */

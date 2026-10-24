@@ -427,6 +427,47 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
       return resultado;
     }
 
+    case "criar_lead": {
+      // Mesmo caminho do "Novo lead" do painel: criar_lead_dedup decide a
+      // duplicidade por telefone com lock, e o lead nasce na carteira do
+      // corretor em Aguardando atendimento.
+      const observacoes = ["Cadastrado pela Sami (WhatsApp)", payload.observacoes?.trim() || ""]
+        .filter(Boolean)
+        .join("\n");
+      const { data, error } = await supabase.rpc("criar_lead_dedup", {
+        _payload: {
+          nome: payload.nome,
+          telefone: payload.telefone,
+          origem: payload.origem,
+          projeto_nome: payload.projetoNome ?? null,
+          bairro: payload.bairro ?? null,
+          observacoes,
+          corretor_id: userId,
+          status: "aguardando_atendimento",
+        } as Json,
+      });
+      if (error) erroDb("Não foi possível cadastrar o cliente", error);
+      const r = (data ?? {}) as {
+        duplicado?: boolean;
+        lead_id?: string;
+        nome?: string | null;
+        na_carteira?: boolean;
+        bloqueado_etapa?: boolean;
+      };
+      if (!r.lead_id) throw new Error("O CRM não devolveu o cliente criado. Tente de novo.");
+      if (r.duplicado) {
+        if (r.na_carteira) {
+          throw new Error(
+            `Já existe ${r.nome ?? "um cliente"} com este telefone na sua carteira. Registre o contato nele em vez de cadastrar de novo.`,
+          );
+        }
+        throw new Error(
+          "Já existe um cliente com este telefone em outra carteira. Fale com o gestor da sua equipe para transferir.",
+        );
+      }
+      return { lead_id: r.lead_id, lead_criado_id: r.lead_id };
+    }
+
     case "mudar_etapa": {
       const lead = await carregarLead(supabase, payload.leadId);
       const novo = payload.novoStatus as LeadStatus;
