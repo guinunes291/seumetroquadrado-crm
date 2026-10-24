@@ -32,4 +32,8 @@ test("vencedor pede volume e custo dentro do teto", () => {
   assert.equal(ehVencedor(29, 5), false);
   assert.equal(ehVencedor(100, 20.01), false);
   assert.equal(ehVencedor(100, null), false);
+  // Teto próprio do empreendimento vale no lugar do geral.
+  assert.equal(ehVencedor(100, 30, 35), true);
+  assert.equal(ehVencedor(100, 15, 10), false);
+  assert.equal(ehVencedor(100, 20, null), true);
 });

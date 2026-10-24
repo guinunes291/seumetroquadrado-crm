@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { exigirSessao } from "@/lib/auth";
-import { desligarApelido, ligarApelido, ligarCampanha } from "@/lib/empreendimentos";
+import { definirTeto, desligarApelido, ligarApelido, ligarCampanha } from "@/lib/empreendimentos";
 
 export async function acaoLigarApelido(form: FormData) {
   const s = await exigirSessao();
@@ -28,5 +28,11 @@ export async function acaoLigarCampanha(form: FormData) {
     String(form.get("escolha")),
     String(form.get("novo") ?? ""),
   );
+  revalidatePath("/", "layout");
+}
+
+export async function acaoDefinirTeto(form: FormData) {
+  const s = await exigirSessao();
+  await definirTeto(s.email, Number(form.get("id")), String(form.get("teto") ?? ""));
   revalidatePath("/", "layout");
 }

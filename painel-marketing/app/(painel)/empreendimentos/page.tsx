@@ -1,6 +1,12 @@
 import { campanhas, listar, pendentes, type Empreendimento } from "@/lib/empreendimentos";
 import { dataCurta, moeda, numero } from "@/lib/formato";
-import { acaoDesligarApelido, acaoLigarApelido, acaoLigarCampanha } from "./actions";
+import { CUSTO_TETO } from "@/lib/biblioteca";
+import {
+  acaoDefinirTeto,
+  acaoDesligarApelido,
+  acaoLigarApelido,
+  acaoLigarCampanha,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -141,7 +147,24 @@ export default async function Empreendimentos() {
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {lista.map((e) => (
             <div key={e.id} className="rounded-lg bg-white p-4 ring-1 ring-navy/10">
-              <p className="font-semibold text-navy">{e.nome}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold text-navy">{e.nome}</p>
+                <form
+                  action={acaoDefinirTeto}
+                  className="flex items-center gap-1 text-xs text-cinza"
+                >
+                  <input type="hidden" name="id" value={e.id} />
+                  Teto por resultado R$
+                  <input
+                    name="teto"
+                    inputMode="decimal"
+                    defaultValue={e.custo_teto ?? ""}
+                    placeholder={String(CUSTO_TETO)}
+                    className="w-16 rounded border border-navy/20 px-1 py-0.5 text-navy"
+                  />
+                  <button className="rounded bg-navy px-2 py-0.5 text-creme">Salvar</button>
+                </form>
+              </div>
               <ul className="mt-2 flex flex-wrap gap-2">
                 {e.apelidos.map((a) => (
                   <li key={a}>

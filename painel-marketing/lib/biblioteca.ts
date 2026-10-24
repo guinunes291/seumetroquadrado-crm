@@ -63,11 +63,16 @@ export function textosDoCriativo(c: CriativoMeta | undefined): {
   return { titulo: titulo?.trim() || null, texto: texto?.trim() || null };
 }
 
-// Teto de custo por resultado da SMQ e volume mínimo para chamar de vencedor:
-// com poucos resultados, um custo baixo pode ser só sorte.
+// Teto geral de custo por resultado e volume mínimo para chamar de vencedor:
+// com poucos resultados, um custo baixo pode ser só sorte. Cada empreendimento
+// pode ter o seu teto (ticket e público mudam); sem teto próprio, vale o geral.
 export const CUSTO_TETO = 20;
 export const VOLUME_MINIMO = 30;
 
-export function ehVencedor(resultados: number, custo: number | null): boolean {
-  return resultados >= VOLUME_MINIMO && custo !== null && custo <= CUSTO_TETO;
+export function ehVencedor(
+  resultados: number,
+  custo: number | null,
+  teto: number | null = null,
+): boolean {
+  return resultados >= VOLUME_MINIMO && custo !== null && custo <= (teto ?? CUSTO_TETO);
 }
