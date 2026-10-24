@@ -1,6 +1,13 @@
 // O que cada pedido da Fase 2 faz na Meta, descrito em português antes de
 // qualquer chamada. É este texto que o Guilherme lê e aprova.
 // Funções puras (sem banco e sem rede) para poder testar isoladas.
+import {
+  passosDoVideo,
+  problemasDoCusto,
+  problemasDoVideo,
+  tituloDoVideo,
+  type PedidoVideo,
+} from "./video.ts";
 
 export type Local = { lat: number; lng: number; raioKm: number };
 
@@ -39,7 +46,11 @@ export type PublicoSemelhante = {
   percentual: number; // 1 a 10
 };
 
-export type Pedido = NovaCampanha | Ajuste | PublicoLista | PublicoSemelhante;
+export type Pedido = NovaCampanha | Ajuste | PublicoLista | PublicoSemelhante | PedidoVideo;
+
+export function ehVideo(p: Pedido): p is PedidoVideo {
+  return p.tipo === "video_gerar" || p.tipo === "video_editar";
+}
 
 // Teto de segurança por pedido. Acima disso o Painel recusa; muda-se aqui, com PR.
 export const ORCAMENTO_DIARIO_MAXIMO = 1000;
@@ -51,6 +62,7 @@ export function centavos(reais: number): string {
 }
 
 export function problemasDoPedido(p: Pedido): string[] {
+  if (ehVideo(p)) return [...problemasDoVideo(p), ...problemasDoCusto(p.custoUsd)];
   const erros: string[] = [];
   if (p.tipo === "nova_campanha") {
     if (!p.nome.trim()) erros.push("Dê um nome para a campanha.");
@@ -95,6 +107,7 @@ export function problemasDoPedido(p: Pedido): string[] {
 
 // true quando aprovar pode fazer a conta gastar dinheiro a partir de agora.
 export function gastaDinheiro(p: Pedido): boolean {
+  if (ehVideo(p)) return true; // cada vídeo é cobrado do saldo do Higgsfield
   if (p.tipo !== "ajustar") return false;
   const ativa = p.depois.status === "ACTIVE" && p.antes.status !== "ACTIVE";
   const sobe =
@@ -115,6 +128,9 @@ export function tituloDoPedido(p: Pedido): string {
       return `Novo público (lista): ${p.nome}`;
     case "publico_semelhante":
       return `Novo público semelhante: ${p.nome}`;
+    case "video_gerar":
+    case "video_editar":
+      return tituloDoVideo(p);
   }
 }
 
@@ -164,5 +180,8 @@ export function passosDoPedido(p: Pedido): string[] {
         `Criar o público semelhante "${p.nome}" a partir de "${p.origem.nome}", ${p.percentual}% do Brasil.`,
         "Não gasta nada sozinho: o público só é usado quando alguém escolhe ele num conjunto.",
       ];
+    case "video_gerar":
+    case "video_editar":
+      return passosDoVideo(p);
   }
 }

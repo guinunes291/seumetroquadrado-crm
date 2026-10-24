@@ -13,8 +13,9 @@ const BOTOES: { rotulo: string; href?: string; fase?: number }[] = [
   { rotulo: "Ajustar campanha", href: "/campanhas/ajustar" },
   { rotulo: "Criar público", href: "/publicos/novo" },
   { rotulo: "Biblioteca de criativos", href: "/criativos" },
-  { rotulo: "Editar vídeo", fase: 4 },
-  { rotulo: "Gerar vídeo por prompt", fase: 4 },
+  { rotulo: "Editar vídeo", href: "/videos/editar" },
+  { rotulo: "Gerar vídeo por prompt", href: "/videos/gerar" },
+  { rotulo: "Vídeos", href: "/videos" },
   { rotulo: "Publicar no Instagram", fase: 5 },
 ];
 

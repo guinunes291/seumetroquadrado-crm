@@ -11,6 +11,8 @@ import { temPreco, verificarTexto, type Problema } from "./compliance";
 //   Copywriter (Sonnet): textos para os criativos da Fase 3.
 //   Auditor de Compliance (Haiku + regras fixas): barra promessa de crédito,
 //   valor de aprovação, preço sem tabela e travessão.
+//   Roteirista de Vídeo (Sonnet, Fase 4): transforma a ideia em prompt para o
+//   Higgsfield; o prompt passa pelas mesmas regras fixas antes do pedido.
 // A chave fica em ANTHROPIC_API_KEY, só no servidor.
 
 const ESTRATEGISTA = "claude-opus-5-5";
@@ -168,5 +170,51 @@ export async function copywriterComAuditoria(contexto: {
       a.aprovado && a.problemas.length === 0
         ? "Auditor não encontrou problema."
         : "Auditor apontou problemas.",
+  };
+}
+
+// Roteirista de vídeo -----------------------------------------------------------
+
+const Roteiro = z.object({
+  prompt: z
+    .string()
+    .describe(
+      "prompt em inglês para o Seedance 2.5, 60 a 120 palavras, descrevendo cena, câmera, luz e ritmo",
+    ),
+  resumo: z.string().describe("uma frase em português dizendo o que o vídeo vai mostrar"),
+  alertas: z
+    .array(z.string())
+    .describe("pontos do pedido que você não seguiu por causa das regras, em português"),
+});
+export type Roteiro = z.infer<typeof Roteiro>;
+
+export async function roteiristaDeVideo(contexto: {
+  tipo: "gerar" | "editar";
+  empreendimento: string;
+  ideia: string;
+  formato: string;
+  comImagem: boolean;
+}): Promise<Roteiro> {
+  const r = await perguntar(
+    COPYWRITER,
+    `Você é o Roteirista de Vídeo da SMQ. Transforma o pedido do Guilherme num prompt para o modelo de vídeo Seedance 2.5 (Higgsfield), que entende melhor inglês.
+- Vídeo de lançamento imobiliário econômico em São Paulo: fachada, área de lazer, apartamento decorado, bairro, família, luz natural.
+- Identidade da marca quando couber: azul-marinho (#0F1E3A), dourado (#B89968) e creme (#F5F1EA), visual limpo e elegante.
+- Não peça texto escrito na tela, letreiro, legenda nem número: o modelo erra letras e números, e a legenda entra depois. Nunca coloque preço, entrada, parcela, taxa ou valor de aprovação.
+- Sem fala nem narração: no máximo som ambiente ou música suave, porque a voz gerada pode prometer o que não pode.
+- Não invente detalhe do empreendimento que não foi dito (número de torres, itens de lazer, metragem).
+- ${contexto.tipo === "editar" ? "É uma EDIÇÃO de um vídeo existente: escreva a instrução do que mudar, mantendo o resto do vídeo como está." : contexto.comImagem ? "O vídeo parte de uma imagem enviada: descreva o movimento a partir dela, sem trocar o que aparece nela." : "É um vídeo novo a partir de texto."}
+
+${REGRAS_SMQ}`,
+    `Empreendimento: ${contexto.empreendimento}
+Formato: ${contexto.formato}
+Pedido do Guilherme: ${contexto.ideia}`,
+    Roteiro,
+    "low",
+  );
+  return {
+    prompt: semTravessao(r.prompt),
+    resumo: semTravessao(r.resumo),
+    alertas: r.alertas.map(semTravessao),
   };
 }

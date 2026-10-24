@@ -40,7 +40,28 @@ function Confirmar({
   );
 }
 
-export function Aprovar({ id, gasta }: { id: string; gasta: boolean }) {
+export function Aprovar({
+  id,
+  gasta,
+  video,
+  custo,
+}: {
+  id: string;
+  gasta: boolean;
+  video?: boolean;
+  custo?: string;
+}) {
+  if (video)
+    return (
+      <Confirmar
+        id={id}
+        acao={acaoAprovar}
+        rotulo="Aprovar e gerar no Higgsfield"
+        enviando="Enviando ao Higgsfield..."
+        aviso={`Confirmo que revisei o pedido e autorizo gastar ${custo ?? "o valor estimado"} do saldo da API do Higgsfield.`}
+        perigo
+      />
+    );
   return (
     <Confirmar
       id={id}
@@ -57,14 +78,18 @@ export function Aprovar({ id, gasta }: { id: string; gasta: boolean }) {
   );
 }
 
-export function Reverter({ id }: { id: string }) {
+export function Reverter({ id, video }: { id: string; video?: boolean }) {
   return (
     <Confirmar
       id={id}
       acao={acaoReverter}
-      rotulo="Reverter"
+      rotulo={video ? "Cancelar ou arquivar o vídeo" : "Reverter"}
       enviando="Revertendo..."
-      aviso="Confirmo que quero desfazer o que este pedido mudou (campanhas novas são arquivadas, ajustes voltam ao valor anterior, públicos ficam)."
+      aviso={
+        video
+          ? "Confirmo: se o vídeo ainda estiver na fila, ele é cancelado e o Higgsfield devolve o valor; se já estiver sendo gerado, ele é arquivado (já foi cobrado)."
+          : "Confirmo que quero desfazer o que este pedido mudou (campanhas novas são arquivadas, ajustes voltam ao valor anterior, públicos ficam)."
+      }
     />
   );
 }

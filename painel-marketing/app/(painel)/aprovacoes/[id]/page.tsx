@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { lerJob } from "@/lib/jobs";
-import { gastaDinheiro, passosDoPedido } from "@/lib/planos";
-import type { Estrategia, Variacao } from "@/lib/agentes";
+import { ehVideo, gastaDinheiro, passosDoPedido } from "@/lib/planos";
+import type { Estrategia, Roteiro, Variacao } from "@/lib/agentes";
+import { custoTexto } from "@/lib/video";
+import { conferirVideo, videoDoJob } from "@/lib/videos";
+import { AtualizarSozinho } from "@/components/atualizar-sozinho";
 import { dataHora, moeda } from "@/lib/formato";
 import { ROTULO_STATUS } from "@/components/status-job";
 import { Aprovar, Descartar, Reverter } from "@/components/acoes-job";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function Caixa({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
@@ -31,9 +35,17 @@ export default async function Pedido({ params }: { params: Promise<{ id: string 
   const aplicado = job.resultado?.aplicado ?? [];
   const rev = job.resultado as { desfeito?: string[]; mantido?: string[] } | null;
   const pendente = job.status === "aguardando_aprovacao" && !job.descartado_em;
+  const video = !ehReversao && ehVideo(job.payload) ? job.payload : null;
+  const roteiro = job.proposta?.roteiro as Roteiro | undefined;
+  let gerado = video ? await videoDoJob(job.id) : null;
+  if (gerado?.status === "gerando") {
+    await conferirVideo(gerado).catch(() => null);
+    gerado = await videoDoJob(job.id);
+  }
 
   return (
     <div className="max-w-4xl space-y-6">
+      <AtualizarSozinho ativo={gerado?.status === "gerando"} />
       <Link href="/aprovacoes" className="text-sm text-cinza hover:text-navy">
         ← Aprovações
       </Link>
@@ -54,7 +66,7 @@ export default async function Pedido({ params }: { params: Promise<{ id: string 
       </section>
 
       {passos.length > 0 && (
-        <Caixa titulo="O que vai acontecer na Meta">
+        <Caixa titulo={video ? "O que vai acontecer no Higgsfield" : "O que vai acontecer na Meta"}>
           <ol className="list-decimal space-y-1 pl-5 text-sm">
             {passos.map((p) => (
               <li key={p}>{p}</li>
@@ -62,8 +74,60 @@ export default async function Pedido({ params }: { params: Promise<{ id: string 
           </ol>
           {gasta && (
             <p className="mt-4 rounded-md bg-alerta/10 p-3 text-sm font-semibold text-alerta">
-              Este pedido faz a conta gastar mais a partir do momento em que for aprovado.
+              {video
+                ? `Aprovar gasta ${custoTexto(video.custoUsd)} do saldo da API do Higgsfield.`
+                : "Este pedido faz a conta gastar mais a partir do momento em que for aprovado."}
             </p>
+          )}
+        </Caixa>
+      )}
+
+      {video && (
+        <Caixa titulo={video.tipo === "video_editar" ? "Edição pedida" : "Vídeo pedido"}>
+          <p className="text-sm">
+            <strong>Seu pedido:</strong> {video.ideia}
+          </p>
+          {roteiro && (
+            <p className="mt-2 text-sm">
+              <strong>Roteirista:</strong> {roteiro.resumo}
+            </p>
+          )}
+          {roteiro?.alertas.length ? (
+            <ul className="mt-2 list-disc pl-5 text-sm text-alerta">
+              {roteiro.alertas.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="mt-3 text-xs font-semibold text-cinza">Prompt enviado ao Higgsfield</p>
+          <p className="mt-1 rounded-md bg-creme p-3 font-mono text-xs whitespace-pre-line">
+            {video.prompt}
+          </p>
+          {(video.tipo === "video_editar" ? video.videoUrl : video.imagemUrl) && (
+            <a
+              href={video.tipo === "video_editar" ? video.videoUrl : (video.imagemUrl ?? "")}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block text-sm underline"
+            >
+              {video.tipo === "video_editar" ? "Ver o vídeo original" : "Ver a imagem de partida"}
+            </a>
+          )}
+          {gerado && (
+            <div className="mt-4 border-t border-navy/10 pt-4">
+              {gerado.url ? (
+                <video src={gerado.url} controls className="max-h-[480px] rounded-md bg-navy" />
+              ) : (
+                <p className="text-sm text-cinza">
+                  {gerado.status === "gerando"
+                    ? "Gerando no Higgsfield. Esta página confere sozinha a cada 20 segundos."
+                    : gerado.erro}
+                </p>
+              )}
+              <Link href="/videos" className="mt-2 inline-block text-sm underline">
+                Abrir a Biblioteca de vídeos
+              </Link>
+            </div>
           )}
         </Caixa>
       )}
@@ -135,8 +199,9 @@ export default async function Pedido({ params }: { params: Promise<{ id: string 
           )}
           {job.erro && (
             <p className="mt-2 text-xs text-cinza">
-              O Painel não tenta de novo sozinho, porque a Meta pode ter aplicado parte da mudança.
-              Confira no Gerenciador e, se precisar, use Reverter.
+              {video
+                ? "O Painel não tenta de novo sozinho. Se o erro foi de saldo ou de chave, resolva e faça um pedido novo."
+                : "O Painel não tenta de novo sozinho, porque a Meta pode ter aplicado parte da mudança. Confira no Gerenciador e, se precisar, use Reverter."}
             </p>
           )}
         </Caixa>
@@ -163,7 +228,12 @@ export default async function Pedido({ params }: { params: Promise<{ id: string 
       {pendente && (
         <Caixa titulo="Sua decisão">
           <div className="flex flex-wrap items-end justify-between gap-6">
-            <Aprovar id={job.id} gasta={gasta} />
+            <Aprovar
+              id={job.id}
+              gasta={gasta}
+              video={Boolean(video)}
+              custo={video ? custoTexto(video.custoUsd) : undefined}
+            />
             <Descartar id={job.id} />
           </div>
         </Caixa>
@@ -171,7 +241,7 @@ export default async function Pedido({ params }: { params: Promise<{ id: string 
 
       {!ehReversao && (job.status === "concluido" || job.status === "erro") && (
         <Caixa titulo="Desfazer">
-          <Reverter id={job.id} />
+          <Reverter id={job.id} video={Boolean(video)} />
         </Caixa>
       )}
     </div>

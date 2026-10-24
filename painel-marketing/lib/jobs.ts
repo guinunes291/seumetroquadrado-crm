@@ -2,7 +2,17 @@ import "server-only";
 import { sql } from "./db";
 import { registrar } from "./auditoria";
 import { ErroMeta, SemResposta, contaAnuncios, graph, graphObjeto, graphPost } from "./meta";
-import { centavos, passosDoPedido, problemasDoPedido, tituloDoPedido, type Pedido } from "./planos";
+import {
+  centavos,
+  ehVideo,
+  passosDoPedido,
+  problemasDoPedido,
+  tituloDoPedido,
+  type Pedido,
+} from "./planos";
+import { ErroHiggsfield, cancelarVideo, enviarVideo, estimarCusto } from "./higgsfield";
+import { corpoDoVideo, custoSubiu, custoTexto, endpointDoVideo } from "./video";
+import { arquivarVideo, gravarEnvio, marcarVideo, registrarVideo } from "./videos";
 
 // Fila de jobs. Todo pedido que mexe na Meta nasce aqui como
 // aguardando_aprovacao e só roda depois do clique em Aprovar no Painel.
@@ -22,7 +32,9 @@ export type Aplicado =
     }
   | { acao: "localizacao"; id: string; antes: unknown }
   | { acao: "ajuste"; id: string; antes: Record<string, string>; depois: Record<string, string> }
-  | { acao: "publico_criado"; id: string; enviados?: number };
+  | { acao: "publico_criado"; id: string; enviados?: number }
+  // id é o request_id do Higgsfield; video é a linha em marketing.videos.
+  | { acao: "video_enviado"; id: string; video: string };
 
 export type Job = {
   id: string;
@@ -110,17 +122,24 @@ export async function aprovarJob(
 
   const aplicado: Aplicado[] = [];
   try {
-    await executar(job.payload, aplicado, () => gravarAplicado(id, aplicado));
+    await executar(job, quem, aplicado, () => gravarAplicado(id, aplicado));
     await sql()`
       update jobs set status = 'concluido', resultado = ${sql().json({ aplicado } as never)}, atualizado_em = now()
       where id = ${id}`;
     await registrar(quem, "job_concluido", id, { aplicado });
-    return { ok: true, mensagem: "Feito. Tudo o que foi aplicado está listado no pedido." };
+    return {
+      ok: true,
+      mensagem: ehVideo(job.payload)
+        ? "Enviado ao Higgsfield. O vídeo aparece em Vídeos quando ficar pronto (costuma levar alguns minutos)."
+        : "Feito. Tudo o que foi aplicado está listado no pedido.",
+    };
   } catch (e) {
     const msg =
-      e instanceof ErroMeta
+      e instanceof ErroMeta || e instanceof ErroHiggsfield
         ? e.traduzido
-        : "Erro inesperado ao falar com a Meta. Nada será repetido sozinho.";
+        : ehVideo(job.payload)
+          ? "Erro inesperado ao falar com o Higgsfield. Nada será repetido sozinho."
+          : "Erro inesperado ao falar com a Meta. Nada será repetido sozinho.";
     const parcial = aplicado.length
       ? ` Antes do erro, ${aplicado.length} passo${aplicado.length === 1 ? "" : "s"} já tinha${aplicado.length === 1 ? "" : "m"} sido aplicado${aplicado.length === 1 ? "" : "s"}; use Reverter se quiser desfazer.`
       : "";
@@ -137,12 +156,39 @@ export async function aprovarJob(
   }
 }
 
-async function executar(p: Pedido, aplicado: Aplicado[], salvar: () => Promise<void>) {
-  const conta = `act_${contaAnuncios()}`;
+async function executar(job: Job, quem: string, aplicado: Aplicado[], salvar: () => Promise<void>) {
+  const p = job.payload;
   const passo = async (a: Aplicado) => {
     aplicado.push(a);
     await salvar();
   };
+
+  if (ehVideo(p)) {
+    const endpoint = endpointDoVideo(p);
+    const corpo = corpoDoVideo(p);
+    const agora = await estimarCusto(endpoint, corpo);
+    if (custoSubiu(p.custoUsd, agora))
+      throw new ErroHiggsfield(
+        `O custo estimado subiu de ${custoTexto(p.custoUsd)} para ${custoTexto(agora)} desde o pedido. Nada foi enviado; faça um pedido novo.`,
+      );
+    const videoId = await registrarVideo(quem, job.id, job.titulo ?? tituloDoPedido(p), p);
+    try {
+      // A chave de idempotência é o id do pedido: aprovar de novo nunca gera outro vídeo.
+      const envio = await enviarVideo(endpoint, corpo, job.id);
+      await gravarEnvio(videoId, envio.request_id);
+      await passo({ acao: "video_enviado", id: envio.request_id, video: videoId });
+    } catch (e) {
+      await marcarVideo(
+        videoId,
+        "falhou",
+        e instanceof ErroHiggsfield ? e.traduzido : "Não chegou ao Higgsfield.",
+      );
+      throw e;
+    }
+    return;
+  }
+
+  const conta = `act_${contaAnuncios()}`;
 
   if (p.tipo === "nova_campanha") {
     // 1. Campanha nova, sem filhos, a partir do modelo.
@@ -317,6 +363,22 @@ export async function reverterJob(
       } else if (a.acao === "ajuste") {
         await graphPost(a.id, a.antes);
         desfeito.push(`Item ${a.id} voltou ao que era antes.`);
+      } else if (a.acao === "video_enviado") {
+        if (await cancelarVideo(a.id)) {
+          await marcarVideo(
+            a.video,
+            "cancelado",
+            "Cancelado na fila. O Higgsfield devolve o valor.",
+          );
+          desfeito.push(
+            "Vídeo cancelado enquanto ainda estava na fila; o Higgsfield devolve o valor.",
+          );
+        } else {
+          await arquivarVideo(quem, a.video, true);
+          mantido.push(
+            "O vídeo já estava sendo gerado e não dá mais para cancelar (o Higgsfield cobra). Ele foi arquivado na Biblioteca de vídeos; nada é apagado.",
+          );
+        }
       } else if (a.acao === "publico_criado") {
         mantido.push(
           `Público ${a.id} não foi apagado (regra: nada é apagado). Ele não gasta nada se ninguém usar.`,
@@ -334,7 +396,10 @@ export async function reverterJob(
     await registrar(quem, "job_revertido", id, { reverte_com: rev.id, desfeito, mantido });
     return { ok: true, mensagem: [...desfeito, ...mantido].join(" ") || "Nada a desfazer." };
   } catch (e) {
-    const msg = e instanceof ErroMeta ? e.traduzido : "Erro inesperado ao reverter.";
+    const msg =
+      e instanceof ErroMeta || e instanceof ErroHiggsfield
+        ? e.traduzido
+        : "Erro inesperado ao reverter.";
     await sql()`
       update jobs set status = ${statusOriginal}, erro = ${`Reversão parou: ${msg} Já desfeito: ${desfeito.join(" ") || "nada"}.`},
         atualizado_em = now()
