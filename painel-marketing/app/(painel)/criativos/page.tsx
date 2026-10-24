@@ -205,11 +205,19 @@ export default async function Biblioteca({ searchParams }: { searchParams: Promi
     ocultos: b.ocultos === "1",
     noAr: b.ar === "1",
   };
+  const medir = async <T,>(nome: string, p: Promise<T>) => {
+    const t = Date.now();
+    console.log(`[biblioteca] ${nome} começou`);
+    const r = await p;
+    console.log(`[biblioteca] ${nome} terminou em ${Date.now() - t} ms`);
+    return r;
+  };
   const [lista, resumo, emps] = await Promise.all([
-    listarCriativos(filtro),
-    resumoBiblioteca(),
-    listar(),
+    medir("lista", listarCriativos(filtro)),
+    medir("resumo", resumoBiblioteca()),
+    medir("empreendimentos", listar()),
   ]);
+  console.log(`[biblioteca] dados prontos, ${lista.length} cartões`);
   const nomes = new Map(emps.map((e) => [e.id, e.nome]));
   const vencedores = lista.filter((c) => ehVencedor(c.resultados, c.custo_por_resultado)).length;
   const sel = "rounded-md border border-navy/20 bg-white px-2 py-1.5 text-sm";
