@@ -5,9 +5,9 @@
 
 import {
   displayNameForSamiQ,
+  mapaPiiValido,
   redactSamiQPii,
   redigirTextoDoCorretor,
-  type MapaPiiCorretor,
 } from "@/lib/samiq-governance";
 import type { SAMIQ_ACTION_META, SamiQCanal, SamiQInput } from "@/lib/samiq";
 import type { CitarClienteSamiQ } from "@/lib/samiq-tools.server";
@@ -33,9 +33,13 @@ export function prepararTurnoComFerramentas({
 }) {
   // Texto do corretor: nomes passam (D12); telefone, e-mail e CPF viram
   // marcadores numerados que só o servidor desfaz (cadastro e busca).
+  // v8.2: os marcadores das mensagens anteriores (30 min) continuam valendo e
+  // a numeração segue de onde parou, para "sim, é outro cliente" cadastrar com
+  // o [TELEFONE_1] da mensagem anterior.
+  const mapaAnterior = mapaPiiValido(args.contexto?.pii, args.agora ?? new Date());
   const { texto: perguntaSegura, mapa: mapaPii } = data.pergunta
-    ? redigirTextoDoCorretor(data.pergunta, LIMITE_PERGUNTA[canal])
-    : { texto: "", mapa: {} as MapaPiiCorretor };
+    ? redigirTextoDoCorretor(data.pergunta, LIMITE_PERGUNTA[canal], mapaAnterior)
+    : { texto: "", mapa: mapaAnterior };
   // Histórico: o do WhatsApp vem do banco já redigido; o do painel vem do
   // browser. Nomes ficam (sem eles "ela", "a mesma" perdem o dono).
   const historicoSeguro = (data.historico ?? []).map((message) => ({

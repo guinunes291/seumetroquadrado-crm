@@ -59,7 +59,7 @@ const D = {
   atualizar_qualificacao:
     "Atualiza a ficha do cliente só com os campos informados: renda, entrada, FGTS (e saldo), tipo de renda, faixa (F1 a F4), temperatura, decisor, região (zona/bairro), dormitórios, vaga, prioridades, nota de perfil, empreendimento de interesse (de preferência pelo projetoId de catalogo_projetos), objeções, parecer.",
   agendar_visita:
-    "Agenda uma visita (data e hora de SP, local) e move o cliente para Agendado. Precisa do CONFIRMAR do corretor. Só agenda para cliente em Em atendimento ou etapa posterior: se ele ainda está em prospecção, registre ANTES o contato em que ele topou a visita (não em paralelo). Lembre o corretor de pedir ao cliente que confirme data e horário.",
+    "Agenda uma visita (data e hora de SP, local) e move o cliente para Agendado. Precisa do CONFIRMAR do corretor. Só agenda para cliente em Em atendimento ou etapa posterior: se ele ainda está em prospecção, registre ANTES o contato em que ele topou a visita (pode ser na mesma resposta, nesta ordem). Dia da semana sem data ('sábado 10h') é o próximo que ainda não passou: se hoje é esse dia e a hora já passou, é o da semana que vem; não pergunte qual. Lembre o corretor de pedir ao cliente que confirme data e horário.",
   mudar_etapa:
     "Move o cliente para Qualificação Corretor (única etapa sem formulário). Para as outras etapas use a ferramenta do desfecho: registrar_contato (Em atendimento é consequência), registrar_retorno, agendar_visita, registrar_visita, enviar_analise_credito, marcar_perdido. Precisa do CONFIRMAR.",
   registrar_retorno:
@@ -69,7 +69,7 @@ const D = {
   trocar_vaga:
     "Entra um, sai um, quando o Em atendimento está lotado: o cliente que respondeu entra e outro do Em atendimento sai como pediu retorno, esfriou (com data) ou perdido (com categoria). Use listar_clientes etapa em_atendimento ordem mais_parados para sugerir quem sai. Precisa do CONFIRMAR.",
   concluir_tarefa:
-    "Marca uma tarefa como feita (id de minhas_tarefas ou detalhe_cliente), com o resultado.",
+    "Marca uma tarefa como feita (id de minhas_tarefas ou detalhe_cliente), com o resultado. 'Já fiz', 'concluí', 'feito', 'dá baixa' e 'já liguei pra ele (tarefa de ligar)' chamam esta ferramenta na hora; o resultado pode ser curto. Só depois ofereça registrar_contato se o corretor quiser contar o que rolou.",
   reagendar_tarefa: "Muda a data e hora de uma tarefa aberta.",
   cancelar_tarefa: "Cancela uma tarefa aberta que não faz mais sentido.",
   confirmar_visita:
@@ -94,7 +94,7 @@ const D = {
   fazer_checkin:
     "Check-in do dia: na filial (barra-funda, liberdade, belem; usa a localização que o corretor mandou no WhatsApp), em casa (só libera a roleta com o mínimo de vendas do mês anterior) ou sair (encerra a presença).",
   criar_lead:
-    "Cadastra um cliente novo do corretor (captação própria, indicação, plantão...). Use o marcador [TELEFONE_n] da mensagem no campo telefone. Se o telefone já existir no CRM, não duplica e avisa. Precisa do CONFIRMAR.",
+    "Cadastra um cliente novo do corretor (captação própria, indicação, plantão...). Use o marcador [TELEFONE_n] da mensagem (ou das anteriores desta conversa) no campo telefone. Se o telefone já existir no CRM, não duplica e avisa. Para o corretor, fale em 'o telefone que você mandou', nunca em 'marcador'. Precisa do CONFIRMAR.",
   pedir_lote:
     "Pede o lote de prospecção (até 30 leads da base) de uma zona. Só funciona com vaga na carteira e sem lote em andamento (veja minha_situacao). Precisa do CONFIRMAR.",
 } satisfies Record<SamiQPropostaTipo, string>;

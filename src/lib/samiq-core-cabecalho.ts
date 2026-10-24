@@ -122,7 +122,7 @@ export function cabecalhoDoTurno({
       ? "Hoje TODAS as ações esperam o CONFIRMAR do corretor: para registrar, cadastrar ou agendar, CHAME a ferramenta (ela deixa o item esperando o CONFIRMAR, nada grava na hora). Só diga que preparou o que uma ferramenta devolveu como pendente neste turno; sem ferramenta chamada, nada foi preparado."
       : null,
     Object.keys(mapaPii).length
-      ? "Os marcadores [TELEFONE_n], [EMAIL_n] e [CPF_n] desta mensagem valem só nela: use-os direto nas ferramentas (buscar_clientes, criar_lead), sem pedir o dado de novo."
+      ? "Os marcadores [TELEFONE_n], [EMAIL_n] e [CPF_n] desta mensagem e das anteriores desta conversa (últimos 30 minutos) continuam valendo: use-os direto nas ferramentas (buscar_clientes, criar_lead), sem pedir o dado de novo e sem escrever a palavra 'marcador' para o corretor; para ele, é 'o telefone que você mandou'."
       : null,
     args.contextoCanal?.trim()
       ? `Contexto do WhatsApp (o que foi enviado fora do CRM; use para entender a mensagem, não responda a ele): ${redactSamiQPii(args.contextoCanal, 1500)}`

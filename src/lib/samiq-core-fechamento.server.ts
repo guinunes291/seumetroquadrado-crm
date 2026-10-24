@@ -14,11 +14,13 @@ import type { PropostaSamiQ } from "@/lib/samiq-propostas";
 import type { PropostaColetada } from "@/lib/samiq-propostas.server";
 import {
   ambiguosParaMemoria,
+  candidatosParaOCanal,
   mesclarClientes,
   type AmbiguosDoTurno,
   type ClienteCitado,
 } from "@/lib/samiq-contexto";
 import { falaComPergunta, textoParaWhatsApp } from "@/lib/samiq-canal";
+import { piiParaMemoria, type MapaPiiCorretor } from "@/lib/samiq-governance";
 import {
   gravarContextoTurnoSamiQ,
   gravarTurnoSamiQ,
@@ -44,6 +46,8 @@ export async function fecharTurnoSamiQ({
   agora,
   ambiguos,
   fallback,
+  perguntaSegura,
+  mapaPii,
 }: {
   executadas: AcaoExecutada[];
   controle: ControleDoTurno;
@@ -60,6 +64,9 @@ export async function fecharTurnoSamiQ({
   agora: Date;
   ambiguos: AmbiguosDoTurno;
   fallback: boolean;
+  /** v8.2: pergunta com marcadores numerados e o mapa (anterior + deste turno). */
+  perguntaSegura?: string;
+  mapaPii?: MapaPiiCorretor;
 }): Promise<SamiQResposta> {
   // ----- WhatsApp: o texto final (resposta + recibo + pendentes) é o que
   // vai para a memória, para o "o 2" do próximo turno bater com o que o
@@ -95,6 +102,7 @@ export async function fecharTurnoSamiQ({
             pendentes: mostrarPendentes ? [...pendentesAntes, ...propostas] : [],
             desfeitas: controle.desfeitas,
             descartadas: controle.descartadas,
+            candidatos: candidatosParaOCanal(ambiguos),
           }),
           naoGuardadas > 0
             ? `Não consegui guardar ${naoGuardadas === 1 ? "1 item que precisava" : `${naoGuardadas} itens que precisavam`} do seu OK. Me diga de novo que eu preparo.`
@@ -105,10 +113,14 @@ export async function fecharTurnoSamiQ({
       : undefined;
 
   // ----- Memória (D11): o turno vai para a conversa do canal, já redigido -----
-  const rotulo = data.pergunta
+  // v8.2: no WhatsApp a pergunta vai ao histórico com os marcadores numerados
+  // ([TELEFONE_1]) em vez de "[TELEFONE]", para o modelo poder reusá-los.
+  const perguntaParaMemoria =
+    canal === "whatsapp" && perguntaSegura ? perguntaSegura : data.pergunta;
+  const rotulo = perguntaParaMemoria
     ? data.action === "pergunta_livre"
-      ? data.pergunta
-      : `${meta.label}: ${data.pergunta}`
+      ? perguntaParaMemoria
+      : `${meta.label}: ${perguntaParaMemoria}`
     : meta.label;
   const conversaId = await gravarTurnoSamiQ({
     userId,
@@ -149,6 +161,7 @@ export async function fecharTurnoSamiQ({
         // da Sami não terminou perguntando outra coisa ("quer o briefing?").
         pediu_decisao: mostrarPendentes && pendentesConversa.length > 0 && !falaComPergunta(texto),
         ambiguos: ambiguosParaMemoria(ambiguos),
+        pii: piiParaMemoria(contexto.pii, mapaPii ?? {}, agora),
         localizacao: contexto.localizacao ?? null,
         anexo_pendente:
           (args.anexos ?? []).find(

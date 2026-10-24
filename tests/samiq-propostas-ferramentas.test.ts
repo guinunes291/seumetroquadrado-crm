@@ -315,7 +315,7 @@ describe("travas antes de gravar", () => {
         ...base,
         coletor: [],
         textoDoCorretor: "falei com o Lucas agora",
-        aoAmbiguo: (ids) => ambiguos.push(ids),
+        aoAmbiguo: (candidatos) => ambiguos.push(candidatos.map((c) => c.id)),
       }),
       "anotar",
       nota,

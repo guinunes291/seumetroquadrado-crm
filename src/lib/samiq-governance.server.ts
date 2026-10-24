@@ -63,10 +63,12 @@ export class SamiQQuotaError extends Error {
   ) {
     super(
       reason.includes("rate")
-        ? `O SamiQ precisa de uma pausa. Tente novamente em ${retryAfterSeconds}s.`
+        ? `Muitas mensagens em pouco tempo. Me chame de novo em ${Math.max(1, Math.ceil(retryAfterSeconds / 60))} minuto(s).`
         : reason.endsWith("_month")
           ? "O orçamento mensal de IA do seu papel foi atingido. Fale com o gestor para ampliar."
-          : "O budget do SamiQ para este período foi atingido. Tente novamente após a renovação da cota.",
+          : reason.startsWith("team")
+            ? "A cota diária da Sami do time acabou por hoje. Volta à meia-noite; se for urgente, fale com o gestor."
+            : "Sua cota diária da Sami acabou por hoje. Volta à meia-noite; se for urgente, fale com o gestor.",
     );
     this.name = "SamiQQuotaError";
   }

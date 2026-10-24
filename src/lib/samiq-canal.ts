@@ -596,6 +596,38 @@ export function semNomeDeFerramenta(texto: string): string {
     .replace(NOME_SOLTO, (nome: string) => ROTULO_DA_FERRAMENTA[nome] ?? nome);
 }
 
+/** Candidato da pergunta "qual cliente?" que o canal lista numerado (v8.2). */
+export type CandidatoListado = {
+  id: string;
+  nome: string | null;
+  empreendimento?: string | null;
+  etapa?: string | null;
+};
+
+/**
+ * v8.2 (QA de 24/10/2026): a ferramenta devolveu "cliente ambíguo" mas o
+ * modelo respondeu "me diz o final do telefone", sem lista. Sem lista o
+ * corretor não tem como responder "2". O sistema imprime a lista na ordem dos
+ * candidatos (a mesma que escolherCandidato usa no turno seguinte).
+ */
+export function textoDosCandidatos(candidatos: ReadonlyArray<CandidatoListado>): string | null {
+  if (candidatos.length < 2) return null;
+  const linhas = candidatos.map((c, i) => {
+    const extras = [c.empreendimento, c.etapa ? rotuloEtapa(c.etapa) : null].filter(Boolean);
+    return `${i + 1}) ${c.nome ?? "Cliente sem nome"}${extras.length ? ` (${extras.join(", ")})` : ""}`;
+  });
+  return `Qual deles?\n${linhas.join("\n")}\nResponda com o número.`;
+}
+
+function rotuloEtapa(etapa: string): string {
+  return etapa.replace(/_/g, " ");
+}
+
+/** O modelo já escreveu uma lista numerada "1) ... 2) ..."? */
+export function temListaNumerada(texto: string): boolean {
+  return /(^|\n)\s*1[).]\s.+(\n\s*2[).]\s)/.test(texto);
+}
+
 /** Resposta da Sami + recibo + pendentes, prontos para o WhatsApp. */
 export function textoParaWhatsApp(resposta: {
   texto: string;
@@ -606,11 +638,14 @@ export function textoParaWhatsApp(resposta: {
   /** v8: o que a Sami desfez ou descartou neste turno, a pedido do corretor. */
   desfeitas?: ReadonlyArray<ItemDescritivel>;
   descartadas?: ReadonlyArray<ItemDescritivel>;
+  /** v8.2: candidatos da pergunta "qual cliente?" deste turno (lista numerada). */
+  candidatos?: ReadonlyArray<CandidatoListado>;
 }): string {
   const executadas = resposta.executadas ?? [];
   const pendentes = resposta.pendentes ?? resposta.propostas ?? [];
   const desfeitas = resposta.desfeitas ?? [];
   const descartadas = resposta.descartadas ?? [];
+  const candidatos = resposta.candidatos ?? [];
   const texto = semNomeDeFerramenta(resposta.texto.trim());
   const titulos = (itens: ReadonlyArray<ItemDescritivel>) =>
     itens.map((p) => descreverProposta(p.payload, p.leadNome).titulo).join("; ");
@@ -618,22 +653,41 @@ export function textoParaWhatsApp(resposta: {
     desfeitas.length ? `Desfeito: ${titulos(desfeitas)}.` : null,
     descartadas.length ? `Descartado sem gravar: ${titulos(descartadas)}.` : null,
   ];
+  const lista =
+    candidatos.length >= 2 && !temListaNumerada(texto) ? textoDosCandidatos(candidatos) : null;
   if (executadas.length === 0 && pendentes.length === 0 && !extras.some(Boolean)) {
-    return semRegistroFantasma(texto);
+    // Pergunta "qual cliente?": a promessa que o modelo fez cai como sempre,
+    // mas o aviso "me peça de novo" não entra, porque a lista já diz o que fazer.
+    const base = lista ? semPromessaDeRegistro(texto) : semRegistroFantasma(texto);
+    return [base, lista].filter((p): p is string => !!p && p.trim().length > 0).join("\n\n");
   }
   const limpo = semComandoRepetido(texto);
-  return [limpo, textoDasExecutadas(executadas), ...extras, textoDasPendentes(pendentes)]
+  return [limpo, textoDasExecutadas(executadas), ...extras, lista, textoDasPendentes(pendentes)]
     .filter((p): p is string => !!p && p.trim().length > 0)
     .join("\n\n");
 }
 
-/** O código já manda a instrução de CONFIRMAR/DESFAZER: tira a do modelo para não repetir. */
+/**
+ * O código já manda a instrução de CONFIRMAR/DESFAZER e a lista "Preciso do
+ * seu OK": tira as do modelo para não repetir. v8.2: também a versão em
+ * minúsculas ("Confirma pra eu gravar.") e a linha "Preciso do seu OK para: 1) ..."
+ * que o modelo às vezes escreve por conta própria.
+ */
 function semComandoRepetido(texto: string): string {
   const frases = texto
     .split(/(?<=[.!?])\s+|\n+/)
     .map((f) => f.trim())
     .filter(Boolean);
-  const restantes = frases.filter((f) => !/\b(CONFIRMAR|CANCELAR|DESFAZER)\b/.test(f));
+  // Só tira os itens "1) ..." do modelo quando ele copiou a lista oficial
+  // ("Preciso do seu OK para: 1) ..."): uma lista de empreendimentos fica.
+  const copiouLista = /\bpreciso do seu ok\b/i.test(texto);
+  const restantes = frases.filter(
+    (f) =>
+      !/\b(CONFIRMAR|CANCELAR|DESFAZER)\b/.test(f) &&
+      !/^preciso do seu ok\b/i.test(f) &&
+      !(copiouLista && /^\d{1,2}\)\s/.test(f)) &&
+      !/^confirma(?:ndo)?\b[^.!?]{0,40}\b(grav|registr|salv|cadastr|agend)/i.test(f),
+  );
   return restantes.join(" ").trim();
 }
 
@@ -661,16 +715,24 @@ const PROMESSA_DE_REGISTRO = {
 };
 
 export const SAMIQ_AVISO_SEM_REGISTRO =
-  "Atenção: nesta resposta eu não gravei nada no CRM e não há nada esperando o seu CONFIRMAR. Me peça de novo (com o nome do cliente) que eu faço.";
+  "Atenção: nesta resposta eu não gravei nada no CRM e não há nada esperando o seu CONFIRMAR. Se quiser que eu registre algo, me diga o que gravar e de qual cliente.";
 
 export function semRegistroFantasma(texto: string): string {
+  if (!PROMESSA_DE_REGISTRO.test(texto)) return texto;
+  return [semPromessaDeRegistro(texto), SAMIQ_AVISO_SEM_REGISTRO].filter(Boolean).join("\n\n");
+}
+
+/** Só tira as frases com promessa de registro, sem o aviso (v8.2). */
+export function semPromessaDeRegistro(texto: string): string {
   if (!PROMESSA_DE_REGISTRO.test(texto)) return texto;
   const frases = texto
     .split(/(?<=[.!?])\s+|\n+/)
     .map((f) => f.trim())
     .filter(Boolean);
-  const restantes = frases.filter((f) => !PROMESSA_DE_REGISTRO.test(f));
-  return [restantes.join(" ").trim(), SAMIQ_AVISO_SEM_REGISTRO].filter(Boolean).join("\n\n");
+  return frases
+    .filter((f) => !PROMESSA_DE_REGISTRO.test(f))
+    .join(" ")
+    .trim();
 }
 
 export type DecisaoResultado = {

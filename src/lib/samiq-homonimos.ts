@@ -24,9 +24,10 @@ export type ClienteParaDesambiguar = {
   telefone_e164?: string | null;
 };
 
+export type MotivoDesambiguado = "sem_homonimo" | "sobrenome" | "empreendimento" | "final_telefone";
+
 export type ResultadoDesambiguacao =
-  | { ok: true; motivo: "sem_homonimo" | "sobrenome" | "empreendimento" | "final_telefone" }
-  | { ok: false; motivo: "ambiguo" };
+  { ok: true; motivo: MotivoDesambiguado } | { ok: false; motivo: "ambiguo" };
 
 /** Palavras que nunca distinguem um cliente de outro. */
 const PALAVRAS_NEUTRAS = new Set([
@@ -137,6 +138,65 @@ export function avaliarDesambiguacao(args: {
   }
 
   return { ok: false, motivo: "ambiguo" };
+}
+
+export type EscolhaEntreHomonimos =
+  | {
+      ok: true;
+      /** Cliente que o texto do corretor aponta (pode não ser o `alvo` que o modelo mandou). */
+      id: string;
+      /** true quando o texto apontava para um HOMÔNIMO e não para o alvo do modelo. */
+      trocou: boolean;
+      motivo: MotivoDesambiguado;
+    }
+  | { ok: false; motivo: "ambiguo" };
+
+/**
+ * v8.2 (QA de 24/10/2026): o modelo escolhe o id pela memória ("o primeiro
+ * Teste QA Sami Um") enquanto o corretor escreve "o do final 0003". Antes a
+ * trava só recusava; agora, se o texto aponta exatamente UM dos homônimos,
+ * esse passa a ser o alvo e a ação segue. Só recusa quando o texto não aponta
+ * ninguém (ou aponta mais de um).
+ */
+export function escolherEntreHomonimos(args: {
+  alvo: ClienteParaDesambiguar;
+  homonimos: ReadonlyArray<ClienteParaDesambiguar>;
+  texto: string;
+}): EscolhaEntreHomonimos {
+  const { alvo, homonimos, texto } = args;
+  const direto = avaliarDesambiguacao({ alvo, homonimos, texto });
+  if (direto.ok) return { ok: true, id: alvo.id, trocou: false, motivo: direto.motivo };
+  const apontados = homonimos.filter(
+    (h) =>
+      avaliarDesambiguacao({
+        alvo: h,
+        homonimos: [alvo, ...homonimos.filter((x) => x.id !== h.id)],
+        texto,
+      }).ok,
+  );
+  if (apontados.length === 1) {
+    const h = apontados[0]!;
+    const r = avaliarDesambiguacao({
+      alvo: h,
+      homonimos: [alvo, ...homonimos.filter((x) => x.id !== h.id)],
+      texto,
+    });
+    return { ok: true, id: h.id, trocou: true, motivo: r.ok ? r.motivo : "sem_homonimo" };
+  }
+  return { ok: false, motivo: "ambiguo" };
+}
+
+/**
+ * v8.2: o texto DESTA mensagem nomeia o cliente? ("e o Lucas?" sim; "me
+ * prepara pra visita dele" não). A trava de leitura só age quando o nome foi
+ * dito agora: pronome resolve pela memória de citados, como antes.
+ */
+export function mensagemNomeia(texto: string, cliente: ClienteParaDesambiguar): boolean {
+  const primeiro = primeiroNomeNormalizado(cliente.nome);
+  if (!primeiro) return false;
+  return normalizarTexto(texto)
+    .split(/[^a-z]+/)
+    .includes(primeiro);
 }
 
 /**

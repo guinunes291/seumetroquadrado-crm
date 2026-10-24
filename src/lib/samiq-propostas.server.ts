@@ -24,7 +24,7 @@ import {
 } from "@/lib/samiq-governance";
 import {
   INSTRUCAO_CLIENTE_AMBIGUO,
-  avaliarDesambiguacao,
+  escolherEntreHomonimos,
   candidatosParaPergunta,
 } from "@/lib/samiq-homonimos";
 import { MOTIVO_EM_ATENDIMENTO_CONSEQUENCIA } from "@/lib/leads";
@@ -50,6 +50,16 @@ import {
 } from "./samiq-propostas-leitura.server";
 import { checarRegrasDaProposta, rotulo, type Bloqueio } from "./samiq-propostas-regras.server";
 import { ferramentasDeProposta } from "./samiq-propostas-catalogo";
+
+/** Candidato da pergunta "qual cliente?" (nome seguro, empreendimento, etapa). */
+export type CandidatoAmbiguo = ReturnType<typeof candidatosParaPergunta>[number];
+
+/** Troca o cliente da ação quando a trava de homônimos apontou outro (v8.2). */
+function comLeadId(payload: PropostaPayload, leadId: string): PropostaPayload {
+  if (payload.tipo === "trocar_vaga") return { ...payload, entraLeadId: leadId };
+  if ("leadId" in payload) return { ...payload, leadId } as PropostaPayload;
+  return payload;
+}
 
 /** Ação montada no loop — ainda sem id (o banco dá ao persistir). */
 export type PropostaColetada = {
@@ -86,8 +96,8 @@ export function criarFerramentasDePropostaSamiQ(args: {
    * respondeu escolhendo ("a 2", "a primeira"): a escolha veio dele.
    */
   liberados?: ReadonlySet<string>;
-  /** Avisa quem chama dos candidatos da pergunta (vão para a memória da conversa). */
-  aoAmbiguo?: (ids: string[]) => void;
+  /** Avisa quem chama dos candidatos da pergunta (vão para a memória da conversa e para a lista numerada do canal). */
+  aoAmbiguo?: (candidatos: CandidatoAmbiguo[]) => void;
   mapaPii?: MapaPiiCorretor;
   citar?: CitarClienteSamiQ;
   agora?: Date;
@@ -101,34 +111,44 @@ export function criarFerramentasDePropostaSamiQ(args: {
   const citar: CitarClienteSamiQ = args.citar ?? (() => {});
   const agora = () => args.agora ?? new Date();
   let total = 0;
-  const desambiguados = new Map<string, Bloqueio | null>();
+  /** Resultado da trava por id: bloqueio, troca de alvo (v8.2) ou nada. */
+  type Trava = { bloqueio: Bloqueio } | { trocarPara: string } | null;
+  const desambiguados = new Map<string, Trava>();
 
-  const travaDeHomonimos = async (lead: LeadResolvido): Promise<Bloqueio | null> => {
+  const travaDeHomonimos = async (lead: LeadResolvido): Promise<Trava> => {
     if (args.leadIdEmContexto && args.leadIdEmContexto === lead.id) return null;
     if (args.liberados?.has(lead.id)) return null;
     if (desambiguados.has(lead.id)) return desambiguados.get(lead.id) ?? null;
     const homonimos = await buscarHomonimos(supabase, lead.bruto);
-    let bloqueio: Bloqueio | null = null;
+    let resultado: Trava = null;
     if (homonimos === null) {
-      bloqueio = {
-        erro: "cliente_ambiguo",
-        detalhe:
-          "Não consegui confirmar se há outro cliente com esse nome. Confirme com o corretor o nome completo ou o empreendimento antes de gravar.",
+      resultado = {
+        bloqueio: {
+          erro: "cliente_ambiguo",
+          detalhe:
+            "Não consegui confirmar se há outro cliente com esse nome. Confirme com o corretor o nome completo ou o empreendimento antes de gravar.",
+        },
       };
     } else {
-      const r = avaliarDesambiguacao({ alvo: lead.bruto, homonimos, texto: textoDoCorretor });
+      const r = escolherEntreHomonimos({ alvo: lead.bruto, homonimos, texto: textoDoCorretor });
       if (!r.ok) {
         const candidatos = candidatosParaPergunta([lead.bruto, ...homonimos], displayNameForSamiQ);
-        args.aoAmbiguo?.(candidatos.map((c) => c.id));
-        bloqueio = {
-          erro: "cliente_ambiguo",
-          detalhe: `${INSTRUCAO_CLIENTE_AMBIGUO} Numere a lista (1, 2, 3...) nessa ordem: o corretor pode responder só com o número.`,
-          candidatos,
+        args.aoAmbiguo?.(candidatos);
+        resultado = {
+          bloqueio: {
+            erro: "cliente_ambiguo",
+            detalhe: `${INSTRUCAO_CLIENTE_AMBIGUO} Numere a lista (1, 2, 3...) nessa ordem: o corretor pode responder só com o número.`,
+            candidatos,
+          },
         };
+      } else if (r.trocou) {
+        // O corretor apontou OUTRO homônimo ("o do final 0003", o sobrenome, o
+        // empreendimento): a ação segue nele, sem perguntar de novo.
+        resultado = { trocarPara: r.id };
       }
     }
-    desambiguados.set(lead.id, bloqueio);
-    return bloqueio;
+    desambiguados.set(lead.id, resultado);
+    return resultado;
   };
 
   /** Regras do funil e do dado que dá para checar sem gravar (sem RPC). */
@@ -197,8 +217,20 @@ export function criarFerramentasDePropostaSamiQ(args: {
           detalhe: "esse id não está na carteira do corretor; use buscar_clientes",
         };
       }
-      const bloqueio = await travaDeHomonimos(lead);
-      if (bloqueio) return bloqueio;
+      const trava = await travaDeHomonimos(lead);
+      if (trava && "trocarPara" in trava) {
+        const certo = await resolverLead(supabase, trava.trocarPara);
+        if (!certo) {
+          return {
+            erro: "cliente_nao_encontrado",
+            detalhe: "o cliente que o corretor apontou não está na carteira; use buscar_clientes",
+          };
+        }
+        lead = certo;
+        payload = comLeadId(payload, certo.id);
+      } else if (trava) {
+        return trava.bloqueio;
+      }
       citar({ id: lead.id, nome: lead.nome, etapa: lead.status });
       if (payload.tipo === "mudar_etapa" && lead.status === payload.novoStatus) {
         return { erro: "etapa_igual", detalhe: `o cliente já está em ${rotulo(lead.status)}` };
