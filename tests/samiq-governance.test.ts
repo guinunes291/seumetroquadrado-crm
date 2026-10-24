@@ -19,7 +19,18 @@ const migration = readFileSync(
   join(root, "supabase/migrations/20260711131000_samiq_governance.sql"),
   "utf8",
 );
-const handler = readFileSync(join(root, "src/lib/samiq-core.server.ts"), "utf8");
+// O cérebro foi quebrado em módulos (samiq-core*.ts); lê todos juntos.
+const handler = [
+  "src/lib/samiq-core.server.ts",
+  "src/lib/samiq-core-config.ts",
+  "src/lib/samiq-core-contexto.server.ts",
+  "src/lib/samiq-core-cabecalho.ts",
+  "src/lib/samiq-core-turno.ts",
+  "src/lib/samiq-core-ferramentas.server.ts",
+  "src/lib/samiq-core-fechamento.server.ts",
+]
+  .map((arquivo) => readFileSync(join(root, arquivo), "utf8"))
+  .join("\n");
 const painelFn = readFileSync(join(root, "src/lib/samiq.functions.ts"), "utf8");
 const tools = readFileSync(join(root, "src/lib/samiq-tools.server.ts"), "utf8");
 const memoria = readFileSync(join(root, "src/lib/samiq-memoria.server.ts"), "utf8");
