@@ -21,6 +21,38 @@ function phosphorWeightsPlugin(): Plugin {
     name: "smq:phosphor-weights",
     enforce: "pre",
     transform(code, id) {
+      // The root barrel also imports every SSR icon. Resolve named imports
+      // directly so Rollup never parses thousands of unused icon modules.
+      if (!id.includes("node_modules") && /\.[cm]?[jt]sx?(?:\?|$)/.test(id)) {
+        const rewritten = code.replace(
+          /import\s*\{([^}]+)\}\s*from\s*["']@phosphor-icons\/react["'];?/g,
+          (original, bindings: string) => {
+            const imports: string[] = [];
+            for (const binding of bindings.split(",")) {
+              const name = binding.trim();
+              if (!name) continue;
+              if (name.startsWith("type ")) {
+                imports.push(`import { ${name} } from "@phosphor-icons/react";`);
+                continue;
+              }
+              const exported = name.split(/\s+as\s+/)[0];
+              if (exported === "IconContext") {
+                imports.push(`import { ${name} } from "@phosphor-icons/react/dist/lib/context";`);
+              } else if (exported === "IconBase") {
+                const local = name.split(/\s+as\s+/)[1] ?? exported;
+                imports.push(`import ${local} from "@phosphor-icons/react/dist/lib/IconBase";`);
+              } else if (/^[A-Z][A-Za-z0-9]*$/.test(exported) && !["Icon", "IconProps", "IconWeight"].includes(exported)) {
+                const icon = exported.endsWith("Icon") ? exported.slice(0, -4) : exported;
+                imports.push(`import { ${name} } from "@phosphor-icons/react/dist/csr/${icon}";`);
+              } else {
+                return original;
+              }
+            }
+            return imports.join("\n");
+          },
+        );
+        if (rewritten !== code) return { code: rewritten, map: null };
+      }
       if (!id.includes("@phosphor-icons/react/dist/defs/")) return null;
       const open = code.indexOf("new Map([");
       const close = code.lastIndexOf("]);");

@@ -8,3 +8,4 @@
 - Sami learned directives use a pure validation module and a server-only cached reader; channel-key authenticated publication upserts by origin ID so both channels share approved guidance.
 - Governed AI resolves models via createGovernedModelGateway: anthropic/* ids go to the Anthropic provider on the Lovable gateway (/v1/messages, thinking disabled), others to openai-compatible — why: Claude needs its native route, no own Anthropic key.
 - Sami search tools normalize terms through the shared accent-free helper and filter generated search columns before limiting results; the text-only immutable region wrapper permits stored generation while preserving concat_ws null semantics.
+- Resolve named Phosphor imports to individual CSR modules in the Vite pre-transform, retaining the shared IconContext and existing weight pruning; this avoids parsing the full CSR/SSR barrels and exhausting build memory without changing rendered icons.
