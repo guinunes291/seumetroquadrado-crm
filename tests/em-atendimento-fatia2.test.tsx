@@ -513,7 +513,14 @@ describe("revisão: Meus 65", () => {
 
 describe("revisão: fiação", () => {
   it("Kanban mostra a ocupação do banco, não a contagem filtrada pela busca", () => {
-    const k = read("src/components/leads-kanban-board.tsx");
+    // O quadro foi quebrado em módulos: coluna e abas em features/pipeline.
+    const k = [
+      "src/components/leads-kanban-board.tsx",
+      "src/features/pipeline/kanban-coluna.tsx",
+      "src/features/pipeline/kanban-topo.tsx",
+    ]
+      .map(read)
+      .join("\n");
     expect(k).toContain("· {ocupacao65}/{teto65}");
     expect(k).toContain("`${column.label} · ${ocupacao65}/${teto65}`");
     expect(k).not.toContain("{quantidade}/{teto65}");

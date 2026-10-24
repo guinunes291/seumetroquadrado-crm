@@ -161,7 +161,14 @@ describe("fiação: nenhuma tela do corretor escolhe Em atendimento", () => {
   });
 
   it("Kanban, peek, foco, volume e ficha abrem Registrar contato no lugar da etapa", () => {
-    const kanban = read("src/components/leads-kanban-board.tsx");
+    // O quadro foi quebrado em módulos: cartão e diálogos em features/pipeline.
+    const kanban = [
+      "src/components/leads-kanban-board.tsx",
+      "src/features/pipeline/kanban-lead-card.tsx",
+      "src/features/pipeline/kanban-dialogos.tsx",
+    ]
+      .map(read)
+      .join("\n");
     expect(kanban).toContain('target === "em_atendimento" && !gestao');
     expect(kanban).toContain("<RegistrarContatoDialog");
     expect(kanban).toContain("onPickContato={() => setContatoLead(lead)}");
