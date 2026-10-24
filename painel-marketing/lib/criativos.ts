@@ -94,10 +94,11 @@ export async function sincronizarCriativos(quem: string) {
     };
   });
   const db = sql();
-  // Em lotes, para não montar uma consulta gigante. Favorito, oculto e nota
-  // são do Painel e nunca são sobrescritos pela sincronização.
-  for (let k = 0; k < linhas.length; k += 200) {
-    const lote = linhas.slice(k, k + 200);
+  // Em lotes pequenos: com 200 linhas (cerca de 4 mil parâmetros) a conexão pelo
+  // pooler do Supabase ficou presa no meio da mensagem e travou a página seguinte.
+  // Favorito, oculto e nota são do Painel e nunca são sobrescritos pela sincronização.
+  for (let k = 0; k < linhas.length; k += 50) {
+    const lote = linhas.slice(k, k + 50);
     await db`
       insert into criativos ${db(lote)}
       on conflict (ad_id) do update set nome = excluded.nome, status = excluded.status,
