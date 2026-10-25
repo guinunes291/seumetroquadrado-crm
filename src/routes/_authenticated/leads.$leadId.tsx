@@ -76,6 +76,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { SdrLeadCard } from "@/features/sdr/sdr-lead-card";
 import { EspelhoLeadCard } from "@/features/sdr/espelho-lead-card";
 import { PassarClienteDialog } from "@/features/sdr/passar-cliente-dialog";
+import { LinksEnviadosCard } from "@/features/proposta/links-enviados-card";
 
 const LEAD_TABS = [
   "timeline",
@@ -601,6 +602,10 @@ function LeadDetailPage() {
       />
 
       <HistoricoResponsaveisCard leadId={leadId} corretorId={lead.corretor_id} />
+
+      <LinksEnviadosCard
+        lead={{ id: lead.id, nome: lead.nome, telefone: lead.telefone, projeto_id: lead.projeto_id }}
+      />
 
       <LeadStatusCards leadId={leadId} lead={lead} />
 
