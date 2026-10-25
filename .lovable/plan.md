@@ -1,66 +1,80 @@
-# Achados do último scan de segurança (23/10/2026, 18:08 UTC) — nada aplicado
+# Link de Proposta
 
-Total: 28 achados do banco — 14 críticos, 13 alertas, 1 informativo. Nenhum está marcado como ignorado (nenhum tem registro de ignorar nem motivo). Os scanners de código, conectores e MCP não trouxeram achados nesta rodada.
+## 1. O que já existe e vai ser reaproveitado
 
-## Críticos (14)
+| Item | Situação hoje | Uso no módulo |
+|---|---|---|
+| `vitrine_links`, `vitrine_link_projetos`, `vitrine_link_eventos` (0 linhas) | Motor completo e em uso no código: token de 32 bytes guardado só como hash SHA-256, expiração, revogação, limite de requisições, eventos idempotentes. Telas: `/vitrine` (envio), `/vitrine-publica` (página pública, token no `#`), rotas `/api/vitrine-links` e `/api/public/vitrine`, RPCs `criar_vitrine_link`, `obter_vitrine_publica`, `consumir_vitrine_requisicao`, `registrar_vitrine_evento`. Filtro de URLs seguras (`safePublicHttpUrl`). | Copiar o padrão (hash, limite, eventos, RPCs estreitas via servidor). Não reaproveitar as tabelas em si: a vitrine compara 2 ou 3 projetos, a proposta é um documento de 1 projeto com versões, sessões e aceite. A vitrine continua como está. |
+| `propostas` (0 linhas) | Esqueleto: lead, corretor, projeto, unidade, valor, status, `link_token` em texto puro, validade, `condicoes` jsonb. Nenhuma tela ou rota usa. | Vira a tabela principal (ampliada). `link_token` puro fica sem uso e marcado como obsoleto; passamos a guardar só o hash. |
+| `propostas_visitantes` (0 linhas) | Cadastro de visitante de plantão (nome, telefone, e-mail). Nada usa. Não tem relação com tracking. | Não usar. Fica como está. |
+| `unidades` (0 linhas) | Sem dados. | Opcional no formulário; se vazio, o corretor digita a unidade (texto livre no snapshot). |
+| `agendamento_links` (5 linhas) + RPCs `agendar_pelo_link`, `_agendamento_link_livres` | Em uso em `/agendar/$slug`: o cliente escolhe data e hora livres do corretor e cria agendamento. | O CTA da Apresentação usa os horários livres do link de agendamento do corretor e cria o pedido de visita com status "agendado" para o corretor confirmar (mesma regra). Se o corretor não tiver link de agendamento, o bloco mostra "Falar com o corretor" no WhatsApp. |
+| Upload de imagens | Bucket `projetos-plantas` já existe. | Novo bucket privado `propostas-midia`; imagens servidas por URL assinada só dentro da página pública. |
 
-| # | Objeto | O que está exposto | Quem explora | Proposta |
-|---|---|---|---|---|
-| 1 | tabela `bkp_f085_arquivadas_20260731` (2.033 linhas: lead_id, status_anterior, arquivado_em) | Sem proteção por linha; anon e logados têm SELECT **e DELETE** (conferido) | **Anônimo** com a chave pública | Apagar a cópia antiga, ou travar (SQL A) |
-| 2 | `scripts_vendas` | Leitura de todos os scripts | Qualquer logado | Manter leitura para membro ativo (SQL B) |
-| 3 | `comissao_tier_regras` | Regras/percentuais de comissão por tier | Qualquer logado | Manter (corretor precisa ver o tier) — SQL B |
-| 4 | `objecoes` | Banco de objeções | Qualquer logado | SQL B |
-| 5 | `equipes` | Lista de equipes e gestores | Qualquer logado | SQL B |
-| 6 | `unidades` | Estoque/unidades e preços | Qualquer logado | SQL B |
-| 7 | `metas` | Metas de todos | Qualquer logado, inclusive de outra equipe | Decidir: restringir a gestor + o próprio, ou manter (ranking usa) |
-| 8 | `cadencia_config` | Configuração da cadência | Qualquer logado | SQL B (sem tocar no conteúdo) |
-| 9 | `projetos` | Empreendimentos | Qualquer logado | SQL B — catálogo usado por todos |
-| 10 | `configuracao_pontuacao` | Pontos da gamificação | Qualquer logado | SQL B |
-| 11 | `vendas_construtora_avulsa` | Construtoras avulsas de venda | Qualquer logado | SQL B |
-| 12 | `zonas_bairros` | Mapa bairro→zona | Qualquer logado | SQL B |
-| 13 | `zonas_roletas` | Zona→roleta | Qualquer logado | SQL B |
-| 14 | `historico_precos` | Histórico de preços | Qualquer logado | SQL B |
+## 2. Aviso ao corretor no WhatsApp (canal existente)
 
-Leitura: o único crítico realmente perigoso é o nº 1. Os nºs 2–14 são "regra USING (true) para logado": nenhum anônimo lê, e são tabelas de catálogo/configuração usadas pelas telas. O risco real é só uma conta bloqueada ou pendente que ainda tenha sessão ler esses dados.
+Hoje o aviso ao corretor sai pela instância Z-API (`ZAPI_INSTANCE_ID`, `ZAPI_TOKEN`), usada pela função `notify-lead-transfer` e por `src/lib/zapi.server.ts`. `sdr_avisos_corretor` é só um token de confirmação ligado a esse aviso, e `push_outbox` é notificação do navegador (push). A Sami 1898 é o canal de conversa (`samiq_canal_mensagens`), não de aviso.
 
-## Alertas (13) e informativo (1)
+Proposta: usar `zapi.server.ts` (mesmo número dos avisos de transferência) e, em paralelo, um push no `push_outbox`. Preciso que você confirme: o número que manda os avisos de transferência é o 1898 da Sami ou outro? Se quiser que saia pela Sami, troco só o remetente.
 
-- **`roletas` — o mais importante entre os alertas:** qualquer logado lê a coluna `webhook_token`. Com o token, alguém consegue mandar leads falsos pelo webhook público de qualquer roleta (incluindo a da 3C Plus). Proposta: SQL C.
-- Configuração/catálogo com leitura para qualquer logado: `app_flags`, `copa_selecoes`, `projeto_foco`, `copa_participantes`, `copa_config_pontos`, `copa_fases`, `higiene_regra_fase`, `copa_edicao`, `copa_confrontos`, `higiene_config`, `copa_config_premios`. São intencionais (Copa, flags, higiene). Proposta: SQL B ou marcar como ignorado, com motivo.
-- Arquivos `avatars`: qualquer logado baixa qualquer foto de perfil. É intencional (fotos aparecem no ranking): ignorar, com motivo.
-- Info, `projetos-plantas`: qualquer pessoa lista os arquivos de plantas. É material público de venda: ignorar, com motivo.
+Disparo:
+- Aceite e pedido de visita: aviso imediato, gravado numa fila `proposta_avisos` (idempotente por evento) e enviado na mesma requisição; se falhar, a varredura reenviar.
+- Fim de sessão: o heartbeat só atualiza a sessão. Uma varredura agendada (pg_cron a cada 5 min chamando uma rota `/api/public/hooks/proposta-avisos` com segredo) pega sessões sem sinal há 10+ min, marca como encerradas e manda uma mensagem: "João abriu a proposta do Parque das Perdizes agora. Ficou 02:10, mais tempo em Fluxo de pagamento. 3ª abertura." Retorno após 30+ min abre sessão nova.
+- Respeito à regra da casa: a mensagem nunca leva telefone do cliente.
 
-## SQL proposto (para aprovar)
+## 3. Fases do funil e sugestão para o aceite
 
-```sql
--- A) backup exposto (preferido: apagar, após confirmar que não é mais usado)
-DROP TABLE public.bkp_f085_arquivadas_20260731;
--- alternativa se precisar guardar:
--- REVOKE ALL ON public.bkp_f085_arquivadas_20260731 FROM anon, authenticated;
--- ALTER TABLE public.bkp_f085_arquivadas_20260731 ENABLE ROW LEVEL SECURITY;
+As 14 fases existentes: novo, aguardando atendimento, aguardando retorno, qualificação corretor, em atendimento, qualificado, agendado, visita realizada, proposta enviada, análise de crédito, contrato fechado, pós-venda, aguardando corretor, perdido.
 
--- B) padrão para cada tabela de catálogo (exemplo scripts_vendas)
-DROP POLICY "scripts_select_all_auth" ON public.scripts_vendas;
-CREATE POLICY "scripts_select_membro_ativo" ON public.scripts_vendas
-  FOR SELECT TO authenticated USING (public.is_active_member(auth.uid()));
--- repetir trocando tabela/política para os itens 3–14 e os de catálogo
+Sugestão (você decide):
+- Ao enviar uma Proposta: mover para "proposta enviada" só se o lead estiver antes dela; nunca regredir.
+- No aceite: manter em "proposta enviada" e criar tarefa para o corretor, OU mover para "análise de crédito" se o aceite já significa que o cliente vai mandar documentos. Minha sugestão é "análise de crédito" apenas quando o lead ainda não passou dela, e nunca mexer em "contrato fechado" ou "pós-venda".
+- Pedido de visita pela Apresentação: "agendado" segue a regra atual do link de agendamento.
 
--- C) token das roletas só para admin
-REVOKE SELECT (webhook_token) ON public.roletas FROM authenticated;
--- o botão "Token" passa a ler via função admin-only:
-CREATE FUNCTION public.roleta_webhook_token(_id uuid) RETURNS text
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT webhook_token FROM public.roletas
-   WHERE id = _id AND public.has_role(auth.uid(), 'admin');
-$$;
-REVOKE ALL ON FUNCTION public.roleta_webhook_token(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.roleta_webhook_token(uuid) TO authenticated;
-```
+Atenção: hoje "proposta enviada" não aparece como coluna nas fases de Carteira do kanban. Confirmo antes se isso deve mudar.
 
-Observações técnicas: antes do C, é preciso trocar o `select('*')` das roletas no app, porque a revogação por coluna quebra quem pede `*`. A assinatura de `is_active_member` deve ser conferida antes do B. Os achados ignorados por motivo de negócio seriam marcados com explicação.
+## 4. Modelo de dados
 
-## Ordem sugerida
-1. A (backup aberto a anônimo) — urgente.
-2. C (tokens de roleta), junto com o ajuste do botão Token.
-3. B nas tabelas de catálogo; ignorar, com motivo, Copa/flags/avatars/plantas.
-4. Decidir `metas` (restringir ou manter).
+Alterações:
+- `propostas`: + `modelo` (apresentacao | proposta), `token_hash` único, `versao_atual`, `status` (rascunho, enviada, aceita, expirada, revogada), `expira_em`, `revogado_em`, `primeira_abertura_em`, `ultimo_acesso_em`, `total_aberturas`, `limite_janela_*`, `agendamento_link_id`. `link_token` comentado como obsoleto.
+
+Novas:
+- `proposta_versoes`: proposta, número, `snapshot` jsonb (blocos ordenados e visíveis, textos, imagens, fluxos até 3, unidade, validade, primeiro nome do lead, corretor), `snapshot_hash`, criado_por, criado_em. Imutável.
+- `proposta_sessoes`: proposta, versão, início, último sinal, encerrada_em, aparelho, navegador, tempo total, profundidade máxima, `tempo_por_secao` jsonb, aviso_enviado_em. Sem IP guardado fora do aceite.
+- `proposta_eventos`: sessão, tipo (abertura, secao_vista, clique_whatsapp, clique_mapa, fluxo_visto, visita_pedida, aceite), seção, chave de idempotência.
+- `proposta_aceites`: proposta (única), versão, opção de fluxo, nome completo, CPF (guardado só como hash + 3 últimos dígitos), IP, user agent, `snapshot_hash`, aceito_em.
+- `proposta_avisos`: fila de mensagens ao corretor (tipo, referência única, enviado_em, tentativas).
+
+Segurança:
+- Todas com RLS. Leitura: corretor dono, gestor da equipe e admin (`is_active_member` + regra de escopo já usada em leads). Escrita só por funções.
+- Nada é acessível ao público direto. Página pública fala só com rotas do servidor que chamam RPCs estreitas com service role: `obter_proposta_publica(hash)`, `consumir_proposta_requisicao(hash)`, `registrar_proposta_sinal(hash, sessao, eventos)`, `aceitar_proposta(hash, ...)`, `pedir_visita_proposta(hash, ...)`.
+- Corretor: `criar_proposta`, `publicar_versao_proposta`, `revogar_proposta`, todas checando dono do lead.
+- Timeline: eventos gravados em `lead_eventos` (envio, 1ª abertura, aceite, visita pedida), sem um evento por heartbeat.
+
+## 5. Rotas e telas
+
+- Ficha do lead: botão "Gerar link" abre o editor (modelo, projeto, unidade, fluxos, ordem/ocultar blocos, upload). Prévia lado a lado. Ações "Copiar link" e "Enviar no WhatsApp" com texto pronto. Cartão "Propostas" com status, aberturas, último acesso, tempo por seção em hh:mm, seção mais vista.
+- `/propostas` (logado): lista das propostas (corretor vê só as dele).
+- Painel do gestor dentro de `/propostas` (aba, admin/gestor): filtros período, corretor, projeto; enviadas, % abertas, tempo até 1ª abertura, tempo médio, seção mais lida, apresentação para visita pedida, proposta para aceite.
+- `/p/$token` (público, SSR): página mobile-first. O token vai na URL para a prévia do WhatsApp funcionar (o `#` da vitrine impede o Open Graph); proteção por hash, limite de requisições, expiração e `noindex`. Título "Proposta para João | Parque das Perdizes" e imagem de capa só quando for URL pública segura.
+- `/p/$token?previa=1` logado: prévia que não conta acesso. Acesso de usuário logado do CRM também não conta.
+- Rotas de servidor: `/api/propostas` (corretor, autenticada) e `/api/public/propostas/*` (sinais, aceite, visita, comprovante).
+
+Design: marinho #0F1E3A, dourado #B89968, creme #F5F1EA, Montserrat Bold e Inter (já existem em `public/fonts/aurum`). Sem travessão nos textos. Página nunca mostra telefone, CPF ou e-mail; só primeiro nome. Texto legal do aceite obrigatório.
+
+## 6. Ordem de entrega
+
+1. Banco: tabelas, RLS, RPCs, bucket, testes das regras (token, limite, aceite único, travamento, não regredir fase).
+2. Editor na ficha do lead + snapshot e versões + copiar/enviar no WhatsApp (modelo Apresentação).
+3. Página pública Apresentação + tracking por sessão + pedido de visita.
+4. Modelo Proposta: unidade, fluxos, validade, aceite digital e comprovante.
+5. Avisos no WhatsApp (sessão encerrada, aceite, visita) + timeline.
+6. Lista de propostas, cartão na ficha e painel do gestor.
+
+Cada etapa só avança com o seu "ok".
+
+## Pontos para você decidir
+
+- Número que manda os avisos: o mesmo dos avisos de transferência ou a Sami 1898.
+- Fase no aceite: "análise de crédito" (sugestão) ou manter "proposta enviada" com tarefa.
+- Validade padrão do link (sugiro 15 dias para Proposta, 30 para Apresentação).
