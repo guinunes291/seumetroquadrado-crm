@@ -79,6 +79,7 @@ import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
 import { Route as ApiLojasPlanilhaRouteImport } from './routes/api/lojas-planilha'
 import { Route as ApiMercadoPlanilhaRouteImport } from './routes/api/mercado-planilha'
 import { Route as ApiVitrineLinksRouteImport } from './routes/api/vitrine-links'
+import { Route as PTokenRouteImport } from './routes/p.$token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAcademiaIndexRouteImport } from './routes/_authenticated/academia/index'
@@ -500,6 +501,11 @@ const ApiVitrineLinksRoute = ApiVitrineLinksRouteImport.update({
   path: '/api/vitrine-links',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PTokenRoute = PTokenRouteImport.update({
+  id: '/p/$token',
+  path: '/p/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -868,6 +874,7 @@ export interface FileRoutesByFullPath {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/p/$token': typeof PTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -993,6 +1000,7 @@ export interface FileRoutesByTo {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/p/$token': typeof PTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -1120,6 +1128,7 @@ export interface FileRoutesById {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/p/$token': typeof PTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -1247,6 +1256,7 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/p/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/academia/progresso'
@@ -1372,6 +1382,7 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/p/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/academia/progresso'
@@ -1498,6 +1509,7 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/p/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/academia/progresso'
@@ -1569,6 +1581,7 @@ export interface RootRouteChildren {
   ApiLojasPlanilhaRoute: typeof ApiLojasPlanilhaRoute
   ApiMercadoPlanilhaRoute: typeof ApiMercadoPlanilhaRoute
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
+  PTokenRoute: typeof PTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicAgendamentoRoute: typeof ApiPublicAgendamentoRoute
@@ -2092,6 +2105,13 @@ declare module '@tanstack/react-router' {
       path: '/api/vitrine-links'
       fullPath: '/api/vitrine-links'
       preLoaderRoute: typeof ApiVitrineLinksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p/$token': {
+      id: '/p/$token'
+      path: '/p/$token'
+      fullPath: '/p/$token'
+      preLoaderRoute: typeof PTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -2676,6 +2696,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLojasPlanilhaRoute: ApiLojasPlanilhaRoute,
   ApiMercadoPlanilhaRoute: ApiMercadoPlanilhaRoute,
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,
+  PTokenRoute: PTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicAgendamentoRoute: ApiPublicAgendamentoRoute,
