@@ -96,6 +96,7 @@ import { Route as ApiPublicAgendamentoRouteImport } from './routes/api/public/ag
 import { Route as ApiPublicAgendamentoIcsRouteImport } from './routes/api/public/agendamento-ics'
 import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
+import { Route as ApiPublicPropostasRouteImport } from './routes/api/public/propostas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiSamiAnexoRouteImport } from './routes/api/sami/anexo'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
@@ -595,6 +596,11 @@ const ApiPublicMetricasRoute = ApiPublicMetricasRouteImport.update({
   path: '/api/public/metricas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPropostasRoute = ApiPublicPropostasRouteImport.update({
+  id: '/api/public/propostas',
+  path: '/api/public/propostas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
   id: '/api/public/vitrine',
   path: '/api/public/vitrine',
@@ -874,6 +880,7 @@ export interface FileRoutesByFullPath {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
@@ -998,6 +1005,7 @@ export interface FileRoutesByTo {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
@@ -1124,6 +1132,7 @@ export interface FileRoutesById {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
@@ -1250,6 +1259,7 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
@@ -1374,6 +1384,7 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
@@ -1499,6 +1510,7 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
@@ -1563,6 +1575,7 @@ export interface RootRouteChildren {
   ApiPublicAgendamentoIcsRoute: typeof ApiPublicAgendamentoIcsRoute
   ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
+  ApiPublicPropostasRoute: typeof ApiPublicPropostasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiSamiAnexoRoute: typeof ApiSamiAnexoRoute
   ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
@@ -2200,6 +2213,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMetricasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/propostas': {
+      id: '/api/public/propostas'
+      path: '/api/public/propostas'
+      fullPath: '/api/public/propostas'
+      preLoaderRoute: typeof ApiPublicPropostasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/vitrine': {
       id: '/api/public/vitrine'
       path: '/api/public/vitrine'
@@ -2662,6 +2682,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAgendamentoIcsRoute: ApiPublicAgendamentoIcsRoute,
   ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
+  ApiPublicPropostasRoute: ApiPublicPropostasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiSamiAnexoRoute: ApiSamiAnexoRoute,
   ApiSamiBriefingRoute: ApiSamiBriefingRoute,
