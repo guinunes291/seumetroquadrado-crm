@@ -813,6 +813,13 @@
       "when": 1792952564139,
       "tag": "0115_link_proposta_avisos",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1792953617759,
+      "tag": "0116_link_proposta_avisos_webhook_n8n",
+      "breakpoints": true
     }
   ]
 }
