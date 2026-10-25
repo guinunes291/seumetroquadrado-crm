@@ -61,6 +61,7 @@ import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPresencaRouteImport } from './routes/_authenticated/presenca'
 import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authenticated/projetos-foco'
 import { Route as AuthenticatedProjetosMateriaisRouteImport } from './routes/_authenticated/projetos-materiais'
+import { Route as AuthenticatedPropostasRouteImport } from './routes/_authenticated/propostas'
 import { Route as AuthenticatedProspeccaoRouteImport } from './routes/_authenticated/prospeccao'
 import { Route as AuthenticatedRadarRouteImport } from './routes/_authenticated/radar'
 import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticated/ranking'
@@ -101,7 +102,6 @@ import { Route as ApiPublicPropostaAceiteRouteImport } from './routes/api/public
 import { Route as ApiPublicPropostasRouteImport } from './routes/api/public/propostas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiSamiAnexoRouteImport } from './routes/api/sami/anexo'
-import { Route as ApiSamiAvisosRouteImport } from './routes/api/sami/avisos'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
 import { Route as ApiSamiDiretrizesRouteImport } from './routes/api/sami/diretrizes'
 import { Route as ApiSamiMensagemRouteImport } from './routes/api/sami/mensagem'
@@ -411,6 +411,11 @@ const AuthenticatedProjetosMateriaisRoute =
     path: '/projetos-materiais',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPropostasRoute = AuthenticatedPropostasRouteImport.update({
+  id: '/propostas',
+  path: '/propostas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProspeccaoRoute = AuthenticatedProspeccaoRouteImport.update({
   id: '/prospeccao',
   path: '/prospeccao',
@@ -622,11 +627,6 @@ const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
 const ApiSamiAnexoRoute = ApiSamiAnexoRouteImport.update({
   id: '/api/sami/anexo',
   path: '/api/sami/anexo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiSamiAvisosRoute = ApiSamiAvisosRouteImport.update({
-  id: '/api/sami/avisos',
-  path: '/api/sami/avisos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSamiBriefingRoute = ApiSamiBriefingRouteImport.update({
@@ -868,6 +868,7 @@ export interface FileRoutesByFullPath {
   '/presenca': typeof AuthenticatedPresencaRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
+  '/propostas': typeof AuthenticatedPropostasRoute
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
@@ -903,7 +904,6 @@ export interface FileRoutesByFullPath {
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
-  '/api/sami/avisos': typeof ApiSamiAvisosRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -996,6 +996,7 @@ export interface FileRoutesByTo {
   '/presenca': typeof AuthenticatedPresencaRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
+  '/propostas': typeof AuthenticatedPropostasRoute
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
@@ -1031,7 +1032,6 @@ export interface FileRoutesByTo {
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
-  '/api/sami/avisos': typeof ApiSamiAvisosRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -1126,6 +1126,7 @@ export interface FileRoutesById {
   '/_authenticated/presenca': typeof AuthenticatedPresencaRoute
   '/_authenticated/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/_authenticated/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
+  '/_authenticated/propostas': typeof AuthenticatedPropostasRoute
   '/_authenticated/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/_authenticated/radar': typeof AuthenticatedRadarRoute
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
@@ -1161,7 +1162,6 @@ export interface FileRoutesById {
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
-  '/api/sami/avisos': typeof ApiSamiAvisosRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -1256,6 +1256,7 @@ export interface FileRouteTypes {
     | '/presenca'
     | '/projetos-foco'
     | '/projetos-materiais'
+    | '/propostas'
     | '/prospeccao'
     | '/radar'
     | '/ranking'
@@ -1291,7 +1292,6 @@ export interface FileRouteTypes {
     | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
-    | '/api/sami/avisos'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1384,6 +1384,7 @@ export interface FileRouteTypes {
     | '/presenca'
     | '/projetos-foco'
     | '/projetos-materiais'
+    | '/propostas'
     | '/prospeccao'
     | '/radar'
     | '/ranking'
@@ -1419,7 +1420,6 @@ export interface FileRouteTypes {
     | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
-    | '/api/sami/avisos'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1513,6 +1513,7 @@ export interface FileRouteTypes {
     | '/_authenticated/presenca'
     | '/_authenticated/projetos-foco'
     | '/_authenticated/projetos-materiais'
+    | '/_authenticated/propostas'
     | '/_authenticated/prospeccao'
     | '/_authenticated/radar'
     | '/_authenticated/ranking'
@@ -1548,7 +1549,6 @@ export interface FileRouteTypes {
     | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
-    | '/api/sami/avisos'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1616,7 +1616,6 @@ export interface RootRouteChildren {
   ApiPublicPropostasRoute: typeof ApiPublicPropostasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiSamiAnexoRoute: typeof ApiSamiAnexoRoute
-  ApiSamiAvisosRoute: typeof ApiSamiAvisosRoute
   ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
   ApiSamiDiretrizesRoute: typeof ApiSamiDiretrizesRoute
   ApiSamiMensagemRoute: typeof ApiSamiMensagemRoute
@@ -2007,6 +2006,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjetosMateriaisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/propostas': {
+      id: '/_authenticated/propostas'
+      path: '/propostas'
+      fullPath: '/propostas'
+      preLoaderRoute: typeof AuthenticatedPropostasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/prospeccao': {
       id: '/_authenticated/prospeccao'
       path: '/prospeccao'
@@ -2285,13 +2291,6 @@ declare module '@tanstack/react-router' {
       path: '/api/sami/anexo'
       fullPath: '/api/sami/anexo'
       preLoaderRoute: typeof ApiSamiAnexoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/sami/avisos': {
-      id: '/api/sami/avisos'
-      path: '/api/sami/avisos'
-      fullPath: '/api/sami/avisos'
-      preLoaderRoute: typeof ApiSamiAvisosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sami/briefing': {
@@ -2580,6 +2579,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPresencaRoute: typeof AuthenticatedPresencaRoute
   AuthenticatedProjetosFocoRoute: typeof AuthenticatedProjetosFocoRoute
   AuthenticatedProjetosMateriaisRoute: typeof AuthenticatedProjetosMateriaisRoute
+  AuthenticatedPropostasRoute: typeof AuthenticatedPropostasRoute
   AuthenticatedProspeccaoRoute: typeof AuthenticatedProspeccaoRoute
   AuthenticatedRadarRoute: typeof AuthenticatedRadarRoute
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
@@ -2658,6 +2658,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPresencaRoute: AuthenticatedPresencaRoute,
   AuthenticatedProjetosFocoRoute: AuthenticatedProjetosFocoRoute,
   AuthenticatedProjetosMateriaisRoute: AuthenticatedProjetosMateriaisRoute,
+  AuthenticatedPropostasRoute: AuthenticatedPropostasRoute,
   AuthenticatedProspeccaoRoute: AuthenticatedProspeccaoRoute,
   AuthenticatedRadarRoute: AuthenticatedRadarRoute,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
@@ -2747,7 +2748,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPropostasRoute: ApiPublicPropostasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiSamiAnexoRoute: ApiSamiAnexoRoute,
-  ApiSamiAvisosRoute: ApiSamiAvisosRoute,
   ApiSamiBriefingRoute: ApiSamiBriefingRoute,
   ApiSamiDiretrizesRoute: ApiSamiDiretrizesRoute,
   ApiSamiMensagemRoute: ApiSamiMensagemRoute,

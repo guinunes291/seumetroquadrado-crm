@@ -40,6 +40,15 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           return new Response("unauthorized", { status: 401 });
         }
 
+        // Avisos do Link de Proposta (webhook n8n/Sami): roda junto com o cron do push,
+        // antes, para que o fallback de push criado aqui saia no mesmo minuto.
+        try {
+          const { despacharAvisosProposta } = await import("@/lib/proposta-avisos.server");
+          await despacharAvisosProposta(20);
+        } catch (e) {
+          console.error("[push-dispatch] avisos de proposta falharam", e);
+        }
+
         const [{ supabaseAdmin }, webPushMod] = await Promise.all([
           import("@/integrations/supabase/client.server"),
           import("web-push"),

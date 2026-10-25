@@ -41,6 +41,10 @@ export const Route = createFileRoute("/api/public/proposta-aceite")({
             ip,
             userAgent: request.headers.get("user-agent"),
           });
+          if (r.ok) {
+            const { despacharAvisosProposta } = await import("@/lib/proposta-avisos.server");
+            await despacharAvisosProposta(5).catch(() => undefined);
+          }
           return json(r, r.ok ? 200 : r.motivo === "limite" ? 429 : 409);
         } catch (error) {
           if (error instanceof SyntaxError || error instanceof z.ZodError) return json({ ok: false, motivo: "invalid_input" }, 422);

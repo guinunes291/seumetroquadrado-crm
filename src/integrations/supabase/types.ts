@@ -7598,6 +7598,7 @@ export type Database = {
           atualizado_em: string
           fallback_push_apos_min: number
           id: boolean
+          max_tentativas: number
           template_aprovado: boolean
           template_idioma: string
           template_nome: string
@@ -7606,6 +7607,7 @@ export type Database = {
           atualizado_em?: string
           fallback_push_apos_min?: number
           id?: boolean
+          max_tentativas?: number
           template_aprovado?: boolean
           template_idioma?: string
           template_nome?: string
@@ -7614,6 +7616,7 @@ export type Database = {
           atualizado_em?: string
           fallback_push_apos_min?: number
           id?: boolean
+          max_tentativas?: number
           template_aprovado?: boolean
           template_idioma?: string
           template_nome?: string
@@ -7637,7 +7640,9 @@ export type Database = {
           template_parametros: Json | null
           tentativas: number
           tipo: string
+          ultima_tentativa_em: string | null
           ultimo_erro: string | null
+          wamid: string | null
         }
         Insert: {
           canal?: string | null
@@ -7655,7 +7660,9 @@ export type Database = {
           template_parametros?: Json | null
           tentativas?: number
           tipo: string
+          ultima_tentativa_em?: string | null
           ultimo_erro?: string | null
+          wamid?: string | null
         }
         Update: {
           canal?: string | null
@@ -7673,7 +7680,9 @@ export type Database = {
           template_parametros?: Json | null
           tentativas?: number
           tipo?: string
+          ultima_tentativa_em?: string | null
           ultimo_erro?: string | null
+          wamid?: string | null
         }
         Relationships: [
           {
@@ -14942,6 +14951,16 @@ export type Database = {
         }
         Returns: string
       }
+      proposta_aviso_registrar_envio: {
+        Args: {
+          _canal: string
+          _erro: string
+          _id: string
+          _ok: boolean
+          _wamid: string
+        }
+        Returns: string
+      }
       proposta_aviso_resultado: {
         Args: { _erro: string; _id: string; _ok: boolean }
         Returns: string
@@ -14964,7 +14983,9 @@ export type Database = {
           template_parametros: Json | null
           tentativas: number
           tipo: string
+          ultima_tentativa_em: string | null
           ultimo_erro: string | null
+          wamid: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -14972,6 +14993,17 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      proposta_avisos_reivindicar_envio: {
+        Args: { _limite?: number }
+        Returns: {
+          assunto: string
+          id: string
+          mensagem: string
+          telefone: string
+          template_nome: string
+          tentativa: number
+        }[]
       }
       proposta_avisos_varrer: { Args: never; Returns: number }
       proposta_validade_maxima: {
