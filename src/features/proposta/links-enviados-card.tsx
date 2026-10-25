@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ROTULO_BLOCO, hhmm, somarTempoPorSecao, statusProposta } from "@/lib/proposta-link";
+import { ROTULO_BLOCO, codigoVerificacao, cpfMascarado, hhmm, somarTempoPorSecao, statusProposta } from "@/lib/proposta-link";
 import { revogarPropostaLink } from "@/lib/proposta-link.functions";
 import { GerarLinkDialog } from "./gerar-link-dialog";
 
@@ -34,7 +34,7 @@ export function LinksEnviadosCard({ lead }: Props) {
       const { data, error } = await supabase
         .from("propostas")
         .select(
-          "id, modelo, created_at, expira_em, revogado_em, aceita_em, total_aberturas, ultimo_acesso_em, versao_atual, proposta_sessoes(tempo_por_secao, tempo_total_s, profundidade_max)",
+          "id, modelo, created_at, expira_em, revogado_em, aceita_em, total_aberturas, ultimo_acesso_em, versao_atual, proposta_sessoes(tempo_por_secao, tempo_total_s, profundidade_max), proposta_aceites(opcao_fluxo, nome_completo, cpf_final, aceito_em, snapshot_hash), proposta_avisos(tipo, canal, status, ultimo_erro, criado_em)",
         )
         .eq("lead_id", lead.id)
         .not("token_hash", "is", null)
@@ -92,6 +92,29 @@ export function LinksEnviadosCard({ lead }: Props) {
                 <span>último acesso {quando(p.ultimo_acesso_em)}</span>
                 <span>tempo total {hhmm(total)}</span>
               </div>
+              {(() => {
+                const a = Array.isArray(p.proposta_aceites) ? p.proposta_aceites[0] : p.proposta_aceites;
+                if (!a) return null;
+                return (
+                  <div className="mt-3 rounded-md bg-success/10 p-3">
+                    <p className="font-medium">Aceite digital: opção {a.opcao_fluxo}</p>
+                    <div className="mt-1 grid gap-x-4 gap-y-0.5 text-muted-foreground sm:grid-cols-2">
+                      <span>{quando(a.aceito_em)} (Brasília)</span>
+                      <span>{a.nome_completo}</span>
+                      <span>CPF {cpfMascarado(a.cpf_final)}</span>
+                      <span>Código {codigoVerificacao(a.snapshot_hash)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              {(p.proposta_avisos ?? []).length > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Avisos ao corretor:{" "}
+                  {(p.proposta_avisos ?? [])
+                    .map((v) => `${v.tipo} por ${v.canal === "push" ? "notificação" : "WhatsApp"} (${v.status})`)
+                    .join(" · ")}
+                </p>
+              )}
               {secoes.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {secoes.map(([k, v], i) => (
