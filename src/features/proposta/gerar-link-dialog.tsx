@@ -37,7 +37,9 @@ import {
   validadeMaxima,
   type PropostaSnapshot,
 } from "@/lib/proposta-link";
-import { publicarPropostaLink } from "@/lib/proposta-link.functions";
+import { perfilParaProposta, publicarPropostaLink } from "@/lib/proposta-link.functions";
+import { Link } from "@tanstack/react-router";
+import { Warning } from "@phosphor-icons/react";
 import { PropostaView } from "./proposta-view";
 
 type Modelo = "apresentacao" | "proposta";
@@ -117,6 +119,13 @@ export function GerarLinkDialog({ open, onOpenChange, lead }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const publicar = useServerFn(publicarPropostaLink);
+  const buscarPerfil = useServerFn(perfilParaProposta);
+  const perfilQ = useQuery({
+    queryKey: ["proposta-perfil", lead.id],
+    enabled: open,
+    staleTime: 60_000,
+    queryFn: () => buscarPerfil({ data: { leadId: lead.id } }),
+  });
 
   const [modelo, setModelo] = useState<Modelo>("apresentacao");
   const [busca, setBusca] = useState("");
@@ -268,7 +277,7 @@ export function GerarLinkDialog({ open, onOpenChange, lead }: Props) {
       ...conteudo,
       modelo,
       cliente_primeiro_nome: primeiroNome(lead.nome),
-      corretor: { nome: user?.user_metadata?.nome ?? "Seu corretor", foto_url: null, whatsapp: null, creci: null },
+      corretor: perfilQ.data?.corretor ?? { nome: "Seu corretor", foto_url: null, whatsapp: null, creci: null },
     });
     if (!r.success) return null;
     const t = (u: string | null) => (u ? (assinadas[u] ?? (u.startsWith(MIDIA_PREFIXO) ? null : u)) : null);
@@ -277,7 +286,7 @@ export function GerarLinkDialog({ open, onOpenChange, lead }: Props) {
       projeto: { ...r.data.projeto, capa_url: t(r.data.projeto.capa_url), fotos: r.data.projeto.fotos.map((f) => t(f) ?? "").filter(Boolean) },
       plantas: r.data.plantas.map((p) => ({ ...p, imagem_url: t(p.imagem_url) ?? "" })).filter((p) => p.imagem_url),
     };
-  }, [conteudo, modelo, lead.nome, user, assinadas]);
+  }, [conteudo, modelo, lead.nome, perfilQ.data, assinadas]);
 
   const gerar = async () => {
     if (!nome.trim()) return toast.error("Escolha o empreendimento.");
@@ -289,7 +298,7 @@ export function GerarLinkDialog({ open, onOpenChange, lead }: Props) {
       const r = await publicar({
         data: { leadId: lead.id, modelo, projetoId, expiraEm: exp.toISOString(), conteudo },
       });
-      setPublicado({ url: `${window.location.origin}${r.path}` });
+      setPublicado({ url: r.url });
       void qc.invalidateQueries({ queryKey: ["propostas-lead", lead.id] });
       toast.success("Link gerado.");
     } catch (e) {
@@ -343,8 +352,37 @@ export function GerarLinkDialog({ open, onOpenChange, lead }: Props) {
     );
   }
 
+  const p = perfilQ.data;
+  const faltas = p
+    ? [
+        !p.corretor.whatsapp && "Sem telefone, o cliente não terá botão de WhatsApp.",
+        !p.temAgendamento && "Sem link de agendamento, o botão de visita vai abrir o WhatsApp.",
+        !p.corretor.creci && "Sem CRECI, o rodapé mostra só o nome.",
+      ].filter((x): x is string => !!x)
+    : [];
   const editor = (
     <div className="space-y-6">
+      {faltas.length > 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+          <p className="flex items-center gap-2 font-medium">
+            <Warning className="h-4 w-4" aria-hidden />
+            {p?.ehVoce ? "Falta completar o seu perfil" : "Falta completar o perfil do corretor deste lead"}
+          </p>
+          <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+            {faltas.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+          {p?.ehVoce && (
+            <div className="mt-2 flex flex-wrap gap-3">
+              <Link to="/meu-perfil" className="font-medium underline">Completar perfil</Link>
+              {!p.temAgendamento && (
+                <Link to="/agendamentos" className="font-medium underline">Criar link de agendamento</Link>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <div className="space-y-2">
         <Label>Modelo</Label>
         <ToggleGroup type="single" value={modelo} onValueChange={(v) => v && setModelo(v as Modelo)} className="justify-start">

@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { WhatsappLogo } from "@phosphor-icons/react";
 import { obterPropostaPublica } from "@/lib/proposta-publica.functions";
 import { blocosVisiveis } from "@/lib/proposta-link";
-import { PropostaView, linkWhatsappCorretor } from "@/features/proposta/proposta-view";
+import { PropostaView, linkWhatsappCorretor, type AceiteInfo } from "@/features/proposta/proposta-view";
 import { usePropostaTracking } from "@/features/proposta/use-proposta-tracking";
 
 export const Route = createFileRoute("/p/$token")({
@@ -50,6 +51,27 @@ function PaginaProposta() {
   const { token } = Route.useParams();
   const ativa = dados.estado === "ativa" || dados.estado === "aceita";
   const { evento } = usePropostaTracking(token, ativa);
+  const [aceite, setAceite] = useState<AceiteInfo | null>("aceite" in dados ? dados.aceite : null);
+
+  const aceitar = async (d: { opcao: number; nome: string; cpf: string }) => {
+    const res = await fetch("/api/public/proposta-aceite", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token, ...d, concordo: true }),
+    }).catch(() => null);
+    const r = (await res?.json().catch(() => null)) as { ok: boolean; motivo?: string; aceite?: AceiteInfo } | null;
+    if (r?.ok && r.aceite) {
+      setAceite(r.aceite);
+      return null;
+    }
+    const m: Record<string, string> = {
+      ja_aceita: "Esta proposta já foi aceita. Recarregue a página para ver o comprovante.",
+      expirada: "Esta proposta chegou ao fim da validade. Fale com seu corretor.",
+      invalid_input: "Confira a opção, o nome completo e o CPF.",
+      limite: "Muitas tentativas agora. Tente de novo em um minuto.",
+    };
+    return m[r?.motivo ?? ""] ?? "Não foi possível registrar agora. Tente de novo em instantes.";
+  };
 
   if (!("snapshot" in dados) || dados.estado === "expirada") {
     const snap = "snapshot" in dados ? dados.snapshot : null;
@@ -91,6 +113,8 @@ function PaginaProposta() {
         expiraEm={dados.expira_em}
         agendarSlug={dados.agendar_slug}
         onEvento={(tipo, secao) => evento(tipo, secao)}
+        aceite={aceite}
+        onAceitar={aceitar}
       />
     </main>
   );
