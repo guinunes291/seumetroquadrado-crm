@@ -7543,56 +7543,344 @@ export type Database = {
           },
         ]
       }
+      proposta_aceites: {
+        Row: {
+          aceito_em: string
+          cpf_final: string
+          cpf_hash: string
+          id: string
+          ip: string | null
+          nome_completo: string
+          opcao_fluxo: number
+          proposta_id: string
+          snapshot_hash: string
+          user_agent: string | null
+          versao: number
+        }
+        Insert: {
+          aceito_em?: string
+          cpf_final: string
+          cpf_hash: string
+          id?: string
+          ip?: string | null
+          nome_completo: string
+          opcao_fluxo: number
+          proposta_id: string
+          snapshot_hash: string
+          user_agent?: string | null
+          versao: number
+        }
+        Update: {
+          aceito_em?: string
+          cpf_final?: string
+          cpf_hash?: string
+          id?: string
+          ip?: string | null
+          nome_completo?: string
+          opcao_fluxo?: number
+          proposta_id?: string
+          snapshot_hash?: string
+          user_agent?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposta_aceites_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: true
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposta_avisos: {
+        Row: {
+          corretor_id: string
+          criado_em: string
+          enviado_em: string | null
+          id: string
+          mensagem: string
+          proposta_id: string
+          referencia: string
+          tentativas: number
+          tipo: string
+          ultimo_erro: string | null
+        }
+        Insert: {
+          corretor_id: string
+          criado_em?: string
+          enviado_em?: string | null
+          id?: string
+          mensagem: string
+          proposta_id: string
+          referencia: string
+          tentativas?: number
+          tipo: string
+          ultimo_erro?: string | null
+        }
+        Update: {
+          corretor_id?: string
+          criado_em?: string
+          enviado_em?: string | null
+          id?: string
+          mensagem?: string
+          proposta_id?: string
+          referencia?: string
+          tentativas?: number
+          tipo?: string
+          ultimo_erro?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposta_avisos_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposta_eventos: {
+        Row: {
+          criado_em: string
+          id: string
+          idempotency_key: string
+          proposta_id: string
+          secao: string | null
+          sessao_id: string | null
+          tipo: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          idempotency_key: string
+          proposta_id: string
+          secao?: string | null
+          sessao_id?: string | null
+          tipo: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          idempotency_key?: string
+          proposta_id?: string
+          secao?: string | null
+          sessao_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposta_eventos_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposta_eventos_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "proposta_sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposta_sessoes: {
+        Row: {
+          aparelho: string | null
+          aviso_enviado_em: string | null
+          chave: string
+          encerrada_em: string | null
+          id: string
+          iniciado_em: string
+          navegador: string | null
+          numero_abertura: number
+          profundidade_max: number
+          proposta_id: string
+          tempo_por_secao: Json
+          tempo_total_s: number
+          ultimo_sinal_em: string
+          versao: number
+        }
+        Insert: {
+          aparelho?: string | null
+          aviso_enviado_em?: string | null
+          chave: string
+          encerrada_em?: string | null
+          id?: string
+          iniciado_em?: string
+          navegador?: string | null
+          numero_abertura: number
+          profundidade_max?: number
+          proposta_id: string
+          tempo_por_secao?: Json
+          tempo_total_s?: number
+          ultimo_sinal_em?: string
+          versao: number
+        }
+        Update: {
+          aparelho?: string | null
+          aviso_enviado_em?: string | null
+          chave?: string
+          encerrada_em?: string | null
+          id?: string
+          iniciado_em?: string
+          navegador?: string | null
+          numero_abertura?: number
+          profundidade_max?: number
+          proposta_id?: string
+          tempo_por_secao?: Json
+          tempo_total_s?: number
+          ultimo_sinal_em?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposta_sessoes_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposta_versoes: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          id: string
+          numero: number
+          proposta_id: string
+          snapshot: Json
+          snapshot_hash: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          numero: number
+          proposta_id: string
+          snapshot: Json
+          snapshot_hash: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          numero?: number
+          proposta_id?: string
+          snapshot?: Json
+          snapshot_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposta_versoes_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       propostas: {
         Row: {
+          aceita_em: string | null
+          agendamento_link_id: string | null
           condicoes: Json
           corretor_id: string
           created_at: string
+          criado_por: string | null
           deleted_at: string | null
+          expira_em: string | null
           id: string
           lead_id: string | null
+          limite_janela_inicio: string | null
+          limite_janela_requisicoes: number
           link_token: string | null
+          modelo: string
           observacoes: string | null
+          primeira_abertura_em: string | null
           projeto_id: string | null
+          revogado_em: string | null
           status: string
+          token_hash: string | null
+          total_aberturas: number
+          total_requisicoes: number
+          ultimo_acesso_em: string | null
           unidade_id: string | null
           updated_at: string
           validade: string | null
           valor: number | null
+          versao_atual: number
         }
         Insert: {
+          aceita_em?: string | null
+          agendamento_link_id?: string | null
           condicoes?: Json
           corretor_id: string
           created_at?: string
+          criado_por?: string | null
           deleted_at?: string | null
+          expira_em?: string | null
           id?: string
           lead_id?: string | null
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
           link_token?: string | null
+          modelo?: string
           observacoes?: string | null
+          primeira_abertura_em?: string | null
           projeto_id?: string | null
+          revogado_em?: string | null
           status?: string
+          token_hash?: string | null
+          total_aberturas?: number
+          total_requisicoes?: number
+          ultimo_acesso_em?: string | null
           unidade_id?: string | null
           updated_at?: string
           validade?: string | null
           valor?: number | null
+          versao_atual?: number
         }
         Update: {
+          aceita_em?: string | null
+          agendamento_link_id?: string | null
           condicoes?: Json
           corretor_id?: string
           created_at?: string
+          criado_por?: string | null
           deleted_at?: string | null
+          expira_em?: string | null
           id?: string
           lead_id?: string | null
+          limite_janela_inicio?: string | null
+          limite_janela_requisicoes?: number
           link_token?: string | null
+          modelo?: string
           observacoes?: string | null
+          primeira_abertura_em?: string | null
           projeto_id?: string | null
+          revogado_em?: string | null
           status?: string
+          token_hash?: string | null
+          total_aberturas?: number
+          total_requisicoes?: number
+          ultimo_acesso_em?: string | null
           unidade_id?: string | null
           updated_at?: string
           validade?: string | null
           valor?: number | null
+          versao_atual?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "propostas_agendamento_link_id_fkey"
+            columns: ["agendamento_link_id"]
+            isOneToOne: false
+            referencedRelation: "agendamento_links"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "propostas_lead_id_fkey"
             columns: ["lead_id"]
@@ -12106,6 +12394,18 @@ export type Database = {
         }
         Returns: string
       }
+      aceitar_proposta: {
+        Args: {
+          _cpf_final: string
+          _cpf_hash: string
+          _ip: string
+          _nome: string
+          _opcao: number
+          _token_hash: string
+          _user_agent: string
+        }
+        Returns: Json
+      }
       agendar_pelo_link: {
         Args: {
           _comprovante_hash: string
@@ -12873,6 +13173,10 @@ export type Database = {
         Args: { _slug: string }
         Returns: string
       }
+      consumir_proposta_requisicao: {
+        Args: { _token_hash: string }
+        Returns: string
+      }
       consumir_vitrine_requisicao: {
         Args: { _token_hash: string }
         Returns: string
@@ -13017,6 +13321,19 @@ export type Database = {
         Returns: Json
       }
       criar_lead_dedup: { Args: { _payload: Json }; Returns: Json }
+      criar_proposta_link: {
+        Args: {
+          _ator_id: string
+          _expira_em: string
+          _lead_id: string
+          _modelo: string
+          _projeto_id: string
+          _snapshot: Json
+          _snapshot_hash: string
+          _token_hash: string
+        }
+        Returns: string
+      }
       criar_registro_filho: {
         Args: { _cliente_id: string; _payload?: Json }
         Returns: Json
@@ -14388,6 +14705,7 @@ export type Database = {
         Returns: Json
       }
       obter_agendamento_link_publico: { Args: { _slug: string }; Returns: Json }
+      obter_proposta_publica: { Args: { _token_hash: string }; Returns: Json }
       obter_vitrine_publica: {
         Args: { _token_hash: string }
         Returns: {
@@ -14445,6 +14763,10 @@ export type Database = {
       }
       pode_escrever: {
         Args: { _acao: string; _agente: string }
+        Returns: boolean
+      }
+      pode_ver_proposta: {
+        Args: { _proposta_id: string; _user_id: string }
         Returns: boolean
       }
       pont_agendamento_conta: {
@@ -14577,6 +14899,15 @@ export type Database = {
         }[]
       }
       prospeccao_pedir_lote: { Args: { _zona: string }; Returns: Json }
+      publicar_versao_proposta: {
+        Args: {
+          _ator_id: string
+          _proposta_id: string
+          _snapshot: Json
+          _snapshot_hash: string
+        }
+        Returns: number
+      }
       ranking_campeonato: {
         Args: { _fim: string; _inicio: string }
         Returns: Json
@@ -14673,6 +15004,19 @@ export type Database = {
         }
         Returns: number
       }
+      registrar_proposta_sinal: {
+        Args: {
+          _aparelho: string
+          _chave: string
+          _eventos: Json
+          _navegador: string
+          _profundidade: number
+          _tempo_por_secao: Json
+          _tempo_total_s: number
+          _token_hash: string
+        }
+        Returns: Json
+      }
       registrar_retorno_lead: {
         Args: { _data: string; _lead_id: string; _nota?: string; _tipo: string }
         Returns: Json
@@ -14767,6 +15111,10 @@ export type Database = {
       }
       restaurar_registro: {
         Args: { _id: string; _tabela: string }
+        Returns: boolean
+      }
+      revogar_proposta_link: {
+        Args: { _ator_id: string; _proposta_id: string }
         Returns: boolean
       }
       revogar_vitrine_link: {
