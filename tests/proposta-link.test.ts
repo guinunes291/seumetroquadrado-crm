@@ -77,3 +77,18 @@ describe("Link de Proposta: helpers da etapa 2", () => {
     expect(telefoneWaMe("123")).toBeNull();
   });
 });
+
+import { CRM_URL_PUBLICA, codigoVerificacao, cpfMascarado, urlPublicaProposta } from "@/lib/proposta-link";
+
+describe("Link de Proposta: etapa 4", () => {
+  it("link sempre no domínio publicado", () => {
+    expect(CRM_URL_PUBLICA).toBe("https://seumetroquadrado-crm.lovable.app");
+    expect(urlPublicaProposta("/p/abc")).toBe("https://seumetroquadrado-crm.lovable.app/p/abc");
+  });
+  it("código de verificação curto do hash", () => {
+    expect(codigoVerificacao("7fc488e9ec33faaa")).toBe("7FC4-88E9");
+  });
+  it("CPF mostra só os 3 últimos dígitos", () => {
+    expect(cpfMascarado("901")).toBe("***.***.**9-01");
+  });
+});
