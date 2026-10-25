@@ -39,3 +39,19 @@ describe("link de proposta", () => {
     expect(cpfValido("111.111.111-11")).toBe(false);
   });
 });
+
+import { validadeMaxima } from "@/lib/proposta-link";
+describe("validade do link", () => {
+  it("proposta enviada dia 25 vence no dia 4 do mês seguinte, 23:59 de Brasília", () => {
+    expect(validadeMaxima("proposta", new Date("2026-10-25T15:00:00Z")).toISOString()).toBe("2026-11-05T02:59:59.000Z");
+  });
+  it("proposta enviada dia 5 para em 15 dias", () => {
+    expect(validadeMaxima("proposta", new Date("2026-10-05T15:00:00Z")).toISOString()).toBe("2026-10-20T15:00:00.000Z");
+  });
+  it("dezembro vira para janeiro", () => {
+    expect(validadeMaxima("proposta", new Date("2026-12-28T12:00:00Z")).toISOString()).toBe("2027-01-05T02:59:59.000Z");
+  });
+  it("apresentação vale 30 dias", () => {
+    expect(validadeMaxima("apresentacao", new Date("2026-10-25T15:00:00Z")).toISOString()).toBe("2026-11-24T15:00:00.000Z");
+  });
+});

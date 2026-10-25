@@ -792,6 +792,13 @@
       "when": 1792951227869,
       "tag": "0112_propostas_midia_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1792951359054,
+      "tag": "0113_link_proposta_regras",
+      "breakpoints": true
     }
   ]
 }
