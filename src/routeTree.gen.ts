@@ -79,6 +79,7 @@ import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
 import { Route as ApiLojasPlanilhaRouteImport } from './routes/api/lojas-planilha'
 import { Route as ApiMercadoPlanilhaRouteImport } from './routes/api/mercado-planilha'
 import { Route as ApiVitrineLinksRouteImport } from './routes/api/vitrine-links'
+import { Route as PTokenRouteImport } from './routes/p.$token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAcademiaIndexRouteImport } from './routes/_authenticated/academia/index'
@@ -96,6 +97,7 @@ import { Route as ApiPublicAgendamentoRouteImport } from './routes/api/public/ag
 import { Route as ApiPublicAgendamentoIcsRouteImport } from './routes/api/public/agendamento-ics'
 import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
+import { Route as ApiPublicPropostasRouteImport } from './routes/api/public/propostas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiSamiAnexoRouteImport } from './routes/api/sami/anexo'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
@@ -499,6 +501,11 @@ const ApiVitrineLinksRoute = ApiVitrineLinksRouteImport.update({
   path: '/api/vitrine-links',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PTokenRoute = PTokenRouteImport.update({
+  id: '/p/$token',
+  path: '/p/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -593,6 +600,11 @@ const ApiPublicDocumentosRoute = ApiPublicDocumentosRouteImport.update({
 const ApiPublicMetricasRoute = ApiPublicMetricasRouteImport.update({
   id: '/api/public/metricas',
   path: '/api/public/metricas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPropostasRoute = ApiPublicPropostasRouteImport.update({
+  id: '/api/public/propostas',
+  path: '/api/public/propostas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
@@ -862,6 +874,7 @@ export interface FileRoutesByFullPath {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/p/$token': typeof PTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -874,6 +887,7 @@ export interface FileRoutesByFullPath {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
@@ -986,6 +1000,7 @@ export interface FileRoutesByTo {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/p/$token': typeof PTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -998,6 +1013,7 @@ export interface FileRoutesByTo {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
@@ -1112,6 +1128,7 @@ export interface FileRoutesById {
   '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
+  '/p/$token': typeof PTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
@@ -1124,6 +1141,7 @@ export interface FileRoutesById {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
@@ -1238,6 +1256,7 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/p/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/academia/progresso'
@@ -1250,6 +1269,7 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
@@ -1362,6 +1382,7 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/p/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/academia/progresso'
@@ -1374,6 +1395,7 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
@@ -1487,6 +1509,7 @@ export interface FileRouteTypes {
     | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
+    | '/p/$token'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/academia/progresso'
@@ -1499,6 +1522,7 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
@@ -1557,12 +1581,14 @@ export interface RootRouteChildren {
   ApiLojasPlanilhaRoute: typeof ApiLojasPlanilhaRoute
   ApiMercadoPlanilhaRoute: typeof ApiMercadoPlanilhaRoute
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
+  PTokenRoute: typeof PTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicAgendamentoRoute: typeof ApiPublicAgendamentoRoute
   ApiPublicAgendamentoIcsRoute: typeof ApiPublicAgendamentoIcsRoute
   ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
+  ApiPublicPropostasRoute: typeof ApiPublicPropostasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiSamiAnexoRoute: typeof ApiSamiAnexoRoute
   ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
@@ -2081,6 +2107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVitrineLinksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p/$token': {
+      id: '/p/$token'
+      path: '/p/$token'
+      fullPath: '/p/$token'
+      preLoaderRoute: typeof PTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
       path: '/.lovable/oauth/consent'
@@ -2198,6 +2231,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/metricas'
       fullPath: '/api/public/metricas'
       preLoaderRoute: typeof ApiPublicMetricasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/propostas': {
+      id: '/api/public/propostas'
+      path: '/api/public/propostas'
+      fullPath: '/api/public/propostas'
+      preLoaderRoute: typeof ApiPublicPropostasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/vitrine': {
@@ -2656,12 +2696,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLojasPlanilhaRoute: ApiLojasPlanilhaRoute,
   ApiMercadoPlanilhaRoute: ApiMercadoPlanilhaRoute,
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,
+  PTokenRoute: PTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicAgendamentoRoute: ApiPublicAgendamentoRoute,
   ApiPublicAgendamentoIcsRoute: ApiPublicAgendamentoIcsRoute,
   ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
+  ApiPublicPropostasRoute: ApiPublicPropostasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiSamiAnexoRoute: ApiSamiAnexoRoute,
   ApiSamiBriefingRoute: ApiSamiBriefingRoute,

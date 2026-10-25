@@ -36,6 +36,7 @@ describe("fases do funil (Prospecção × Carteira)", () => {
       "em_atendimento",
       "agendado",
       "visita_realizada",
+      "proposta_enviada",
       "analise_credito",
       "contrato_fechado",
     ]);

@@ -55,3 +55,25 @@ describe("validade do link", () => {
     expect(validadeMaxima("apresentacao", new Date("2026-10-25T15:00:00Z")).toISOString()).toBe("2026-11-24T15:00:00.000Z");
   });
 });
+
+import { hhmm, mensagemWhatsappProposta, somarTempoPorSecao, telefoneWaMe } from "@/lib/proposta-link";
+
+describe("Link de Proposta: helpers da etapa 2", () => {
+  it("tempo por seção em hh:mm", () => {
+    expect(hhmm(0)).toBe("00:00");
+    expect(hhmm(3 * 60)).toBe("00:03");
+    expect(hhmm(3600 + 25 * 60)).toBe("01:25");
+  });
+  it("soma tempo de várias sessões", () => {
+    expect(somarTempoPorSecao([{ tempo_por_secao: { capa: 10 } }, { tempo_por_secao: { capa: 5, plantas: 30 } }])).toEqual({ capa: 15, plantas: 30 });
+  });
+  it("mensagem do WhatsApp sem travessão", () => {
+    const m = mensagemWhatsappProposta("proposta", "João", "Parque das Perdizes", "https://x/p/abc");
+    expect(m).toBe("Oi, João! Preparei sua proposta do Parque das Perdizes com a unidade e o fluxo que conversamos. Dá uma olhada com calma: https://x/p/abc");
+    expect(mensagemWhatsappProposta("apresentacao", "Ana", "Vibra", "u")).not.toMatch(/[—–]/);
+  });
+  it("telefone para wa.me", () => {
+    expect(telefoneWaMe("(11) 95039-2313")).toBe("5511950392313");
+    expect(telefoneWaMe("123")).toBeNull();
+  });
+});

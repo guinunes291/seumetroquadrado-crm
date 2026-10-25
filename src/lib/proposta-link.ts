@@ -54,7 +54,7 @@ export const snapshotSchema = z
       .min(1)
       .max(40)
       .refine((v) => !/[\d@]/.test(v) && !/\s/.test(v), "Só o primeiro nome"),
-    corretor: z.object({ nome: texto(120).min(1), foto_url: z.string().url().nullable(), whatsapp: z.string().regex(/^\d{12,13}$/).nullable() }),
+    corretor: z.object({ nome: texto(120).min(1), foto_url: z.string().nullable(), whatsapp: z.string().regex(/^\d{12,13}$/).nullable(), creci: texto(30).nullable().default(null) }),
     projeto: z.object({
       id: z.string().uuid().nullable(),
       nome: texto(200).min(1),
@@ -146,3 +146,60 @@ export function validadeMaxima(modelo: "proposta" | "apresentacao", agora = new 
   const dia4 = Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth() + 1, 4, 23 + 3, 59, 59);
   return new Date(Math.min(dia4, agora.getTime() + 15 * dia));
 }
+
+/** Segundos em "hh:mm" (horas e minutos). */
+export function hhmm(segundos: number): string {
+  const m = Math.max(0, Math.round(segundos / 60));
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** Soma o tempo por seção de várias sessões. */
+export function somarTempoPorSecao(sessoes: { tempo_por_secao: unknown }[]): Record<string, number> {
+  const total: Record<string, number> = {};
+  for (const s of sessoes) {
+    const t = s.tempo_por_secao;
+    if (!t || typeof t !== "object") continue;
+    for (const [k, v] of Object.entries(t as Record<string, unknown>)) {
+      if (typeof v === "number" && Number.isFinite(v) && v > 0) total[k] = (total[k] ?? 0) + v;
+    }
+  }
+  return total;
+}
+
+export const ROTULO_BLOCO: Record<string, string> = {
+  capa: "Capa",
+  corretor: "Seu corretor",
+  empreendimento: "Empreendimento",
+  diferenciais: "Diferenciais",
+  localizacao: "Localização",
+  plantas: "Plantas",
+  unidade: "Unidade",
+  fluxo: "Fluxo de pagamento",
+  validade: "Validade",
+  aceite: "Aceite",
+  visita: "Visita",
+};
+
+/** Mensagem curta e humana para o WhatsApp, sem travessão. */
+export function mensagemWhatsappProposta(
+  modelo: "apresentacao" | "proposta",
+  primeiro: string,
+  projeto: string,
+  url: string,
+): string {
+  const nome = primeiro && primeiro !== "Cliente" ? `Oi, ${primeiro}!` : "Oi!";
+  return modelo === "proposta"
+    ? `${nome} Preparei sua proposta do ${projeto} com a unidade e o fluxo que conversamos. Dá uma olhada com calma: ${url}`
+    : `${nome} Separei uma apresentação do ${projeto} para você conhecer antes da visita. Dá uma olhada com calma: ${url}`;
+}
+
+/** Telefone do lead em dígitos para wa.me (com 55). */
+export function telefoneWaMe(telefone: string | null | undefined): string | null {
+  const d = (telefone ?? "").replace(/\D/g, "");
+  if (d.length === 10 || d.length === 11) return `55${d}`;
+  if ((d.length === 12 || d.length === 13) && d.startsWith("55")) return d;
+  return null;
+}
+
+/** Imagens enviadas ficam no bucket privado; o snapshot guarda "midia:<caminho>". */
+export const MIDIA_PREFIXO = "midia:";

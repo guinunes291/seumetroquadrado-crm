@@ -21,7 +21,8 @@ export type LeadStatus =
 
 /** Ordem do funil do corretor, do topo ao fundo.
  *  `novo` (caixa de entrada não distribuída) e os status legados
- *  (`qualificado`, `proposta_enviada`, `pos_venda`) ficam fora do funil. */
+ *  (`qualificado`, `pos_venda`) ficam fora do funil. `proposta_enviada` voltou
+ *  como coluna da Carteira com o Link de Proposta (2026-10). */
 export const LEAD_STATUS_ORDER: LeadStatus[] = [
   "aguardando_atendimento",
   "aguardando_retorno",
@@ -29,6 +30,7 @@ export const LEAD_STATUS_ORDER: LeadStatus[] = [
   "em_atendimento",
   "agendado",
   "visita_realizada",
+  "proposta_enviada",
   "analise_credito",
   "contrato_fechado",
   "perdido",
@@ -127,6 +129,7 @@ export const CARTEIRA_STAGES: LeadStatus[] = [
   "em_atendimento",
   "agendado",
   "visita_realizada",
+  "proposta_enviada",
   "analise_credito",
   "contrato_fechado",
 ];
