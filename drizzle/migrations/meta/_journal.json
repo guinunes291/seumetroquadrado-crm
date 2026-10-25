@@ -778,6 +778,20 @@
       "when": 1792854060000,
       "tag": "0110_samiq_v8_prompt",
       "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1792951155458,
+      "tag": "0111_link_proposta_base",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1792951227869,
+      "tag": "0112_propostas_midia_storage",
+      "breakpoints": true
     }
   ]
 }
