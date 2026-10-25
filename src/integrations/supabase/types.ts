@@ -7593,6 +7593,33 @@ export type Database = {
           },
         ]
       }
+      proposta_aviso_config: {
+        Row: {
+          atualizado_em: string
+          fallback_push_apos_min: number
+          id: boolean
+          template_aprovado: boolean
+          template_idioma: string
+          template_nome: string
+        }
+        Insert: {
+          atualizado_em?: string
+          fallback_push_apos_min?: number
+          id?: boolean
+          template_aprovado?: boolean
+          template_idioma?: string
+          template_nome?: string
+        }
+        Update: {
+          atualizado_em?: string
+          fallback_push_apos_min?: number
+          id?: boolean
+          template_aprovado?: boolean
+          template_idioma?: string
+          template_nome?: string
+        }
+        Relationships: []
+      }
       proposta_avisos: {
         Row: {
           canal: string | null
@@ -7602,8 +7629,12 @@ export type Database = {
           id: string
           mensagem: string
           proposta_id: string
+          push_outbox_id: string | null
           referencia: string
+          reivindicado_em: string | null
           status: string
+          telefone: string | null
+          template_parametros: Json | null
           tentativas: number
           tipo: string
           ultimo_erro: string | null
@@ -7616,8 +7647,12 @@ export type Database = {
           id?: string
           mensagem: string
           proposta_id: string
+          push_outbox_id?: string | null
           referencia: string
+          reivindicado_em?: string | null
           status?: string
+          telefone?: string | null
+          template_parametros?: Json | null
           tentativas?: number
           tipo: string
           ultimo_erro?: string | null
@@ -7630,8 +7665,12 @@ export type Database = {
           id?: string
           mensagem?: string
           proposta_id?: string
+          push_outbox_id?: string | null
           referencia?: string
+          reivindicado_em?: string | null
           status?: string
+          telefone?: string | null
+          template_parametros?: Json | null
           tentativas?: number
           tipo?: string
           ultimo_erro?: string | null
@@ -11974,6 +12013,17 @@ export type Database = {
       _presenca_mes_referencia: { Args: { _ref?: string }; Returns: string }
       _presenca_min_vendas_casa: { Args: never; Returns: number }
       _presenca_status: { Args: { _corretor: string }; Returns: Json }
+      _proposta_enfileirar_aviso: {
+        Args: {
+          _mensagem: string
+          _proposta_id: string
+          _referencia: string
+          _resumo: string
+          _tipo: string
+        }
+        Returns: string
+      }
+      _proposta_rotulo_secao: { Args: { _s: string }; Returns: string }
       _prospeccao_devolver_bolsao: {
         Args: { _corretor: string; _lead: string; _motivo: string }
         Returns: boolean
@@ -14892,6 +14942,38 @@ export type Database = {
         }
         Returns: string
       }
+      proposta_aviso_resultado: {
+        Args: { _erro: string; _id: string; _ok: boolean }
+        Returns: string
+      }
+      proposta_avisos_reivindicar: {
+        Args: { _limite?: number }
+        Returns: {
+          canal: string | null
+          corretor_id: string
+          criado_em: string
+          enviado_em: string | null
+          id: string
+          mensagem: string
+          proposta_id: string
+          push_outbox_id: string | null
+          referencia: string
+          reivindicado_em: string | null
+          status: string
+          telefone: string | null
+          template_parametros: Json | null
+          tentativas: number
+          tipo: string
+          ultimo_erro: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "proposta_avisos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proposta_avisos_varrer: { Args: never; Returns: number }
       proposta_validade_maxima: {
         Args: { _agora?: string; _modelo: string }
         Returns: string

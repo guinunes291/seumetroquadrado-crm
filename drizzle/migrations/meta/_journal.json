@@ -806,6 +806,13 @@
       "when": 1792951619970,
       "tag": "0114_link_proposta_revogar_sem_escrita_direta",
       "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1792952564139,
+      "tag": "0115_link_proposta_avisos",
+      "breakpoints": true
     }
   ]
 }
