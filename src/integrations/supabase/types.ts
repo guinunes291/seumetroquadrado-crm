@@ -7808,6 +7808,7 @@ export type Database = {
           primeira_abertura_em: string | null
           projeto_id: string | null
           revogado_em: string | null
+          revogado_por: string | null
           status: string
           token_hash: string | null
           total_aberturas: number
@@ -7838,6 +7839,7 @@ export type Database = {
           primeira_abertura_em?: string | null
           projeto_id?: string | null
           revogado_em?: string | null
+          revogado_por?: string | null
           status?: string
           token_hash?: string | null
           total_aberturas?: number
@@ -7868,6 +7870,7 @@ export type Database = {
           primeira_abertura_em?: string | null
           projeto_id?: string | null
           revogado_em?: string | null
+          revogado_por?: string | null
           status?: string
           token_hash?: string | null
           total_aberturas?: number
@@ -15121,6 +15124,10 @@ export type Database = {
       }
       restaurar_registro: {
         Args: { _id: string; _tabela: string }
+        Returns: boolean
+      }
+      revogar_proposta: {
+        Args: { _ator_id: string; _proposta_id: string }
         Returns: boolean
       }
       revogar_proposta_link: {

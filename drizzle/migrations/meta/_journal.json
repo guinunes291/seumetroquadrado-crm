@@ -799,6 +799,13 @@
       "when": 1792951359054,
       "tag": "0113_link_proposta_regras",
       "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1792951619970,
+      "tag": "0114_link_proposta_revogar_sem_escrita_direta",
+      "breakpoints": true
     }
   ]
 }
