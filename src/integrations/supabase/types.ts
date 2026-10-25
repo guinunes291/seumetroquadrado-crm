@@ -8459,6 +8459,94 @@ export type Database = {
           },
         ]
       }
+      samiq_anexos: {
+        Row: {
+          criado_em: string
+          documentacao_id: string | null
+          id: string
+          lead_id: string | null
+          legenda: string | null
+          mensagem_id: string | null
+          mime_type: string
+          nome_original: string | null
+          storage_path: string
+          tamanho_bytes: number
+          usado_em: string | null
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string
+          documentacao_id?: string | null
+          id?: string
+          lead_id?: string | null
+          legenda?: string | null
+          mensagem_id?: string | null
+          mime_type: string
+          nome_original?: string | null
+          storage_path: string
+          tamanho_bytes: number
+          usado_em?: string | null
+          user_id: string
+        }
+        Update: {
+          criado_em?: string
+          documentacao_id?: string | null
+          id?: string
+          lead_id?: string | null
+          legenda?: string | null
+          mensagem_id?: string | null
+          mime_type?: string
+          nome_original?: string | null
+          storage_path?: string
+          tamanho_bytes?: number
+          usado_em?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "samiq_anexos_documentacao_id_fkey"
+            columns: ["documentacao_id"]
+            isOneToOne: false
+            referencedRelation: "documentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_anexos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_anexos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_anexos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "samiq_anexos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "samiq_anexos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       samiq_avaliacoes: {
         Row: {
           atualizado_em: string
@@ -8493,6 +8581,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      samiq_canal_mensagens: {
+        Row: {
+          chegou_em: string
+          concluido_em: string | null
+          id: string
+          iniciado_em: string | null
+          mensagem_id: string
+          resposta: Json | null
+          status: string
+          tentativa: string | null
+          user_id: string
+        }
+        Insert: {
+          chegou_em?: string
+          concluido_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          mensagem_id: string
+          resposta?: Json | null
+          status?: string
+          tentativa?: string | null
+          user_id: string
+        }
+        Update: {
+          chegou_em?: string
+          concluido_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          mensagem_id?: string
+          resposta?: Json | null
+          status?: string
+          tentativa?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       samiq_conversa_mensagens: {
         Row: {
@@ -8546,6 +8670,7 @@ export type Database = {
         Row: {
           atualizado_em: string
           canal: string
+          contexto: Json
           criado_em: string
           expira_em: string
           id: string
@@ -8556,6 +8681,7 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           canal?: string
+          contexto?: Json
           criado_em?: string
           expira_em?: string
           id?: string
@@ -8566,6 +8692,7 @@ export type Database = {
         Update: {
           atualizado_em?: string
           canal?: string
+          contexto?: Json
           criado_em?: string
           expira_em?: string
           id?: string
@@ -8764,6 +8891,7 @@ export type Database = {
           reservation_ttl_seconds: number
           updated_at: string
           updated_by: string | null
+          whatsapp_modo_escrita: string
         }
         Insert: {
           alerta_custo_pct?: number
@@ -8781,6 +8909,7 @@ export type Database = {
           reservation_ttl_seconds?: number
           updated_at?: string
           updated_by?: string | null
+          whatsapp_modo_escrita?: string
         }
         Update: {
           alerta_custo_pct?: number
@@ -8798,6 +8927,7 @@ export type Database = {
           reservation_ttl_seconds?: number
           updated_at?: string
           updated_by?: string | null
+          whatsapp_modo_escrita?: string
         }
         Relationships: []
       }
@@ -14753,6 +14883,34 @@ export type Database = {
         Args: { _execution_id: string; _motivo?: string; _nota: number }
         Returns: boolean
       }
+      samiq_canal_concluir: {
+        Args: {
+          _id: string
+          _resposta?: Json
+          _status: string
+          _tentativa: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      samiq_canal_iniciar: {
+        Args: {
+          _forcar?: boolean
+          _janela_seg?: number
+          _mensagem_id: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      samiq_contexto_turno: {
+        Args: {
+          _contexto: Json
+          _conversa_id: string
+          _execution_id: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       samiq_decidir_proposta: {
         Args: {
           _erro?: string
@@ -14801,6 +14959,7 @@ export type Database = {
         Args: { _ate: string; _de: string }
         Returns: Json
       }
+      samiq_modo_escrita_whatsapp: { Args: never; Returns: string }
       samiq_registrar_propostas: {
         Args: {
           _conversa_id: string
@@ -14809,6 +14968,10 @@ export type Database = {
           _user_id: string
         }
         Returns: Json
+      }
+      samiq_reivindicar_proposta: {
+        Args: { _proposta_id: string; _user_id: string }
+        Returns: boolean
       }
       samiq_reservar_execucao: {
         Args: {
