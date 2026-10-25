@@ -219,7 +219,7 @@ export function codigoVerificacao(snapshotHash: string): string {
 
 /** CPF mostrando só os 3 últimos dígitos. */
 export function cpfMascarado(final3: string): string {
-  return `***.***.*${final3.slice(0, 1)}${""}-${final3.slice(1)}`.replace("*-", "*-");
+  return `***.***.**${final3.slice(0, 1)}-${final3.slice(1)}`;
 }
 
 export function mascaraCpf(v: string): string {
