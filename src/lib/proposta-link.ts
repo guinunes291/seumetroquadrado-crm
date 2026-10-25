@@ -133,3 +133,16 @@ export function cpfValido(cpf: string): boolean {
   };
   return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
 }
+
+/**
+ * Validade máxima (mesma regra da função proposta_validade_maxima no banco).
+ * Proposta: dia 4 do mês seguinte às 23:59:59 de Brasília ou envio + 15 dias,
+ * o que vencer primeiro. Apresentação: 30 dias. O corretor só pode encurtar.
+ */
+export function validadeMaxima(modelo: "proposta" | "apresentacao", agora = new Date()): Date {
+  const dia = 86_400_000;
+  if (modelo === "apresentacao") return new Date(agora.getTime() + 30 * dia);
+  const brt = new Date(agora.getTime() - 3 * 3_600_000); // Brasília, sem horário de verão
+  const dia4 = Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth() + 1, 4, 23 + 3, 59, 59);
+  return new Date(Math.min(dia4, agora.getTime() + 15 * dia));
+}
