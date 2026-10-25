@@ -97,6 +97,16 @@
 
   --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Sora Variable", "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Link de Proposta (página pública /p/$token): identidade SMQ impressa. */
+  --color-smq-marinho: #0f1e3a;
+  --color-smq-marinho-suave: #1c2f52;
+  --color-smq-dourado: #b89968;
+  --color-smq-creme: #f5f1ea;
+  --color-smq-papel: #fbf9f5;
+  --color-smq-tinta: #1a2233;
+  --color-smq-tinta-suave: #5d6577;
+  --font-smq-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-smq-body: "Inter", ui-sans-serif, system-ui, sans-serif;
   /* Escala de raio (identidade v3, decisão 13): sm 6px = badges, md 8px =
      botões/inputs/menus, lg e xl 10px = cards e diálogos, 2xl 14px. lg e xl
      colapsam de propósito: os dois eram usados para "bloco de conteúdo". */
