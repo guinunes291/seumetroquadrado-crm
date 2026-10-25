@@ -7595,6 +7595,7 @@ export type Database = {
       }
       proposta_avisos: {
         Row: {
+          canal: string | null
           corretor_id: string
           criado_em: string
           enviado_em: string | null
@@ -7602,11 +7603,13 @@ export type Database = {
           mensagem: string
           proposta_id: string
           referencia: string
+          status: string
           tentativas: number
           tipo: string
           ultimo_erro: string | null
         }
         Insert: {
+          canal?: string | null
           corretor_id: string
           criado_em?: string
           enviado_em?: string | null
@@ -7614,11 +7617,13 @@ export type Database = {
           mensagem: string
           proposta_id: string
           referencia: string
+          status?: string
           tentativas?: number
           tipo: string
           ultimo_erro?: string | null
         }
         Update: {
+          canal?: string | null
           corretor_id?: string
           criado_em?: string
           enviado_em?: string | null
@@ -7626,6 +7631,7 @@ export type Database = {
           mensagem?: string
           proposta_id?: string
           referencia?: string
+          status?: string
           tentativas?: number
           tipo?: string
           ultimo_erro?: string | null
@@ -14881,6 +14887,10 @@ export type Database = {
           _regiao: string
           _zona: string
         }
+        Returns: string
+      }
+      proposta_validade_maxima: {
+        Args: { _agora?: string; _modelo: string }
         Returns: string
       }
       prospeccao_lote_status_v1: { Args: never; Returns: Json }
