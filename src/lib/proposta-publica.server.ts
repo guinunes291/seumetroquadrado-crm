@@ -16,7 +16,16 @@ export type PropostaPublica =
       expira_em: string;
       snapshot: PropostaSnapshot;
       agendar_slug: string | null;
+      aceite: AceitePublico | null;
     };
+
+export type AceitePublico = {
+  opcao_fluxo: number;
+  nome_completo: string;
+  cpf_final: string;
+  aceito_em: string;
+  snapshot_hash: string;
+};
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -101,5 +110,48 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
     expira_em: String(r.expira_em),
     snapshot: resolvido,
     agendar_slug: agendarSlug,
+    aceite: (r.aceite as AceitePublico | null) ?? null,
+  };
+}
+
+export type ResultadoAceite =
+  | { ok: true; aceite: AceitePublico }
+  | { ok: false; motivo: "not_found" | "nao_permitido" | "ja_aceita" | "expirada" | "invalid_input" | "limite" };
+
+export async function aceitarPropostaPublica(input: {
+  token: string;
+  opcao: number;
+  nome: string;
+  cpf: string;
+  ip: string | null;
+  userAgent: string | null;
+}): Promise<ResultadoAceite> {
+  const tokenHash = await hashToken(input.token);
+  const consumo = await consumirRequisicao(tokenHash);
+  if (consumo === "not_found") return { ok: false, motivo: "not_found" };
+  if (consumo !== "allowed") return { ok: false, motivo: "limite" };
+  const cpf = input.cpf.replace(/\D/g, "");
+  const db = await admin();
+  const { data, error } = await db.rpc("aceitar_proposta", {
+    _token_hash: tokenHash,
+    _opcao: input.opcao,
+    _nome: input.nome.trim(),
+    _cpf_hash: await hashToken(`cpf:${cpf}`),
+    _cpf_final: cpf.slice(-3),
+    _ip: input.ip ?? "",
+    _user_agent: input.userAgent ?? "",
+  });
+  if (error) throw new Error("indisponivel");
+  const r = data as { ok: boolean; motivo?: string; aceito_em?: string; snapshot_hash?: string };
+  if (!r.ok) return { ok: false, motivo: (r.motivo ?? "invalid_input") as "invalid_input" };
+  return {
+    ok: true,
+    aceite: {
+      opcao_fluxo: input.opcao,
+      nome_completo: input.nome.trim(),
+      cpf_final: cpf.slice(-3),
+      aceito_em: String(r.aceito_em),
+      snapshot_hash: String(r.snapshot_hash),
+    },
   };
 }

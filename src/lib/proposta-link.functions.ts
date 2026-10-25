@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { primeiroNome, snapshotSchema, validadeMaxima } from "@/lib/proposta-link";
+import { primeiroNome, snapshotSchema, urlPublicaProposta, validadeMaxima } from "@/lib/proposta-link";
 
 // Corretor: publicar e revogar links. A escrita em `propostas` só acontece por
 // RPC SECURITY DEFINER com service role, depois que o servidor confere quem é
@@ -18,6 +18,44 @@ function novoToken(): string {
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+
+/** Dados do corretor no snapshot: mesma leitura para a prévia e para o envio. */
+async function perfilCorretorProposta(corretorId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [{ data: perfil }, { data: link }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("nome, foto_url, avatar_url, telefone, creci").eq("id", corretorId).maybeSingle(),
+    supabaseAdmin
+      .from("agendamento_links")
+      .select("id")
+      .eq("corretor_id", corretorId)
+      .is("revogado_em", null)
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const tel = (perfil?.telefone ?? "").replace(/\D/g, "");
+  const whatsapp =
+    tel.length === 10 || tel.length === 11 ? `55${tel}` : tel.length >= 12 && tel.length <= 13 ? tel : null;
+  return {
+    corretor: {
+      nome: perfil?.nome?.trim() || "Seu corretor",
+      foto_url: perfil?.foto_url || perfil?.avatar_url || null,
+      whatsapp,
+      creci: perfil?.creci?.trim() || null,
+    },
+    temAgendamento: !!link,
+  };
+}
+
+export const perfilParaProposta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ leadId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: lead } = await context.supabase.from("leads").select("corretor_id").eq("id", data.leadId).maybeSingle();
+    if (!lead) throw new Error("Lead não encontrado ou sem acesso.");
+    const corretorId = lead.corretor_id ?? context.userId;
+    const r = await perfilCorretorProposta(corretorId);
+    return { ...r, ehVoce: corretorId === context.userId };
+  });
 
 const publicarInput = z.object({
   leadId: z.string().uuid(),
@@ -40,25 +78,13 @@ export const publicarPropostaLink = createServerFn({ method: "POST" })
     if (leadErr || !lead) throw new Error("Lead não encontrado ou sem acesso.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const corretorId = lead.corretor_id ?? context.userId;
-    const { data: perfil } = await supabaseAdmin
-      .from("profiles")
-      .select("nome, foto_url, avatar_url, telefone, creci")
-      .eq("id", corretorId)
-      .maybeSingle();
-    const tel = (perfil?.telefone ?? "").replace(/\D/g, "");
-    const whatsapp = tel.length === 10 || tel.length === 11 ? `55${tel}` : tel.length >= 12 && tel.length <= 13 ? tel : null;
+    const { corretor } = await perfilCorretorProposta(lead.corretor_id ?? context.userId);
 
     const snapshot = snapshotSchema.parse({
       ...data.conteudo,
       modelo: data.modelo,
       cliente_primeiro_nome: primeiroNome(lead.nome),
-      corretor: {
-        nome: perfil?.nome?.trim() || "Seu corretor",
-        foto_url: perfil?.foto_url || perfil?.avatar_url || null,
-        whatsapp,
-        creci: perfil?.creci?.trim() || null,
-      },
+      corretor,
     });
 
     const expira = new Date(data.expiraEm);
@@ -85,7 +111,7 @@ export const publicarPropostaLink = createServerFn({ method: "POST" })
       if (error.message.includes("proposta_forbidden")) throw new Error("Sem permissão para este lead.");
       throw new Error("Não foi possível gerar o link.");
     }
-    return { id: id as string, path: `/p/${token}`, expiraEm: expira.toISOString() };
+    return { id: id as string, url: urlPublicaProposta(`/p/${token}`), expiraEm: expira.toISOString() };
   });
 
 export const revogarPropostaLink = createServerFn({ method: "POST" })

@@ -97,9 +97,11 @@ import { Route as ApiPublicAgendamentoRouteImport } from './routes/api/public/ag
 import { Route as ApiPublicAgendamentoIcsRouteImport } from './routes/api/public/agendamento-ics'
 import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
+import { Route as ApiPublicPropostaAceiteRouteImport } from './routes/api/public/proposta-aceite'
 import { Route as ApiPublicPropostasRouteImport } from './routes/api/public/propostas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiSamiAnexoRouteImport } from './routes/api/sami/anexo'
+import { Route as ApiSamiAvisosRouteImport } from './routes/api/sami/avisos'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
 import { Route as ApiSamiDiretrizesRouteImport } from './routes/api/sami/diretrizes'
 import { Route as ApiSamiMensagemRouteImport } from './routes/api/sami/mensagem'
@@ -602,6 +604,11 @@ const ApiPublicMetricasRoute = ApiPublicMetricasRouteImport.update({
   path: '/api/public/metricas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPropostaAceiteRoute = ApiPublicPropostaAceiteRouteImport.update({
+  id: '/api/public/proposta-aceite',
+  path: '/api/public/proposta-aceite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPropostasRoute = ApiPublicPropostasRouteImport.update({
   id: '/api/public/propostas',
   path: '/api/public/propostas',
@@ -615,6 +622,11 @@ const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
 const ApiSamiAnexoRoute = ApiSamiAnexoRouteImport.update({
   id: '/api/sami/anexo',
   path: '/api/sami/anexo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSamiAvisosRoute = ApiSamiAvisosRouteImport.update({
+  id: '/api/sami/avisos',
+  path: '/api/sami/avisos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSamiBriefingRoute = ApiSamiBriefingRouteImport.update({
@@ -887,9 +899,11 @@ export interface FileRoutesByFullPath {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/proposta-aceite': typeof ApiPublicPropostaAceiteRoute
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
+  '/api/sami/avisos': typeof ApiSamiAvisosRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -1013,9 +1027,11 @@ export interface FileRoutesByTo {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/proposta-aceite': typeof ApiPublicPropostaAceiteRoute
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
+  '/api/sami/avisos': typeof ApiSamiAvisosRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -1141,9 +1157,11 @@ export interface FileRoutesById {
   '/api/public/agendamento-ics': typeof ApiPublicAgendamentoIcsRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
+  '/api/public/proposta-aceite': typeof ApiPublicPropostaAceiteRoute
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
+  '/api/sami/avisos': typeof ApiSamiAvisosRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
@@ -1269,9 +1287,11 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/proposta-aceite'
     | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
+    | '/api/sami/avisos'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1395,9 +1415,11 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/proposta-aceite'
     | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
+    | '/api/sami/avisos'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1522,9 +1544,11 @@ export interface FileRouteTypes {
     | '/api/public/agendamento-ics'
     | '/api/public/documentos'
     | '/api/public/metricas'
+    | '/api/public/proposta-aceite'
     | '/api/public/propostas'
     | '/api/public/vitrine'
     | '/api/sami/anexo'
+    | '/api/sami/avisos'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
@@ -1588,9 +1612,11 @@ export interface RootRouteChildren {
   ApiPublicAgendamentoIcsRoute: typeof ApiPublicAgendamentoIcsRoute
   ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
+  ApiPublicPropostaAceiteRoute: typeof ApiPublicPropostaAceiteRoute
   ApiPublicPropostasRoute: typeof ApiPublicPropostasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiSamiAnexoRoute: typeof ApiSamiAnexoRoute
+  ApiSamiAvisosRoute: typeof ApiSamiAvisosRoute
   ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
   ApiSamiDiretrizesRoute: typeof ApiSamiDiretrizesRoute
   ApiSamiMensagemRoute: typeof ApiSamiMensagemRoute
@@ -2233,6 +2259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMetricasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/proposta-aceite': {
+      id: '/api/public/proposta-aceite'
+      path: '/api/public/proposta-aceite'
+      fullPath: '/api/public/proposta-aceite'
+      preLoaderRoute: typeof ApiPublicPropostaAceiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/propostas': {
       id: '/api/public/propostas'
       path: '/api/public/propostas'
@@ -2252,6 +2285,13 @@ declare module '@tanstack/react-router' {
       path: '/api/sami/anexo'
       fullPath: '/api/sami/anexo'
       preLoaderRoute: typeof ApiSamiAnexoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sami/avisos': {
+      id: '/api/sami/avisos'
+      path: '/api/sami/avisos'
+      fullPath: '/api/sami/avisos'
+      preLoaderRoute: typeof ApiSamiAvisosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sami/briefing': {
@@ -2703,9 +2743,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAgendamentoIcsRoute: ApiPublicAgendamentoIcsRoute,
   ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
+  ApiPublicPropostaAceiteRoute: ApiPublicPropostaAceiteRoute,
   ApiPublicPropostasRoute: ApiPublicPropostasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiSamiAnexoRoute: ApiSamiAnexoRoute,
+  ApiSamiAvisosRoute: ApiSamiAvisosRoute,
   ApiSamiBriefingRoute: ApiSamiBriefingRoute,
   ApiSamiDiretrizesRoute: ApiSamiDiretrizesRoute,
   ApiSamiMensagemRoute: ApiSamiMensagemRoute,

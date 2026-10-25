@@ -1,5 +1,13 @@
-import { CalendarCheck, MapPin, WhatsappLogo } from "@phosphor-icons/react";
-import type { PropostaSnapshot } from "@/lib/proposta-link";
+import { useState } from "react";
+import { CalendarCheck, CheckCircle, MapPin, Printer, WhatsappLogo } from "@phosphor-icons/react";
+import {
+  TEXTO_LEGAL_ACEITE,
+  codigoVerificacao,
+  cpfMascarado,
+  cpfValido,
+  mascaraCpf,
+  type PropostaSnapshot,
+} from "@/lib/proposta-link";
 import { cn } from "@/lib/utils";
 
 // Página do cliente (Link de Proposta). Mesmo componente na página pública e
@@ -15,6 +23,16 @@ type Props = {
   onEvento?: (tipo: EventoProposta, secao: string) => void;
   /** Na prévia os links não abrem e o botão fixo fica dentro do quadro. */
   previa?: boolean;
+  aceite?: AceiteInfo | null;
+  onAceitar?: (d: { opcao: number; nome: string; cpf: string }) => Promise<string | null>;
+};
+
+export type AceiteInfo = {
+  opcao_fluxo: number;
+  nome_completo: string;
+  cpf_final: string;
+  aceito_em: string;
+  snapshot_hash: string;
 };
 
 const brl = (v: number) =>
@@ -52,7 +70,8 @@ function Secao({ id, className, children }: { id: string; className?: string; ch
   );
 }
 
-export function PropostaView({ snapshot: s, blocos, expiraEm, agendarSlug, onEvento, previa }: Props) {
+export function PropostaView({ snapshot: s, blocos, expiraEm, agendarSlug, onEvento, previa, aceite, onAceitar }: Props) {
+  const [opcao, setOpcao] = useState<number | null>(aceite?.opcao_fluxo ?? (s.fluxos.length === 1 ? 1 : null));
   const wa = linkWhatsappCorretor(s);
   const alvo = previa ? undefined : "_blank";
   let n = 0;
@@ -92,7 +111,7 @@ export function PropostaView({ snapshot: s, blocos, expiraEm, agendarSlug, onEve
                 )}
                 <div className="mt-10 h-px w-16 bg-smq-dourado" />
                 <p className="mt-4 font-smq-body text-sm text-smq-creme/80">
-                  Com carinho, {s.corretor.nome.split(" ")[0]}
+                  Preparada por {s.corretor.nome.split(" ")[0]}
                 </p>
               </div>
             </div>
@@ -228,9 +247,31 @@ export function PropostaView({ snapshot: s, blocos, expiraEm, agendarSlug, onEve
             <Eyebrow n={n}>Fluxo de pagamento</Eyebrow>
             <div className="mt-8 space-y-6">
               {s.fluxos.map((f, i) => (
-                <article key={i} className="border border-smq-dourado/40 bg-smq-papel p-6">
-                  <p className="font-smq-display text-xs font-semibold uppercase tracking-[0.24em] text-smq-dourado">
+                <article
+                  key={i}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={opcao === i + 1}
+                  onClick={() => {
+                    if (aceite) return;
+                    setOpcao(i + 1);
+                    onEvento?.("fluxo_visto", "fluxo");
+                  }}
+                  onKeyDown={(e) => {
+                    if (!aceite && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      setOpcao(i + 1);
+                      onEvento?.("fluxo_visto", "fluxo");
+                    }
+                  }}
+                  className={cn(
+                    "cursor-pointer border bg-smq-papel p-6 transition-shadow",
+                    opcao === i + 1 ? "border-smq-marinho ring-2 ring-smq-dourado" : "border-smq-dourado/40",
+                  )}
+                >
+                  <p className="flex items-center justify-between font-smq-display text-xs font-semibold uppercase tracking-[0.24em] text-smq-dourado">
                     Opção {i + 1}
+                    {opcao === i + 1 && <CheckCircle className="h-5 w-5 text-smq-marinho" weight="fill" aria-hidden />}
                   </p>
                   <h3 className="mt-2 font-smq-display text-xl font-bold text-smq-marinho">{f.titulo}</h3>
                   <p className="mt-4 font-smq-display text-3xl font-bold text-smq-marinho">{brl(f.valor_total)}</p>
@@ -260,9 +301,19 @@ export function PropostaView({ snapshot: s, blocos, expiraEm, agendarSlug, onEve
             <p className="mt-6 font-smq-display text-2xl font-semibold text-smq-marinho">
               Condições válidas até {dataLonga(expiraEm)}.
             </p>
-            <p className="mt-4 font-smq-body text-sm leading-relaxed text-smq-tinta-suave">
-              Valores sujeitos à análise de crédito e à disponibilidade da unidade. Esta proposta não substitui o contrato.
-            </p>
+            <p className="mt-4 font-smq-body text-sm leading-relaxed text-smq-tinta-suave">{TEXTO_LEGAL_ACEITE}</p>
+          </Secao>
+        );
+      case "aceite":
+        n++;
+        return (
+          <Secao key={b} id="aceite" className="bg-smq-marinho text-smq-creme">
+            <Eyebrow n={n}>{aceite ? "Comprovante" : "Aceite"}</Eyebrow>
+            {aceite ? (
+              <Comprovante s={s} aceite={aceite} />
+            ) : (
+              <FormAceite s={s} opcao={opcao} previa={previa} onAceitar={onAceitar} />
+            )}
           </Secao>
         );
       case "visita": {
@@ -351,5 +402,124 @@ function Linha({ k, v }: { k: string; v: string }) {
       <dt className="text-smq-tinta-suave">{k}</dt>
       <dd className="font-medium">{v}</dd>
     </div>
+  );
+}
+
+function Comprovante({ s, aceite }: { s: PropostaSnapshot; aceite: AceiteInfo }) {
+  const f = s.fluxos[aceite.opcao_fluxo - 1];
+  const quando = new Date(aceite.aceito_em).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+  return (
+    <div className="proposta-comprovante">
+      <h2 className="mt-6 font-smq-display text-4xl font-bold leading-tight">Proposta aceita.</h2>
+      <p className="mt-4 text-base text-smq-creme/80">
+        Obrigado, {s.cliente_primeiro_nome}. {s.corretor.nome.split(" ")[0]} já foi avisado e segue com você nos próximos passos.
+      </p>
+      <dl className="mt-10 space-y-4 border border-smq-dourado/50 p-6 text-sm">
+        <Linha2 k="Empreendimento" v={s.projeto.nome} />
+        {s.unidade && <Linha2 k="Unidade" v={s.unidade.identificacao} />}
+        <Linha2 k="Opção escolhida" v={`Opção ${aceite.opcao_fluxo}${f ? `: ${f.titulo}` : ""}`} />
+        <Linha2 k="Data e hora" v={`${quando} (Brasília)`} />
+        <Linha2 k="Nome" v={aceite.nome_completo} />
+        <Linha2 k="CPF" v={cpfMascarado(aceite.cpf_final)} />
+        <Linha2 k="Código de verificação" v={codigoVerificacao(aceite.snapshot_hash)} />
+      </dl>
+      <p className="mt-6 text-xs leading-relaxed text-smq-creme/70">{TEXTO_LEGAL_ACEITE}</p>
+      <button
+        type="button"
+        onClick={() => window.print()}
+        className="mt-8 inline-flex items-center gap-2 border border-smq-dourado px-5 py-3 font-smq-display text-sm font-semibold text-smq-dourado print:hidden"
+      >
+        <Printer className="h-4 w-4" aria-hidden /> Salvar ou imprimir comprovante
+      </button>
+    </div>
+  );
+}
+
+function Linha2({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-smq-dourado/20 pb-3 last:border-0 last:pb-0">
+      <dt className="text-smq-creme/60">{k}</dt>
+      <dd className="text-right font-medium">{v}</dd>
+    </div>
+  );
+}
+
+function FormAceite({
+  s,
+  opcao,
+  previa,
+  onAceitar,
+}: {
+  s: PropostaSnapshot;
+  opcao: number | null;
+  previa?: boolean;
+  onAceitar?: Props["onAceitar"];
+}) {
+  const [nome, setNome] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [ok, setOk] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const cpfOk = cpfValido(cpf);
+  const nomeOk = nome.trim().split(/\s+/).length >= 2 && nome.trim().length >= 5;
+  const pronto = !!opcao && cpfOk && nomeOk && ok && !previa;
+  const campo =
+    "mt-2 w-full border-b border-smq-dourado/60 bg-transparent py-3 font-smq-body text-lg text-smq-creme outline-none placeholder:text-smq-creme/40 focus:border-smq-dourado";
+
+  return (
+    <form
+      className="mt-6"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!pronto || !onAceitar) return;
+        setEnviando(true);
+        setErro(await onAceitar({ opcao: opcao!, nome: nome.trim(), cpf }));
+        setEnviando(false);
+      }}
+    >
+      <h2 className="font-smq-display text-3xl font-bold leading-tight">Gostou? Registre seu aceite.</h2>
+      <p className="mt-4 text-sm text-smq-creme/80">
+        {opcao
+          ? `Opção escolhida: ${opcao}${s.fluxos[opcao - 1] ? `, ${s.fluxos[opcao - 1].titulo}` : ""}.`
+          : "Toque numa opção do fluxo de pagamento acima para escolher."}
+      </p>
+      <label className="mt-8 block text-xs uppercase tracking-widest text-smq-creme/60">
+        Nome completo
+        <input className={campo} value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={160} />
+      </label>
+      <label className="mt-6 block text-xs uppercase tracking-widest text-smq-creme/60">
+        CPF
+        <input
+          className={campo}
+          value={cpf}
+          onChange={(e) => setCpf(mascaraCpf(e.target.value))}
+          inputMode="numeric"
+          placeholder="000.000.000-00"
+        />
+      </label>
+      {cpf.replace(/\D/g, "").length === 11 && !cpfOk && (
+        <p className="mt-2 text-sm text-smq-dourado">Confira o CPF: os dígitos não batem.</p>
+      )}
+      <label className="mt-8 flex items-start gap-3 text-sm leading-relaxed">
+        <input type="checkbox" className="mt-1 h-5 w-5 accent-smq-dourado" checked={ok} onChange={(e) => setOk(e.target.checked)} />
+        <span>Li e concordo.</span>
+      </label>
+      <p className="mt-4 text-xs leading-relaxed text-smq-creme/70">{TEXTO_LEGAL_ACEITE}</p>
+      {erro && <p className="mt-4 text-sm text-smq-dourado">{erro}</p>}
+      <button
+        type="submit"
+        disabled={!pronto || enviando}
+        className="mt-8 w-full bg-smq-dourado px-6 py-5 font-smq-display text-base font-bold text-smq-marinho disabled:opacity-40"
+      >
+        {previa ? "Aceite disponível no link do cliente" : enviando ? "Registrando..." : "Aceitar proposta"}
+      </button>
+    </form>
   );
 }

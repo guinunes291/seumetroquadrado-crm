@@ -203,3 +203,29 @@ export function telefoneWaMe(telefone: string | null | undefined): string | null
 
 /** Imagens enviadas ficam no bucket privado; o snapshot guarda "midia:<caminho>". */
 export const MIDIA_PREFIXO = "midia:";
+
+/** Domínio publicado do CRM: todo link enviado ao cliente usa este endereço, nunca o de prévia. */
+export const CRM_URL_PUBLICA = "https://seumetroquadrado-crm.lovable.app";
+export const urlPublicaProposta = (path: string) => `${CRM_URL_PUBLICA}${path}`;
+
+export const TEXTO_LEGAL_ACEITE =
+  "O aceite registra seu interesse e a condição apresentada. Valores sujeitos à análise de crédito e à disponibilidade da unidade. Não substitui o contrato da construtora.";
+
+/** Código curto do comprovante, derivado do hash do snapshot aceito. */
+export function codigoVerificacao(snapshotHash: string): string {
+  const h = (snapshotHash ?? "").replace(/[^0-9a-f]/gi, "").toUpperCase().slice(0, 8).padEnd(8, "0");
+  return `${h.slice(0, 4)}-${h.slice(4)}`;
+}
+
+/** CPF mostrando só os 3 últimos dígitos. */
+export function cpfMascarado(final3: string): string {
+  return `***.***.**${final3.slice(0, 1)}-${final3.slice(1)}`;
+}
+
+export function mascaraCpf(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  return d
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
+}
