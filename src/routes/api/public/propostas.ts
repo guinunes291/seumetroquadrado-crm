@@ -62,6 +62,10 @@ export const Route = createFileRoute("/api/public/propostas")({
             _eventos: input.eventos,
           });
           if (error) return json({ ok: false }, 500);
+          if (input.eventos.some((e) => e.tipo === "visita_pedida")) {
+            const { despacharAvisosProposta } = await import("@/lib/proposta-avisos.server");
+            await despacharAvisosProposta(5).catch(() => undefined);
+          }
           return json({ ok: true }, 202);
         } catch (error) {
           if (error instanceof SyntaxError || error instanceof z.ZodError) return json({ ok: false }, 422);
