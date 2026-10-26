@@ -78,7 +78,20 @@ const rotasSami = ["mensagem", "propostas", "briefing", "anexo"].map((r) =>
 );
 const painel = readFileSync(join(root, "src/components/samiq/samiq-panel.tsx"), "utf8");
 const launcher = readFileSync(join(root, "src/components/samiq/samiq-launcher.tsx"), "utf8");
-const executor = readFileSync(join(root, "src/lib/samiq-executar.server.ts"), "utf8");
+// O executor foi quebrado em módulos (samiq-executar*.server.ts); lê todos juntos.
+const executor = [
+  "src/lib/samiq-executar.server.ts",
+  "src/lib/samiq-executar-base.server.ts",
+  "src/lib/samiq-executar-apoio.server.ts",
+  "src/lib/samiq-executar-contato.server.ts",
+  "src/lib/samiq-executar-funil.server.ts",
+  "src/lib/samiq-executar-agenda.server.ts",
+  "src/lib/samiq-executar-visita-docs.server.ts",
+  "src/lib/samiq-executar-credito.server.ts",
+  "src/lib/samiq-executar-cadastro.server.ts",
+]
+  .map((arquivo) => readFileSync(join(root, arquivo), "utf8"))
+  .join("\n");
 const confirmar = readFileSync(join(root, "src/lib/samiq-confirmar.server.ts"), "utf8");
 const confirmarFn = readFileSync(join(root, "src/lib/samiq-confirmar.functions.ts"), "utf8");
 
