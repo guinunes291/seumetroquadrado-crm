@@ -1,0 +1,2121 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`busca, agenda e telemetria > dia e intervalo da agenda em São Paulo 1`] = `
+{
+  "de": {
+    "ate": "2026-11-06",
+    "de": "2026-10-30",
+    "fimIso": "2026-11-06T23:59:59-03:00",
+    "inicioIso": "2026-10-30T00:00:00-03:00",
+  },
+  "deAte": {
+    "ate": "2026-11-02",
+    "de": "2026-10-30",
+    "fimIso": "2026-11-02T23:59:59-03:00",
+    "inicioIso": "2026-10-30T00:00:00-03:00",
+  },
+  "hoje": [
+    "2026-10-23",
+    "2026-10-24",
+    "2026-12-31",
+  ],
+  "invalido": {
+    "ate": "2026-10-31",
+    "de": "2026-10-24",
+    "fimIso": "2026-10-31T23:59:59-03:00",
+    "inicioIso": "2026-10-24T00:00:00-03:00",
+  },
+  "invertido": {
+    "ate": "2026-10-30",
+    "de": "2026-10-30",
+    "fimIso": "2026-10-30T23:59:59-03:00",
+    "inicioIso": "2026-10-30T00:00:00-03:00",
+  },
+  "longo": {
+    "ate": "2026-10-31",
+    "de": "2026-10-01",
+    "fimIso": "2026-10-31T23:59:59-03:00",
+    "inicioIso": "2026-10-01T00:00:00-03:00",
+  },
+  "padrao": {
+    "ate": "2026-10-31",
+    "de": "2026-10-24",
+    "fimIso": "2026-10-31T23:59:59-03:00",
+    "inicioIso": "2026-10-24T00:00:00-03:00",
+  },
+  "viradaDeAno": {
+    "ate": "2027-01-04",
+    "de": "2026-12-28",
+    "fimIso": "2027-01-04T23:59:59-03:00",
+    "inicioIso": "2026-12-28T00:00:00-03:00",
+  },
+}
+`;
+
+exports[`busca, agenda e telemetria > telemetria e fallback 1`] = `
+{
+  "contagem": {
+    "chamadas": 4,
+    "erros": 1,
+    "nomes": [
+      "buscar_clientes",
+      "minha_agenda",
+    ],
+  },
+  "fallback": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    false,
+  ],
+  "teto": {
+    "chamadas": 100,
+    "erros": 0,
+    "nomes": [
+      "x",
+    ],
+  },
+  "vazio": {
+    "chamadas": 0,
+    "erros": 0,
+    "nomes": [],
+  },
+}
+`;
+
+exports[`busca, agenda e telemetria > termos de busca 1`] = `
+[
+  {
+    "busca": "Lucas 4321",
+    "semAcento": "lucas 4321",
+    "separado": {
+      "finalTelefone": "4321",
+      "texto": "Lucas",
+    },
+    "t": "Lucas 4321",
+  },
+  {
+    "busca": "lucas final 98765-4321",
+    "semAcento": "lucas final 98765-4321",
+    "separado": {
+      "finalTelefone": "987654321",
+      "texto": "lucas",
+    },
+    "t": "lucas final 98765-4321",
+  },
+  {
+    "busca": "Maria Vibra 100",
+    "semAcento": "maria vibra 100",
+    "separado": {
+      "finalTelefone": null,
+      "texto": "Maria Vibra 100",
+    },
+    "t": "Maria (Vibra), 100%*",
+  },
+  {
+    "busca": "123",
+    "semAcento": "123",
+    "separado": {
+      "finalTelefone": null,
+      "texto": "123",
+    },
+    "t": "123",
+  },
+  {
+    "busca": "São João",
+    "semAcento": "sao joao",
+    "separado": {
+      "finalTelefone": null,
+      "texto": "São João",
+    },
+    "t": "  São   João  ",
+  },
+  {
+    "busca": "Conceição Ação 11 9 8765 4321",
+    "semAcento": "conceicao acao 11 9 8765 4321",
+    "separado": {
+      "finalTelefone": "987654321",
+      "texto": "Conceiçã çã",
+    },
+    "t": "Conceição Ação 11 9 8765 4321",
+  },
+  {
+    "busca": "tel 12.345",
+    "semAcento": "tel 12.345",
+    "separado": {
+      "finalTelefone": "12345",
+      "texto": "",
+    },
+    "t": "tel 12.345",
+  },
+  {
+    "busca": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "semAcento": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "separado": {
+      "finalTelefone": null,
+      "texto": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    },
+    "t": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  },
+]
+`;
+
+exports[`catálogo > a API pública do módulo 1`] = `
+[
+  "AbrirFerramentasInput",
+  "BuscarClientesInput",
+  "CatalogoProjetosInput",
+  "CreditoDoClienteInput",
+  "DetalheClienteInput",
+  "DocumentosDoClienteInput",
+  "GRUPOS_FERRAMENTAS",
+  "ListarClientesInput",
+  "MAX_DIAS_AGENDA",
+  "MaterialDoProjetoInput",
+  "MeuFunilInput",
+  "MinhaAgendaInput",
+  "MinhaFilaInput",
+  "MinhaSituacaoInput",
+  "MinhasTarefasInput",
+  "SAMIQ_FUSO",
+  "SAMIQ_TEXTO_SEM_RESPOSTA",
+  "SAMIQ_TOOL_DESCRIPTIONS",
+  "SAMIQ_TOOL_LABELS",
+  "SAMIQ_TOOL_NAMES",
+  "contarFerramentasSamiQ",
+  "detectarFallbackSamiQ",
+  "hojeSaoPaulo",
+  "intervaloAgendaSamiQ",
+  "isSamiQToolName",
+  "modelarAgendamentos",
+  "modelarClientes",
+  "modelarCredito",
+  "modelarDetalheCliente",
+  "modelarDocumentos",
+  "modelarFila",
+  "modelarFunil",
+  "modelarInteracoes",
+  "modelarMaterialProjeto",
+  "modelarProjetos",
+  "modelarSituacao",
+  "modelarTarefas",
+  "separarTermoBuscaSamiQ",
+  "termoBuscaSamiQ",
+  "termoSemAcentoSamiQ",
+]
+`;
+
+exports[`catálogo > contratos de entrada aceitam e recusam como antes 1`] = `
+{
+  "AbrirFerramentasInput": [
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "grupos:invalid_type",
+      ],
+    },
+    {
+      "ok": {
+        "grupos": [
+          "agenda",
+          "funil",
+        ],
+      },
+    },
+    {
+      "erro": [
+        "grupos,0:invalid_value",
+      ],
+    },
+  ],
+  "BuscarClientesInput": [
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "ok": {
+        "limite": 5,
+        "termo": "Maria",
+      },
+    },
+    {
+      "erro": [
+        "termo:too_small",
+        "limite:too_big",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "termo:invalid_type",
+      ],
+    },
+  ],
+  "CatalogoProjetosInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "limite": 5,
+      },
+    },
+    {
+      "erro": [
+        "limite:too_big",
+      ],
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "limite": 3,
+      },
+    },
+    {
+      "ok": {
+        "limite": 10,
+      },
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "regiao": "Oeste",
+      },
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+  "CreditoDoClienteInput": [
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "ok": {
+        "leadId": "11111111-1111-4111-8111-111111111111",
+      },
+    },
+    {
+      "erro": [
+        "leadId:invalid_format",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+  ],
+  "DetalheClienteInput": [
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "ok": {
+        "leadId": "11111111-1111-4111-8111-111111111111",
+      },
+    },
+    {
+      "erro": [
+        "leadId:invalid_format",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+  ],
+  "DocumentosDoClienteInput": [
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "ok": {
+        "leadId": "11111111-1111-4111-8111-111111111111",
+      },
+    },
+    {
+      "erro": [
+        "leadId:invalid_format",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+    {
+      "erro": [
+        "leadId:invalid_type",
+      ],
+    },
+  ],
+  "ListarClientesInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "limite": 5,
+      },
+    },
+    {
+      "erro": [
+        "limite:too_big",
+      ],
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "limite": 3,
+      },
+    },
+    {
+      "erro": [
+        "etapa:invalid_type",
+        "etapa:too_big",
+      ],
+    },
+    {
+      "erro": [
+        "etapa:invalid_type",
+        "etapa:too_big",
+      ],
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+  "MaterialDoProjetoInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "projetoId": "11111111-1111-4111-8111-111111111111",
+      },
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+  "MeuFunilInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+  "MinhaAgendaInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "ate": "2026-10-31",
+        "de": "2026-10-24",
+      },
+    },
+    {
+      "erro": [
+        "de:invalid_format",
+      ],
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+  "MinhaFilaInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "limite": 5,
+      },
+    },
+    {
+      "erro": [
+        "limite:too_big",
+      ],
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "fila": "novos",
+        "limite": 3,
+      },
+    },
+    {
+      "ok": {
+        "limite": 10,
+      },
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+  "MinhaSituacaoInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+  "MinhasTarefasInput": [
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "limite": 5,
+      },
+    },
+    {
+      "erro": [
+        "limite:too_big",
+      ],
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {
+        "limite": 3,
+      },
+    },
+    {
+      "ok": {
+        "limite": 10,
+      },
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+    {
+      "ok": {},
+    },
+  ],
+}
+`;
+
+exports[`catálogo > nomes, rótulos, descrições e grupos 1`] = `
+{
+  "descricoes": {
+    "abrir_ferramentas": "Abre mais grupos de ferramentas para os próximos passos desta resposta. Toda ação do CRM existe em algum grupo: se a que você precisa não está disponível, abra o grupo e use no passo seguinte (nunca diga que não consegue, nem que preparou algo sem a ferramenta). Grupos: carteira (fila, funil, lista de clientes, situação, tarefas, agenda), agenda (agendar, confirmar, remarcar, cancelar e registrar visita), tarefas (concluir, reagendar, cancelar), funil (retorno, perdido, troca de vaga, mudar etapa), qualificacao, produtos (catálogo, material, estoque), documentos, credito, venda, presenca (check-in), prospeccao (criar_lead para cadastrar cliente novo, pedir lote).",
+    "avaliar_qualificacao": "Scorecard de qualificação do cliente em 7 dimensões (renda, entrada/FGTS, crédito, região, necessidade, urgência, motivação): o que já está no CRM, o que falta e a pergunta certa para cada lacuna. Use antes de sugerir imóvel ou quando o corretor perguntar 'o que falta para qualificar'.",
+    "buscar_clientes": "Procura clientes na carteira do corretor pelo nome (com sobrenome, de preferência), pelo empreendimento de interesse e/ou pelo telefone (marcador [TELEFONE_n] da mensagem ou os últimos dígitos, ex.: "Lucas 4321"). Devolve id, nome, etapa, temperatura e datas-chave; o telefone nunca aparece. Se vierem dois ou mais clientes com o mesmo nome, pergunte qual antes de gravar.",
+    "catalogo_projetos": "Empreendimentos ativos da SMQ com região, tipologia, dormitórios, preço a partir de e renda mínima. Filtre por nome do empreendimento ou construtora, região, dormitórios ou preço máximo.",
+    "credito_do_cliente": "Análise de crédito atual de um cliente: situação (enviada, pendente, aprovada, condicionada, reprovada), banco, financiamento, parcela, prazo, FGTS, subsídio, validade. Valores aprovados são para o corretor, nunca para mensagem ao cliente.",
+    "curar_estoque": "Curadoria de empreendimentos com estoque real: unidades disponíveis, campanha vigente e se cabe na renda informada, ordenados por aderência e com o motivo de cada posição. Use quando o corretor pedir opções para um cliente.",
+    "detalhe_cliente": "Traz o dossiê resumido de um cliente: perfil financeiro, momento no funil, últimas interações, tarefas abertas, próximos compromissos e status dos documentos.",
+    "documentos_do_cliente": "Checklist de documentação de um cliente para o financiamento: cada documento com o status (pendente, recebido, aprovado, reprovado).",
+    "listar_clientes": "Lista clientes da carteira do corretor SEM precisar de nome: por etapa, temperatura ou parados há N dias (ex.: 'quem está em atendimento parado há 5 dias', 'meus quentes'). Use para escolher quem sai na troca de vaga ou montar a lista do dia.",
+    "material_do_projeto": "Ficha de venda de UM empreendimento: endereço, construtora, entrega, preço a partir de, renda mínima, metragem, vagas, argumentos de venda e se há book e tabela (com a data da tabela e aviso_tabela quando ela não é do mês, do dia 5 em diante). Book, tabela e planta o próprio canal envia quando o corretor pede pelo nome.",
+    "meu_funil": "Contagem de clientes por etapa do funil do corretor, com follow-ups vencidos, parados há 7 dias e sem próxima ação por etapa.",
+    "minha_agenda": "Lista os compromissos do corretor (visitas, reuniões, ligações) num intervalo de datas, com o cliente de cada um.",
+    "minha_fila": "Fila priorizada de atendimento do corretor: quem procurar agora e por quê (novos, responder, follow-ups, esfriando, confirmar visita, documentação travada).",
+    "minha_situacao": "Situação do corretor hoje: check-in (onde, se está apto para a roleta e por quê), Em atendimento (ocupação x teto, se está lotado, se recebe lead), base e se pode pedir lote de prospecção. Use para 'por que não recebi lead?', 'fiz check-in?', 'quantos tenho em atendimento?'.",
+    "minhas_tarefas": "Lista tarefas e follow-ups pendentes do corretor, com vencimento e cliente. Use apenas_vencidas para 'o que está atrasado'.",
+    "pre_analise_mcmv": "Pré-análise MCMV determinística (tabela APROVE 2026): faixa, parcela estimada, financiamento máximo, subsídio, teto do imóvel e, se informar preco_imovel, se cabe e quanto parcelar com a construtora. SEMPRE use esta ferramenta para qualquer número de parcela, teto ou faixa — nunca calcule por conta própria.",
+    "preparar_visita": "Kit de preparação para a visita de um cliente: visita agendada, empreendimento com argumentos, documentos pendentes, objeções, simulação rápida e checklist do que confirmar e perguntar. Use na véspera ou quando o corretor disser 'me prepara para a visita'.",
+  },
+  "ehFerramenta": [
+    true,
+    false,
+    false,
+    true,
+  ],
+  "fuso": "America/Sao_Paulo",
+  "grupos": [
+    "carteira",
+    "agenda",
+    "tarefas",
+    "funil",
+    "qualificacao",
+    "produtos",
+    "documentos",
+    "credito",
+    "venda",
+    "presenca",
+    "prospeccao",
+  ],
+  "maxDiasAgenda": 31,
+  "nomes": [
+    "buscar_clientes",
+    "detalhe_cliente",
+    "minha_agenda",
+    "minhas_tarefas",
+    "meu_funil",
+    "minha_fila",
+    "documentos_do_cliente",
+    "catalogo_projetos",
+    "pre_analise_mcmv",
+    "avaliar_qualificacao",
+    "curar_estoque",
+    "preparar_visita",
+    "listar_clientes",
+    "minha_situacao",
+    "material_do_projeto",
+    "credito_do_cliente",
+    "abrir_ferramentas",
+  ],
+  "rotulos": {
+    "abrir_ferramentas": "ferramentas",
+    "avaliar_qualificacao": "qualificação",
+    "buscar_clientes": "clientes",
+    "catalogo_projetos": "projetos",
+    "credito_do_cliente": "crédito",
+    "curar_estoque": "estoque",
+    "detalhe_cliente": "cliente",
+    "documentos_do_cliente": "documentos",
+    "listar_clientes": "carteira",
+    "material_do_projeto": "empreendimento",
+    "meu_funil": "funil",
+    "minha_agenda": "agenda",
+    "minha_fila": "fila",
+    "minha_situacao": "check-in e roleta",
+    "minhas_tarefas": "tarefas",
+    "pre_analise_mcmv": "pré-análise MCMV",
+    "preparar_visita": "kit de visita",
+  },
+  "semResposta": "Não consegui fechar uma resposta com as consultas que fiz. Tente perguntar de forma mais específica (por exemplo, o nome do cliente ou o período da agenda).",
+}
+`;
+
+exports[`modelagem do que o modelo vê > clientes, interações, tarefas, agenda e documentos 1`] = `
+{
+  "agenda": [
+    {
+      "cliente": {
+        "id": "l1",
+        "nome": "Maria da Silva",
+        "projeto": "Vibra Lapa",
+      },
+      "fim": "2026-10-28T19:00:00Z",
+      "id": "a1",
+      "inicio": "2026-10-28T18:00:00Z",
+      "local": "[ENDERECO], 100",
+      "status": "agendado",
+      "tipo": "visita",
+      "titulo": "[NOME]",
+    },
+    {
+      "cliente": {
+        "id": "l2",
+      },
+      "fim": null,
+      "id": "a2",
+      "inicio": null,
+      "local": null,
+      "status": "confirmado",
+      "tipo": "reuniao",
+      "titulo": null,
+    },
+    {
+      "cliente": {
+        "id": "l3",
+        "nome": null,
+        "projeto": null,
+      },
+      "fim": null,
+      "id": "a3",
+      "inicio": null,
+      "local": null,
+      "status": null,
+      "tipo": null,
+      "titulo": null,
+    },
+  ],
+  "agenda2": [
+    {
+      "cliente": {
+        "id": "l1",
+        "nome": "Maria da Silva",
+        "projeto": "Vibra Lapa",
+      },
+      "fim": "2026-10-28T19:00:00Z",
+      "id": "a1",
+      "inicio": "2026-10-28T18:00:00Z",
+      "local": "[ENDERECO], 100",
+      "status": "agendado",
+      "tipo": "visita",
+      "titulo": "[NOME]",
+    },
+    {
+      "cliente": {
+        "id": "l2",
+      },
+      "fim": null,
+      "id": "a2",
+      "inicio": null,
+      "local": null,
+      "status": "confirmado",
+      "tipo": "reuniao",
+      "titulo": null,
+    },
+  ],
+  "clientes": [
+    {
+      "entrou_em": "2026-10-01T10:00:00Z",
+      "etapa": "em_atendimento",
+      "id": "l1",
+      "nome": "Maria da Silva",
+      "origem": "meta",
+      "projeto": "Vibra Lapa",
+      "proximo_followup": "2026-10-26T13:00:00Z",
+      "temperatura": "quente",
+      "ultima_interacao": "2026-10-23T10:00:00Z",
+    },
+    {
+      "entrou_em": null,
+      "etapa": "novo",
+      "id": "l2",
+      "nome": null,
+      "origem": null,
+      "projeto": null,
+      "proximo_followup": null,
+      "temperatura": null,
+      "ultima_interacao": null,
+    },
+    {
+      "entrou_em": null,
+      "etapa": "novo",
+      "id": "l3",
+      "nome": "Ana Paula",
+      "origem": null,
+      "projeto": "Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento Empreendimento ",
+      "proximo_followup": null,
+      "temperatura": null,
+      "ultima_interacao": null,
+    },
+  ],
+  "clientesLimitado": [
+    {
+      "entrou_em": "2026-10-01T10:00:00Z",
+      "etapa": "em_atendimento",
+      "id": "l1",
+      "nome": "Maria da Silva",
+      "origem": "meta",
+      "projeto": "Vibra Lapa",
+      "proximo_followup": "2026-10-26T13:00:00Z",
+      "temperatura": "quente",
+      "ultima_interacao": "2026-10-23T10:00:00Z",
+    },
+  ],
+  "documentos": [
+    {
+      "documento": "cpf",
+      "observacao": "CPF [CPF] legível",
+      "recebido_em": "2026-10-20",
+      "status": "recebido",
+    },
+    {
+      "documento": "rg",
+      "observacao": null,
+      "recebido_em": null,
+      "status": "pendente",
+    },
+  ],
+  "interacoes": [
+    {
+      "direcao": "entrada",
+      "em": "2026-10-10T10:00:00Z",
+      "resumo": "e-mail [EMAIL] e CPF [CPF]",
+      "tipo": "ligacao",
+      "titulo": "Retorno para [TELEFONE]",
+    },
+    {
+      "direcao": "saida",
+      "em": "2026-10-11T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "whatsapp",
+      "titulo": undefined,
+    },
+    {
+      "direcao": "entrada",
+      "em": "2026-10-12T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "ligacao",
+      "titulo": "Contato 2",
+    },
+    {
+      "direcao": "saida",
+      "em": "2026-10-13T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "whatsapp",
+      "titulo": "Contato 3",
+    },
+    {
+      "direcao": "entrada",
+      "em": "2026-10-14T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "ligacao",
+      "titulo": "Contato 4",
+    },
+    {
+      "direcao": "saida",
+      "em": "2026-10-15T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "whatsapp",
+      "titulo": "Contato 5",
+    },
+    {
+      "direcao": "entrada",
+      "em": "2026-10-16T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "ligacao",
+      "titulo": "Contato 6",
+    },
+    {
+      "direcao": "saida",
+      "em": "2026-10-17T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "whatsapp",
+      "titulo": "Contato 7",
+    },
+    {
+      "direcao": "entrada",
+      "em": "2026-10-18T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "ligacao",
+      "titulo": "Contato 8",
+    },
+    {
+      "direcao": "saida",
+      "em": "2026-10-19T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "whatsapp",
+      "titulo": "Contato 9",
+    },
+    {
+      "direcao": "entrada",
+      "em": "2026-10-20T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "ligacao",
+      "titulo": "Contato 10",
+    },
+    {
+      "direcao": "saida",
+      "em": "2026-10-21T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "whatsapp",
+      "titulo": "Contato 11",
+    },
+  ],
+  "interacoes3": [
+    {
+      "direcao": "entrada",
+      "em": "2026-10-10T10:00:00Z",
+      "resumo": "e-mail [EMAIL] e CPF [CPF]",
+      "tipo": "ligacao",
+      "titulo": "Retorno para [TELEFONE]",
+    },
+    {
+      "direcao": "saida",
+      "em": "2026-10-11T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "whatsapp",
+      "titulo": undefined,
+    },
+    {
+      "direcao": "entrada",
+      "em": "2026-10-12T10:00:00Z",
+      "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "tipo": "ligacao",
+      "titulo": "Contato 2",
+    },
+  ],
+  "tarefas": [
+    {
+      "cliente": {
+        "id": "l1",
+        "nome": "Maria da Silva",
+      },
+      "id": "t1",
+      "prioridade": "alta",
+      "status": "pendente",
+      "tipo": "ligacao",
+      "titulo": "Ligar para [TELEFONE]",
+      "vence_em": "2026-10-26T13:00:00Z",
+    },
+    {
+      "cliente": {
+        "id": "l2",
+      },
+      "id": "t2",
+      "prioridade": "media",
+      "status": "em_andamento",
+      "tipo": "follow_up",
+      "titulo": null,
+      "vence_em": null,
+    },
+    {
+      "cliente": null,
+      "id": "t3",
+      "prioridade": null,
+      "status": null,
+      "tipo": null,
+      "titulo": "Sem cliente",
+      "vence_em": null,
+    },
+  ],
+  "tarefas1": [
+    {
+      "cliente": {
+        "id": "l1",
+        "nome": "Maria da Silva",
+      },
+      "id": "t1",
+      "prioridade": "alta",
+      "status": "pendente",
+      "tipo": "ligacao",
+      "titulo": "Ligar para [TELEFONE]",
+      "vence_em": "2026-10-26T13:00:00Z",
+    },
+  ],
+  "vazios": [
+    [],
+    [],
+    [],
+  ],
+}
+`;
+
+exports[`modelagem do que o modelo vê > detalhe do cliente 1`] = `
+{
+  "cheio": {
+    "cliente": {
+      "entrada_disponivel": "10000",
+      "entrou_em": "2026-10-01T10:00:00Z",
+      "etapa": "agendado",
+      "faixa_mcmv": "F2",
+      "fgts_valor": 12000,
+      "id": "l1",
+      "motivo_perdido": null,
+      "nome": "Maria da Silva",
+      "objecoes": [
+        "objeção 1",
+        "objeção 2",
+        "objeção 3",
+        "objeção 4",
+        "objeção 5",
+        "objeção 6",
+        "objeção 7",
+        "objeção 8",
+        "objeção 9",
+        "objeção 10",
+      ],
+      "observacoes": "CPF [CPF], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO], mora na [ENDERECO]",
+      "origem": "meta",
+      "projeto_interesse": "Vibra Lapa",
+      "proxima_acao": "Ligar no [TELEFONE] depois das 18h",
+      "proximo_followup": "2026-10-26T13:00:00Z",
+      "regiao": "Lapa / Oeste",
+      "renda_informada": "4500",
+      "tem_fgts": true,
+      "temperatura": "morno",
+      "tipo_renda": "clt",
+      "ultima_interacao": "2026-10-23T10:00:00Z",
+      "usa_fgts": true,
+      "visita": {
+        "data": "2026-10-28",
+        "empreendimento": "Vibra Lapa",
+        "hora": "15:00",
+      },
+    },
+    "compromissos": [
+      {
+        "cliente": {
+          "id": "l1",
+          "nome": "Maria da Silva",
+          "projeto": "Vibra Lapa",
+        },
+        "fim": "2026-10-28T19:00:00Z",
+        "id": "a1",
+        "inicio": "2026-10-28T18:00:00Z",
+        "local": "[ENDERECO], 100",
+        "status": "agendado",
+        "tipo": "visita",
+        "titulo": "[NOME]",
+      },
+      {
+        "cliente": {
+          "id": "l2",
+        },
+        "fim": null,
+        "id": "a2",
+        "inicio": null,
+        "local": null,
+        "status": "confirmado",
+        "tipo": "reuniao",
+        "titulo": null,
+      },
+      {
+        "cliente": {
+          "id": "l3",
+          "nome": null,
+          "projeto": null,
+        },
+        "fim": null,
+        "id": "a3",
+        "inicio": null,
+        "local": null,
+        "status": null,
+        "tipo": null,
+        "titulo": null,
+      },
+      {
+        "cliente": {
+          "id": "l1",
+          "nome": "Maria da Silva",
+          "projeto": "Vibra Lapa",
+        },
+        "fim": "2026-10-28T19:00:00Z",
+        "id": "a1",
+        "inicio": "2026-10-28T18:00:00Z",
+        "local": "[ENDERECO], 100",
+        "status": "agendado",
+        "tipo": "visita",
+        "titulo": "[NOME]",
+      },
+      {
+        "cliente": {
+          "id": "l2",
+        },
+        "fim": null,
+        "id": "a2",
+        "inicio": null,
+        "local": null,
+        "status": "confirmado",
+        "tipo": "reuniao",
+        "titulo": null,
+      },
+    ],
+    "documentos": [
+      {
+        "documento": "cpf",
+        "observacao": "CPF [CPF] legível",
+        "recebido_em": "2026-10-20",
+        "status": "recebido",
+      },
+      {
+        "documento": "rg",
+        "observacao": null,
+        "recebido_em": null,
+        "status": "pendente",
+      },
+    ],
+    "tarefas_abertas": [
+      {
+        "cliente": {
+          "id": "l1",
+          "nome": "Maria da Silva",
+        },
+        "id": "t1",
+        "prioridade": "alta",
+        "status": "pendente",
+        "tipo": "ligacao",
+        "titulo": "Ligar para [TELEFONE]",
+        "vence_em": "2026-10-26T13:00:00Z",
+      },
+      {
+        "cliente": {
+          "id": "l2",
+        },
+        "id": "t2",
+        "prioridade": "media",
+        "status": "em_andamento",
+        "tipo": "follow_up",
+        "titulo": null,
+        "vence_em": null,
+      },
+      {
+        "cliente": null,
+        "id": "t3",
+        "prioridade": null,
+        "status": null,
+        "tipo": null,
+        "titulo": "Sem cliente",
+        "vence_em": null,
+      },
+    ],
+    "ultimas_interacoes": [
+      {
+        "direcao": "entrada",
+        "em": "2026-10-10T10:00:00Z",
+        "resumo": "e-mail [EMAIL] e CPF [CPF]",
+        "tipo": "ligacao",
+        "titulo": "Retorno para [TELEFONE]",
+      },
+      {
+        "direcao": "saida",
+        "em": "2026-10-11T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "whatsapp",
+        "titulo": null,
+      },
+      {
+        "direcao": "entrada",
+        "em": "2026-10-12T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "ligacao",
+        "titulo": "Contato 2",
+      },
+      {
+        "direcao": "saida",
+        "em": "2026-10-13T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "whatsapp",
+        "titulo": "Contato 3",
+      },
+      {
+        "direcao": "entrada",
+        "em": "2026-10-14T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "ligacao",
+        "titulo": "Contato 4",
+      },
+      {
+        "direcao": "saida",
+        "em": "2026-10-15T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "whatsapp",
+        "titulo": "Contato 5",
+      },
+      {
+        "direcao": "entrada",
+        "em": "2026-10-16T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "ligacao",
+        "titulo": "Contato 6",
+      },
+      {
+        "direcao": "saida",
+        "em": "2026-10-17T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "whatsapp",
+        "titulo": "Contato 7",
+      },
+      {
+        "direcao": "entrada",
+        "em": "2026-10-18T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "ligacao",
+        "titulo": "Contato 8",
+      },
+      {
+        "direcao": "saida",
+        "em": "2026-10-19T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "whatsapp",
+        "titulo": "Contato 9",
+      },
+      {
+        "direcao": "entrada",
+        "em": "2026-10-20T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "ligacao",
+        "titulo": "Contato 10",
+      },
+      {
+        "direcao": "saida",
+        "em": "2026-10-21T10:00:00Z",
+        "resumo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tipo": "whatsapp",
+        "titulo": "Contato 11",
+      },
+    ],
+  },
+  "vazio": {
+    "cliente": {
+      "entrada_disponivel": "10000",
+      "entrou_em": "2026-10-01T10:00:00Z",
+      "etapa": "agendado",
+      "faixa_mcmv": "F2",
+      "fgts_valor": 12000,
+      "id": "l1",
+      "motivo_perdido": "sem contato",
+      "nome": "Maria da Silva",
+      "objecoes": [],
+      "observacoes": null,
+      "origem": "meta",
+      "projeto_interesse": "Vibra Lapa",
+      "proxima_acao": null,
+      "proximo_followup": "2026-10-26T13:00:00Z",
+      "regiao": null,
+      "renda_informada": "4500",
+      "tem_fgts": true,
+      "temperatura": "morno",
+      "tipo_renda": "clt",
+      "ultima_interacao": "2026-10-23T10:00:00Z",
+      "usa_fgts": true,
+      "visita": null,
+    },
+    "compromissos": [],
+    "documentos": [],
+    "tarefas_abertas": [],
+    "ultimas_interacoes": [],
+  },
+}
+`;
+
+exports[`modelagem do que o modelo vê > funil e fila 1`] = `
+{
+  "chaves": [
+    "novos",
+    "responder",
+    "followups",
+    "esfriando",
+    "confirmar_visita",
+    "docs",
+  ],
+  "filaNovos": {
+    "filas": {
+      "novos": [
+        {
+          "docs_pendentes": null,
+          "etapa": "novo",
+          "id": "l1",
+          "motivo": "novo",
+          "nome": "Maria da Silva",
+          "projeto": "Vibra",
+          "score": 50,
+          "temperatura": "quente",
+          "visita_em": null,
+        },
+        {
+          "docs_pendentes": 2,
+          "etapa": "novo",
+          "id": "l2",
+          "motivo": "novo",
+          "nome": null,
+          "projeto": "Vibra",
+          "score": 50,
+          "temperatura": "quente",
+          "visita_em": "2026-10-28T18:00:00Z",
+        },
+      ],
+    },
+    "totais": {
+      "novos": 7,
+    },
+  },
+  "filaTodas": {
+    "filas": {
+      "confirmar_visita": [],
+      "docs": [],
+      "esfriando": [],
+      "followups": [],
+      "novos": [
+        {
+          "docs_pendentes": null,
+          "etapa": "novo",
+          "id": "l1",
+          "motivo": "novo",
+          "nome": "Maria da Silva",
+          "projeto": "Vibra",
+          "score": 50,
+          "temperatura": "quente",
+          "visita_em": null,
+        },
+        {
+          "docs_pendentes": 2,
+          "etapa": "novo",
+          "id": "l2",
+          "motivo": "novo",
+          "nome": null,
+          "projeto": "Vibra",
+          "score": 50,
+          "temperatura": "quente",
+          "visita_em": "2026-10-28T18:00:00Z",
+        },
+        {
+          "docs_pendentes": null,
+          "etapa": "novo",
+          "id": "x0",
+          "motivo": "novo",
+          "nome": "Pessoa A",
+          "projeto": "Vibra",
+          "score": 50,
+          "temperatura": "quente",
+          "visita_em": null,
+        },
+        {
+          "docs_pendentes": null,
+          "etapa": "novo",
+          "id": "x1",
+          "motivo": "novo",
+          "nome": "Pessoa B",
+          "projeto": "Vibra",
+          "score": 50,
+          "temperatura": "quente",
+          "visita_em": null,
+        },
+        {
+          "docs_pendentes": null,
+          "etapa": "novo",
+          "id": "x2",
+          "motivo": "novo",
+          "nome": "Pessoa C",
+          "projeto": "Vibra",
+          "score": 50,
+          "temperatura": "quente",
+          "visita_em": null,
+        },
+      ],
+      "responder": [],
+    },
+    "totais": {
+      "confirmar_visita": 0,
+      "docs": 0,
+      "esfriando": 0,
+      "followups": 0,
+      "novos": 7,
+      "responder": 0,
+    },
+  },
+  "funil": [
+    {
+      "clientes": 0,
+      "etapa": "etapa_0",
+      "followups_vencidos": 0,
+      "parados_7d": 0,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 1,
+      "etapa": "etapa_1",
+      "followups_vencidos": 1,
+      "parados_7d": 1,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 2,
+      "etapa": "etapa_2",
+      "followups_vencidos": 0,
+      "parados_7d": 2,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 3,
+      "etapa": "etapa_3",
+      "followups_vencidos": 3,
+      "parados_7d": 0,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 4,
+      "etapa": "etapa_4",
+      "followups_vencidos": 0,
+      "parados_7d": 4,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 5,
+      "etapa": "etapa_5",
+      "followups_vencidos": 5,
+      "parados_7d": 5,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 6,
+      "etapa": "etapa_6",
+      "followups_vencidos": 0,
+      "parados_7d": 0,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 7,
+      "etapa": "etapa_7",
+      "followups_vencidos": 7,
+      "parados_7d": 7,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 8,
+      "etapa": "etapa_8",
+      "followups_vencidos": 0,
+      "parados_7d": 8,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 9,
+      "etapa": "etapa_9",
+      "followups_vencidos": 9,
+      "parados_7d": 0,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 10,
+      "etapa": "etapa_10",
+      "followups_vencidos": 0,
+      "parados_7d": 10,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 11,
+      "etapa": "etapa_11",
+      "followups_vencidos": 11,
+      "parados_7d": 11,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 12,
+      "etapa": "etapa_12",
+      "followups_vencidos": 0,
+      "parados_7d": 0,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 13,
+      "etapa": "etapa_13",
+      "followups_vencidos": 13,
+      "parados_7d": 13,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 14,
+      "etapa": "etapa_14",
+      "followups_vencidos": 0,
+      "parados_7d": 14,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 15,
+      "etapa": "etapa_15",
+      "followups_vencidos": 15,
+      "parados_7d": 0,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 16,
+      "etapa": "etapa_16",
+      "followups_vencidos": 0,
+      "parados_7d": 16,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 17,
+      "etapa": "etapa_17",
+      "followups_vencidos": 17,
+      "parados_7d": 17,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 18,
+      "etapa": "etapa_18",
+      "followups_vencidos": 0,
+      "parados_7d": 0,
+      "sem_proxima_acao": 0,
+    },
+    {
+      "clientes": 19,
+      "etapa": "etapa_19",
+      "followups_vencidos": 19,
+      "parados_7d": 19,
+      "sem_proxima_acao": 0,
+    },
+  ],
+}
+`;
+
+exports[`modelagem do que o modelo vê > projetos, material, crédito e situação 1`] = `
+{
+  "credito": {
+    "analise": {
+      "amortizacao": "price",
+      "aprovada_em": "2026-10-20",
+      "atualizada_em": "2026-10-20T10:00:00Z",
+      "banco": "Caixa",
+      "entrada": 5000,
+      "faixa": "F2",
+      "fgts": 10000,
+      "financiamento": 200000,
+      "imovel_simulacao": 260000,
+      "modalidade": "mcmv",
+      "observacoes": "Cliente CPF [CPF] com restrição baixada",
+      "parcela": 1500,
+      "prazo_meses": 360,
+      "registrada_em": "2026-10-15T10:00:00Z",
+      "renda_familiar": 4500,
+      "situacao": "aprovada",
+      "subsidio": 20000,
+      "taxa_ano": 5.5,
+      "validade_ate": "2026-12-31",
+    },
+    "rodadas_anteriores": 1,
+  },
+  "material": {
+    "argumentos": [
+      "perto do metrô",
+      "lazer completo",
+      "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "quarto",
+    ],
+    "aviso_tabela": "Tabela desatualizada: é de 02/09/2026 e a de outubro/2026 ainda não está no CRM. Confirme valores e disponibilidade com a construtora antes de passar ao cliente.",
+    "construtora": "Vibra",
+    "disponibilidade": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+    "dormitorios": "2",
+    "entrega": "lancamento · 12/2028",
+    "id": "p1",
+    "metragem": "38 a 45 m²",
+    "nome": "Vibra Lapa",
+    "onde_fica": "Rua Guaicurus, 1000, Lapa, São Paulo",
+    "perfil_ideal": "Primeiro imóvel",
+    "preco_a_partir": 289000,
+    "regiao": "Lapa · Oeste",
+    "renda_minima": 4000,
+    "status_preco": "tabela_vigente",
+    "tabela_atualizada_em": "2026-09-02T10:00:00Z",
+    "tabela_dias": 52,
+    "tabela_situacao": "desatualizada",
+    "tem_book": true,
+    "tem_tabela": true,
+    "tipologia": "apartamento",
+    "vagas": "opcional",
+  },
+  "materialMinimo": {
+    "argumentos": [],
+    "aviso_tabela": undefined,
+    "construtora": "Vibra",
+    "disponibilidade": undefined,
+    "dormitorios": undefined,
+    "entrega": undefined,
+    "id": "p1",
+    "metragem": "40 m²",
+    "nome": "Vibra Lapa",
+    "onde_fica": "Av. Paulista, 1000",
+    "perfil_ideal": undefined,
+    "preco_a_partir": 289000,
+    "regiao": undefined,
+    "renda_minima": 4000,
+    "status_preco": undefined,
+    "tabela_atualizada_em": null,
+    "tabela_dias": null,
+    "tabela_situacao": undefined,
+    "tem_book": false,
+    "tem_tabela": false,
+    "tipologia": "apartamento",
+    "vagas": undefined,
+  },
+  "materialNoMes": {
+    "argumentos": [
+      "perto do metrô",
+      "lazer completo",
+      "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "quarto",
+    ],
+    "aviso_tabela": undefined,
+    "construtora": "Vibra",
+    "disponibilidade": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+    "dormitorios": "2",
+    "entrega": "lancamento · 12/2028",
+    "id": "p1",
+    "metragem": "38 a 45 m²",
+    "nome": "Vibra Lapa",
+    "onde_fica": "Rua Guaicurus, 1000, Lapa, São Paulo",
+    "perfil_ideal": "Primeiro imóvel",
+    "preco_a_partir": 289000,
+    "regiao": "Lapa · Oeste",
+    "renda_minima": 4000,
+    "status_preco": "tabela_vigente",
+    "tabela_atualizada_em": "2026-10-02T10:00:00Z",
+    "tabela_dias": 22,
+    "tabela_situacao": "em_dia",
+    "tem_book": true,
+    "tem_tabela": true,
+    "tipologia": "apartamento",
+    "vagas": "opcional",
+  },
+  "projetos": [
+    {
+      "diferenciais": "piscina, academia",
+      "dormitorios": "1 a 2",
+      "entrega": "em_obras · 6/2027",
+      "id": "p1",
+      "localizacao": "Lapa · Oeste · São Paulo",
+      "nome": "Maria Helena Residencial",
+      "preco_a_partir": 250000,
+      "renda_minima": 3000,
+      "tipologia": "apartamento",
+    },
+    {
+      "diferenciais": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "dormitorios": 2,
+      "entrega": "2028",
+      "id": "p2",
+      "localizacao": "Centro",
+      "nome": "Vibra",
+      "preco_a_partir": null,
+      "renda_minima": null,
+      "tipologia": null,
+    },
+    {
+      "diferenciais": undefined,
+      "dormitorios": 3,
+      "entrega": undefined,
+      "id": "p3",
+      "localizacao": "",
+      "nome": null,
+      "preco_a_partir": null,
+      "renda_minima": null,
+      "tipologia": null,
+    },
+  ],
+  "projetos1": [
+    {
+      "diferenciais": "piscina, academia",
+      "dormitorios": "1 a 2",
+      "entrega": "em_obras · 6/2027",
+      "id": "p1",
+      "localizacao": "Lapa · Oeste · São Paulo",
+      "nome": "Maria Helena Residencial",
+      "preco_a_partir": 250000,
+      "renda_minima": 3000,
+      "tipologia": "apartamento",
+    },
+  ],
+  "semCredito": {
+    "analise": null,
+    "aviso": "Nenhuma análise de crédito registrada.",
+  },
+  "situacao": {
+    "casa_liberada": true,
+    "checkin_hoje": {
+      "apto_roleta": true,
+      "encerrado": false,
+      "filial": "filial-lapa",
+      "localizacao": undefined,
+      "modo": "loja",
+      "motivo": undefined,
+    },
+    "em_atendimento": {
+      "lotado": false,
+      "minha_base": undefined,
+      "ocupacao": 40,
+      "recebe_lead": true,
+      "retorno_max_dias": undefined,
+      "teto": 65,
+      "teto_base": undefined,
+    },
+    "exige_localizacao_na_filial": false,
+    "filiais": [
+      {
+        "nome": "Lapa",
+        "slug": "filial-lapa",
+      },
+    ],
+    "lote_prospeccao": {
+      "motivo": "lote_em_andamento",
+      "pode_pedir": false,
+      "regiao": undefined,
+      "vagas": undefined,
+    },
+    "presente": true,
+    "vendas_mes_anterior": 2,
+    "vendas_minimas_para_casa": 1,
+  },
+  "situacaoVazia": {
+    "casa_liberada": undefined,
+    "checkin_hoje": null,
+    "em_atendimento": {
+      "lotado": undefined,
+      "minha_base": undefined,
+      "ocupacao": undefined,
+      "recebe_lead": undefined,
+      "retorno_max_dias": undefined,
+      "teto": undefined,
+      "teto_base": undefined,
+    },
+    "exige_localizacao_na_filial": undefined,
+    "filiais": undefined,
+    "lote_prospeccao": {
+      "motivo": undefined,
+      "pode_pedir": undefined,
+      "regiao": undefined,
+      "vagas": undefined,
+    },
+    "presente": false,
+    "vendas_mes_anterior": undefined,
+    "vendas_minimas_para_casa": undefined,
+  },
+}
+`;

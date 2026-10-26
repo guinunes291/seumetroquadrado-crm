@@ -70,7 +70,16 @@ const s5 = readFileSync(
   "utf8",
 );
 const skillsPuro = readFileSync(join(root, "src/lib/samiq-skills.ts"), "utf8");
-const catalogo = readFileSync(join(root, "src/lib/samiq-tools.ts"), "utf8");
+// O núcleo das ferramentas de leitura foi quebrado em módulos (samiq-tools*.ts); lê todos juntos.
+const catalogo = [
+  "src/lib/samiq-tools.ts",
+  "src/lib/samiq-tools-catalogo.ts",
+  "src/lib/samiq-tools-busca.ts",
+  "src/lib/samiq-tools-modelos.ts",
+  "src/lib/samiq-tools-modelos-projeto.ts",
+]
+  .map((arquivo) => readFileSync(join(root, arquivo), "utf8"))
+  .join("\n");
 const skillsServer = readFileSync(join(root, "src/lib/samiq-skills.server.ts"), "utf8");
 const briefingPuro = readFileSync(join(root, "src/lib/samiq-briefing.ts"), "utf8");
 const rotasSami = ["mensagem", "propostas", "briefing", "anexo"].map((r) =>
