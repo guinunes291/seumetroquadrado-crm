@@ -820,6 +820,13 @@
       "when": 1792953617759,
       "tag": "0116_link_proposta_avisos_webhook_n8n",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1793110385441,
+      "tag": "0117_tarefas_concluir_sem_reatribuir",
+      "breakpoints": true
     }
   ]
 }
