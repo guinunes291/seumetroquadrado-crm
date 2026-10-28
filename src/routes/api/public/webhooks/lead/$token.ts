@@ -155,8 +155,12 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         // projeto SEM dizer o empreendimento não é do projeto do token:
         // entra sem projeto (o corretor descobre na conversa) em vez de
         // virar Sabará por engano.
-        const semProdutoDoChatbot =
-          !campanha && data.origem === "chatbot" && !empreendimentoInformado;
+        const semProdutoDoChatbot = chatbotSemProdutoInformado({
+          viaCampanha: Boolean(campanha),
+          origem: data.origem,
+          empreendimento: data.empreendimento,
+          empreendimentoInteresse: data.empreendimentoInteresse,
+        });
         if (semProdutoDoChatbot) projeto = { ...projeto, id: null, nome: "empreendimento não informado" };
         const projetoNomeInteresse =
           empreendimentoInformado ?? (semProdutoDoChatbot ? "" : projeto.nome);
