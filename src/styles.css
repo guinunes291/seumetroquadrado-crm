@@ -607,12 +607,16 @@ html.vt-tema::view-transition-new(root) {
   width: calc(var(--pill-r) - var(--pill-l));
   transition:
     --pill-r 0.36s cubic-bezier(0.215, 0.61, 0.355, 1),
-    --pill-l 0.55s cubic-bezier(0.645, 0.045, 0.355, 1);
+    --pill-l 0.55s cubic-bezier(0.645, 0.045, 0.355, 1),
+    top 0.36s cubic-bezier(0.215, 0.61, 0.355, 1),
+    height 0.36s cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 .tab-pill[data-dir="esq"] {
   transition:
     --pill-l 0.36s cubic-bezier(0.215, 0.61, 0.355, 1),
-    --pill-r 0.55s cubic-bezier(0.645, 0.045, 0.355, 1);
+    --pill-r 0.55s cubic-bezier(0.645, 0.045, 0.355, 1),
+    top 0.36s cubic-bezier(0.215, 0.61, 0.355, 1),
+    height 0.36s cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
 /* --------------------------------------------------------------------------
