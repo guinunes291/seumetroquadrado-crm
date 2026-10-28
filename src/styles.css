@@ -220,6 +220,7 @@
   --animate-count-pop: count-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-shine: shine 1.1s cubic-bezier(0.4, 0, 0.2, 1) both;
+  --animate-carimbo: carimbo-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 :root {
@@ -478,6 +479,23 @@
   }
 }
 
+/* Carimbo "PAGA" batendo no papel: entra grande e torto, passa um pouco do
+   ponto (o "tum") e assenta na inclinação final de -6°. */
+@keyframes carimbo-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.9) rotate(-14deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-6deg);
+  }
+}
+
 /* Desenho de linha em SVG (sparkline, anéis): usar com pathLength=1. */
 @keyframes draw-line {
   from {
@@ -554,6 +572,47 @@
 
 ::view-transition-new(root) {
   animation: vt-in 0.3s var(--ease-out-quart) both;
+}
+
+/* Troca de tema em círculo (lib/theme-transition.ts): enquanto a classe está
+   no <html>, o fade/deslize de rota sai de cena e o tema novo é revelado só
+   pelo clip-path circular animado via JS. Seletor mais específico que o de
+   rota acima, então vence sem !important. */
+html.vt-tema::view-transition-old(root),
+html.vt-tema::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Pílula "gota" das abas (TabsList indicator): as duas bordas são
+   propriedades registradas, então cada uma tem a sua própria transição — a
+   borda da frente sai rápido (0.36s) e a de trás alcança depois (0.55s), e a
+   pílula estica como uma gota em vez de deslizar dura. Anima width além de
+   transform (exceção consciente ao "só transform/opacity" do SMQ Motion):
+   scaleX deformaria o raio, e o elemento é um único absoluto decorativo
+   dentro de um `isolate`, sem afetar o layout ao redor. Sem suporte a
+   @property o valor salta direto — a aba continua certa, só sem a gota. */
+@property --pill-l {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --pill-r {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.tab-pill {
+  transform: translateX(var(--pill-l));
+  width: calc(var(--pill-r) - var(--pill-l));
+  transition:
+    --pill-r 0.36s cubic-bezier(0.215, 0.61, 0.355, 1),
+    --pill-l 0.55s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+.tab-pill[data-dir="esq"] {
+  transition:
+    --pill-l 0.36s cubic-bezier(0.215, 0.61, 0.355, 1),
+    --pill-r 0.55s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 /* --------------------------------------------------------------------------
@@ -720,8 +779,13 @@
   .animate-shine,
   .animate-pulse,
   .stagger-children > *,
-  .beam-border::after {
+  .beam-border::after,
+  .animate-carimbo {
     animation: none !important;
+  }
+
+  .tab-pill {
+    transition: none !important;
   }
 
   ::view-transition-group(*),

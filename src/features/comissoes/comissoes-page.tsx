@@ -27,6 +27,7 @@ import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/u
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatTile, StatGrid } from "@/components/ui/stat-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { CarimboPago } from "@/components/ui/carimbo-pago";
 import {
   Select,
   SelectContent,
@@ -94,6 +95,16 @@ const STATUS_NO_PLURAL: Record<string, string> = {
 const fmtDataCurta = (d: string | null | undefined) =>
   d ? new Date(`${d}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 
+/** Data do carimbo: dd/mm/aa cabe na coluna de status sem quebrar a linha. */
+const fmtDataCarimbo = (d: string | null | undefined) =>
+  d
+    ? new Date(`${d}T12:00:00`).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+      })
+    : null;
+
 export function ComissoesPage() {
   const qc = useQueryClient();
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
@@ -106,6 +117,9 @@ export function ComissoesPage() {
   const [beneficiario, setBeneficiario] = useState<string>("all");
 
   const [pagarRow, setPagarRow] = useState<ComissaoRow | null>(null);
+  // A linha que acabou de ser paga nesta tela: só ela bate o carimbo (a lista
+  // inteira animando a cada carregamento viraria ruído).
+  const [recemPagaId, setRecemPagaId] = useState<string | null>(null);
   const [atribuirRow, setAtribuirRow] = useState<ComissaoRow | null>(null);
   const [beneficiarioEscolhido, setBeneficiarioEscolhido] = useState<string | null>(null);
   const [descontoRow, setDescontoRow] = useState<ComissaoRow | null>(null);
@@ -456,11 +470,17 @@ export function ComissoesPage() {
         accessorFn: (r) => statusLabel(r.status),
         header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
         meta: { label: "Status" },
-        cell: ({ row }) => (
-          <StatusBadge intent={statusIntent(row.original.status)}>
-            {statusLabel(row.original.status)}
-          </StatusBadge>
-        ),
+        cell: ({ row }) =>
+          row.original.status === "paga" ? (
+            <CarimboPago
+              data={fmtDataCarimbo(row.original.data_pagamento)}
+              animar={row.original.id === recemPagaId}
+            />
+          ) : (
+            <StatusBadge intent={statusIntent(row.original.status)}>
+              {statusLabel(row.original.status)}
+            </StatusBadge>
+          ),
       },
       {
         id: "pagamento",
@@ -519,7 +539,7 @@ export function ComissoesPage() {
       });
     }
     return cols;
-  }, [canManage, reverterComissao]);
+  }, [canManage, reverterComissao, recemPagaId]);
 
   return (
     <div className="space-y-6">
@@ -698,6 +718,7 @@ export function ComissoesPage() {
                 run: () => marcarComissaoPaga(pagarRow.id, data),
                 sucesso: "Comissão marcada como paga",
               });
+              setRecemPagaId(pagarRow.id);
               setPagarRow(null);
             }}
           >

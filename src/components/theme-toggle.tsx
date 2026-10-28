@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/hooks/use-theme";
 import { THEME_PREF_LABEL, type ThemePref } from "@/lib/theme";
+import { origemDoEvento } from "@/lib/theme-transition";
 
 const OPTIONS: { pref: ThemePref; icon: typeof Sun }[] = [
   { pref: "light", icon: Sun },
@@ -28,7 +29,7 @@ export function ThemeMenuItems() {
         Tema
       </DropdownMenuLabel>
       {OPTIONS.map(({ pref: p, icon: OptIcon }) => (
-        <DropdownMenuItem key={p} onClick={() => setPref(p)} className="gap-2">
+        <DropdownMenuItem key={p} onClick={(e) => setPref(p, origemDoEvento(e))} className="gap-2">
           <OptIcon className="h-4 w-4" />
           <span className="flex-1">{THEME_PREF_LABEL[p]}</span>
           {pref === p && <Check className="h-4 w-4 text-primary" />}
