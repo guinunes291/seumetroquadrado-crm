@@ -21,6 +21,7 @@ import {
   formatNum,
   iniciais,
   intentDaTaxa,
+  situacaoNoRitmo,
   type CriterioRanking,
   type EtapaFunil,
   type Heat,
@@ -331,22 +332,86 @@ const BARRA_FILL: Record<"success" | "gold" | "neutral", string> = {
 };
 
 /** Barra de progresso da meta com marcos de 25/50/75/100%. */
+/**
+ * Frase do ritmo: onde a meta deveria estar hoje e a distância até lá.
+ * Com `unidade` ("vendas") a conta é em unidades inteiras: o ritmo pede o
+ * próximo inteiro (28,4 → 29) e "atrás" é quantas faltam para alcançá-lo —
+ * "8,4 vendas" não existe. Sem unidade (valor em R$), uma casa decimal.
+ */
+export function fraseDoRitmo(
+  realizado: number,
+  meta: number,
+  fracao: number,
+  formatar: (n: number) => string,
+  unidade = "",
+): { texto: string; situacao: "adiantado" | "no_ritmo" | "atrasado" } | null {
+  const r = situacaoNoRitmo(realizado, meta, fracao);
+  if (!r) return null;
+  const inteiro = unidade !== "";
+  const nomear = (n: number) =>
+    inteiro ? `${formatar(n)} ${unidade === "vendas" && n === 1 ? "venda" : unidade}` : formatar(n);
+  const esperado = inteiro ? Math.ceil(r.esperado - 1e-9) : Math.round(r.esperado * 10) / 10;
+  const distancia = inteiro
+    ? r.situacao === "atrasado"
+      ? Math.ceil(Math.abs(r.diferenca) - 1e-9)
+      : Math.floor(Math.abs(r.diferenca))
+    : Math.round(Math.abs(r.diferenca) * 10) / 10;
+  // À frente por menos de uma unidade inteira é, na prática, estar no ritmo.
+  const situacao = r.situacao === "adiantado" && distancia === 0 ? "no_ritmo" : r.situacao;
+  const pede = `até hoje o ritmo pede ${nomear(esperado)}`;
+  const texto =
+    situacao === "no_ritmo"
+      ? `No ritmo — ${pede}`
+      : situacao === "adiantado"
+        ? `${nomear(distancia)} à frente do ritmo — ${pede}`
+        : `${nomear(distancia)} atrás do ritmo — ${pede}`;
+  return { texto, situacao };
+}
+
+const TOM_RITMO = {
+  adiantado: "text-success",
+  no_ritmo: "text-foreground",
+  atrasado: "text-warning",
+} as const;
+
 export function BarraMeta({
   realizado,
   meta,
   unidade,
   formatar = formatNum,
+  fracaoHoje = null,
 }: {
   realizado: number;
   meta: number;
   unidade: string;
   formatar?: (n: number) => string;
+  /** Fração útil do mês já passada (fracaoUtilDoMes); null = sem linha "hoje". */
+  fracaoHoje?: number | null;
 }) {
   const pct = meta > 0 ? (realizado / meta) * 100 : 0;
   const tom = tomDoPreenchimento(pct, meta > 0);
+  // A linha "hoje" só faz sentido com meta e no mês corrente (quem calcula a
+  // fração já devolve null fora dele).
+  const ritmo =
+    fracaoHoje !== null && meta > 0
+      ? // "de VGV" já sai em R$ pelo formatador; "vendas" precisa da palavra.
+        fraseDoRitmo(
+          realizado,
+          meta,
+          fracaoHoje,
+          formatar,
+          unidade.startsWith("de ") ? "" : unidade,
+        )
+      : null;
+  const hojePct = ritmo && fracaoHoje !== null ? Math.min(fracaoHoje, 1) * 100 : null;
   return (
     <div>
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-baseline justify-between gap-2",
+          hojePct !== null ? "mb-5" : "mb-2",
+        )}
+      >
         <span className="font-display text-2xl font-semibold tabular-nums">
           {meta > 0 ? (
             <>
@@ -367,7 +432,7 @@ export function BarraMeta({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(Math.min(pct, 100))}
-        aria-label={`${unidade}: ${pct.toFixed(1)}% da meta`}
+        aria-label={`${unidade}: ${pct.toFixed(1)}% da meta${ritmo ? `. ${ritmo.texto}` : ""}`}
         className="relative h-3 overflow-visible rounded-full bg-muted"
       >
         <div
@@ -386,6 +451,7 @@ export function BarraMeta({
             style={{ left: `${m}%` }}
           />
         ))}
+        {hojePct !== null && <MarcaHoje pct={hojePct} rotulo />}
       </div>
       <div className="mt-1 flex justify-between text-[11px] text-muted-foreground tabular-nums">
         {[0, 25, 50, 75, 100].map((m) => (
@@ -394,7 +460,32 @@ export function BarraMeta({
           </span>
         ))}
       </div>
+      {ritmo && (
+        <p className={cn("mt-2 text-sm font-medium tabular-nums", TOM_RITMO[ritmo.situacao])}>
+          {ritmo.texto}
+        </p>
+      )}
     </div>
+  );
+}
+
+/**
+ * Linha tracejada do "hoje" (referência de 2026-10): onde a barra deveria
+ * estar pela fração útil do mês. Com `rotulo`, escreve "hoje" acima dela.
+ */
+export function MarcaHoje({ pct, rotulo = false }: { pct: number; rotulo?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute -top-1.5 -bottom-1.5 w-0 border-l-2 border-dashed border-foreground/55"
+      style={{ left: `${pct}%` }}
+    >
+      {rotulo && (
+        <span className="absolute bottom-full left-0 mb-0.5 -translate-x-1/2 text-[10px] font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase">
+          hoje
+        </span>
+      )}
+    </span>
   );
 }
 

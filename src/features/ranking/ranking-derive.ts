@@ -486,6 +486,48 @@ export function projetarMes(args: {
   };
 }
 
+/**
+ * Quanto do mês corrente já passou, em DIAS ÚTEIS do calendário do pacing — a
+ * mesma régua da projeção, para a linha "hoje" da barra nunca discordar dela.
+ * Só existe no mês corrente: mês fechado ou futuro não tem "onde deveria
+ * estar hoje".
+ */
+export function fracaoUtilDoMes(args: {
+  ano: number;
+  mes: number;
+  hoje: Date;
+  calendario?: CalendarioPacing;
+}): { fracao: number; passados: number; total: number } | null {
+  const { ano, mes, hoje } = args;
+  if (posicaoDoMes(ano, mes, hoje) !== "atual") return null;
+  const cal = args.calendario ?? CALENDARIO_PADRAO;
+  const total = diasUteisNoMes(ano, mes, cal);
+  if (total <= 0) return null;
+  const passados = diasUteisAte(ano, mes, hoje.getDate(), cal);
+  return { fracao: passados / total, passados, total };
+}
+
+export type SituacaoRitmo = "adiantado" | "no_ritmo" | "atrasado";
+
+/**
+ * Onde a meta deveria estar hoje (meta × fração útil do mês) contra o
+ * realizado. Folga de 5% da meta para "no ritmo": sem ela, meio negócio de
+ * diferença já pintaria o corretor de atrasado no meio da tarde.
+ */
+export function situacaoNoRitmo(
+  realizado: number,
+  meta: number,
+  fracao: number,
+): { esperado: number; diferenca: number; situacao: SituacaoRitmo } | null {
+  if (meta <= 0) return null;
+  const esperado = meta * Math.min(Math.max(fracao, 0), 1);
+  const diferenca = realizado - esperado;
+  const folga = meta * 0.05;
+  const situacao: SituacaoRitmo =
+    diferenca > folga ? "adiantado" : diferenca < -folga ? "atrasado" : "no_ritmo";
+  return { esperado, diferenca, situacao };
+}
+
 export type JanelaComparavel = { from: Date; to: Date; parcial: boolean; ano: number; mes: number };
 
 /**
