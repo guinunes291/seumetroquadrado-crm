@@ -1,3 +1,4 @@
+import { chatbotSemProdutoInformado } from "@/lib/lead-webhook-projeto";
 import { createFileRoute } from "@tanstack/react-router";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import { comRpcsPendentes } from "@/integrations/supabase/webhook-lead-pendente";
@@ -147,10 +148,23 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
         // Precisa ser calculado antes do dedup para registrar o interesse
         // correto na interação de duplicata cross-project.
-        const projetoNomeInteresse =
+        const empreendimentoInformado =
           (data.empreendimento?.trim() || null) ??
-          (data.empreendimentoInteresse?.trim() || null) ??
-          projeto.nome;
+          (data.empreendimentoInteresse?.trim() || null);
+        // 28/10/2026 (Guilherme): o n8n da Sami usa o token do projeto
+        // Sabará como porta padrão. Lead do chatbot que chega por token de
+        // projeto SEM dizer o empreendimento não é do projeto do token:
+        // entra sem projeto (o corretor descobre na conversa) em vez de
+        // virar Sabará por engano.
+        const semProdutoDoChatbot = chatbotSemProdutoInformado({
+          viaCampanha: Boolean(campanha),
+          origem: data.origem,
+          empreendimento: data.empreendimento,
+          empreendimentoInteresse: data.empreendimentoInteresse,
+        });
+        if (semProdutoDoChatbot) projeto = { ...projeto, id: null, nome: "empreendimento não informado" };
+        const projetoNomeInteresse =
+          empreendimentoInformado ?? (semProdutoDoChatbot ? "" : projeto.nome);
 
         const resumo = (data.resumo ?? data.observacao ?? "").trim() || null;
         const blocoQualif = montarBlocoQualificacao(data);
@@ -166,7 +180,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const fgtsTxt = (data.fgts ?? "").toLowerCase();
         const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
 
-        const projetoNomeFinal = projetoNomeInteresse;
+        const projetoNomeFinal = projetoNomeInteresse || null;
 
         // --- INSERT-THEN-TRIAGE (distribuição v3) ---
         // O lead nasce SEM corretor e passa pela triagem única
@@ -275,7 +289,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               user_id: v.corretor_id,
               tipo: "sistema",
               titulo: "Cliente em negociação voltou pela campanha",
-              mensagem: `${data.nome} preencheu o formulário de ${projetoNomeInteresse}. Ele segue com você.`,
+              mensagem: `${data.nome} preencheu o formulário de ${projetoNomeInteresse || "contato"}. Ele segue com você.`,
               link: `/leads/${v.lead_id}`,
               ref_id: v.lead_id,
             });
@@ -539,7 +553,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             "🔔 *Novo lead recebido!*",
             "",
             `👤 Nome: ${data.nome}`,
-            `🏢 Empreendimento: ${projetoNomeFinal}`,
+            `🏢 Empreendimento: ${projetoNomeFinal ?? "não informado"}`,
             ...(data.faixaRenda ? [`💰 Faixa de renda: ${data.faixaRenda}`] : []),
             ...(blocoObs ? ["", blocoObs] : []),
             "",
@@ -552,7 +566,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               tipo: "lead_novo",
               titulo: "Novo lead atribuído (notificação WhatsApp falhou)",
               mensagem:
-                `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.` +
+                `Lead ${data.nome} — ${projetoNomeFinal ?? "sem empreendimento"}. Abra o CRM para atender.` +
                 (blocoObs ? `\n\n${blocoObs}` : ""),
               link: `/leads/${lead.id}`,
               ref_id: lead.id,
