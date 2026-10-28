@@ -25,11 +25,13 @@ import {
   fmtBRL,
   fmtBRLCompacto,
   formatNum,
+  fracaoUtilDoMes,
   metaPrincipal,
   metaVgvCorretor,
   metasPorCorretor,
   pctMeta,
   projetarMes,
+  situacaoNoRitmo,
   variacaoPct,
   type CalendarioPacing,
   type JanelaComparavel,
@@ -38,7 +40,7 @@ import {
   type RankRow,
   type Totais,
 } from "./ranking-derive";
-import { AnelMeta, BarraMeta, ListaRanking, Painel, VazioRanking } from "./ranking-ui";
+import { AnelMeta, BarraMeta, ListaRanking, MarcaHoje, Painel, VazioRanking } from "./ranking-ui";
 
 export function RankingRealXMeta({
   ano,
@@ -106,6 +108,11 @@ export function RankingRealXMeta({
     ? { ...projecaoCalculada, valor: null, pctMeta: null }
     : projecaoCalculada;
   const topVendedores = useMemo(() => classificar(rankingMes, "vendas"), [rankingMes]);
+  // Linha "hoje" das barras: mesma régua de dias úteis da projeção acima.
+  const fracaoHoje = useMemo(
+    () => fracaoUtilDoMes({ ano, mes, hoje, calendario })?.fracao ?? null,
+    [ano, mes, hoje, calendario],
+  );
   const rotuloComparacao = janelaAnterior.parcial
     ? `vs. mesmo período de ${MESES_LONGOS[janelaAnterior.mes - 1].toLowerCase()}`
     : `vs. ${MESES_LONGOS[janelaAnterior.mes - 1].toLowerCase()}`;
@@ -167,9 +174,15 @@ export function RankingRealXMeta({
             meta={metaTotais.vgv}
             unidade="de VGV"
             formatar={fmtBRLCompacto}
+            fracaoHoje={fracaoHoje}
           />
         ) : (
-          <BarraMeta realizado={totaisMes.vendas} meta={metaTotais.vendas} unidade="vendas" />
+          <BarraMeta
+            realizado={totaisMes.vendas}
+            meta={metaTotais.vendas}
+            unidade="vendas"
+            fracaoHoje={fracaoHoje}
+          />
         )}
       </Painel>
 
@@ -397,6 +410,7 @@ export function RankingRealXMeta({
             meta={metaTotais.vgv}
             unidade="de VGV"
             formatar={fmtBRLCompacto}
+            fracaoHoje={fracaoHoje}
           />
         )}
       </Painel>
@@ -423,10 +437,23 @@ export function RankingRealXMeta({
               const largura = (r.vgv / porCorretor.max) * 100;
               const marco = r.metaVgv.valor > 0 ? (r.metaVgv.valor / porCorretor.max) * 100 : 0;
               const bateu = r.metaVgv.valor > 0 && r.vgv >= r.metaVgv.valor;
+              // Onde ESTE corretor deveria estar hoje: a fração útil da meta dele.
+              const marcoHoje =
+                fracaoHoje !== null && marco > 0 && !bateu ? marco * fracaoHoje : null;
+              const atrasado =
+                marcoHoje !== null &&
+                situacaoNoRitmo(r.vgv, r.metaVgv.valor, fracaoHoje ?? 0)?.situacao === "atrasado";
               return (
                 <li key={r.corretorId}>
                   <div className="mb-1 flex flex-col gap-x-3 gap-y-0.5 text-sm sm:flex-row sm:items-center sm:justify-between">
-                    <span className="min-w-0 truncate font-medium">{r.nome}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{r.nome}</span>
+                      {atrasado && (
+                        <span className="shrink-0 rounded-sm bg-warning/15 px-1.5 py-px text-[11px] font-medium text-warning">
+                          atrás do ritmo
+                        </span>
+                      )}
+                    </span>
                     <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 tabular-nums">
                       {r.metaVgv.valor > 0 && (
                         <span className="text-xs text-muted-foreground">
@@ -459,6 +486,7 @@ export function RankingRealXMeta({
                         style={{ left: `${Math.min(marco, 100)}%` }}
                       />
                     )}
+                    {marcoHoje !== null && <MarcaHoje pct={Math.min(marcoHoje, 100)} />}
                   </div>
                 </li>
               );

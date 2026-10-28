@@ -3,7 +3,7 @@
 // depois de confirmar o insert — nada de "mensagem enviada sem histórico").
 // Controlado pelo shell da rota porque o StickyActionRail mobile também abre.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -39,11 +39,14 @@ export function WhatsappLeadDialog({
   onOpenChange,
   leadId,
   lead,
+  gatilho,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadId: string;
   lead: Pick<DossieLead, "nome" | "telefone" | "projeto_nome" | "objecoes">;
+  /** Gatilho próprio (precisa repassar ref/props — asChild); padrão: botão verde. */
+  gatilho?: ReactNode;
 }) {
   const qc = useQueryClient();
   const [waTemplateId, setWaTemplateId] = useState<string>("");
@@ -122,9 +125,11 @@ export function WhatsappLeadDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-exito-600 text-claro hover:bg-exito-700">
-          <WhatsappLogo className="h-4 w-4 mr-2" /> WhatsApp
-        </Button>
+        {gatilho ?? (
+          <Button className="bg-exito-600 text-claro hover:bg-exito-700">
+            <WhatsappLogo className="h-4 w-4 mr-2" /> WhatsApp
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
