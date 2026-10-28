@@ -157,7 +157,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         // virar Sabará por engano.
         const semProdutoDoChatbot =
           !campanha && data.origem === "chatbot" && !empreendimentoInformado;
-        if (semProdutoDoChatbot) projeto = { ...projeto, id: null };
+        if (semProdutoDoChatbot) projeto = { ...projeto, id: null, nome: "empreendimento não informado" };
         const projetoNomeInteresse =
           empreendimentoInformado ?? (semProdutoDoChatbot ? "" : projeto.nome);
 
@@ -284,7 +284,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               user_id: v.corretor_id,
               tipo: "sistema",
               titulo: "Cliente em negociação voltou pela campanha",
-              mensagem: `${data.nome} preencheu o formulário de ${projetoNomeInteresse}. Ele segue com você.`,
+              mensagem: `${data.nome} preencheu o formulário de ${projetoNomeInteresse || "contato"}. Ele segue com você.`,
               link: `/leads/${v.lead_id}`,
               ref_id: v.lead_id,
             });
@@ -548,7 +548,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             "🔔 *Novo lead recebido!*",
             "",
             `👤 Nome: ${data.nome}`,
-            `🏢 Empreendimento: ${projetoNomeFinal}`,
+            `🏢 Empreendimento: ${projetoNomeFinal ?? "não informado"}`,
             ...(data.faixaRenda ? [`💰 Faixa de renda: ${data.faixaRenda}`] : []),
             ...(blocoObs ? ["", blocoObs] : []),
             "",
@@ -561,7 +561,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               tipo: "lead_novo",
               titulo: "Novo lead atribuído (notificação WhatsApp falhou)",
               mensagem:
-                `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.` +
+                `Lead ${data.nome} — ${projetoNomeFinal ?? "sem empreendimento"}. Abra o CRM para atender.` +
                 (blocoObs ? `\n\n${blocoObs}` : ""),
               link: `/leads/${lead.id}`,
               ref_id: lead.id,
