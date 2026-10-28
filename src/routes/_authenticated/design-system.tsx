@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { RequireRole } from "@/components/require-role";
 import { PageHeader } from "@/components/page-header";
@@ -7,6 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CarimboPago } from "@/components/ui/carimbo-pago";
+import { useTheme } from "@/hooks/use-theme";
+import { origemDoEvento } from "@/lib/theme-transition";
 
 // Fase 0 da evolução de design: vitrine interna (só admin) dos tokens e
 // componentes COMO ESTÃO HOJE. Não altera nenhuma tela.
@@ -77,6 +82,46 @@ function Amostra({ nome, cssVar }: { nome: string; cssVar: string }) {
     <div className="space-y-1.5">
       <div className="h-14 rounded-lg border" style={{ background: `var(${cssVar})` }} />
       <p className="text-xs font-medium">{nome}</p>
+    </div>
+  );
+}
+
+/** Pílula gota, tema em círculo e carimbo "PAGA" — os três movimentos de 2026-10. */
+function DemoMovimento() {
+  const { resolved, setPref } = useTheme();
+  // Trocar a key remonta o carimbo, e ele bate de novo.
+  const [batida, setBatida] = useState(0);
+  return (
+    <div className="grid gap-6 md:grid-cols-3">
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">Pílula gota — troque de aba de longe</p>
+        <Tabs defaultValue="ranking">
+          <TabsList indicator>
+            <TabsTrigger value="ranking">Ranking</TabsTrigger>
+            <TabsTrigger value="competicao">Competição</TabsTrigger>
+            <TabsTrigger value="conquistas">Conquistas</TabsTrigger>
+            <TabsTrigger value="metas">Metas</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">Tema em círculo a partir do clique</p>
+        <Button
+          variant="outline"
+          onClick={(e) => setPref(resolved === "dark" ? "light" : "dark", origemDoEvento(e))}
+        >
+          {resolved === "dark" ? "Ir para Clareza" : "Ir para Modo Comando"}
+        </Button>
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">Carimbo de comissão paga</p>
+        <div className="flex items-center gap-4">
+          <CarimboPago key={batida} data="16/10/26" animar={batida > 0} />
+          <Button variant="ghost" size="sm" onClick={() => setBatida((n) => n + 1)}>
+            Carimbar de novo
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -156,6 +201,9 @@ function DesignSystemPage() {
           <StatusBadge intent="danger">Crítico</StatusBadge>
           <StatusBadge intent="info">Info</StatusBadge>
         </div>
+      </Secao>
+      <Secao titulo="Movimento">
+        <DemoMovimento />
       </Secao>
       <Secao titulo="Card, campo e carregamento">
         <div className="grid gap-4 md:grid-cols-2">
