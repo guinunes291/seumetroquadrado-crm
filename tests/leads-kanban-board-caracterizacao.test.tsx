@@ -76,6 +76,7 @@ describe("leads-kanban-board — caracterização", () => {
         "rpc(pipeline_stage_page_v2,{"_status":"em_atendimento","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"agendado","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"visita_realizada","_limit":20})",
+        "rpc(pipeline_stage_page_v2,{"_status":"proposta_enviada","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"analise_credito","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"contrato_fechado","_limit":20})",
         "rpc(pipeline_snapshot_v3,{})",
@@ -130,6 +131,7 @@ describe("leads-kanban-board — caracterização", () => {
         "Em atendimento · 3",
         "Agendado · 21",
         "Visita realizada · 0",
+        "Proposta enviada · 0",
         "Análise de crédito · 0",
         "Venda · 0",
       ]
@@ -147,6 +149,7 @@ describe("leads-kanban-board — caracterização", () => {
         "Em atendimento · 37/65",
         "Agendado · 21",
         "Visita realizada · 0",
+        "Proposta enviada · 0",
         "Análise de crédito · 0",
         "Venda · 0",
       ]
@@ -251,6 +254,7 @@ describe("leads-kanban-board — caracterização", () => {
         "rpc(pipeline_stage_page_v2,{"_status":"em_atendimento","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"agendado","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"visita_realizada","_limit":20})",
+        "rpc(pipeline_stage_page_v2,{"_status":"proposta_enviada","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"analise_credito","_limit":20})",
         "rpc(pipeline_stage_page_v2,{"_status":"contrato_fechado","_limit":20})",
         "rpc(pipeline_snapshot_v3,{})",
