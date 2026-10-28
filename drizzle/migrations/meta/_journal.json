@@ -834,6 +834,13 @@
       "when": 1793202276730,
       "tag": "0118_esteira_indicacao_sem_sdr",
       "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1793202382378,
+      "tag": "0119_esteira_indicacao_lead_proprio",
+      "breakpoints": true
     }
   ]
 }
