@@ -1,3 +1,4 @@
+import { chatbotSemProdutoInformado } from "@/lib/lead-webhook-projeto";
 import { createFileRoute } from "@tanstack/react-router";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import { comRpcsPendentes } from "@/integrations/supabase/webhook-lead-pendente";
