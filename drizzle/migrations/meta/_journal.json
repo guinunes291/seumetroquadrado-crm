@@ -841,6 +841,13 @@
       "when": 1793202382378,
       "tag": "0119_esteira_indicacao_lead_proprio",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1793202749895,
+      "tag": "0120_comissoes_gestor_so_equipe",
+      "breakpoints": true
     }
   ]
 }

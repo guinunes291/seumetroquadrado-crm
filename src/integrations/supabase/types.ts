@@ -14203,6 +14203,10 @@ export type Database = {
         Args: { _corretor: string; _gestor: string }
         Returns: boolean
       }
+      gestor_ve_beneficiario: {
+        Args: { _benef: string; _gestor: string }
+        Returns: boolean
+      }
       get_dist_setting: { Args: { _chave: string }; Returns: Json }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
