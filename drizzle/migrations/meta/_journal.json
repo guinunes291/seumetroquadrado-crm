@@ -827,6 +827,13 @@
       "when": 1793110385441,
       "tag": "0117_tarefas_concluir_sem_reatribuir",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1793202276730,
+      "tag": "0118_esteira_indicacao_sem_sdr",
+      "breakpoints": true
     }
   ]
 }
