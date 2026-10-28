@@ -15,16 +15,19 @@ describe("funil — avanço a partir dos cards", () => {
       expect(FUNNEL_STAGES).not.toContain("perdido");
     });
 
-    it("tem 8 etapas, preservando a ordem do funil do corretor", () => {
+    it("tem 9 etapas, preservando a ordem do funil do corretor", () => {
       expect(FUNNEL_STAGES).toEqual(LEAD_STATUS_ORDER.filter((s) => s !== "perdido"));
-      expect(FUNNEL_STAGES).toHaveLength(8);
+      expect(FUNNEL_STAGES).toHaveLength(9);
       expect(FUNNEL_STAGES[0]).toBe("aguardando_atendimento");
       expect(FUNNEL_STAGES[FUNNEL_STAGES.length - 1]).toBe("contrato_fechado");
     });
 
-    it("inclui 'aguardando_retorno' e exclui status legados do funil", () => {
+    // `proposta_enviada` voltou ao funil como coluna da Carteira com o Link de
+    // Proposta (2026-10) — ver o comentário de LEAD_STATUS_ORDER.
+    it("inclui 'aguardando_retorno' e 'proposta_enviada' e exclui status legados do funil", () => {
       expect(FUNNEL_STAGES).toContain("aguardando_retorno");
-      for (const legado of ["novo", "qualificado", "proposta_enviada", "pos_venda"] as const) {
+      expect(FUNNEL_STAGES).toContain("proposta_enviada");
+      for (const legado of ["novo", "qualificado", "pos_venda"] as const) {
         expect(FUNNEL_STAGES).not.toContain(legado);
       }
     });
