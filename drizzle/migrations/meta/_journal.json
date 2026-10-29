@@ -848,6 +848,13 @@
       "when": 1793202749895,
       "tag": "0120_comissoes_gestor_so_equipe",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793240154687,
+      "tag": "0121_docs_bot_select_agendamentos_vendas_tarefas_interacoes",
+      "breakpoints": true
     }
   ]
 }
