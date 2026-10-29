@@ -855,6 +855,13 @@
       "when": 1793240154687,
       "tag": "0121_docs_bot_select_agendamentos_vendas_tarefas_interacoes",
       "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1793241172525,
+      "tag": "0122_mcp_funil_contagens",
+      "breakpoints": true
     }
   ]
 }
