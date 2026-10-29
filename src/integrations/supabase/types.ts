@@ -14709,6 +14709,21 @@ export type Database = {
           tabela: string
         }[]
       }
+      mcp_funil_contagens: {
+        Args: {
+          _ate?: string
+          _corretor_id?: string
+          _desde?: string
+          _excluir_importados?: boolean
+          _incluir_lixeira?: boolean
+          _origens?: string[]
+        }
+        Returns: {
+          status: string
+          temperatura: string
+          total: number
+        }[]
+      }
       mcp_log_bloqueio: {
         Args: { _acao: string; _detalhe: string; _tabela: string }
         Returns: undefined
