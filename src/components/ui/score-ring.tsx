@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { INTENT_TEXT, type Intent } from "@/lib/status-tones";
 
@@ -17,6 +17,7 @@ export function ScoreRing({
   showValue = true,
   className,
   title,
+  centro,
 }: {
   /** 0–100 (valores fora da faixa são grampeados). */
   value: number;
@@ -28,6 +29,8 @@ export function ScoreRing({
   className?: string;
   /** Acessibilidade/tooltip — ex.: "Score de prioridade 82". */
   title?: string;
+  /** Conteúdo no centro no lugar do número (ex.: iniciais do lead). */
+  centro?: ReactNode;
 }) {
   const v = Math.max(0, Math.min(100, Math.round(value)));
   // Renderiza vazio e preenche no frame seguinte: a transition de
@@ -70,13 +73,17 @@ export function ScoreRing({
           className="stroke-current transition-[stroke-dasharray] duration-500 motion-reduce:transition-none"
         />
       </svg>
-      {showValue && (
-        <span
-          className="font-display absolute inset-0 flex items-center justify-center font-semibold tabular-nums text-foreground"
-          style={{ fontSize: Math.max(9, size * 0.3) }}
-        >
-          {v}
-        </span>
+      {centro !== undefined ? (
+        <span className="absolute inset-0 flex items-center justify-center">{centro}</span>
+      ) : (
+        showValue && (
+          <span
+            className="font-display absolute inset-0 flex items-center justify-center font-semibold tabular-nums text-foreground"
+            style={{ fontSize: Math.max(9, size * 0.3) }}
+          >
+            {v}
+          </span>
+        )
       )}
     </span>
   );

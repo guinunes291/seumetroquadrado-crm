@@ -1,3 +1,8 @@
+# Ajuste de comissão na aprovação
+- [x] Permitir ajuste da comissão do corretor com justificativa obrigatória fora da regra e registrar regra, justificativa e autor da aprovação.
+- [x] Conferir percentuais Marquinhos no banco e testar cálculo e justificativa: 15 testes passaram.
+- [ ] Validar aprovação autenticada na tela: emissão da sessão do solicitante falhou; aguarda login no preview. Camila não possui agendamento que a classifique como Marquinhos; nenhuma venda real foi aprovada ou recalculada.
+
 # Buscas da Sami
 - [x] Criar colunas normalizadas e índices de projetos, preservando políticas e grants existentes.
 - [x] Ajustar ferramentas e testes para nome, acentos e curadoria filtrada.

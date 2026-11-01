@@ -11,6 +11,7 @@ import {
   type ResolvedTheme,
   type ThemePref,
 } from "@/lib/theme";
+import { trocarTemaComCirculo, type OrigemTema } from "@/lib/theme-transition";
 
 type Listener = () => void;
 type Snapshot = `${ThemePref}:${ResolvedTheme}`;
@@ -69,18 +70,26 @@ function subscribe(listener: Listener) {
 export function useTheme(): {
   pref: ThemePref;
   resolved: ResolvedTheme;
-  setPref: (pref: ThemePref) => void;
+  /** `origem` (ponto do clique) liga a troca em círculo; sem ela, nasce do centro. */
+  setPref: (pref: ThemePref, origem?: OrigemTema) => void;
 } {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [pref, resolved] = snap.split(":") as [ThemePref, ResolvedTheme];
-  const setPref = useCallback((p: ThemePref) => {
-    memoryPref = p;
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, p);
-    } catch {
-      /* modo privado: o tema vale só para a sessão atual (memoryPref) */
-    }
-    refresh();
+  const setPref = useCallback((p: ThemePref, origem?: OrigemTema) => {
+    const aplicar = () => {
+      memoryPref = p;
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, p);
+      } catch {
+        /* modo privado: o tema vale só para a sessão atual (memoryPref) */
+      }
+      refresh();
+    };
+    // Só anima quando a tela muda de fato (ex.: "Seguir o sistema" estando já
+    // no mesmo tema do SO troca a preferência sem trocar a cor).
+    const atual = getSnapshot().endsWith(":dark") ? "dark" : "light";
+    if (resolveTheme(p, systemDark()) === atual) aplicar();
+    else trocarTemaComCirculo(aplicar, origem);
   }, []);
   return { pref, resolved, setPref };
 }

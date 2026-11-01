@@ -18,6 +18,7 @@ import {
   Clock,
   FileText,
   Megaphone,
+  PencilSimple,
   Phone,
   PhoneCall,
   Target,
@@ -52,7 +53,6 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
-import { ScoreRing } from "@/components/ui/score-ring";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { LEAD_STATUS_BADGE_TONE } from "@/lib/leads";
 import { origemLabel } from "@/lib/origem";
@@ -71,6 +71,12 @@ import { AnaliseCreditoCard } from "@/components/lead-stage/analise-resultado";
 import { WhatsappLeadDialog } from "@/features/leads/dossie/whatsapp-dialog";
 import { WhatsappTab } from "@/features/leads/dossie/whatsapp-tab";
 import { EditarLeadDialog } from "@/features/leads/dossie/editar-lead-dialog";
+import {
+  ACAO_REDONDA_CLASSE,
+  AcaoRedonda,
+  AcaoRedondaConteudo,
+  AnelDoLead,
+} from "@/features/leads/dossie/identidade-lead";
 import { usePublicarFaseDoLead } from "@/features/nav/contexto-jornada";
 import { useAuth } from "@/hooks/use-auth";
 import { SdrLeadCard } from "@/features/sdr/sdr-lead-card";
@@ -281,6 +287,9 @@ function LeadDetailPage() {
 
       <PageHeader
         title={lead.nome}
+        // Iniciais no anel do score de prioridade: quem é e quão urgente numa
+        // peça só (referência de 2026-10, ficha de contato).
+        leading={<AnelDoLead nome={lead.nome} score={scoreInfo} />}
         // Quem é o lead numa linha: temperatura e etapa encostadas no nome,
         // contato, projeto, origem e tempo no funil embaixo (identidade v3).
         titleAddon={
@@ -317,34 +326,11 @@ function LeadDetailPage() {
           </div>
         }
         actions={
-          // No celular, Ligar e WhatsApp já vivem na barra fixa de ações lá
-          // embaixo — repetir aqui só rouba espaço. Registrar contato e Editar
-          // dados não têm outro caminho, então aparecem em qualquer tamanho de
-          // tela (antes o bloco inteiro era `hidden md:flex` e sumiam).
-          <div className="flex flex-wrap gap-2">
-            {/* Click-to-call 3C Plus: o agente do corretor disca o lead (a voz
-                toca no webphone); sem telefonia configurada o hook degrada
-                para o tel:. */}
-            <Button
-              variant="outline"
-              className="hidden md:inline-flex"
-              disabled={discando}
-              onClick={() => ligar({ id: lead.id, nome: lead.nome, telefone: lead.telefone })}
-            >
-              <Phone className="h-4 w-4 mr-2" /> Ligar
-            </Button>
-            <Button variant="outline" onClick={() => setContatoOpen(true)}>
-              <PhoneCall className="h-4 w-4 mr-2" /> Registrar contato
-            </Button>
-            {/* Match IA saiu da sidebar (corte 2026-08-30): o lugar do match
-                é a ficha de quem se quer casar com produto — abre direto na
-                aba IA, a única que consome o leadId (o match financeiro é
-                calculadora sem contexto de lead). */}
-            <Button asChild variant="outline" className="hidden md:inline-flex">
-              <Link to="/match" search={{ leadId, mode: "ia" }}>
-                <SamiMark className="h-4 w-4 mr-2" /> Match IA
-              </Link>
-            </Button>
+          // Ações redondas com rótulo embaixo (referência de 2026-10). No
+          // celular, WhatsApp e Ligar já vivem na barra fixa lá embaixo, então
+          // ficam só no desktop; Registrar contato e Editar não têm outro
+          // caminho e aparecem em qualquer tela.
+          <div className="flex flex-wrap gap-1">
             {/* O conteúdo do diálogo é portalado para o body: esconder só o
                 gatilho no celular não impede a barra fixa de abrir o WhatsApp. */}
             <div className="hidden md:block">
@@ -358,9 +344,42 @@ function LeadDetailPage() {
                   projeto_nome: lead.projeto_nome,
                   objecoes: lead.objecoes,
                 }}
+                gatilho={<AcaoRedonda destaque icone={<WhatsappLogo />} rotulo="WhatsApp" />}
               />
             </div>
-            <EditarLeadDialog leadId={leadId} lead={lead} />
+            {/* Click-to-call 3C Plus: o agente do corretor disca o lead (a voz
+                toca no webphone); sem telefonia configurada o hook degrada
+                para o tel:. */}
+            <AcaoRedonda
+              className="hidden md:inline-flex"
+              disabled={discando}
+              onClick={() => ligar({ id: lead.id, nome: lead.nome, telefone: lead.telefone })}
+              icone={<Phone />}
+              rotulo="Ligar"
+            />
+            <AcaoRedonda
+              onClick={() => setContatoOpen(true)}
+              icone={<PhoneCall />}
+              rotulo="Registrar contato"
+            />
+            {/* Match IA saiu da sidebar (corte 2026-08-30): o lugar do match
+                é a ficha de quem se quer casar com produto — abre direto na
+                aba IA, a única que consome o leadId (o match financeiro é
+                calculadora sem contexto de lead). */}
+            <Link
+              to="/match"
+              search={{ leadId, mode: "ia" }}
+              className={cn(ACAO_REDONDA_CLASSE, "hidden md:inline-flex")}
+            >
+              <AcaoRedondaConteudo icone={<SamiMark />} rotulo="Match IA" />
+            </Link>
+            <EditarLeadDialog
+              leadId={leadId}
+              lead={lead}
+              gatilho={(abrir) => (
+                <AcaoRedonda onClick={abrir} icone={<PencilSimple />} rotulo="Editar dados" />
+              )}
+            />
           </div>
         }
       />
@@ -369,18 +388,7 @@ function LeadDetailPage() {
           briefing por IA, tudo em um painel só (dossiê inteligente). */}
       <Card className="mb-6 overflow-hidden">
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center md:p-5">
-          <ScoreRing
-            value={scoreInfo.score}
-            size={52}
-            intent={
-              scoreInfo.tier === "alta"
-                ? "danger"
-                : scoreInfo.tier === "media"
-                  ? "warning"
-                  : "neutral"
-            }
-            title={`Score de prioridade ${scoreInfo.score} — ${scoreInfo.motivo}`}
-          />
+          {/* O score mora no anel das iniciais, no cabeçalho — aqui fica a ação. */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Target className="h-3.5 w-3.5 text-modulo-central" /> Próxima melhor ação
@@ -604,7 +612,12 @@ function LeadDetailPage() {
       <HistoricoResponsaveisCard leadId={leadId} corretorId={lead.corretor_id} />
 
       <LinksEnviadosCard
-        lead={{ id: lead.id, nome: lead.nome, telefone: lead.telefone, projeto_id: lead.projeto_id }}
+        lead={{
+          id: lead.id,
+          nome: lead.nome,
+          telefone: lead.telefone,
+          projeto_id: lead.projeto_id,
+        }}
       />
 
       <LeadStatusCards leadId={leadId} lead={lead} />

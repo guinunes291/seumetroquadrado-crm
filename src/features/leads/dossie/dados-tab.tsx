@@ -6,31 +6,58 @@ import {
   ArrowRight,
   Buildings,
   CalendarBlank,
+  Copy,
   Envelope,
   MapPin,
   Phone,
   User,
   type Icon as IconComponent,
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import type { DossieLead } from "@/features/leads/dossie/types";
+
+/** Copia e confirma; sem permissão de área de transferência, avisa em vez de calar. */
+function copiar(rotulo: string, valor: string) {
+  navigator.clipboard
+    .writeText(valor)
+    .then(() => toast.success(`${rotulo} copiado`))
+    .catch(() => toast.error("Não foi possível copiar — selecione e copie manualmente."));
+}
 
 function DataRow({
   icon: Icon,
   label,
   value,
+  copiavel = false,
 }: {
   icon: IconComponent;
   label: string;
   value: string | null | undefined;
+  /** Botão de copiar no fim da linha (referência de 2026-10): telefone para o
+   *  WhatsApp, CPF para o simulador do banco — sem selecionar texto no dedo. */
+  copiavel?: boolean;
 }) {
+  // "Copiar telefone", mas "Copiar CPF": sigla fica em caixa alta.
+  const acao = `Copiar ${label === label.toUpperCase() ? label : label.toLowerCase()}`;
   return (
     <div className="flex items-start gap-2">
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-      <div>
+      <div className="min-w-0 flex-1">
         <div className="text-xs uppercase text-muted-foreground">{label}</div>
-        <div>{value || "—"}</div>
+        <div className="break-words">{value || "—"}</div>
       </div>
+      {copiavel && value && (
+        <button
+          type="button"
+          onClick={() => copiar(label, value)}
+          aria-label={acao}
+          title={acao}
+          className="-mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <Copy className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -40,8 +67,8 @@ export function DadosTab({ lead }: { lead: DossieLead }) {
     <>
       <div className="grid gap-4 rounded-xl border border-border-subtle bg-card p-6 text-sm shadow-elev-1 md:grid-cols-2">
         <DataRow icon={User} label="Nome" value={lead.nome} />
-        <DataRow icon={Phone} label="Telefone" value={lead.telefone} />
-        <DataRow icon={Envelope} label="E-mail" value={lead.email} />
+        <DataRow icon={Phone} label="Telefone" value={lead.telefone} copiavel />
+        <DataRow icon={Envelope} label="E-mail" value={lead.email} copiavel />
         <DataRow icon={Buildings} label="Empreendimento" value={lead.projeto_nome} />
         <DataRow
           icon={CalendarBlank}
@@ -52,7 +79,7 @@ export function DadosTab({ lead }: { lead: DossieLead }) {
         />
         <DataRow icon={MapPin} label="Renda informada" value={lead.renda_informada} />
         <DataRow icon={User} label="Tipo de renda" value={lead.tipo_renda} />
-        <DataRow icon={User} label="CPF" value={lead.cpf} />
+        <DataRow icon={User} label="CPF" value={lead.cpf} copiavel />
         <DataRow icon={User} label="Entrada disponível" value={lead.entrada_disponivel} />
         <DataRow icon={User} label="Usa FGTS" value={lead.usa_fgts ? "Sim" : "Não"} />
         <DataRow icon={User} label="Faixa MCMV" value={lead.faixa_mcmv} />

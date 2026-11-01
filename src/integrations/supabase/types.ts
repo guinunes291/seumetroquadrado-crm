@@ -10131,6 +10131,7 @@ export type Database = {
           esteira_comissao: string | null
           gerente_beneficiario_id: string | null
           id: string
+          justificativa_comissao_corretor: string | null
           lead_id: string | null
           legacy_id: number | null
           motivo_decisao: string | null
@@ -10140,6 +10141,7 @@ export type Database = {
           pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
+          percentual_corretor_regra: number | null
           percentual_gerente: number
           percentual_superintendente: number
           previsao_recebimento: string | null
@@ -10175,6 +10177,7 @@ export type Database = {
           esteira_comissao?: string | null
           gerente_beneficiario_id?: string | null
           id?: string
+          justificativa_comissao_corretor?: string | null
           lead_id?: string | null
           legacy_id?: number | null
           motivo_decisao?: string | null
@@ -10184,6 +10187,7 @@ export type Database = {
           pct_share_corretor?: number | null
           percentual_comissao?: number
           percentual_corretor?: number
+          percentual_corretor_regra?: number | null
           percentual_gerente?: number
           percentual_superintendente?: number
           previsao_recebimento?: string | null
@@ -10219,6 +10223,7 @@ export type Database = {
           esteira_comissao?: string | null
           gerente_beneficiario_id?: string | null
           id?: string
+          justificativa_comissao_corretor?: string | null
           lead_id?: string | null
           legacy_id?: number | null
           motivo_decisao?: string | null
@@ -10228,6 +10233,7 @@ export type Database = {
           pct_share_corretor?: number | null
           percentual_comissao?: number
           percentual_corretor?: number
+          percentual_corretor_regra?: number | null
           percentual_gerente?: number
           percentual_superintendente?: number
           previsao_recebimento?: string | null
@@ -12548,6 +12554,7 @@ export type Database = {
           esteira_comissao: string | null
           gerente_beneficiario_id: string | null
           id: string
+          justificativa_comissao_corretor: string | null
           lead_id: string | null
           legacy_id: number | null
           motivo_decisao: string | null
@@ -12557,6 +12564,70 @@ export type Database = {
           pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
+          percentual_corretor_regra: number | null
+          percentual_gerente: number
+          percentual_superintendente: number
+          previsao_recebimento: string | null
+          projeto_id: string | null
+          projeto_nome: string | null
+          socio_fabio_id: string | null
+          socio_guilherme_id: string | null
+          status_recebimento: string
+          status_venda: Database["public"]["Enums"]["status_venda"]
+          status_venda_updated_at: string
+          tier_comissao: string | null
+          unidade: string | null
+          updated_at: string
+          valor_recebido: number | null
+          valor_venda: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "vendas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      aprovar_venda_com_comissao: {
+        Args: {
+          p_gerente_id: string
+          p_justificativa?: string
+          p_percentual_corretor: number
+          p_percentual_gerente: number
+          p_percentual_total: number
+          p_socio_fabio_id: string
+          p_venda_id: string
+        }
+        Returns: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          apto_repasse: boolean
+          apto_repasse_em: string | null
+          ato_pago: boolean
+          ato_pago_em: string | null
+          contrato_assinado: boolean
+          contrato_assinado_em: string | null
+          corretor_id: string | null
+          created_at: string
+          criado_por_id: string | null
+          data_assinatura: string
+          data_distrato: string | null
+          data_recebimento: string | null
+          distrato: boolean
+          esteira_comissao: string | null
+          gerente_beneficiario_id: string | null
+          id: string
+          justificativa_comissao_corretor: string | null
+          lead_id: string | null
+          legacy_id: number | null
+          motivo_decisao: string | null
+          motivo_distrato: string | null
+          nf_emitida_em: string | null
+          observacoes: string | null
+          pct_share_corretor: number | null
+          percentual_comissao: number
+          percentual_corretor: number
+          percentual_corretor_regra: number | null
           percentual_gerente: number
           percentual_superintendente: number
           previsao_recebimento: string | null
@@ -12691,6 +12762,7 @@ export type Database = {
           esteira_comissao: string | null
           gerente_beneficiario_id: string | null
           id: string
+          justificativa_comissao_corretor: string | null
           lead_id: string | null
           legacy_id: number | null
           motivo_decisao: string | null
@@ -12700,6 +12772,7 @@ export type Database = {
           pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
+          percentual_corretor_regra: number | null
           percentual_gerente: number
           percentual_superintendente: number
           previsao_recebimento: string | null
@@ -14203,6 +14276,10 @@ export type Database = {
         Args: { _corretor: string; _gestor: string }
         Returns: boolean
       }
+      gestor_ve_beneficiario: {
+        Args: { _benef: string; _gestor: string }
+        Returns: boolean
+      }
       get_dist_setting: { Args: { _chave: string }; Returns: Json }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
@@ -14703,6 +14780,21 @@ export type Database = {
         Returns: {
           coluna: string
           tabela: string
+        }[]
+      }
+      mcp_funil_contagens: {
+        Args: {
+          _ate?: string
+          _corretor_id?: string
+          _desde?: string
+          _excluir_importados?: boolean
+          _incluir_lixeira?: boolean
+          _origens?: string[]
+        }
+        Returns: {
+          status: string
+          temperatura: string
+          total: number
         }[]
       }
       mcp_log_bloqueio: {

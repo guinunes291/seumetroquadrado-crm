@@ -2,7 +2,7 @@
 // preenchido a partir do lead NO CLIQUE (não em render), igual ao comportamento
 // original da rota — editar não perde o rascunho se o lead refetchar no meio.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PencilSimple } from "@phosphor-icons/react";
@@ -41,7 +41,16 @@ function ehOrigem(valor: string): valor is LeadOrigem {
   return ORIGENS.includes(valor);
 }
 
-export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: DossieLead }) {
+export function EditarLeadDialog({
+  leadId,
+  lead,
+  gatilho,
+}: {
+  leadId: string;
+  lead: DossieLead;
+  /** Gatilho próprio, recebendo a função que abre; padrão: botão "Editar dados". */
+  gatilho?: (abrir: () => void) => ReactNode;
+}) {
   const qc = useQueryClient();
   const { isAdmin } = useUserRoles();
   const [editOpen, setEditOpen] = useState(false);
@@ -119,9 +128,13 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
 
   return (
     <>
-      <Button variant="outline" onClick={openEdit}>
-        <PencilSimple className="h-4 w-4 mr-2" /> Editar dados
-      </Button>
+      {gatilho ? (
+        gatilho(openEdit)
+      ) : (
+        <Button variant="outline" onClick={openEdit}>
+          <PencilSimple className="h-4 w-4 mr-2" /> Editar dados
+        </Button>
+      )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-2xl">

@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { primeiroNome, snapshotSchema, urlPublicaProposta, validadeMaxima } from "@/lib/proposta-link";
+import type { Json } from "@/integrations/supabase/types";
+import {
+  primeiroNome,
+  snapshotSchema,
+  urlPublicaProposta,
+  validadeMaxima,
+} from "@/lib/proposta-link";
 
 // Corretor: publicar e revogar links. A escrita em `propostas` só acontece por
 // RPC SECURITY DEFINER com service role, depois que o servidor confere quem é
@@ -23,7 +29,11 @@ function novoToken(): string {
 async function perfilCorretorProposta(corretorId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [{ data: perfil }, { data: link }] = await Promise.all([
-    supabaseAdmin.from("profiles").select("nome, foto_url, avatar_url, telefone, creci").eq("id", corretorId).maybeSingle(),
+    supabaseAdmin
+      .from("profiles")
+      .select("nome, foto_url, avatar_url, telefone, creci")
+      .eq("id", corretorId)
+      .maybeSingle(),
     supabaseAdmin
       .from("agendamento_links")
       .select("id")
@@ -34,7 +44,11 @@ async function perfilCorretorProposta(corretorId: string) {
   ]);
   const tel = (perfil?.telefone ?? "").replace(/\D/g, "");
   const whatsapp =
-    tel.length === 10 || tel.length === 11 ? `55${tel}` : tel.length >= 12 && tel.length <= 13 ? tel : null;
+    tel.length === 10 || tel.length === 11
+      ? `55${tel}`
+      : tel.length >= 12 && tel.length <= 13
+        ? tel
+        : null;
   return {
     corretor: {
       nome: perfil?.nome?.trim() || "Seu corretor",
@@ -50,7 +64,11 @@ export const perfilParaProposta = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ leadId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: lead } = await context.supabase.from("leads").select("corretor_id").eq("id", data.leadId).maybeSingle();
+    const { data: lead } = await context.supabase
+      .from("leads")
+      .select("corretor_id")
+      .eq("id", data.leadId)
+      .maybeSingle();
     if (!lead) throw new Error("Lead não encontrado ou sem acesso.");
     const corretorId = lead.corretor_id ?? context.userId;
     const r = await perfilCorretorProposta(corretorId);
@@ -104,14 +122,19 @@ export const publicarPropostaLink = createServerFn({ method: "POST" })
       _projeto_id: data.projetoId as string,
       _token_hash: tokenHash,
       _expira_em: expira.toISOString(),
-      _snapshot: snapshot as never,
+      _snapshot: snapshot as Json,
       _snapshot_hash: snapshotHash,
     });
     if (error) {
-      if (error.message.includes("proposta_forbidden")) throw new Error("Sem permissão para este lead.");
+      if (error.message.includes("proposta_forbidden"))
+        throw new Error("Sem permissão para este lead.");
       throw new Error("Não foi possível gerar o link.");
     }
-    return { id: id as string, url: urlPublicaProposta(`/p/${token}`), expiraEm: expira.toISOString() };
+    return {
+      id: id as string,
+      url: urlPublicaProposta(`/p/${token}`),
+      expiraEm: expira.toISOString(),
+    };
   });
 
 export const revogarPropostaLink = createServerFn({ method: "POST" })
@@ -124,7 +147,8 @@ export const revogarPropostaLink = createServerFn({ method: "POST" })
       _proposta_id: data.id,
     });
     if (error) {
-      if (error.message.includes("proposta_forbidden")) throw new Error("Sem permissão para revogar.");
+      if (error.message.includes("proposta_forbidden"))
+        throw new Error("Sem permissão para revogar.");
       throw new Error("Não foi possível revogar.");
     }
     return { revogado: ok === true };

@@ -7,18 +7,39 @@ const Tabs = TabsPrimitive.Root;
 
 type TabsListProps = React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & {
   /**
-   * Pill deslizante sob a aba ativa (SMQ Motion). O movimento é transform;
-   * a medição usa offsetLeft/offsetWidth (imune a scroll da faixa).
-   * Opt-in — o visual clássico (bg no trigger) continua o default.
+   * Pill deslizante sob a aba ativa (SMQ Motion). Desliza como uma gota: a
+   * borda da frente vai antes e a de trás alcança (`.tab-pill` em styles.css).
+   * A medição usa offsetLeft/offsetTop (imune a scroll da faixa) e acompanha
+   * a altura da aba, então serve também à faixa que quebra em duas linhas.
+   * Ligado por padrão desde 2026-10: parado, o pill tem o mesmo fundo e
+   * sombra do trigger ativo clássico, então nenhuma tela muda de cara — só
+   * ganha o movimento. `indicator={false}` volta ao clássico.
    */
   indicator?: boolean;
 };
 
+/** Bordas como variáveis CSS (`.tab-pill` em styles.css) + posição vertical. */
+function pillStyle(p: { l: number; r: number; t: number; h: number }): React.CSSProperties {
+  const style: React.CSSProperties & Record<"--pill-l" | "--pill-r", string> = {
+    "--pill-l": `${p.l}px`,
+    "--pill-r": `${p.r}px`,
+    top: p.t,
+    height: p.h,
+  };
+  return style;
+}
+
 const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, TabsListProps>(
-  ({ className, indicator = false, children, ...props }, ref) => {
+  ({ className, indicator = true, children, ...props }, ref) => {
     const innerRef = React.useRef<React.ElementRef<typeof TabsPrimitive.List>>(null);
     React.useImperativeHandle(ref, () => innerRef.current!);
-    const [pill, setPill] = React.useState<{ x: number; w: number } | null>(null);
+    const [pill, setPill] = React.useState<{
+      l: number;
+      r: number;
+      t: number;
+      h: number;
+      dir: "dir" | "esq";
+    } | null>(null);
 
     const measure = React.useCallback(() => {
       const list = innerRef.current;
@@ -28,7 +49,16 @@ const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, T
         setPill(null);
         return;
       }
-      setPill({ x: active.offsetLeft, w: active.offsetWidth });
+      const l = active.offsetLeft;
+      const r = l + active.offsetWidth;
+      // A direção decide qual borda lidera; num resize (mesma aba) mantém a anterior.
+      setPill((prev) => ({
+        l,
+        r,
+        t: active.offsetTop,
+        h: active.offsetHeight,
+        dir: !prev || l === prev.l ? (prev?.dir ?? "dir") : l < prev.l ? "esq" : "dir",
+      }));
     }, []);
 
     React.useLayoutEffect(() => {
@@ -59,8 +89,9 @@ const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, T
         {indicator && pill && (
           <span
             aria-hidden="true"
-            className="absolute inset-y-1 left-0 -z-10 rounded-md bg-background shadow motion-reduce:transition-none transition-[transform,width] duration-200"
-            style={{ transform: `translateX(${pill.x}px)`, width: pill.w }}
+            data-dir={pill.dir}
+            className="tab-pill absolute left-0 -z-10 rounded-md bg-background shadow motion-reduce:transition-none"
+            style={pillStyle(pill)}
           />
         )}
         {children}

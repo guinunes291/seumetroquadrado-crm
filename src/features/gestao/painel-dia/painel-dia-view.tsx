@@ -37,6 +37,7 @@ import {
   type ExcecaoTipo,
 } from "./derive";
 import { DiaTopo } from "./dia-topo";
+import { NegociacoesQuentes } from "@/features/quentes/negociacoes-quentes";
 import { ExcecaoItem } from "./excecao-item";
 import { usePainelDia } from "./use-painel-dia";
 import { ExcecaoForaDaRegiaoFields } from "@/features/distribuicao/excecao-fora-da-regiao";
@@ -176,6 +177,10 @@ export function PainelDiaView() {
       {/* Identidade Lançamento (como no vídeo): os números do mês, as 12
           semanas e as exceções mais graves; o feed completo segue abaixo. */}
       <DiaTopo painel={painel} />
+
+      {/* "Hot deals" (referência de 2026-10): o que está mais perto de fechar,
+          para o gestor empurrar antes de cuidar das exceções. */}
+      <NegociacoesQuentes />
 
       {/* Cabeçalho: total, R$ em risco e frescor do dado */}
       <div

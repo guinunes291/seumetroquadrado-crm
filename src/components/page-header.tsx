@@ -42,12 +42,15 @@ export function PageHeader({
   description,
   actions,
   eyebrow,
+  leading,
 }: {
   title: string;
   titleAddon?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   eyebrow?: ReactNode | false;
+  /** Peça à esquerda do título (ex.: o anel com as iniciais no dossiê do lead). */
+  leading?: ReactNode;
 }) {
   const secao = useContext(SecaoContext);
   if (secao) {
@@ -68,21 +71,24 @@ export function PageHeader({
   }
   return (
     <div className="mb-6 flex flex-col gap-3 md:mb-8 md:flex-row md:items-end md:justify-between">
-      <div className="min-w-0">
-        {eyebrow === undefined ? (
-          <EyebrowDoModulo titulo={title} />
-        ) : eyebrow ? (
-          <p className={EYEBROW}>{eyebrow}</p>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="font-display text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-[2.25rem]">
-            {title}
-          </h1>
-          {titleAddon}
+      <div className="flex min-w-0 items-center gap-4">
+        {leading}
+        <div className="min-w-0">
+          {eyebrow === undefined ? (
+            <EyebrowDoModulo titulo={title} />
+          ) : eyebrow ? (
+            <p className={EYEBROW}>{eyebrow}</p>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="font-display text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-[2.25rem]">
+              {title}
+            </h1>
+            {titleAddon}
+          </div>
+          {description && (
+            <div className="mt-1.5 text-sm text-muted-foreground md:text-base">{description}</div>
+          )}
         </div>
-        {description && (
-          <div className="mt-1.5 text-sm text-muted-foreground md:text-base">{description}</div>
-        )}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
