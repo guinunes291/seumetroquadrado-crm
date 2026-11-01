@@ -1,4 +1,6 @@
 # Marquinhos (Mark) pela Sami
+- [ ] Separar CANCELAR de DESFAZER e testar cancelamento sem pendências.
+- [ ] Permitir seleção independente de conversa por lead_id ou nome e status; testar homônimos.
 - [x] Autorizar escopo global somente para canal Marquinhos com chave válida e perfil Admin indicado; manter carteira nos demais canais.
 - [x] Separar conversa e confirmação, preservar desfazer e registrar autoria Marquinhos.
 - [ ] Corrigir timeout do MCP externo: crm_buscar_lead não existe nos fontes disponíveis; índice trigram de nome já existe e busca direta levou 49 ms. Aguarda acesso à implementação/chamada do MCP.
