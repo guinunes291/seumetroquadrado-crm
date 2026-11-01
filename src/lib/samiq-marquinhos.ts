@@ -32,6 +32,19 @@ export function confirmarExplicitoMarquinhos(texto: string): boolean {
   return /^confirma(r)?\b/i.test(texto.trim());
 }
 
+/** A recorded action is never an implicit cancellation target in this channel. */
+export function desfazerExplicitoMarquinhos(texto: string): boolean {
+  return /^desfazer\b/i.test(texto.trim());
+}
+
+export function selecionarLeadMarquinhos<T extends { id: string; nome: string | null; status: string }>(
+  candidatos: readonly T[], nome: string, status: string,
+): T | null {
+  const normalizar = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+  const encontrados = candidatos.filter((c) => normalizar(c.nome ?? "") === normalizar(nome) && c.status === status);
+  return encontrados.length === 1 ? encontrados[0] ?? null : null;
+}
+
 export function propostaDaConversa<T extends { id: string }>(
   propostas: T[], idsDaConversa: ReadonlySet<string>,
 ): T[] {

@@ -36,7 +36,8 @@ import {
   motivoSemDesfazer,
   SAMIQ_TIPOS_SO_COM_CONFIRMAR,
 } from "@/lib/samiq-propostas";
-import { propostaDaConversa, confirmarExplicitoMarquinhos } from "@/lib/samiq-marquinhos";
+import { propostaDaConversa, confirmarExplicitoMarquinhos, desfazerExplicitoMarquinhos, selecionarLeadMarquinhos } from "@/lib/samiq-marquinhos";
+import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
 
 /** Itens na ordem dos ids (a numeração que o corretor viu), sem os que sumiram. */
 function naOrdem<T extends { id: string }>(
@@ -115,6 +116,14 @@ export const Route = createFileRoute("/api/sami/mensagem")({
 
           // 1) Comandos curtos: decidem sem gastar modelo.
           const comando = interpretarComandoCurto(body.texto);
+          if (canalMemoria === "marquinhos" && comando && (
+            (comando.acao === "rejeitar" && propostasConversa.length === 0) ||
+            (comando.acao === "desfazer" && (!desfazerExplicitoMarquinhos(body.texto) || !conversa))
+          )) {
+            return responder({ ok: true, tipo: "decisao", resultados: [],
+              texto: "Nenhuma gravação foi desfeita. CANCELAR só descarta propostas pendentes nesta conversa; para reverter algo gravado, use DESFAZER na conversa do registro.",
+              conversa_id: conversa?.id ?? null, corretor: quem });
+          }
           if (comando && conversa) {
             if (comando.acao === "desfazer") {
               const ids = contexto.executadas ?? [];
@@ -316,6 +325,24 @@ export const Route = createFileRoute("/api/sami/mensagem")({
           // Chave de emergência: 'confirmar_tudo' faz tudo esperar CONFIRMAR.
           const modoEscrita = canalMemoria === "marquinhos" ? "confirmar_tudo" : await canal.modoEscritaDoWhatsApp();
           const resposta = await canal.comSessaoDoCorretor(corretor, async (supabase) => {
+            let leadId = body.lead_id;
+            if (canalMemoria === "marquinhos" && (leadId || body.lead_nome || body.lead_status)) {
+              if (!leadId && (!body.lead_nome || !body.lead_status)) {
+                throw new canal.CanalSamiError(422, "cliente_incompleto", "Informe lead_id ou lead_nome e lead_status juntos.");
+              }
+              const status = Object.entries(LEAD_STATUS_LABEL).find(([codigo, rotulo]) =>
+                codigo === body.lead_status || rotulo.localeCompare(body.lead_status ?? "", "pt-BR", { sensitivity: "base" }) === 0,
+              )?.[0] as LeadStatus | undefined;
+              if (!leadId && !status) throw new canal.CanalSamiError(422, "etapa_invalida", "Informe uma etapa válida do cliente.");
+              let query = supabase.from("leads").select("id, nome, status");
+              if (leadId) query = query.eq("id", leadId);
+              else if (status) query = query.eq("status", status).ilike("nome", (body.lead_nome ?? "").replace(/[\\%_]/g, "\\$&"));
+              const { data: candidatos, error } = await query.limit(2);
+              if (error) throw new canal.CanalSamiError(502, "cliente_indisponivel", "Não consegui conferir o cliente agora.");
+              const escolhido = leadId ? candidatos?.[0] : selecionarLeadMarquinhos(candidatos ?? [], body.lead_nome ?? "", status ?? "");
+              if (!escolhido) throw new canal.CanalSamiError(409, "cliente_nao_identificado", "Cliente não encontrado ou nome e etapa ainda ambíguos. Informe o lead_id.");
+              leadId = escolhido.id;
+            }
             const { responderSamiQ } = await import("@/lib/samiq-core.server");
             return responderSamiQ({
               supabase,
@@ -337,7 +364,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 pergunta: body.texto,
                 historico,
                 conversaId: conversa?.id,
-                leadId: body.lead_id,
+                leadId,
               },
             });
           }, canalMemoria);

@@ -48,6 +48,19 @@ traz `texto`: o n8n pode simplesmente enviar esse campo ao corretor.
   transcrição) e chega como `texto`; a Sami recebe a instrução de tolerar erros de transcrição.
 - `nova_conversa: true` ignora a conversa das últimas 12 h e começa outra.
 
+#### Canal Marquinhos: cancelamento e escolha independente
+
+Envie `canal: "marquinhos"` com a chave e o telefone do Admin autorizado.
+`CANCELAR` somente descarta propostas pendentes da conversa; nunca desfaz registros.
+Para reverter gravações, envie o comando explícito `DESFAZER` na conversa do registro.
+Não envie `nova_conversa: true` em CONFIRMAR, CANCELAR ou DESFAZER quando quiser decidir a conversa anterior.
+
+Para um novo pedido, `lead_id` já é aceito junto com `nova_conversa: true`.
+Alternativamente, envie `lead_nome` (nome completo) e `lead_status` (código da etapa,
+como `agendado`, ou rótulo, como `Análise de crédito`) juntos no corpo.
+O CRM exige correspondência única entre clientes ativos; se ainda houver duplicados,
+responde `cliente_nao_identificado` e pede `lead_id`, sem propor ou gravar no cliente errado.
+
 Resposta quando a Sami responde (`tipo: "resposta"`):
 
 ```json

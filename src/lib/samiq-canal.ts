@@ -41,6 +41,9 @@ export const MensagemSamiInput = z.object({
   origem_midia: z.enum(["texto", "audio"]).optional(),
   /** Cliente em foco, quando o fluxo souber (ex.: botão "falar da Maria"). */
   lead_id: z.string().uuid().optional(),
+  /** Seleção sem memória: nome completo e código da etapa atual, juntos. */
+  lead_nome: z.string().trim().min(2).max(200).optional(),
+  lead_status: z.string().trim().min(2).max(60).optional(),
   /** true = ignora a conversa das últimas 12 h e começa outra. */
   nova_conversa: z.boolean().optional(),
   /** v8: arquivo que o n8n já guardou em /api/sami/anexo. */

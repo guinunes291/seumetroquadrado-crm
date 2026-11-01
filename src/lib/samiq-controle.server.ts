@@ -17,7 +17,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { consentimentoExplicito, executadasDaDecisao } from "@/lib/samiq-canal";
-import { confirmarExplicitoMarquinhos } from "./samiq-marquinhos";
+import { confirmarExplicitoMarquinhos, desfazerExplicitoMarquinhos } from "./samiq-marquinhos";
 import { escolherPorNumero } from "@/lib/samiq-contexto";
 import {
   descreverProposta,
@@ -179,6 +179,9 @@ export function criarFerramentasDeControleSamiQ(args: {
         "Desfaz ações gravadas recentemente (lista 'Gravado recentemente' do cabeçalho, na numeração do recibo, até 24 h), quando o corretor pedir para apagar, anular ou desfazer. Itens marcados como 'não volta' não se desfazem. Mudança de etapa do funil não volta sozinha.",
       inputSchema: DesfazerAcoesInput,
       execute: async ({ itens }) => {
+        if (args.contexto?.canalOrigem === "marquinhos" && !desfazerExplicitoMarquinhos(args.textoDoCorretor)) {
+          return { erro: "precisa_desfazer", detalhe: "Para reverter algo gravado no Marquinhos, use DESFAZER explicitamente. CANCELAR só descarta pendências." };
+        }
         const escolhidas = escolher(executadas, itens);
         if (escolhidas === null)
           return { erro: "item_inexistente", detalhe: `o recibo tem ${executadas.length} itens` };
