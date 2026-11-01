@@ -1,4 +1,3 @@
-# Buscas da Sami
 # Ajuste de comissão na aprovação
 - [ ] Permitir ajuste da comissão do corretor com justificativa obrigatória fora da regra e registrar auditoria.
 - [ ] Conferir regra Marquinhos na aprovação e testar validação.
