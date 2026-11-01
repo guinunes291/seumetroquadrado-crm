@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Timeline, type TimelineItem } from "@/components/ui/timeline";
 import { SamiMark } from "@/components/ui/sami-mark";
-import { foiViaSami } from "@/lib/samiq-propostas";
+import { autoriaDoHistorico } from "@/lib/samiq-marquinhos";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
@@ -94,12 +94,12 @@ export function TimelineTab({ leadId }: { leadId: string }) {
     meta: (
       <>
         {INTERACAO_LABEL[i.tipo]} · {DIRECAO_LABEL[i.direcao]}
-        {foiViaSami(i.metadata) && (
+        {autoriaDoHistorico(i.metadata) && (
           <span
             className="ml-1.5 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-px text-[10px] font-medium text-primary"
-            title="Registrado pela Sami e confirmado por você"
+            title={`Registrado via ${autoriaDoHistorico(i.metadata)}`}
           >
-            <SamiMark className="h-3 w-3" /> via Sami
+            <SamiMark className="h-3 w-3" /> via {autoriaDoHistorico(i.metadata)}
           </span>
         )}
       </>

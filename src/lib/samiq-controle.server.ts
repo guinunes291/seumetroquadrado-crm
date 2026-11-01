@@ -16,7 +16,8 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { consentimentoExplicito, executadasDaDecisao, interpretarComandoCurto } from "@/lib/samiq-canal";
+import { consentimentoExplicito, executadasDaDecisao } from "@/lib/samiq-canal";
+import { confirmarExplicitoMarquinhos } from "./samiq-marquinhos";
 import { escolherPorNumero } from "@/lib/samiq-contexto";
 import {
   descreverProposta,
@@ -103,7 +104,7 @@ export function criarFerramentasDeControleSamiQ(args: {
       inputSchema: ConfirmarPendentesInput,
       execute: async ({ itens }) => {
         if (args.contexto?.canalOrigem === "marquinhos" &&
-          !/^confirma(r)?\b/i.test(args.textoDoCorretor.trim())) {
+          !confirmarExplicitoMarquinhos(args.textoDoCorretor)) {
           return { erro: "precisa_confirmar", detalhe: "Marquinhos só grava com CONFIRMAR explícito." };
         }
         if (!consentimentoExplicito(args.textoDoCorretor)) {

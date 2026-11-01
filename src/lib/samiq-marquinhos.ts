@@ -21,6 +21,17 @@ export function autoriaSami(canal?: CanalMemoriaSami): string {
   return canal === "marquinhos" ? "Marquinhos (Mark)" : "Sami";
 }
 
+export function autoriaDoHistorico(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const m = metadata as { origem?: unknown; via?: unknown; canal?: unknown };
+  if (m.origem === "marquinhos" || m.via === "marquinhos" || m.canal === "marquinhos") return "Marquinhos (Mark)";
+  return m.origem === "samiq" || m.via === "samiq" ? "Sami" : null;
+}
+
+export function confirmarExplicitoMarquinhos(texto: string): boolean {
+  return /^confirma(r)?\b/i.test(texto.trim());
+}
+
 export function propostaDaConversa<T extends { id: string }>(
   propostas: T[], idsDaConversa: ReadonlySet<string>,
 ): T[] {

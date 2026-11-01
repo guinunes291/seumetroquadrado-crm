@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { MensagemSamiInput, DecidirPropostasInput } from "@/lib/samiq-canal";
-import { MARQUINHOS_ADMIN_ID, podeUsarMarquinhos, propostaDaConversa, urlComEscopoSami } from "@/lib/samiq-marquinhos";
+import { MARQUINHOS_ADMIN_ID, podeUsarMarquinhos, propostaDaConversa, urlComEscopoSami, autoriaDoHistorico, confirmarExplicitoMarquinhos } from "@/lib/samiq-marquinhos";
 
 describe("Marquinhos: autorização e isolamento", () => {
+  it("exige CONFIRMAR, não sim, ok ou grava", () => {
+    expect(confirmarExplicitoMarquinhos("CONFIRMAR 1")).toBe(true);
+    expect(confirmarExplicitoMarquinhos("confirma")).toBe(true);
+    for (const texto of ["sim", "ok", "grava", "pode marcar"]) expect(confirmarExplicitoMarquinhos(texto)).toBe(false);
+  });
+  it("mantém autoria Marquinhos na nota e na origem oficial do funil", () => {
+    expect(autoriaDoHistorico({ origem: "marquinhos" })).toBe("Marquinhos (Mark)");
+    expect(autoriaDoHistorico({ origem: "registrar_contato", via: "marquinhos" })).toBe("Marquinhos (Mark)");
+    expect(autoriaDoHistorico({ origem: "samiq" })).toBe("Sami");
+    expect(autoriaDoHistorico({ origem: "manual" })).toBeNull();
+  });
   it("só autoriza o perfil Admin indicado, com papel admin vigente", () => {
     expect(podeUsarMarquinhos("07699874-e860-47f1-971b-a6bf3f71ae6f", true)).toBe(true);
     expect(podeUsarMarquinhos(MARQUINHOS_ADMIN_ID, false)).toBe(false);

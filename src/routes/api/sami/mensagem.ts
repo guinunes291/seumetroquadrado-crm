@@ -36,7 +36,7 @@ import {
   motivoSemDesfazer,
   SAMIQ_TIPOS_SO_COM_CONFIRMAR,
 } from "@/lib/samiq-propostas";
-import { propostaDaConversa } from "@/lib/samiq-marquinhos";
+import { propostaDaConversa, confirmarExplicitoMarquinhos } from "@/lib/samiq-marquinhos";
 
 /** Itens na ordem dos ids (a numeração que o corretor viu), sem os que sumiram. */
 function naOrdem<T extends { id: string }>(
@@ -203,7 +203,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                   });
                 }
               }
-              if (canalMemoria === "marquinhos" && comando.acao === "confirmar" && !/^confirma(r)?\b/i.test(body.texto.trim())) {
+              if (canalMemoria === "marquinhos" && comando.acao === "confirmar" && !confirmarExplicitoMarquinhos(body.texto)) {
                 return responder({ ok: true, tipo: "decisao", texto: "Responda CONFIRMAR para gravar ou CANCELAR para descartar.", conversa_id: conversa.id });
               }
               const restantes = aindaPendentes.filter(
