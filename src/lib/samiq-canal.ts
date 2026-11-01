@@ -34,6 +34,7 @@ export const LocalizacaoSamiInput = z.object({
 });
 
 export const MensagemSamiInput = z.object({
+  canal: z.enum(["whatsapp", "marquinhos"]).optional(),
   corretor_telefone: TelefoneSchema,
   /** Texto do corretor (ou a transcrição do áudio; "[arquivo]"/"[localização]" quando só veio mídia). */
   texto: z.string().trim().min(1).max(4000),
@@ -602,6 +603,7 @@ export type CandidatoListado = {
   nome: string | null;
   empreendimento?: string | null;
   etapa?: string | null;
+  corretor?: string | null;
 };
 
 /**
@@ -613,7 +615,7 @@ export type CandidatoListado = {
 export function textoDosCandidatos(candidatos: ReadonlyArray<CandidatoListado>): string | null {
   if (candidatos.length < 2) return null;
   const linhas = candidatos.map((c, i) => {
-    const extras = [c.empreendimento, c.etapa ? rotuloEtapa(c.etapa) : null].filter(Boolean);
+    const extras = [c.empreendimento, c.corretor ? `corretor ${c.corretor}` : null, c.etapa ? rotuloEtapa(c.etapa) : null].filter(Boolean);
     return `${i + 1}) ${c.nome ?? "Cliente sem nome"}${extras.length ? ` (${extras.join(", ")})` : ""}`;
   });
   return `Qual deles?\n${linhas.join("\n")}\nResponda com o número.`;

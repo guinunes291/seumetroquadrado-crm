@@ -7,6 +7,7 @@ import type { Database } from "@/integrations/supabase/types";
 import type { SamiQCanal, SamiQInput } from "@/lib/samiq";
 import type { ModoEscritaSamiQ, PropostaSamiQ } from "@/lib/samiq-propostas";
 import type { ContextoConversaSamiQ } from "@/lib/samiq-contexto";
+import type { CanalMemoriaSami } from "@/lib/samiq-marquinhos";
 
 export type Db = SupabaseClient<Database>;
 
@@ -67,6 +68,7 @@ export type ResponderSamiQArgs = {
   userId: string;
   data: SamiQInput;
   canal: SamiQCanal;
+  canalMemoria?: CanalMemoriaSami;
   /** WhatsApp: a mensagem veio de um áudio transcrito pelo n8n (D8). */
   origemMidia?: "texto" | "audio";
   /** v8: "por_risco" grava as ações leves na hora (WhatsApp). Padrão: confirmar tudo. */
