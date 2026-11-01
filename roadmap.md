@@ -1,3 +1,9 @@
+# Marquinhos (Mark) pela Sami
+- [ ] Autorizar escopo global somente para canal Marquinhos com chave válida e perfil Admin indicado; manter carteira nos demais canais.
+- [ ] Separar conversa e confirmação, preservar desfazer e registrar autoria Marquinhos.
+- [ ] Investigar e corrigir timeout da busca MCP por nome sem ampliar permissões.
+- [ ] Testar permissões, isolamento e ensaio/nota confirmada em lead de teste.
+
 # Ajuste de comissão na aprovação
 - [x] Permitir ajuste da comissão do corretor com justificativa obrigatória fora da regra e registrar regra, justificativa e autor da aprovação.
 - [x] Conferir percentuais Marquinhos no banco e testar cálculo e justificativa: 15 testes passaram.
