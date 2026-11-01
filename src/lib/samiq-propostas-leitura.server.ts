@@ -25,7 +25,7 @@ export type LeadResolvido = {
 export async function resolverLead(supabase: Db, leadId: string): Promise<LeadResolvido | null> {
   const { data, error } = await supabase
     .from("leads")
-    .select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164")
+    .select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164, corretor:profiles!leads_corretor_id_fkey(nome)")
     .eq("id", leadId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -39,6 +39,7 @@ export async function resolverLead(supabase: Db, leadId: string): Promise<LeadRe
       id: data.id,
       nome: data.nome,
       projeto_nome: data.projeto_nome,
+      corretor_nome: data.corretor?.nome ?? null,
       status: data.status,
       telefone: data.telefone,
       telefone_e164: data.telefone_e164,
@@ -60,12 +61,12 @@ export async function buscarHomonimos(
   const original = (alvo.nome ?? "").trim().split(/\s+/)[0] ?? "";
   const { data, error } = await supabase
     .from("leads")
-    .select("id, nome, status, projeto_nome, telefone, telefone_e164")
+    .select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor:profiles!leads_corretor_id_fkey(nome)")
     .is("deleted_at", null)
     .eq("na_lixeira", false)
     .neq("id", alvo.id)
     .ilike("nome", `${escapeLike(original)}%`)
     .limit(30);
   if (error) return null;
-  return filtrarHomonimos(alvo, (data ?? []) as ClienteParaDesambiguar[]);
+  return filtrarHomonimos(alvo, (data ?? []).map((r) => ({ ...r, corretor_nome: r.corretor?.nome ?? null })));
 }

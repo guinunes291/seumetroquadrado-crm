@@ -36,6 +36,7 @@ import {
   motivoSemDesfazer,
   SAMIQ_TIPOS_SO_COM_CONFIRMAR,
 } from "@/lib/samiq-propostas";
+import { propostaDaConversa } from "@/lib/samiq-marquinhos";
 
 /** Itens na ordem dos ids (a numeração que o corretor viu), sem os que sumiram. */
 function naOrdem<T extends { id: string }>(
@@ -55,13 +56,16 @@ export const Route = createFileRoute("/api/sami/mensagem")({
           canal.autenticarCanalSami(request);
           const body = await canal.lerCorpoCanalSami(request, MensagemSamiInput);
           const corretor = await canal.resolverCorretorPorTelefone(body.corretor_telefone);
+          const canalMemoria = body.canal ?? "whatsapp";
+          if (canalMemoria === "marquinhos") await canal.autorizarCanalMarquinhos(corretor);
           const quem = { id: corretor.id, nome: corretor.nome };
           // Fila no banco: retentativa recebe a resposta guardada (nada grava
           // duas vezes, o recibo não se perde) e mensagens seguidas do mesmo
           // corretor rodam uma de cada vez, na ordem em que chegaram.
           const fila = await canal.entrarNaFilaDoCanal({
             corretorId: corretor.id,
-            mensagemId: body.mensagem_id,
+            mensagemId: canalMemoria === "marquinhos" && body.mensagem_id
+              ? `mark:${body.mensagem_id.slice(0, 195)}` : body.mensagem_id,
           });
           if (fila.tipo === "repetida") {
             return canal.jsonCanal({ ...fila.resposta, repetida: true });
@@ -82,7 +86,11 @@ export const Route = createFileRoute("/api/sami/mensagem")({
           const agora = new Date();
           const conversa = body.nova_conversa
             ? null
-            : await memoria.conversaAtivaSamiQ({ userId: corretor.id, canal: "whatsapp" });
+            : await memoria.conversaAtivaSamiQ({ userId: corretor.id, canal: canalMemoria });
+          const propostasConversa = conversa ? await memoria.propostasPendentesSamiQ({
+            userId: corretor.id, conversaId: conversa.id,
+          }) : [];
+          const idsPendentesConversa = new Set(propostasConversa.map((p) => p.id));
           const lido: ContextoConversaSamiQ = conversa
             ? await memoria.lerContextoDaConversaSamiQ({
                 userId: corretor.id,
@@ -134,6 +142,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                   })
                 : [];
               const r = await canal.desfazerPeloCanal({
+                canalMemoria,
                 corretor,
                 acoes,
                 ignoradas,
@@ -164,7 +173,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
             const aindaPendentes = mostrados.length
               ? naOrdem(
                   mostrados,
-                  await memoria.propostasPendentesSamiQ({ userId: corretor.id, ids: mostrados }),
+                  propostaDaConversa(propostasConversa, new Set(mostrados)),
                 )
               : [];
             if (aindaPendentes.length > 0 && (comando.forte || contexto.pediu_decisao)) {
@@ -198,6 +207,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 (p) => !escolhidas.some((e) => e.id === p.id),
               );
               const decisao = await canal.decidirPendentes({
+                canalMemoria,
                 corretor,
                 decisao: comando.acao,
                 pendentes: escolhidas,
@@ -263,10 +273,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
           const pendentes = contexto.pendentes?.length
             ? naOrdem(
                 contexto.pendentes,
-                await memoria.propostasPendentesSamiQ({
-                  userId: corretor.id,
-                  ids: contexto.pendentes,
-                }),
+                propostaDaConversa(propostasConversa, idsPendentesConversa),
               )
             : [];
           // Último recibo NA NUMERAÇÃO QUE O CORRETOR VIU ("desfaz o 3" = item 3
@@ -304,13 +311,14 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               })();
 
           // Chave de emergência: 'confirmar_tudo' faz tudo esperar CONFIRMAR.
-          const modoEscrita = await canal.modoEscritaDoWhatsApp();
+          const modoEscrita = canalMemoria === "marquinhos" ? "confirmar_tudo" : await canal.modoEscritaDoWhatsApp();
           const resposta = await canal.comSessaoDoCorretor(corretor, async (supabase) => {
             const { responderSamiQ } = await import("@/lib/samiq-core.server");
             return responderSamiQ({
               supabase,
               userId: corretor.id,
               canal: "whatsapp",
+              canalMemoria,
               origemMidia: body.origem_midia,
               modoEscrita,
               corretorNome: corretor.nome,
@@ -329,7 +337,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                 leadId: body.lead_id,
               },
             });
-          });
+          }, canalMemoria);
           const resumo = (itens: typeof resposta.propostas) =>
             (itens ?? []).map((p) => ({
               id: p.id,

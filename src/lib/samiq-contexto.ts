@@ -184,6 +184,7 @@ export type CandidatoDaPergunta = {
   nome: string | null;
   empreendimento: string | null;
   etapa: string | null;
+  corretor?: string | null;
 };
 
 export type AmbiguosDoTurno = {

@@ -152,7 +152,7 @@ export function criarFerramentasSamiQ(args: {
         let query = supabase
           .from("leads")
           .select(
-            "id, nome, status, temperatura, projeto_nome, proximo_followup, ultima_interacao, origem, created_at",
+            "id, nome, status, temperatura, projeto_nome, proximo_followup, ultima_interacao, origem, created_at, corretor:profiles!leads_corretor_id_fkey(nome)",
           )
           .is("deleted_at", null)
           .eq("na_lixeira", false);
