@@ -202,7 +202,8 @@ export function PendingSalesApproval() {
           p_percentual_total: total,
           p_percentual_corretor: corretor,
           p_percentual_gerente: gerente,
-          p_gerente_id: gerenteId,
+          // Generated RPC types omit PostgreSQL's nullable UUID arguments.
+          p_gerente_id: (gerenteId || null) as unknown as string,
           p_socio_fabio_id: fabioId,
           p_justificativa: justificativa.trim() || undefined,
         });
