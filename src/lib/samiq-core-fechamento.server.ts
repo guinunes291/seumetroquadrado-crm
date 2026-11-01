@@ -130,7 +130,7 @@ export async function fecharTurnoSamiQ({
     resposta: textoCanal ?? texto,
     ferramentas: telemetria.nomes,
     executionId: reservation.executionId,
-    canal,
+    canal: args.canalMemoria ?? canal,
   });
 
   // Painel: conversa que nasceu agora recebe as pendentes do turno.

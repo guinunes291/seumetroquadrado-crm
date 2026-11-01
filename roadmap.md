@@ -1,3 +1,10 @@
+# Marquinhos (Mark) pela Sami
+- [x] Autorizar escopo global somente para canal Marquinhos com chave válida e perfil Admin indicado; manter carteira nos demais canais.
+- [x] Separar conversa e confirmação, preservar desfazer e registrar autoria Marquinhos.
+- [ ] Corrigir timeout do MCP externo: crm_buscar_lead não existe nos fontes disponíveis; índice trigram de nome já existe e busca direta levou 49 ms. Aguarda acesso à implementação/chamada do MCP.
+- [x] Testar permissões, isolamento e ensaio/nota confirmada em lead de teste: 165 testes passaram; ensaio descartado; CONFIRMAR na Sami não confirmou proposta Mark; nota única gravada com autoria correta.
+- [ ] Conferir nota na tela autenticada: sessão do solicitante indisponível; aguarda login no preview. Teste com lead de corretor aguarda identificação de cliente fictício ativo com responsável (os testes disponíveis estão sem corretor).
+
 # Ajuste de comissão na aprovação
 - [x] Permitir ajuste da comissão do corretor com justificativa obrigatória fora da regra e registrar regra, justificativa e autor da aprovação.
 - [x] Conferir percentuais Marquinhos no banco e testar cálculo e justificativa: 15 testes passaram.

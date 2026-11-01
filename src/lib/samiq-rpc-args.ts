@@ -13,7 +13,7 @@
  */
 import type { Json } from "@/integrations/supabase/types";
 
-export type SamiQCanalRpc = "painel" | "whatsapp";
+export type SamiQCanalRpc = "painel" | "whatsapp" | "marquinhos";
 
 export interface SamiQGravarTurnoArgs {
   _user_id: string;

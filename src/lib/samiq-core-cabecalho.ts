@@ -88,6 +88,9 @@ export function cabecalhoDoTurno({
     reservation.actionPrompt,
     `Agora: ${agoraParaModelo(agora)} (São Paulo). Hoje é ${hojeSaoPaulo(agora)}. Próximos dias: ${calendarioParaModelo(agora)}. Datas nas ferramentas: AAAA-MM-DDTHH:MM no horário de São Paulo.`,
     ...doCanal,
+    args.canalMemoria === "marquinhos"
+      ? "Canal Marquinhos (Mark), diretor autorizado: procure clientes ativos de todo o CRM, sem restringir à carteira pessoal. Em homônimos liste nome, empreendimento e corretor. Toda escrita exige proposta e CONFIRMAR; nunca apague registros nem envie mensagens ao cliente final."
+      : null,
     args.corretorNome
       ? primeiroNomeDoCorretor(args.corretorNome)
         ? `Corretor: ${primeiroNomeDoCorretor(args.corretorNome)}.`

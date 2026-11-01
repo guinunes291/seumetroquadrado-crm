@@ -63,6 +63,7 @@ export async function montarFerramentasDoTurno({
   canal: SamiQCanal;
   recentes: RecentesDaConversa;
   contextoExecucao: {
+    canalOrigem?: ResponderSamiQArgs["canalMemoria"];
     localizacao: { latitude: number; longitude: number; precisao: number | null } | null;
   };
   controle: ControleDoTurno;

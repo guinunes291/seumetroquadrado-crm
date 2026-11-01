@@ -36,6 +36,7 @@ import { SamiQQuotaError } from "./samiq-governance.server";
 import { gravarContextoTurnoSamiQ, gravarTurnoSamiQ } from "./samiq-memoria.server";
 import { samiqRpc } from "@/lib/samiq-rpc-args";
 import { isMissingBackendObject } from "@/lib/supabase-errors";
+import { podeUsarMarquinhos, urlComEscopoSami, type CanalMemoriaSami } from "./samiq-marquinhos";
 import {
   confirmarPropostas,
   desfazerPropostas,
@@ -57,6 +58,15 @@ export class CanalSamiError extends Error {
 }
 
 export type CorretorCanal = { id: string; nome: string | null; email: string };
+
+/** Called only after x-sami-key verification and unique active phone resolution. */
+export async function autorizarCanalMarquinhos(corretor: CorretorCanal): Promise<void> {
+  const { data, error } = await supabaseAdmin.from("user_roles")
+    .select("role").eq("user_id", corretor.id).eq("role", "admin").maybeSingle();
+  if (error || !podeUsarMarquinhos(corretor.id, data?.role === "admin")) {
+    throw new CanalSamiError(403, "canal_nao_autorizado", "Marquinhos só pode agir pelo perfil Admin autorizado.");
+  }
+}
 
 export function jsonCanal(data: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -196,6 +206,7 @@ export async function resolverCorretorPorTelefone(telefone: string): Promise<Cor
  */
 export async function abrirSessaoDoCorretor(
   corretor: Pick<CorretorCanal, "id" | "email">,
+  canalMemoria?: CanalMemoriaSami,
 ): Promise<{ supabase: Db; encerrar: () => Promise<void> }> {
   const url = process.env.SUPABASE_URL;
   const publishable = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -223,7 +234,14 @@ export async function abrirSessaoDoCorretor(
     throw new CanalSamiError(503, "sessao_indisponivel", "Não consegui abrir sua sessão.");
   }
   const supabase = createClient<Database>(url, publishable, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
+    global: {
+      headers: { Authorization: `Bearer ${token}` },
+      fetch: (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        const scoped = urlComEscopoSami(url, corretor.id, canalMemoria);
+        return fetch(input instanceof Request ? new Request(scoped, input) : scoped, init);
+      },
+    },
     auth: semSessao,
   });
   const encerrar = async () => {
@@ -239,8 +257,9 @@ export async function abrirSessaoDoCorretor(
 export async function comSessaoDoCorretor<T>(
   corretor: Pick<CorretorCanal, "id" | "email">,
   fn: (supabase: Db) => Promise<T>,
+  canalMemoria?: CanalMemoriaSami,
 ): Promise<T> {
-  const sessao = await abrirSessaoDoCorretor(corretor);
+  const sessao = await abrirSessaoDoCorretor(corretor, canalMemoria);
   try {
     return await fn(sessao.supabase);
   } finally {
@@ -254,6 +273,7 @@ export async function comSessaoDoCorretor<T>(
  * recibo sai numerado (DESFAZER N) e o que sobrou volta renumerado.
  */
 export async function decidirPendentes(args: {
+  canalMemoria?: CanalMemoriaSami;
   corretor: CorretorCanal;
   decisao: IntencaoCurta;
   /** Os escolhidos (todos, ou só os números que o corretor mandou). */
@@ -277,8 +297,9 @@ export async function decidirPendentes(args: {
           supabase,
           userId: corretor.id,
           itens: pendentes.map((p) => ({ id: p.id })),
-          contexto: { localizacao },
+          contexto: { localizacao, canalOrigem: args.canalMemoria },
         }),
+        args.canalMemoria,
       );
     } else {
       const r = await rejeitarPropostasDetalhado({
@@ -304,7 +325,7 @@ export async function decidirPendentes(args: {
       conversaId: args.conversaId,
       pergunta: args.mensagem,
       resposta: texto,
-      canal: "whatsapp",
+      canal: args.canalMemoria ?? "whatsapp",
     });
     if (args.contexto) {
       const gravadas =
@@ -332,6 +353,7 @@ export async function decidirPendentes(args: {
  * do painel, pela RPC do servidor. Mudança de etapa não volta (aviso no texto).
  */
 export async function desfazerPeloCanal(args: {
+  canalMemoria?: CanalMemoriaSami;
   corretor: CorretorCanal;
   acoes: PropostaSamiQ[];
   /** Apontados pelo corretor mas que não voltam (o texto explica cada um). */
@@ -351,7 +373,7 @@ export async function desfazerPeloCanal(args: {
     conversaId: args.conversaId,
     pergunta: args.mensagem,
     resposta: texto,
-    canal: "whatsapp",
+    canal: args.canalMemoria ?? "whatsapp",
   });
   await gravarContextoTurnoSamiQ({
     userId: corretor.id,

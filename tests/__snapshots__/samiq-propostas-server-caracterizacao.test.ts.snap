@@ -21,7 +21,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -57,7 +58,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -82,7 +84,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -109,7 +112,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -134,7 +138,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -150,7 +155,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -177,7 +183,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -213,7 +220,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > agend
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
     ],
     "resultado": {
@@ -254,7 +262,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -288,7 +297,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -322,7 +332,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -356,7 +367,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -390,7 +402,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -424,7 +437,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -458,7 +472,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -492,7 +507,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anexa
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
       "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
     ],
     "resultado": {
@@ -530,7 +546,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -562,7 +579,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -594,7 +612,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -626,7 +645,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -658,7 +678,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -690,7 +711,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -722,7 +744,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -754,7 +777,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > anota
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -792,7 +816,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -825,7 +850,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -858,7 +884,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -891,7 +918,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -924,7 +952,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -957,7 +986,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -990,7 +1020,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1023,7 +1054,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1061,7 +1093,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1095,7 +1128,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1129,7 +1163,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1163,7 +1198,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1197,7 +1233,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1231,7 +1268,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1265,7 +1303,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -1299,7 +1338,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > atual
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2588,7 +2628,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2623,7 +2664,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2658,7 +2700,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2693,7 +2736,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2728,7 +2772,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2763,7 +2808,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2798,7 +2844,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2833,7 +2880,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > criar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2873,7 +2921,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2908,7 +2957,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2943,7 +2993,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -2978,7 +3029,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3013,7 +3065,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3048,7 +3101,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3083,7 +3137,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3118,7 +3173,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > docum
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3157,7 +3213,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3191,7 +3248,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3225,7 +3283,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3259,7 +3318,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3282,7 +3342,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O cliente está em Novo: o funil não vai para Análise de crédito. Registre antes o contato com ele.",
@@ -3297,7 +3358,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O cliente está em Perdido: o funil não vai para Análise de crédito.",
@@ -3323,7 +3385,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3357,7 +3420,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > envia
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3601,7 +3665,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3636,7 +3701,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3671,7 +3737,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3706,7 +3773,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3741,7 +3809,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3765,7 +3834,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O cliente está em Perdido.",
@@ -3791,7 +3861,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3826,7 +3897,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > marca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3865,7 +3937,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3895,7 +3968,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3925,7 +3999,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3945,7 +4020,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "De Em atendimento o cliente sai por desfecho: agendou (agendar_visita), pediu retorno ou esfriou (registrar_retorno), mandou doc (enviar_analise_credito) ou perdido (marcar_perdido).",
@@ -3970,7 +4046,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -3990,7 +4067,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O funil não vai de Perdido para Qualificação Corretor.",
@@ -4005,7 +4083,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "o cliente já está em Qualificação Corretor",
@@ -4030,7 +4109,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > mudar
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4518,7 +4598,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4555,7 +4636,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4592,7 +4674,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4629,7 +4712,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4666,7 +4750,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4703,7 +4788,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4740,7 +4826,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4777,7 +4864,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4818,7 +4906,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4854,7 +4943,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4890,7 +4980,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4926,7 +5017,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4962,7 +5054,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -4998,7 +5091,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5034,7 +5128,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5070,7 +5165,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5112,7 +5208,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5136,7 +5233,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O cliente já está em Aguardando retorno. Para mudar a data, reagende a tarefa de retorno (reagendar_tarefa) ou crie outra (criar_tarefa).",
@@ -5164,7 +5262,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5201,7 +5300,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5238,7 +5338,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5262,7 +5363,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O cliente está em Perdido: o funil não leva para Aguardando retorno.",
@@ -5290,7 +5392,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5327,7 +5430,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5370,7 +5474,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5408,7 +5513,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5446,7 +5552,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5484,7 +5591,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5522,7 +5630,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5560,7 +5669,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5598,7 +5708,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5636,7 +5747,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5678,7 +5790,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5715,7 +5828,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5752,7 +5866,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5789,7 +5904,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5813,7 +5929,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O cliente está em Novo: o funil não leva para Visita realizada depois da visita. Registre antes o contato com ele.",
@@ -5828,7 +5945,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "detalhe": "O cliente está em Perdido: o funil não leva para Visita realizada depois da visita.",
@@ -5856,7 +5974,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -5893,7 +6012,8 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > regis
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -6175,8 +6295,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "detalhe": "Lucas Ferreira está em Agendado; quem sai precisa estar em Em atendimento.",
@@ -6191,8 +6313,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "detalhe": "Lucas Ferreira está em Aguardando retorno; quem sai precisa estar em Em atendimento.",
@@ -6207,8 +6331,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "detalhe": "Lucas Ferreira está em Análise de crédito; quem sai precisa estar em Em atendimento.",
@@ -6238,8 +6364,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -6261,8 +6389,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "detalhe": "Lucas Ferreira está em Novo; quem sai precisa estar em Em atendimento.",
@@ -6277,8 +6407,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "detalhe": "Lucas Ferreira está em Perdido; quem sai precisa estar em Em atendimento.",
@@ -6293,8 +6425,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "detalhe": "Lucas Ferreira está em Qualificação Corretor; quem sai precisa estar em Em atendimento.",
@@ -6309,8 +6443,10 @@ exports[`cada ferramenta em cada etapa do funil (painel: confirmar tudo) > troca
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
     ],
     "resultado": {
       "detalhe": "Lucas Ferreira está em Qualificado; quem sai precisa estar em Em atendimento.",
@@ -6362,7 +6498,8 @@ exports[`modo por risco (WhatsApp) > leve grava pelo executor; falha e pesada se
     "coletor": [],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Já está no CRM. Não repita a lista: o sistema manda o recibo. Fale só o próximo passo.",
@@ -6417,7 +6554,8 @@ exports[`modo por risco (WhatsApp) > leve grava pelo executor; falha e pesada se
     ],
     "leituras": [
       "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+      "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+      "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     ],
     "resultado": {
       "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -6445,7 +6583,8 @@ exports[`travas que dependem do que está no banco > anexo já usado 1`] = `
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
   ],
   "resultado": {
@@ -6464,7 +6603,8 @@ exports[`travas que dependem do que está no banco > anexo sumiu 1`] = `
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     "from(samiq_anexos).select("id, usado_em").eq("id","44444444-4444-4444-8444-444444444444").maybeSingle()",
   ],
   "resultado": {
@@ -6585,7 +6725,8 @@ exports[`travas que dependem do que está no banco > homônimo sem sobrenome no 
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
   ],
   "resultado": {
     "candidatos": [
@@ -6617,7 +6758,8 @@ exports[`travas que dependem do que está no banco > mudar para a mesma etapa 1`
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
   ],
   "resultado": {
     "detalhe": "o cliente já está em Qualificação Corretor",
@@ -6717,8 +6859,10 @@ exports[`travas que dependem do que está no banco > troca válida 1`] = `
   ],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
   ],
   "resultado": {
     "aviso": "Nada foi gravado ainda: o corretor confirma (no WhatsApp respondendo CONFIRMAR; no painel pelo card). Não diga que registrou.",
@@ -6743,8 +6887,10 @@ exports[`travas que dependem do que está no banco > troca: quem entra já em at
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
   ],
   "resultado": {
     "detalhe": "quem entra já está em Em atendimento",
@@ -6762,7 +6908,8 @@ exports[`travas que dependem do que está no banco > troca: quem sai fora da car
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","22222222-2222-4222-8222-222222222222").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","22222222-2222-4222-8222-222222222222").ilike("nome","Ana%").limit(30)",
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
   ],
   "resultado": {
@@ -6781,7 +6928,7 @@ exports[`travas que dependem do que está no banco > venda sem corretor 1`] = `
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
   ],
   "resultado": {
     "detalhe": "Venda exige cliente com corretor responsável.",
@@ -6863,7 +7010,8 @@ exports[`travas que dependem do que está no banco > visita já marcada no horá
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
   ],
   "resultado": {
@@ -6898,7 +7046,8 @@ exports[`travas que dependem do que está no banco > visita sem comparecimento e
   "coletor": [],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
   ],
   "resultado": {
     "detalhe": "Cliente não compareceu: informe a nova visita (reagendarPara) ou a data do próximo contato (proximoFollowupEm).",
@@ -6928,7 +7077,8 @@ exports[`travas que dependem do que está no banco > visita sem mover para agend
   ],
   "leituras": [
     "from(leads).select("id, nome, status, corretor_id, projeto_nome, telefone, telefone_e164").eq("id","11111111-1111-4111-8111-111111111111").is("deleted_at",null).maybeSingle()",
-    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
+    "from(profiles).select("nome").eq("id","u1").maybeSingle()",
+    "from(leads).select("id, nome, status, projeto_nome, telefone, telefone_e164, corretor_id").is("deleted_at",null).eq("na_lixeira",false).neq("id","11111111-1111-4111-8111-111111111111").ilike("nome","Lucas%").limit(30)",
     "from(agendamentos).select("id, data_inicio").eq("lead_id","11111111-1111-4111-8111-111111111111").eq("tipo","visita").in("status",["agendado","confirmado"]).is("deleted_at",null).gte("data_inicio","2026-10-28T16:00:00.000Z").lte("data_inicio","2026-10-28T19:00:00.000Z").limit(1)",
   ],
   "resultado": {
