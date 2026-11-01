@@ -89,7 +89,7 @@ export async function montarFerramentasDoTurno({
     homonimos: {
       textoDoCorretor,
       perguntaDoTurno: data.pergunta ?? "",
-      liberados,
+      liberados: data.leadId ? new Set([...(liberados ?? []), data.leadId]) : liberados,
       aoAmbiguo: (candidatos) => anotarAmbiguos(ambiguos, candidatos),
     },
   });
