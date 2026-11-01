@@ -862,6 +862,20 @@
       "when": 1793241172525,
       "tag": "0122_mcp_funil_contagens",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1793540999136,
+      "tag": "0123_comissao_corretor_ajuste_aprovacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793541035845,
+      "tag": "0124_comissao_aprovacao_beneficiarios_snapshot",
+      "breakpoints": true
     }
   ]
 }

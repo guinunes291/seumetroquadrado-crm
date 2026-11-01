@@ -41,9 +41,10 @@ export function useComissaoSugerida(
     queryKey: ["comissao-sugerida", leadId, corretorId, data],
     enabled: !!leadId && !!corretorId,
     queryFn: async (): Promise<ComissaoSugerida | null> => {
+      if (!leadId || !corretorId) return null;
       const { data: rows, error } = await supabase.rpc("comissao_sugerida_corretor", {
-        p_lead: leadId!,
-        p_corretor: corretorId!,
+        p_lead: leadId,
+        p_corretor: corretorId,
         p_data: data || undefined,
       });
       if (error) throw error;
