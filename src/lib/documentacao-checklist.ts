@@ -65,6 +65,7 @@ export const DOC_LABEL: Record<string, string> = {
   conjuge_identidade: "Documento de identidade do cônjuge",
   conjuge_renda: "Comprovante de renda do cônjuge",
   aprovacao_credito: "Carta de aprovação de crédito",
+  contrato_compra_venda: "Contrato de compra e venda",
   nao_classificado: "Documento não classificado (revisar)",
   outro: "Outro documento",
 };

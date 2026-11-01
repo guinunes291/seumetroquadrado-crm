@@ -883,6 +883,13 @@
       "when": 1793560139053,
       "tag": "0125_samiq_marquinhos_conversa_isolada",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1793560199053,
+      "tag": "0126_venda_por_contrato_ia",
+      "breakpoints": true
     }
   ]
 }

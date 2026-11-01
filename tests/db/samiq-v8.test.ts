@@ -204,8 +204,10 @@ describe("tipos, estados, cota e versão", () => {
          FROM public.samiq_prompt_versions WHERE active`,
     );
     expect(v.rows).toHaveLength(1);
+    // A ativa é a samiq-2026-11-contrato (20261101120000): deriva da v8 e só
+    // acrescenta ler_contrato_venda, então tudo o que a v8 trouxe continua.
     expect(v.rows[0]).toMatchObject({
-      version: "samiq-2026-10-v8",
+      version: "samiq-2026-11-contrato",
       tools_enabled: true,
       propostas_enabled: true,
       cabe: true,

@@ -161,7 +161,12 @@ describe("governança da IA", () => {
        FROM public.samiq_prompt_versions WHERE active`,
     );
     expect(r.rows).toHaveLength(1);
-    // a v8 (CRM no WhatsApp) deriva da v6 e preserva todas as ações
-    expect(r.rows[0]).toMatchObject({ version: "samiq-2026-10-v8", tem: true, preserva: true });
+    // a v8 (CRM no WhatsApp) deriva da v6 e preserva todas as ações; a
+    // samiq-2026-11-contrato deriva da v8 e só acrescenta ler_contrato_venda
+    expect(r.rows[0]).toMatchObject({
+      version: "samiq-2026-11-contrato",
+      tem: true,
+      preserva: true,
+    });
   });
 });

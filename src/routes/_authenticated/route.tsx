@@ -37,6 +37,11 @@ const RegistrarVendaDialog = lazy(() =>
     default: RegistrarVendaDialog,
   })),
 );
+const VendaContratoBotao = lazy(() =>
+  import("@/features/vendas/venda-contrato-botao").then(({ VendaContratoBotao }) => ({
+    default: VendaContratoBotao,
+  })),
+);
 const NovoLeadDialogHost = lazy(() =>
   import("@/features/leads/novo-lead-dialog").then(({ NovoLeadDialogHost }) => ({
     default: NovoLeadDialogHost,
@@ -139,6 +144,9 @@ function AuthenticatedLayout() {
                   </TooltipTrigger>
                   <TooltipContent>Buscar lead, projeto ou tarefa (⌘K)</TooltipContent>
                 </Tooltip>
+                <Suspense fallback={null}>
+                  <VendaContratoBotao />
+                </Suspense>
                 <Suspense fallback={null}>
                   <RegistrarVendaDialog />
                 </Suspense>
