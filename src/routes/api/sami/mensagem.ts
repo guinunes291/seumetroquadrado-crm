@@ -336,7 +336,7 @@ export const Route = createFileRoute("/api/sami/mensagem")({
               if (!leadId && !status) throw new canal.CanalSamiError(422, "etapa_invalida", "Informe uma etapa válida do cliente.");
               let query = supabase.from("leads").select("id, nome, status");
               if (leadId) query = query.eq("id", leadId);
-              else query = query.eq("status", status as LeadStatus).eq("nome_busca", (body.lead_nome ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim());
+              else if (status) query = query.eq("status", status).ilike("nome", (body.lead_nome ?? "").replace(/[\\%_]/g, "\\$&"));
               const { data: candidatos, error } = await query.limit(2);
               if (error) throw new canal.CanalSamiError(502, "cliente_indisponivel", "Não consegui conferir o cliente agora.");
               const escolhido = leadId ? candidatos?.[0] : selecionarLeadMarquinhos(candidatos ?? [], body.lead_nome ?? "", status ?? "");
