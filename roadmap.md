@@ -1,4 +1,9 @@
 # Buscas da Sami
+# Ajuste de comissão na aprovação
+- [ ] Permitir ajuste da comissão do corretor com justificativa obrigatória fora da regra e registrar auditoria.
+- [ ] Conferir regra Marquinhos na aprovação e testar validação.
+
+# Buscas da Sami
 - [x] Criar colunas normalizadas e índices de projetos, preservando políticas e grants existentes.
 - [x] Ajustar ferramentas e testes para nome, acentos e curadoria filtrada.
 - [x] Executar testes (3.102 passaram), conferir Nações Unidas/José no banco e solicitar publicação.
