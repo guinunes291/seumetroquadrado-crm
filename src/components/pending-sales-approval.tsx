@@ -27,7 +27,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GUILHERME_SOCIO_ID, FABIO_SOCIO_IDS, SOCIOS_PERCENTUAL_TOTAL, comissaoIndividualSocio } from "@/lib/comissao-socios";
+import { FABIO_SOCIO_IDS, SOCIOS_PERCENTUAL_TOTAL, comissaoIndividualSocio } from "@/lib/comissao-socios";
+import { useComissaoSugerida, TIER_LABEL, ESTEIRA_LABEL } from "@/lib/comissao-tier";
+import { comissaoDaRegra, validarAjusteComissao } from "@/lib/comissao-aprovacao";
 import { supabaseSocios } from "@/lib/comissao-socios-client";
 
 type PendingSale = {
@@ -68,6 +70,9 @@ export function PendingSalesApproval() {
     type: "aprovada" | "rejeitada";
   } | null>(null);
   const [reason, setReason] = useState("");
+  const [corretorPct, setCorretorPct] = useState<string | null>(null);
+  const [justificativa, setJustificativa] = useState("");
+  const sugestao = useComissaoSugerida(decision?.sale.lead_id, decision?.sale.corretor_id, decision?.sale.data_assinatura ?? "");
   const [gerenteId, setGerenteId] = useState("");
   const [fabioId, setFabioId] = useState("");
   const sociosDisponiveis = useQuery({
@@ -109,6 +114,9 @@ export function PendingSalesApproval() {
     });
     setGerenteId("");
     setFabioId("");
+    setReason("");
+    setCorretorPct(null);
+    setJustificativa("");
     setDecision({ sale, type });
   };
   const num = (t: string) => {
@@ -180,36 +188,26 @@ export function PendingSalesApproval() {
         if (total === null || gerente === null || sup === null) {
           throw new Error("Percentuais inválidos — use números entre 0 e 100.");
         }
-        const share = decision.sale.pct_share_corretor;
+        const share = sugestao.data?.pct_share;
+        if (share == null) throw new Error("Aguarde a regra de comissão do corretor.");
+        const corretor = corretorPct === null ? comissaoDaRegra(total, share) : num(corretorPct);
+        if (corretor === null) throw new Error("Percentual do corretor inválido.");
+        const erroAjuste = validarAjusteComissao(total, share, corretor, justificativa);
+        if (erroAjuste) throw new Error(erroAjuste);
         if (gerente > 0 && !gerenteId) throw new Error("Selecione o gerente comissionado.");
         if (!fabioId) throw new Error("Selecione o Fábio que receberá como sócio.");
-        if (total < (share == null ? 0 : total * Number(share) / 100) + gerente + sup) throw new Error("A soma das comissões excede o total.");
-        const patch: {
-          percentual_comissao: number;
-          percentual_gerente: number;
-          percentual_superintendente: number;
-          percentual_corretor?: number;
-          gerente_beneficiario_id: string | null;
-          socio_guilherme_id: string;
-          socio_fabio_id: string;
-        } = {
-          percentual_comissao: total,
-          percentual_gerente: gerente,
-          percentual_superintendente: sup,
-          gerente_beneficiario_id: gerenteId || null,
-          socio_guilherme_id: GUILHERME_SOCIO_ID,
-          socio_fabio_id: fabioId,
-        };
-        if (share != null)
-          patch.percentual_corretor = Math.round(total * Number(share) * 100) / 10000;
-        const { error: upErr } = await supabaseSocios
-          .from("vendas")
-          .update(patch)
-          .eq("id", decision.sale.id);
-        if (upErr) {
-          if (upErr.message.includes("schema cache") || upErr.message.includes("does not exist")) throw new Error("A configuração dos sócios ainda não está disponível no banco. A venda não foi aprovada.");
-          throw upErr;
-        }
+        if (total < corretor + gerente + sup) throw new Error("A soma das comissões excede o total.");
+        const { error } = await supabase.rpc("aprovar_venda_com_comissao", {
+          p_venda_id: decision.sale.id,
+          p_percentual_total: total,
+          p_percentual_corretor: corretor,
+          p_percentual_gerente: gerente,
+          p_gerente_id: gerenteId || undefined,
+          p_socio_fabio_id: fabioId,
+          p_justificativa: justificativa.trim() || undefined,
+        });
+        if (error) throw error;
+        return;
       }
       const { error } = await supabase.rpc("aprovar_venda", {
         p_decisao: decision.type,
@@ -380,7 +378,7 @@ export function PendingSalesApproval() {
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[90dvh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {decision?.type === "aprovada" ? "Aprovar esta venda?" : "Rejeitar esta venda?"}
@@ -432,15 +430,25 @@ export function PendingSalesApproval() {
               </div>
               {(() => {
                 const total = num(pct.total);
-                const share = decision.sale.pct_share_corretor;
-                if (total === null || share == null) return null;
-                const corr = Math.round(total * Number(share) * 100) / 10000;
+                const share = sugestao.data?.pct_share;
+                if (sugestao.isError) return <p role="alert" className="text-sm text-destructive">Não foi possível consultar a regra da comissão.</p>;
+                if (total === null || share == null) return <p className="text-sm text-muted-foreground">Consultando regra da comissão…</p>;
+                const regra = comissaoDaRegra(total, share);
+                const corr = corretorPct === null ? regra : num(corretorPct);
+                const alterada = corr !== null && Math.abs(corr - regra) > 0.0000001;
                 return (
-                  <p className="text-xs text-muted-foreground">
-                    Corretor recebe {Number(share).toLocaleString("pt-BR")}% (tier) ={" "}
-                    {corr.toLocaleString("pt-BR")}% do imóvel ·{" "}
-                    {money((decision.sale.valor_venda * corr) / 100)}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">{TIER_LABEL[sugestao.data?.tier ?? ""]} · {ESTEIRA_LABEL[sugestao.data?.esteira ?? ""]} · Regra: {share.toLocaleString("pt-BR")}% da comissão = {regra.toLocaleString("pt-BR")}% do imóvel</p>
+                    <div className="space-y-1">
+                      <Label htmlFor="aprovacao-corretor">Comissão do corretor (% do imóvel)</Label>
+                      <Input id="aprovacao-corretor" inputMode="decimal" value={corretorPct ?? String(regra).replace(".", ",")} onChange={(e) => setCorretorPct(e.target.value)} />
+                      {corr !== null && <p className="text-xs text-muted-foreground">Corretor: {money(decision.sale.valor_venda * corr / 100)}</p>}
+                    </div>
+                    {alterada && <div className="space-y-1">
+                      <Label htmlFor="aprovacao-justificativa">Justificativa da alteração *</Label>
+                      <Textarea id="aprovacao-justificativa" maxLength={1000} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} required />
+                    </div>}
+                  </div>
                 );
               })()}
             </div>
@@ -460,7 +468,7 @@ export function PendingSalesApproval() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={mutation.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              disabled={mutation.isPending || (decision?.type === "rejeitada" && !reason.trim()) || (decision?.type === "aprovada" && (!sociosDisponiveis.data || !fabioId || beneficiarios.isLoading || beneficiarios.isError || (Number(pct.gerente.replace(",", ".")) > 0 && !gerenteId)))}
+              disabled={mutation.isPending || (decision?.type === "rejeitada" && !reason.trim()) || (decision?.type === "aprovada" && (!sociosDisponiveis.data || !fabioId || beneficiarios.isLoading || beneficiarios.isError || !sugestao.data || sugestao.isFetching || (corretorPct !== null && (num(corretorPct) === null || !!validarAjusteComissao(num(pct.total) ?? NaN, sugestao.data.pct_share, num(corretorPct) ?? NaN, justificativa))) || (Number(pct.gerente.replace(",", ".")) > 0 && !gerenteId)))}
               onClick={(event) => {
                 event.preventDefault();
                 mutation.mutate();
