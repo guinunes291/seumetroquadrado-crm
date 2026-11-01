@@ -203,6 +203,9 @@ export const Route = createFileRoute("/api/sami/mensagem")({
                   });
                 }
               }
+              if (canalMemoria === "marquinhos" && comando.acao === "confirmar" && !/^confirma(r)?\b/i.test(body.texto.trim())) {
+                return responder({ ok: true, tipo: "decisao", texto: "Responda CONFIRMAR para gravar ou CANCELAR para descartar.", conversa_id: conversa.id });
+              }
               const restantes = aindaPendentes.filter(
                 (p) => !escolhidas.some((e) => e.id === p.id),
               );
