@@ -5655,6 +5655,8 @@ export type Database = {
           canal_entrada: string | null
           classe_lead: string
           cliente_id: string
+          conjuge_cpf: string | null
+          conjuge_nome: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -5665,6 +5667,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          data_nascimento: string | null
           data_perda: string | null
           decisor: string | null
           deleted_at: string | null
@@ -5673,8 +5676,16 @@ export type Database = {
           docs_recebidos: Json | null
           dorms_desejados: number | null
           email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
+          estado_civil: string | null
           etapa: string | null
           faixa_mcmv: string | null
           fase: string | null
@@ -5689,6 +5700,7 @@ export type Database = {
           motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
+          nacionalidade: string | null
           nome: string
           nota_perfil_cliente: string | null
           objecoes: string[]
@@ -5698,17 +5710,21 @@ export type Database = {
           pasta_montada_em: string | null
           precisa_vaga: boolean | null
           prioridades: string[]
+          profissao: string | null
           projeto_id: string | null
           projeto_nome: string | null
           prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          regime_casamento: string | null
           registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           restricao_cpf: string | null
           resumo_qualificacao: string | null
+          rg: string | null
+          rg_orgao_emissor: string | null
           roleta_slug: string | null
           sdr_corretor_origem_id: string | null
           sdr_devolvido_em: string | null
@@ -5750,6 +5766,8 @@ export type Database = {
           canal_entrada?: string | null
           classe_lead?: string
           cliente_id: string
+          conjuge_cpf?: string | null
+          conjuge_nome?: string | null
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -5760,6 +5778,7 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          data_nascimento?: string | null
           data_perda?: string | null
           decisor?: string | null
           deleted_at?: string | null
@@ -5768,8 +5787,16 @@ export type Database = {
           docs_recebidos?: Json | null
           dorms_desejados?: number | null
           email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
+          estado_civil?: string | null
           etapa?: string | null
           faixa_mcmv?: string | null
           fase?: string | null
@@ -5784,6 +5811,7 @@ export type Database = {
           motivo_perda_categoria?: string | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
+          nacionalidade?: string | null
           nome: string
           nota_perfil_cliente?: string | null
           objecoes?: string[]
@@ -5793,17 +5821,21 @@ export type Database = {
           pasta_montada_em?: string | null
           precisa_vaga?: boolean | null
           prioridades?: string[]
+          profissao?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           prospeccao_lote_id?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
           reativado?: boolean
+          regime_casamento?: string | null
           registro_adicional?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           restricao_cpf?: string | null
           resumo_qualificacao?: string | null
+          rg?: string | null
+          rg_orgao_emissor?: string | null
           roleta_slug?: string | null
           sdr_corretor_origem_id?: string | null
           sdr_devolvido_em?: string | null
@@ -5845,6 +5877,8 @@ export type Database = {
           canal_entrada?: string | null
           classe_lead?: string
           cliente_id?: string
+          conjuge_cpf?: string | null
+          conjuge_nome?: string | null
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -5855,6 +5889,7 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          data_nascimento?: string | null
           data_perda?: string | null
           decisor?: string | null
           deleted_at?: string | null
@@ -5863,8 +5898,16 @@ export type Database = {
           docs_recebidos?: Json | null
           dorms_desejados?: number | null
           email?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_complemento?: string | null
+          endereco_logradouro?: string | null
+          endereco_numero?: string | null
+          endereco_uf?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
+          estado_civil?: string | null
           etapa?: string | null
           faixa_mcmv?: string | null
           fase?: string | null
@@ -5879,6 +5922,7 @@ export type Database = {
           motivo_perda_categoria?: string | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
+          nacionalidade?: string | null
           nome?: string
           nota_perfil_cliente?: string | null
           objecoes?: string[]
@@ -5888,17 +5932,21 @@ export type Database = {
           pasta_montada_em?: string | null
           precisa_vaga?: boolean | null
           prioridades?: string[]
+          profissao?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           prospeccao_lote_id?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
           reativado?: boolean
+          regime_casamento?: string | null
           registro_adicional?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           restricao_cpf?: string | null
           resumo_qualificacao?: string | null
+          rg?: string | null
+          rg_orgao_emissor?: string | null
           roleta_slug?: string | null
           sdr_corretor_origem_id?: string | null
           sdr_devolvido_em?: string | null
@@ -11925,6 +11973,8 @@ export type Database = {
           canal_entrada: string | null
           classe_lead: string
           cliente_id: string
+          conjuge_cpf: string | null
+          conjuge_nome: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -11935,6 +11985,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          data_nascimento: string | null
           data_perda: string | null
           decisor: string | null
           deleted_at: string | null
@@ -11943,8 +11994,16 @@ export type Database = {
           docs_recebidos: Json | null
           dorms_desejados: number | null
           email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
+          estado_civil: string | null
           etapa: string | null
           faixa_mcmv: string | null
           fase: string | null
@@ -11959,6 +12018,7 @@ export type Database = {
           motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
+          nacionalidade: string | null
           nome: string
           nota_perfil_cliente: string | null
           objecoes: string[]
@@ -11968,17 +12028,21 @@ export type Database = {
           pasta_montada_em: string | null
           precisa_vaga: boolean | null
           prioridades: string[]
+          profissao: string | null
           projeto_id: string | null
           projeto_nome: string | null
           prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          regime_casamento: string | null
           registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           restricao_cpf: string | null
           resumo_qualificacao: string | null
+          rg: string | null
+          rg_orgao_emissor: string | null
           roleta_slug: string | null
           sdr_corretor_origem_id: string | null
           sdr_devolvido_em: string | null
@@ -12519,6 +12583,10 @@ export type Database = {
           _modo: string
           _motivo: string
         }
+        Returns: Json
+      }
+      aplicar_dados_contrato_lead: {
+        Args: { _dados: Json; _lead_id: string }
         Returns: Json
       }
       aplicar_desconto_comissao: {
@@ -15599,6 +15667,8 @@ export type Database = {
           canal_entrada: string | null
           classe_lead: string
           cliente_id: string
+          conjuge_cpf: string | null
+          conjuge_nome: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -15609,6 +15679,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          data_nascimento: string | null
           data_perda: string | null
           decisor: string | null
           deleted_at: string | null
@@ -15617,8 +15688,16 @@ export type Database = {
           docs_recebidos: Json | null
           dorms_desejados: number | null
           email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
+          estado_civil: string | null
           etapa: string | null
           faixa_mcmv: string | null
           fase: string | null
@@ -15633,6 +15712,7 @@ export type Database = {
           motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
+          nacionalidade: string | null
           nome: string
           nota_perfil_cliente: string | null
           objecoes: string[]
@@ -15642,17 +15722,21 @@ export type Database = {
           pasta_montada_em: string | null
           precisa_vaga: boolean | null
           prioridades: string[]
+          profissao: string | null
           projeto_id: string | null
           projeto_nome: string | null
           prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          regime_casamento: string | null
           registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           restricao_cpf: string | null
           resumo_qualificacao: string | null
+          rg: string | null
+          rg_orgao_emissor: string | null
           roleta_slug: string | null
           sdr_corretor_origem_id: string | null
           sdr_devolvido_em: string | null
@@ -15770,6 +15854,8 @@ export type Database = {
           canal_entrada: string | null
           classe_lead: string
           cliente_id: string
+          conjuge_cpf: string | null
+          conjuge_nome: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -15780,6 +15866,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          data_nascimento: string | null
           data_perda: string | null
           decisor: string | null
           deleted_at: string | null
@@ -15788,8 +15875,16 @@ export type Database = {
           docs_recebidos: Json | null
           dorms_desejados: number | null
           email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
+          estado_civil: string | null
           etapa: string | null
           faixa_mcmv: string | null
           fase: string | null
@@ -15804,6 +15899,7 @@ export type Database = {
           motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
+          nacionalidade: string | null
           nome: string
           nota_perfil_cliente: string | null
           objecoes: string[]
@@ -15813,17 +15909,21 @@ export type Database = {
           pasta_montada_em: string | null
           precisa_vaga: boolean | null
           prioridades: string[]
+          profissao: string | null
           projeto_id: string | null
           projeto_nome: string | null
           prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          regime_casamento: string | null
           registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           restricao_cpf: string | null
           resumo_qualificacao: string | null
+          rg: string | null
+          rg_orgao_emissor: string | null
           roleta_slug: string | null
           sdr_corretor_origem_id: string | null
           sdr_devolvido_em: string | null
@@ -15879,6 +15979,8 @@ export type Database = {
           canal_entrada: string | null
           classe_lead: string
           cliente_id: string
+          conjuge_cpf: string | null
+          conjuge_nome: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -15889,6 +15991,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          data_nascimento: string | null
           data_perda: string | null
           decisor: string | null
           deleted_at: string | null
@@ -15897,8 +16000,16 @@ export type Database = {
           docs_recebidos: Json | null
           dorms_desejados: number | null
           email: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
+          estado_civil: string | null
           etapa: string | null
           faixa_mcmv: string | null
           fase: string | null
@@ -15913,6 +16024,7 @@ export type Database = {
           motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
+          nacionalidade: string | null
           nome: string
           nota_perfil_cliente: string | null
           objecoes: string[]
@@ -15922,17 +16034,21 @@ export type Database = {
           pasta_montada_em: string | null
           precisa_vaga: boolean | null
           prioridades: string[]
+          profissao: string | null
           projeto_id: string | null
           projeto_nome: string | null
           prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          regime_casamento: string | null
           registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           restricao_cpf: string | null
           resumo_qualificacao: string | null
+          rg: string | null
+          rg_orgao_emissor: string | null
           roleta_slug: string | null
           sdr_corretor_origem_id: string | null
           sdr_devolvido_em: string | null
