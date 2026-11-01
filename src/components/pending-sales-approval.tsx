@@ -202,7 +202,7 @@ export function PendingSalesApproval() {
           p_percentual_total: total,
           p_percentual_corretor: corretor,
           p_percentual_gerente: gerente,
-          p_gerente_id: gerenteId || undefined,
+          p_gerente_id: gerenteId,
           p_socio_fabio_id: fabioId,
           p_justificativa: justificativa.trim() || undefined,
         });
