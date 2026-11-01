@@ -11,6 +11,7 @@ import type { Database, Json } from "@/integrations/supabase/types";
 import { isMissingBackendObject } from "@/lib/supabase-errors";
 import { redactSamiQPii } from "@/lib/samiq-governance";
 import type { SamiQCanal } from "@/lib/samiq";
+import type { CanalMemoriaSami } from "@/lib/samiq-marquinhos";
 import { deveRetomarConversa } from "@/lib/samiq-memoria";
 import { PropostaPayloadSchema, type PropostaSamiQ } from "@/lib/samiq-propostas";
 import type { PropostaColetada } from "@/lib/samiq-propostas.server";
@@ -32,7 +33,7 @@ export async function gravarTurnoSamiQ(args: {
   ferramentas?: string[];
   executionId?: string | null;
   /** Canal da conversa (Onda S4). Ausente = painel, a assinatura antiga da RPC. */
-  canal?: SamiQCanal;
+  canal?: CanalMemoriaSami;
 }): Promise<string | null> {
   const pergunta = redactSamiQPii(args.pergunta, SAMIQ_MAX_TURNO_CHARS).trim();
   const resposta = redactSamiQPii(args.resposta, SAMIQ_MAX_TURNO_CHARS).trim();
@@ -62,7 +63,7 @@ export async function gravarTurnoSamiQ(args: {
     const rpc = samiqRpc(supabaseAdmin);
     const rpcTurno = (payload: TurnoArgs) => rpc("samiq_gravar_turno", payload);
     let { data, error } = await rpcTurno(comCanal ? { ...base, _canal: args.canal } : base);
-    if (error && comCanal && isMissingBackendObject(error)) {
+    if (error && comCanal && args.canal !== "marquinhos" && isMissingBackendObject(error)) {
       ({ data, error } = await rpcTurno(base));
     }
     if (error) {
@@ -244,7 +245,7 @@ export const SAMIQ_HISTORICO_CANAL = 16;
  */
 export async function conversaAtivaSamiQ(args: {
   userId: string;
-  canal: SamiQCanal;
+  canal: CanalMemoriaSami;
   agora?: Date;
 }): Promise<{ id: string; leadId: string | null } | null> {
   try {

@@ -347,6 +347,7 @@ function minimizar<T>(value: T, maxArray = MAX_ARRAY): unknown {
 }
 
 export type ClienteResumoRow = {
+  corretor?: { nome: string | null } | null;
   id: string;
   nome: string | null;
   status: string | null;
@@ -366,6 +367,7 @@ export function modelarClientes(rows: ClienteResumoRow[], limite: number): unkno
       etapa: r.status,
       temperatura: r.temperatura,
       projeto: r.projeto_nome,
+      ...(r.corretor ? { corretor: displayNameForSamiQ(r.corretor.nome) } : {}),
       proximo_followup: r.proximo_followup,
       ultima_interacao: r.ultima_interacao,
       origem: r.origem,

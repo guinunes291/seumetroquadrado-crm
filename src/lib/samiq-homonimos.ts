@@ -16,6 +16,7 @@
 // vai para o modelo: só é comparado aqui, no servidor.
 
 export type ClienteParaDesambiguar = {
+  corretor_nome?: string | null;
   id: string;
   nome: string | null;
   projeto_nome: string | null;
@@ -213,12 +214,14 @@ export function candidatosParaPergunta(
   nome: string | null;
   empreendimento: string | null;
   etapa: string | null;
+  corretor?: string | null;
 }> {
   return clientes.slice(0, 8).map((c) => ({
     id: c.id,
     nome: nomeSeguro(c.nome),
     empreendimento: c.projeto_nome ?? null,
     etapa: c.status ?? null,
+    ...(c.corretor_nome ? { corretor: nomeSeguro(c.corretor_nome) } : {}),
   }));
 }
 

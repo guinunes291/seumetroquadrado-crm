@@ -66,6 +66,7 @@ export function prepararTurnoComFerramentas({
   ].join("\n");
   const localizacao = args.localizacao ?? null;
   const contextoExecucao = {
+    canalOrigem: args.canalMemoria,
     localizacao: localizacao
       ? {
           latitude: localizacao.latitude,

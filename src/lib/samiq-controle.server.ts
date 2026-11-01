@@ -17,6 +17,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { consentimentoExplicito, executadasDaDecisao } from "@/lib/samiq-canal";
+import { confirmarExplicitoMarquinhos } from "./samiq-marquinhos";
 import { escolherPorNumero } from "@/lib/samiq-contexto";
 import {
   descreverProposta,
@@ -102,6 +103,10 @@ export function criarFerramentasDeControleSamiQ(args: {
         "Grava itens que estão esperando o OK do corretor (lista 'Esperando o OK' do cabeçalho), pelo número, quando ele disse que pode em linguagem natural ('pode marcar', 'isso, grava'). Se ele pediu mudança ('sim, mas às 15h'), NÃO confirme: crie o item corrigido e descarte o antigo. Venda, perda, troca de vaga e crédito só com o CONFIRMAR dele.",
       inputSchema: ConfirmarPendentesInput,
       execute: async ({ itens }) => {
+        if (args.contexto?.canalOrigem === "marquinhos" &&
+          !confirmarExplicitoMarquinhos(args.textoDoCorretor)) {
+          return { erro: "precisa_confirmar", detalhe: "Marquinhos só grava com CONFIRMAR explícito." };
+        }
         if (!consentimentoExplicito(args.textoDoCorretor)) {
           return {
             erro: "sem_ok_explicito",

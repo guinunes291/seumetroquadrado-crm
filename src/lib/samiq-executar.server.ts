@@ -37,6 +37,7 @@ import {
   type PropostaPayload,
 } from "@/lib/samiq-propostas";
 import { anexarArquivoDoWhatsApp } from "./samiq-anexos.server";
+import { autoriaSami, type CanalMemoriaSami } from "./samiq-marquinhos";
 
 type Db = SupabaseClient<Database>;
 
@@ -44,6 +45,7 @@ export type ResultadoExecucao = Record<string, Json | undefined>;
 
 /** O que o turno sabe e a ação pode precisar (v8): a localização mandada no WhatsApp. */
 export type ContextoExecucao = {
+  canalOrigem?: CanalMemoriaSami;
   localizacao?: { latitude: number; longitude: number; precisao?: number | null } | null;
 };
 
@@ -251,7 +253,7 @@ async function marcarViaSami(
 ): Promise<void> {
   const { error } = await supabase
     .from("interacoes")
-    .update({ metadata: { ...oficial, via: "samiq", ...marca, origem: oficial.origem ?? "samiq" } })
+    .update({ metadata: { ...oficial, via: marca.canal === "marquinhos" ? "marquinhos" : "samiq", ...marca, origem: oficial.origem ?? "samiq" } })
     .eq("id", interacaoId);
   if (error) erroDb("marca via Sami", error);
 }
@@ -432,8 +434,13 @@ const CAMPOS_QUALIFICACAO_COLUNA = {
 export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<ResultadoExecucao> {
   const { supabase, userId, payload } = args;
   const agora = args.agora ?? new Date();
-  const metadata = metadataViaSami({ executionId: args.executionId, propostaId: args.propostaId });
+  const autorCanal = autoriaSami(args.contexto?.canalOrigem);
+  const metadata = {
+    ...metadataViaSami({ executionId: args.executionId, propostaId: args.propostaId }),
+    ...(args.contexto?.canalOrigem === "marquinhos" ? { origem: "marquinhos", canal: "marquinhos", autoria: "via Marquinhos (Mark)" } : {}),
+  };
   const marca: Record<string, Json> = {
+    ...(args.contexto?.canalOrigem === "marquinhos" ? { canal: "marquinhos", autoria: "via Marquinhos (Mark)" } : {}),
     proposta_id: args.propostaId,
     ...(args.executionId ? { execution_id: args.executionId } : {}),
   };
@@ -531,7 +538,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           autor_id: userId,
           tipo: "nota",
           direcao: "interna",
-          titulo: "Anotação via Sami",
+          titulo: `Anotação via ${autorCanal}`,
           conteudo: payload.nota.trim(),
           metadata,
         })
@@ -585,7 +592,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           corretor_id: lead?.corretor_id ?? userId,
           criado_por: userId,
           data_vencimento: vencimento,
-          descricao: "Registrado via Sami",
+          descricao: `Registrado via ${autorCanal}`,
         })
         .select("id")
         .single();
@@ -676,7 +683,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           tipo: "visita",
           status: "agendado",
           titulo: tituloVisita(payload, lead.nome),
-          descricao: "Agendada via Sami",
+          descricao: `Agendada via ${autorCanal}`,
           local: payload.local?.trim() || null,
           data_inicio: inicio.toISOString(),
           data_fim: fimDaVisita(payload),
@@ -1040,7 +1047,7 @@ export async function executarPropostaSamiQ(args: ExecutarArgs): Promise<Resulta
           tipo: a.tipo,
           status: "agendado",
           titulo: a.titulo,
-          descricao: "Remarcada via Sami",
+          descricao: `Remarcada via ${autorCanal}`,
           local: a.local,
           data_inicio: inicio.toISOString(),
           data_fim: new Date(inicio.getTime() + duracaoMs).toISOString(),
