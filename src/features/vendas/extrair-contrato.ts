@@ -9,10 +9,17 @@
 //     e manda como imagem.
 // Este módulo só é importado em lazy pelo diálogo: o pdf.js (~1 MB) nunca
 // entra no chunk das outras telas.
+//
+// Build LEGACY do pdf.js (página e worker): o build padrão da v6 usa
+// Promise.try e Map.prototype.getOrInsertComputed sem polyfill e quebra no
+// Safari; o legacy traz os polyfills. O texto é lido por lerTextoDaPagina
+// (getReader), porque o getTextContent do pdf.js usa `for await` sobre
+// ReadableStream, que o Safari não tem em nenhum dos dois builds.
 
-import * as pdfjs from "pdfjs-dist";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
+import { lerTextoDaPagina } from "./texto-pdf";
 import {
   MIN_CARACTERES_TEXTO,
   montarTextoContrato,
@@ -80,12 +87,7 @@ async function prepararPdf(
     for (let n = 1; n <= doc.numPages; n++) {
       onProgresso?.(n, doc.numPages);
       const page = await doc.getPage(n);
-      const conteudo = await page.getTextContent();
-      // hasEOL preserva as quebras de linha: "NOME: X\nCPF: Y" vira texto
-      // legível para o modelo em vez de uma linha só.
-      const texto = conteudo.items
-        .map((it) => ("str" in it ? it.str + (it.hasEOL ? "\n" : " ") : ""))
-        .join("");
+      const texto = await lerTextoDaPagina(page);
       paginas.push({ pagina: n, texto });
       page.cleanup();
     }
