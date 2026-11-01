@@ -152,7 +152,7 @@ export function criarFerramentasSamiQ(args: {
         let query = supabase
           .from("leads")
           .select(
-            "id, nome, status, temperatura, projeto_nome, proximo_followup, ultima_interacao, origem, created_at, corretor:profiles!leads_corretor_id_fkey(nome)",
+            "id, nome, status, temperatura, projeto_nome, proximo_followup, ultima_interacao, origem, created_at, corretor_id",
           )
           .is("deleted_at", null)
           .eq("na_lixeira", false);
@@ -168,9 +168,11 @@ export function criarFerramentasSamiQ(args: {
         const { data, error } = await query;
         if (error) falhaConsulta("buscar_clientes", error);
         const rows = data ?? [];
+        const donos = [...new Set(rows.map((r) => r.corretor_id).filter((id): id is string => !!id))];
+        const perfis = donos.length ? await supabase.from("profiles").select("id, nome").in("id", donos) : { data: [] };
         if (rows.length <= 3)
           for (const r of rows) citar({ id: r.id, nome: r.nome, etapa: r.status });
-        return { clientes: modelarClientes(rows, limite) };
+        return { clientes: modelarClientes(rows.map((r) => ({ ...r, corretor: { nome: perfis.data?.find((p) => p.id === r.corretor_id)?.nome ?? null } })), limite) };
       },
     }),
 

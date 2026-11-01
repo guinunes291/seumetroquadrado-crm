@@ -11,6 +11,12 @@ vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: db }));
 beforeEach(() => vi.resetAllMocks());
 
 describe("memória SamiQ — contrato das chamadas ao banco", () => {
+  it("Marquinhos nunca cai no canal padrão quando a gravação falha", async () => {
+    db.rpc.mockResolvedValue({ data: null, error: { code: "PGRST202" } });
+    expect(await gravarTurnoSamiQ({ userId: "usuario", pergunta: "teste", resposta: "teste", canal: "marquinhos" })).toBeNull();
+    expect(db.rpc).toHaveBeenCalledOnce();
+    expect(db.rpc.mock.calls[0][1]._canal).toBe("marquinhos");
+  });
   it("envia IDs nulos exigidos pela assinatura e redige PII antes da gravação", async () => {
     db.rpc.mockResolvedValue({ data: "conversa-nova", error: null });
     expect(

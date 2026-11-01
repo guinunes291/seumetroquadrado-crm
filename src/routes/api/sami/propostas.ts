@@ -8,6 +8,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { DecidirPropostasInput } from "@/lib/samiq-canal";
+import { propostaDaConversa } from "@/lib/samiq-marquinhos";
 
 export const Route = createFileRoute("/api/sami/propostas")({
   server: {
@@ -18,16 +19,17 @@ export const Route = createFileRoute("/api/sami/propostas")({
           canal.autenticarCanalSami(request);
           const body = await canal.lerCorpoCanalSami(request, DecidirPropostasInput);
           const corretor = await canal.resolverCorretorPorTelefone(body.corretor_telefone);
+          const canalMemoria = body.canal ?? "whatsapp";
+          if (canalMemoria === "marquinhos") await canal.autorizarCanalMarquinhos(corretor);
           const memoria = await import("@/lib/samiq-memoria.server");
-          const conversa = body.ids
-            ? null
-            : await memoria.conversaAtivaSamiQ({ userId: corretor.id, canal: "whatsapp" });
-          const pendentes = await memoria.propostasPendentesSamiQ({
+          const conversa = await memoria.conversaAtivaSamiQ({ userId: corretor.id, canal: canalMemoria });
+          const daConversa = conversa ? await memoria.propostasPendentesSamiQ({
             userId: corretor.id,
-            ids: body.ids,
-            conversaId: conversa?.id ?? null,
-          });
+            conversaId: conversa.id,
+          }) : [];
+          const pendentes = body.ids ? propostaDaConversa(daConversa, new Set(body.ids)) : daConversa;
           const decisao = await canal.decidirPendentes({
+            canalMemoria,
             corretor,
             decisao: body.decisao,
             pendentes,

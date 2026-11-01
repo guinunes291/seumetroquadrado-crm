@@ -59,6 +59,7 @@ export const MensagemSamiInput = z.object({
 export type MensagemSami = z.infer<typeof MensagemSamiInput>;
 
 export const DecidirPropostasInput = z.object({
+  canal: z.enum(["whatsapp", "marquinhos"]).optional(),
   corretor_telefone: TelefoneSchema,
   decisao: z.enum(["confirmar", "rejeitar"]),
   /** Ids das propostas (botões interativos); ausente = pendentes da conversa ativa. */
