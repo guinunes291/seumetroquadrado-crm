@@ -876,6 +876,13 @@
       "when": 1793541035845,
       "tag": "0124_comissao_aprovacao_beneficiarios_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1793560139053,
+      "tag": "0125_samiq_marquinhos_conversa_isolada",
+      "breakpoints": true
     }
   ]
 }
