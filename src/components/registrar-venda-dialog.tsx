@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CurrencyDollar, MagnifyingGlass } from "@phosphor-icons/react";
+import { CurrencyDollar, FileText, MagnifyingGlass } from "@phosphor-icons/react";
 import {
   maskCPF,
   maskCurrencyBRL,
@@ -27,7 +27,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { celebrate } from "@/components/ui/celebration";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { mesesPrevisaoRecebimento } from "@/lib/periodo";
 import { Textarea } from "@/components/ui/textarea";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
@@ -36,6 +42,7 @@ import { parseSplit, type SplitTexto } from "@/lib/comissoes";
 import { validarVenda, registrarVenda, type EfetivacaoVenda } from "@/lib/vendas";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useTierNoSplit } from "@/lib/comissao-tier";
+import { sugerirConstrutora, sugerirProjeto } from "@/features/vendas/contrato-venda";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -51,6 +58,16 @@ export type LeadOption = {
 };
 
 type ProjetoOpcao = { id: string; nome: string; construtora: string | null };
+
+/** Dados da venda lidos de outro lugar (contrato por IA): só SUGESTÃO. */
+export type PrefillVenda = {
+  construtora: string | null;
+  empreendimento: string | null;
+  unidade: string | null;
+  valorVenda: number | null;
+  dataAssinatura: string | null;
+  observacoes?: string | null;
+};
 
 type Etapa = 1 | 2 | 3 | 4;
 
@@ -69,12 +86,24 @@ export function VendaEtapasDialog({
   setOpen,
   leadFixo,
   onDone,
+  prefill,
+  resolverLead,
+  onRegistrada,
+  onUsarContrato,
 }: {
   open: boolean;
   setOpen: (o: boolean) => void;
   /** Lead já escolhido (ex.: card da lista/Kanban): pula a etapa 1. */
   leadFixo?: LeadOption | null;
   onDone?: () => void;
+  /** Venda por contrato: construtora/produto/valor/data/unidade sugeridos. */
+  prefill?: PrefillVenda | null;
+  /** Venda por contrato: cria/atualiza o cliente SÓ no envio da venda. */
+  resolverLead?: () => Promise<LeadOption>;
+  /** Depois de registrada (anexar o contrato, nota no histórico). */
+  onRegistrada?: (r: { vendaId: string; leadId: string }) => Promise<void>;
+  /** Mostra o atalho "Preencher pelo contrato (IA)". */
+  onUsarContrato?: () => void;
 }) {
   const etapaInicial: Etapa = leadFixo ? 2 : 1;
   const qc = useQueryClient();
@@ -119,8 +148,11 @@ export function VendaEtapasDialog({
     superintendente: "0.60",
   });
 
+  const prefillAplicado = useRef(false);
+
   const tierSplit = useTierNoSplit({
-    leadId: lead?.id,
+    // Cliente que ainda vai nascer (venda por contrato) não tem id.
+    leadId: lead?.id || undefined,
     corretorId: lead?.corretor_id ?? user?.id,
     data: dataAssinatura,
     percentuais,
@@ -147,11 +179,12 @@ export function VendaEtapasDialog({
     setUnidade("");
     setObservacoes("");
     setEfetivacao(EFETIVACAO_INICIAL);
+    prefillAplicado.current = false;
   };
 
   // Só projetos ativos entram numa nova venda (mesma regra de
   // fetchProjetosParaSelecao), agora com a construtora para o filtro.
-  const { data: projetos = [] } = useQuery({
+  const { data: projetos = [], isSuccess: projetosCarregados } = useQuery({
     queryKey: ["projetos-select-construtora"],
     enabled: open,
     queryFn: async (): Promise<ProjetoOpcao[]> => {
@@ -275,6 +308,37 @@ export function VendaEtapasDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, leadFixo, projetos, construtoras]);
 
+  // Venda por contrato: aplica a leitura UMA vez, quando a lista de produtos
+  // chega. Produto achado → direto para os dados; só a construtora → escolha
+  // do produto; nada → escolha da construtora. Tudo continua editável.
+  useEffect(() => {
+    if (!open || !prefill || prefillAplicado.current || !projetosCarregados) return;
+    prefillAplicado.current = true;
+    if (prefill.valorVenda) setValor(maskCurrencyBRL(String(Math.round(prefill.valorVenda * 100))));
+    if (prefill.dataAssinatura) setDataAssinatura(prefill.dataAssinatura);
+    if (prefill.unidade) setUnidade(prefill.unidade.slice(0, 60));
+    if (prefill.observacoes) setObservacoes(prefill.observacoes);
+    const marca = sugerirConstrutora(prefill.construtora, construtoras);
+    const doCatalogo = marca
+      ? projetos.filter((p) => mesmaConstrutoraExata(p.construtora, marca))
+      : projetos;
+    const produto =
+      sugerirProjeto(prefill.empreendimento, prefill.construtora, doCatalogo) ??
+      (marca ? null : sugerirProjeto(prefill.empreendimento, prefill.construtora, projetos));
+    const construtoraFinal = produto?.construtora
+      ? (construtoras.find((c) => mesmaConstrutoraExata(produto.construtora, c)) ??
+        produto.construtora)
+      : (marca ?? prefill.construtora ?? "");
+    if (construtoraFinal) setConstrutora(construtoraFinal);
+    if (produto) {
+      setProjeto(produto);
+      setEtapa(4);
+    } else if (construtoraFinal) {
+      setFiltroProjeto("");
+      setEtapa(3);
+    }
+  }, [open, prefill, projetos, projetosCarregados, construtoras]);
+
   const criarProjeto = useMutation({
     mutationFn: async () => {
       const nome = novoProjetoNome.trim();
@@ -304,7 +368,7 @@ export function VendaEtapasDialog({
   const mut = useMutation({
     mutationFn: async () => {
       if (!lead) throw new Error("Selecione o cliente que comprou");
-      if (leadFixo && !lead.corretor_id) {
+      if (leadFixo && !lead.corretor_id && !resolverLead) {
         throw new Error(
           'Este lead ainda não tem corretor responsável. Clique em "Iniciar atendimento" antes de registrar a venda.',
         );
@@ -318,10 +382,13 @@ export function VendaEtapasDialog({
       }
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
+      // Venda por contrato: o cliente nasce/é atualizado só agora, depois de
+      // validada a venda — cancelar antes não grava nada.
+      const alvo = resolverLead ? await resolverLead() : lead;
       const obsConstrutora = !projeto && projetoManual.trim() ? `Construtora: ${construtora}` : "";
-      await registrarVenda({
-        leadId: lead.id,
-        corretorId: lead.corretor_id ?? uid,
+      const vendaId = await registrarVenda({
+        leadId: alvo.id,
+        corretorId: alvo.corretor_id ?? uid,
         criadoPorId: uid,
         projetoId: projeto?.id ?? null,
         projetoNome: projeto?.nome ?? (projetoManual.trim() || null),
@@ -333,8 +400,9 @@ export function VendaEtapasDialog({
         previsaoRecebimento,
         efetivacao,
       });
+      return { vendaId, leadId: alvo.id };
     },
-    onSuccess: () => {
+    onSuccess: async (r) => {
       toast.success("Venda enviada para aprovação da gestão");
       celebrate("venda");
       qc.invalidateQueries({ queryKey: ["vendas"] });
@@ -343,9 +411,16 @@ export function VendaEtapasDialog({
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads-para-venda"] });
-      if (lead) {
-        qc.invalidateQueries({ queryKey: ["lead", lead.id] });
-        qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
+      qc.invalidateQueries({ queryKey: ["lead", r.leadId] });
+      qc.invalidateQueries({ queryKey: ["interacoes", r.leadId] });
+      qc.invalidateQueries({ queryKey: ["documentacoes", r.leadId] });
+      if (onRegistrada) {
+        // A venda já está registrada: falha aqui (anexo, nota) só avisa.
+        try {
+          await onRegistrada(r);
+        } catch (e) {
+          toast.warning(`Venda registrada, mas: ${(e as Error).message}`);
+        }
       }
       onDone?.();
       reset();
@@ -427,7 +502,21 @@ export function VendaEtapasDialog({
             ))}
           </div>
 
+          {onUsarContrato && !prefill && etapa === etapaInicial && (
+            <Button variant="outline" className="w-full" onClick={onUsarContrato}>
+              <FileText className="mr-2 h-4 w-4" />
+              Tem o contrato? Preencher com IA
+            </Button>
+          )}
+
           {etapa > 1 && <Resumo />}
+
+          {prefill && etapa === 4 && (
+            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+              Valor, data e unidade vieram do contrato. Confira antes de registrar. Previsão de
+              recebimento, efetivação e comissão continuam com você.
+            </p>
+          )}
 
           {etapa === 1 && (
             <div className="space-y-3">
@@ -662,7 +751,9 @@ export function VendaEtapasDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {mesesRecebimento.map((mes) => (
-                      <SelectItem key={mes.value} value={mes.value}>{mes.label}</SelectItem>
+                      <SelectItem key={mes.value} value={mes.value}>
+                        {mes.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -735,7 +826,16 @@ export function RegistrarVendaDialog() {
         </TooltipTrigger>
         <TooltipContent>Registrar venda</TooltipContent>
       </Tooltip>
-      <VendaEtapasDialog open={open} setOpen={setOpen} />
+      <VendaEtapasDialog
+        open={open}
+        setOpen={setOpen}
+        onUsarContrato={() => {
+          setOpen(false);
+          // O botão "Venda por contrato" do topo escuta este evento (sem
+          // import cruzado entre os dois diálogos).
+          window.dispatchEvent(new Event("open-venda-contrato"));
+        }}
+      />
     </>
   );
 }

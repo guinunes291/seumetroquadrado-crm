@@ -124,7 +124,9 @@ describe("reserva com ferramentas de leitura", () => {
     // Versão ativa mais recente: v8 ("CRM no WhatsApp", 20261024120100), derivada
     // da ativa anterior (v6 no replay; v7.1 em produção) com o mesmo modelo e
     // os mesmos action_prompts, trocando o system prompt e o pergunta_livre.
-    expect(r.prompt_version).toBe("samiq-2026-10-v8");
+    // A samiq-2026-11-contrato (20261101120000) deriva da v8 e só acrescenta a
+    // ação ler_contrato_venda: system prompt e demais ações são os da v8.
+    expect(r.prompt_version).toBe("samiq-2026-11-contrato");
     expect(r.tools_enabled).toBe(true);
     expect(r.propostas_enabled).toBe(true);
     // v8: 10 passos por resposta (era 6).

@@ -87,8 +87,8 @@ export async function atualizarDoc(
 // ---------------------------------------------------------------------------
 
 export const DOC_BUCKET = "documentacao";
-const DOC_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
-const DOC_MAX_BYTES = 15 * 1024 * 1024;
+export const DOC_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+export const DOC_MAX_BYTES = 15 * 1024 * 1024;
 
 type DocumentacaoApiResponse = {
   ok: boolean;
@@ -160,15 +160,14 @@ export async function uploadDocArquivo(
 }
 
 /**
- * Anexa a carta de aprovação de crédito: cria o item `aprovacao_credito` na
- * documentação do lead e sobe o arquivo pelo MESMO handler mediado (bucket
- * privado, versão imutável, auditoria). Devolve o id do item — é o que a
- * análise guarda em `comprovante_doc_id`. O arquivo aparece também na aba
- * Documentação: um lugar só para arquivo sensível do cliente.
+ * Cria um item na documentação do lead e sobe o arquivo pelo handler mediado
+ * (bucket privado, versão imutável, auditoria). Devolve o id do item. Se o
+ * upload falhar, o item vazio é desfeito (só poluiria o checklist).
  */
-export async function anexarComprovanteAprovacao(
+export async function anexarDocumento(
   leadId: string,
   corretorId: string | null,
+  tipo: string,
   file: File,
 ): Promise<string> {
   if (!DOC_MIME_TYPES.has(file.type) || file.size < 1 || file.size > DOC_MAX_BYTES) {
@@ -179,7 +178,7 @@ export async function anexarComprovanteAprovacao(
     .insert({
       lead_id: leadId,
       corretor_id: corretorId,
-      tipo: "aprovacao_credito",
+      tipo,
       status: "pendente" as DocStatus,
     })
     .select("id")
@@ -188,11 +187,24 @@ export async function anexarComprovanteAprovacao(
   try {
     await uploadDocArquivo(leadId, data.id, file);
   } catch (e) {
-    // Sem arquivo, o item vazio só polui o checklist: desfaz.
     await supabase.from("documentacoes").delete().eq("id", data.id);
     throw e;
   }
   return data.id;
+}
+
+/**
+ * Anexa a carta de aprovação de crédito: item `aprovacao_credito` na
+ * documentação do lead. O id volta para a análise guardar em
+ * `comprovante_doc_id`; o arquivo aparece também na aba Documentação — um
+ * lugar só para arquivo sensível do cliente.
+ */
+export function anexarComprovanteAprovacao(
+  leadId: string,
+  corretorId: string | null,
+  file: File,
+): Promise<string> {
+  return anexarDocumento(leadId, corretorId, "aprovacao_credito", file);
 }
 
 /** Signed URL de cinco minutos, emitida somente após autorização server-side. */
