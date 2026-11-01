@@ -11,6 +11,7 @@ import {
   formatPhoneBR,
 } from "@/lib/masks";
 import { isValidBrazilPhone, isValidCPF, isValidEmail, onlyDigits } from "@/lib/validators";
+import { casaTelefone, filtroOrTelefone, sufixosTelefone } from "@/lib/lead-busca-telefone";
 import { mesmaConstrutoraExata, chaveConstrutora } from "@/lib/construtoras";
 import { slugify } from "@/lib/projetos";
 import { useConstrutorasParceiras } from "@/features/projetos/use-construtoras-parceiras";
@@ -256,13 +257,17 @@ export function VendaEtapasDialog({
       };
       const achados = new Map<string, LeadOption>();
       if (tel) {
-        const fim = tel.slice(-8);
-        // Telefone é salvo com ou sem máscara: busca pelos 4 finais e confere os 8.
-        const { data, error } = await base().ilike("telefone", `%${fim.slice(-4)}%`);
-        if (error) throw error;
-        (data ?? [])
-          .filter((l) => onlyDigits(l.telefone).endsWith(fim))
-          .forEach((l) => achados.set(l.id, l as LeadOption));
+        // Telefone salvo com ou sem máscara/DDI: sufixo de 9 (depois 8) dígitos
+        // em telefone_e164 e no texto cru, conferido dígito a dígito
+        // (lib/lead-busca-telefone). Filtrar só os 4 finais com limite deixava
+        // o cliente certo de fora numa base grande.
+        for (const sufixo of sufixosTelefone(tel)) {
+          const { data, error } = await base().or(filtroOrTelefone(sufixo));
+          if (error) throw error;
+          const doTelefone = (data ?? []).filter((l) => casaTelefone(l.telefone, sufixo));
+          doTelefone.forEach((l) => achados.set(l.id, l as LeadOption));
+          if (doTelefone.length > 0) break;
+        }
       }
       if (mail) {
         const { data, error } = await base().ilike("email", mail);
