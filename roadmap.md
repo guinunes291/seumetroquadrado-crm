@@ -1,4 +1,5 @@
 # Cadastro de venda duplicada
+- [ ] Corrigir reutilização do cliente anterior ao abrir outro contrato IA e testar dois contratos consecutivos.
 - [x] Tratar venda ativa existente e envio simultâneo no cadastro compartilhado, preservando registros e regras financeiras; 17 testes passaram e compilação OK.
 - [ ] Conferir o fluxo autenticado sem cadastrar venda real: emissão de sessão do solicitante indisponível; aguarda login no preview. Não foi localizada no banco a venda com nome/valor da imagem.
 
