@@ -18,6 +18,7 @@ export type LeadFiltros = {
   // Resultado da ÚLTIMA análise de crédito (item 3.1b): "all" ou um valor de
   // ANALISE_FILTRO_OPCOES. Servido pela leads_filtered_v5.
   analise: string;
+  projeto?: string;
 };
 
 export const FILTRO_PADRAO: LeadFiltros = {
@@ -29,6 +30,7 @@ export const FILTRO_PADRAO: LeadFiltros = {
   contato: "all",
   paradoDias: "all",
   analise: "all",
+  projeto: "all",
 };
 
 /** Recortes pelo resultado da última análise de crédito (RPC v5). */
@@ -222,6 +224,7 @@ export const FILTRO_URL_KEYS = [
   "contato",
   "paradoDias",
   "analise",
+  "projeto",
 ] as const;
 
 export type LeadSearchFiltros = Partial<Pick<LeadFiltros, (typeof FILTRO_URL_KEYS)[number]>>;
