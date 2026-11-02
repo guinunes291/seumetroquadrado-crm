@@ -17,4 +17,11 @@ describe("filtro de projeto da carteira", () => {
     const rows = await listarLeadsDoProjeto("playball-cury", async page => page === 1 ? Array.from({ length: 200 }, () => lead) : [lead]);
     expect(rows).toHaveLength(1);
   });
+  it("inclui cadastro Playball Cury por nome sem confundir outro vínculo", async () => {
+    const rows = await listarLeadsDoProjeto("playball-cury", async () => [
+      { id: "por-nome", projeto_id: null, projeto_nome: "Playball Cury", status: "novo" } as Lead,
+      { id: "outro", projeto_id: "outro", projeto_nome: "Cury Playball", status: "novo" } as Lead,
+    ], "Cury Playball");
+    expect(rows.map(row => row.id)).toEqual(["por-nome"]);
+  });
 });

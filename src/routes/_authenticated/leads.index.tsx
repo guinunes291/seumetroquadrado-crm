@@ -497,7 +497,6 @@ function LeadsPage() {
       _na_lixeira: showLixeira,
       _status: statusFilter,
       _origem: origemFilter,
-    projeto: projetoFilter,
       _corretor: corretorFilter,
       _temperatura: temperaturaFilter,
       _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : undefined,
@@ -510,7 +509,7 @@ function LeadsPage() {
   const paradoDiasNum = paradoDiasFilter === "all" ? null : Number(paradoDiasFilter);
 
   const { data: projetoRows, isLoading: projetoLoading, isError: projetoError, refetch: refetchProjeto } = useQuery({
-    queryKey: ["leads-projeto", baseQueryKey, sorting],
+    queryKey: ["leads-projeto", baseQueryKey, sorting, projetos],
     enabled: projetoFilter !== "all" && !!user?.id,
     queryFn: () => listarLeadsDoProjeto(projetoFilter, async (pagina) => {
       const result = await fetchLeadsFiltered({
@@ -520,8 +519,8 @@ function LeadsPage() {
         sortDir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
         page: pagina, pageSize: 200,
       });
-      return recortesClientSide(result.rows, result.source, contatoFilter, paradoDiasFilter);
-    }),
+      return result.rows;
+    }, projetos?.find(p => p.id === projetoFilter)?.nome),
   });
   const projetoCounts = useMemo(() => projetoRows ? contagensDoProjeto(projetoRows) : undefined, [projetoRows]);
 
@@ -1997,7 +1996,7 @@ function LeadsPage() {
 
               {/* Paginação (50 por página) — a view tabela pagina dentro do
                   DataTable; este rodapé atende só a view cards. */}
-              {viewMode === "cards" && visibleTotal > LEADS_PAGE_SIZE && (
+              {(viewMode === "cards" || (viewMode === "funil" && projetoFilter !== "all")) && visibleTotal > LEADS_PAGE_SIZE && (
                 <div className="flex items-center justify-between pt-1">
                   <div className="text-xs text-muted-foreground">
                     Página {pageSafe} de {totalPages} · {visibleTotal.toLocaleString("pt-BR")}{" "}
