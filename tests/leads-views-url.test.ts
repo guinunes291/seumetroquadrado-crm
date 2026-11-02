@@ -8,6 +8,11 @@ import {
 } from "@/lib/leads-views";
 
 describe("searchParaFiltros / filtrosParaSearch", () => {
+  it("preserva o projeto Playball Cury na URL e na visão restaurada", () => {
+    const search = filtrosParaSearch({ ...FILTRO_PADRAO, projeto: "playball-cury" });
+    expect(search.projeto).toBe("playball-cury");
+    expect(mesclarFiltrosDaUrl(searchParaFiltros(search), false).projeto).toBe("playball-cury");
+  });
   it("lê da URL só chaves conhecidas, ignorando vazios e 'all'", () => {
     const f = searchParaFiltros({
       status: "em_atendimento",
