@@ -37,6 +37,7 @@ vi.mock("@/integrations/supabase/client.server", async () => {
 import { confirmarPropostas, desfazerPropostas } from "@/lib/samiq-confirmar.server";
 import { registrarPropostasSamiQ } from "@/lib/samiq-memoria.server";
 import type { PropostaPayload } from "@/lib/samiq-propostas";
+import { diaSP, mesesPrevisaoSP } from "@/lib/samiq-datas";
 
 const c = novoClient();
 const cc = novoClientPostgrest();
@@ -50,10 +51,12 @@ const daquiDias = (d: number, hora = 13) => {
   t.setUTCHours(hora, 0, 0, 0);
   return t.toISOString();
 };
-const proximoMes = () => {
-  const d = new Date(AGORA.getTime() + 35 * 86_400_000);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-};
+// Datas relativas a AGORA que valem a qualquer hora em que o CI rode. As
+// regras do executor são em dia de São Paulo (diaSP/mesesPrevisaoSP); datas
+// montadas em UTC quebravam entre 20h e meia-noite de Brasília (23h–03h UTC):
+// "hoje 23:00 UTC" já tinha passado e o "hoje" UTC era amanhã em SP.
+const daquiHoras = (h: number) => new Date(AGORA.getTime() + h * 3_600_000).toISOString();
+const proximoMes = () => mesesPrevisaoSP(AGORA)[0];
 
 async function executar(payload: PropostaPayload, leadId: string | null, contexto?: object) {
   const [p] = await registrarPropostasSamiQ({
@@ -370,7 +373,8 @@ describe("visita: agendar, confirmar, remarcar, cancelar e resultado", () => {
 
   it("registrar_visita: compareceu, com interesse e próxima etapa", async () => {
     const id = await lead("em_atendimento", "Carla Visitou");
-    await ok({ tipo: "agendar_visita", leadId: id, inicioEm: daquiDias(0, 23) }, id);
+    // Futuro e dentro da janela de -7 d/+1 d em que o executor acha a visita.
+    await ok({ tipo: "agendar_visita", leadId: id, inicioEm: daquiHoras(2) }, id);
     const { r } = await ok(
       {
         tipo: "registrar_visita",
@@ -540,7 +544,7 @@ describe("documentos e crédito", () => {
 describe("venda, check-in, cadastro e lote", () => {
   it("registrar_venda: entra pendente para a gestão aprovar", async () => {
     const id = await lead("analise_credito");
-    const hoje = AGORA.toISOString().slice(0, 10);
+    const hoje = diaSP(AGORA);
     const { row } = await ok(
       {
         tipo: "registrar_venda",
