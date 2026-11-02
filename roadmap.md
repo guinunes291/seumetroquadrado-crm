@@ -1,6 +1,7 @@
 # Filtro de projeto na Gestão de Carteira
-- [ ] Adicionar seleção de projeto na lista, preservando permissões, contagens, paginação e seleção em lote.
-- [ ] Testar filtro Playball Cury; conferência autenticada depende de sessão autorizada no preview.
+- [x] Adicionar seleção de projeto na lista, preservando permissões, contagens, paginação e seleção em lote.
+- [x] Testar filtro Playball Cury por vínculo e nome, paginação e URL: 23 testes passaram; compilação OK.
+- [ ] Conferir seleção na tela autenticada: emissão da sessão do solicitante falhou; aguarda login no preview.
 
 # Marquinhos (Mark) pela Sami
 - [x] Separar CANCELAR de DESFAZER: trava também na ferramenta de IA; CANCELAR testado na API com e sem conversa nova, sem alterações.
