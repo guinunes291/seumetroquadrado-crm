@@ -89,7 +89,31 @@ export type RegistrarVendaInput = {
  * Registra um rascunho comercial em estado pendente de aprovação. Não há efeito
  * em lead, metas ou comissão nesta etapa.
  */
+const registrosEmAndamento = new Set<string>();
+const vendaExistenteMensagem =
+  "Este cliente já tem uma venda em rascunho, aguardando aprovação ou aprovada. Confira a venda existente em Vendas antes de registrar outra.";
+
 export async function registrarVenda(input: RegistrarVendaInput): Promise<string> {
+  if (registrosEmAndamento.has(input.leadId)) {
+    throw new Error("O cadastro da venda deste cliente já está em andamento. Aguarde a confirmação.");
+  }
+  registrosEmAndamento.add(input.leadId);
+  try {
+    const { data: existente, error: consultaErro } = await supabase
+      .from("vendas")
+      .select("id")
+      .eq("lead_id", input.leadId)
+      .in("status_venda", ["rascunho", "pendente", "aprovada"])
+      .limit(1);
+    if (consultaErro) throw consultaErro;
+    if (existente?.length) throw new Error(vendaExistenteMensagem);
+    return await inserirVendaPendente(input);
+  } finally {
+    registrosEmAndamento.delete(input.leadId);
+  }
+}
+
+async function inserirVendaPendente(input: RegistrarVendaInput): Promise<string> {
   const { data: criada, error: insErr } = await supabase
     .from("vendas")
     .insert({
@@ -114,6 +138,11 @@ export async function registrarVenda(input: RegistrarVendaInput): Promise<string
     })
     .select("id")
     .single();
-  if (insErr) throw insErr;
+  if (insErr) {
+    if (insErr.code === "23505" && insErr.message.includes("uq_vendas_lead_ativa")) {
+      throw new Error(vendaExistenteMensagem);
+    }
+    throw insErr;
+  }
   return criada.id;
 }

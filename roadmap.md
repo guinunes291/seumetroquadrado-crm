@@ -1,3 +1,7 @@
+# Cadastro de venda duplicada
+- [ ] Tratar venda ativa existente e envio simultâneo no cadastro compartilhado, preservando registros e regras financeiras.
+- [ ] Executar testes e conferir o fluxo autenticado sem cadastrar venda real.
+
 # Filtro de projeto na Gestão de Carteira
 - [x] Adicionar seleção de projeto na lista, preservando permissões, contagens, paginação e seleção em lote.
 - [x] Testar filtro Playball Cury por vínculo e nome, paginação e URL: 23 testes passaram; compilação OK.
