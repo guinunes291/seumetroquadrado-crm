@@ -1,3 +1,7 @@
+# Filtro de projeto na Gestão de Carteira
+- [ ] Adicionar seleção de projeto na lista, preservando permissões, contagens, paginação e seleção em lote.
+- [ ] Testar filtro Playball Cury; conferência autenticada depende de sessão autorizada no preview.
+
 # Marquinhos (Mark) pela Sami
 - [x] Separar CANCELAR de DESFAZER: trava também na ferramenta de IA; CANCELAR testado na API com e sem conversa nova, sem alterações.
 - [x] Permitir seleção independente de conversa por lead_id ou nome e status; 54 testes passaram e ambas as seleções leram Teste Qa em conversas novas, sem propostas nem gravações.
