@@ -137,6 +137,8 @@ import {
   recortesClientSide,
   type LeadsSource,
 } from "@/features/leads/leads-query";
+import { listarLeadsDoProjeto, contagensDoProjeto } from "@/features/leads/leads-projeto";
+import { useProjetosMini } from "@/features/distribuicao/corretores-queries";
 import { useLeadMutations } from "@/features/leads/use-lead-mutations";
 import { LeadsTable, FlagChips } from "@/features/leads/leads-table";
 import { FocusMode } from "@/features/leads/focus-mode";
@@ -156,7 +158,14 @@ import {
 } from "@/lib/zona-estrita";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
-  head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
+  head: () => ({ meta: [
+    { title: "Gestão de Carteira — Seu Metro Quadrado" },
+    { name: "description", content: "Consulte clientes e filtre a carteira por projeto, corretor e fase de atendimento." },
+    { property: "og:title", content: "Gestão de Carteira — Seu Metro Quadrado" },
+    { property: "og:description", content: "Clientes e projetos da sua carteira no CRM Seu Metro Quadrado." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   // Drill-through universal: todo filtro server-side da leads_filtered pode
   // chegar pela URL (telas de gestão linkam para cá). URL vence localStorage.
   // A página também ESCREVE os filtros/página na URL (replace) — a visão
@@ -221,6 +230,8 @@ function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(
     statusParamValido ?? (canManage ? "all" : "aguardando_atendimento"),
   );
+  const [projetoFilter, setProjetoFilter] = useState("all");
+  const { data: projetos, isError: projetosError } = useProjetosMini(!!user?.id);
   const [origemFilter, setOrigemFilter] = useState<string>("all");
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [temperaturaFilter, setTemperaturaFilter] = useState<string>("all");
@@ -319,6 +330,7 @@ function LeadsPage() {
   const filtrosAtuais: LeadFiltros = {
     status: statusFilter,
     origem: origemFilter,
+    projeto: projetoFilter,
     corretor: corretorFilter,
     temperatura: temperaturaFilter,
     periodo: periodoFilter,
@@ -332,6 +344,7 @@ function LeadsPage() {
   const aplicarFiltros = (f: LeadFiltros) => {
     setStatusFilter(f.status);
     setOrigemFilter(f.origem);
+    setProjetoFilter(f.projeto ?? "all");
     setCorretorFilter(canManage ? f.corretor : "all");
     setTemperaturaFilter(f.temperatura);
     setPeriodoFilter(f.periodo as Periodo);
@@ -364,6 +377,7 @@ function LeadsPage() {
   }, [
     statusFilter,
     origemFilter,
+    projetoFilter,
     corretorFilter,
     temperaturaFilter,
     periodoFilter,
@@ -392,6 +406,7 @@ function LeadsPage() {
   }, [
     statusFilter,
     origemFilter,
+    projetoFilter,
     corretorFilter,
     temperaturaFilter,
     periodoFilter,
@@ -451,6 +466,7 @@ function LeadsPage() {
   const baseQueryKey = {
     debouncedSearch,
     origemFilter,
+    projetoFilter,
     corretorFilter,
     temperaturaFilter,
     periodoFilter,
@@ -481,6 +497,7 @@ function LeadsPage() {
       _na_lixeira: showLixeira,
       _status: statusFilter,
       _origem: origemFilter,
+    projeto: projetoFilter,
       _corretor: corretorFilter,
       _temperatura: temperaturaFilter,
       _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : undefined,
@@ -491,6 +508,23 @@ function LeadsPage() {
   };
 
   const paradoDiasNum = paradoDiasFilter === "all" ? null : Number(paradoDiasFilter);
+
+  const { data: projetoRows, isLoading: projetoLoading, isError: projetoError, refetch: refetchProjeto } = useQuery({
+    queryKey: ["leads-projeto", baseQueryKey, sorting],
+    enabled: projetoFilter !== "all" && !!user?.id,
+    queryFn: () => listarLeadsDoProjeto(projetoFilter, async (pagina) => {
+      const result = await fetchLeadsFiltered({
+        params: { ...buildParams(), _status: "all" },
+        contato: contatoFilter, paradoDias: paradoDiasNum, analise: analiseFilter,
+        sort: sorting[0]?.id ?? null,
+        sortDir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
+        page: pagina, pageSize: 200,
+      });
+      return recortesClientSide(result.rows, result.source, contatoFilter, paradoDiasFilter);
+    }),
+  });
+  const projetoCounts = useMemo(() => projetoRows ? contagensDoProjeto(projetoRows) : undefined, [projetoRows]);
+
 
   const {
     data: leadsResult,
@@ -512,14 +546,16 @@ function LeadsPage() {
         page,
         pageSize: LEADS_PAGE_SIZE,
       }),
-    enabled: canManage || !!user?.id,
+    enabled: projetoFilter === "all" && (canManage || !!user?.id),
   });
 
-  const leadsAll = leadsResult?.rows;
+  const leadsAll = projetoFilter !== "all"
+    ? projetoRows?.filter(l => statusFilter === "all" || l.status === statusFilter)
+    : leadsResult?.rows;
   const source: LeadsSource = leadsResult?.source ?? "v4";
   // Com v2/v3/v4 a paginação é sempre no servidor; no fallback v1 só quando
   // não há filtro de contato (que ainda fatia no cliente).
-  const serverPaginated = source !== "v1" ? true : contatoFilter === "all";
+  const serverPaginated = projetoFilter === "all" && (source !== "v1" ? true : contatoFilter === "all");
 
   // IDs de leads com follow-up pendente — só no fallback v1 (a v2 resolve o
   // recorte "com_followup" no próprio servidor e devolve `tem_followup`).
@@ -608,16 +644,17 @@ function LeadsPage() {
       });
       return { total, counts };
     },
-    enabled: canManage || !!user?.id,
+    enabled: projetoFilter === "all" && (canManage || !!user?.id),
   });
 
   // useMemo para o memo dos chips dinâmicos não recalcular a cada render.
-  const statusCounts = useMemo(() => statusCountsData?.counts ?? {}, [statusCountsData]);
+  const effectiveCounts = projetoFilter !== "all" ? projetoCounts : statusCountsData;
+  const statusCounts = useMemo(() => effectiveCounts?.counts ?? {}, [effectiveCounts]);
   const leadQueryTotal = Number(leadsAll?.[0]?.total_count ?? leadsAll?.length ?? 0);
-  const totalLeadsCount = statusCountsData?.total ?? leadQueryTotal;
+  const totalLeadsCount = effectiveCounts?.total ?? leadQueryTotal;
   const followupFilterFailed = contatoFilter === "com_followup" && followupError;
-  const listError = leadsError || statusCountsError || followupFilterFailed;
-  const listLoading = isLoading || (contatoFilter === "com_followup" && followupLoading);
+  const listError = projetoFilter !== "all" ? projetoError : leadsError || statusCountsError || followupFilterFailed;
+  const listLoading = projetoFilter !== "all" ? projetoLoading : isLoading || (contatoFilter === "com_followup" && followupLoading);
 
   // Recortes transitórios (v1/v2 sem as migrations) — a lógica vive em
   // recortesClientSide (leads-query), compartilhada com o modo Consulta.
@@ -629,7 +666,7 @@ function LeadsPage() {
     [leadsAll, source, contatoFilter, paradoDiasFilter, followupIds],
   );
 
-  const currentStatusTotal = statusCountsData
+  const currentStatusTotal = effectiveCounts
     ? statusFilter === "all"
       ? totalLeadsCount
       : (statusCounts[statusFilter] ?? 0)
@@ -694,6 +731,7 @@ function LeadsPage() {
   }, [
     statusFilter,
     origemFilter,
+    projetoFilter,
     corretorFilter,
     temperaturaFilter,
     periodoFilter,
@@ -717,6 +755,7 @@ function LeadsPage() {
   }, [
     statusFilter,
     origemFilter,
+    projetoFilter,
     corretorFilter,
     temperaturaFilter,
     periodoFilter,
@@ -734,6 +773,10 @@ function LeadsPage() {
   const selecionarTodosDoFiltro = async () => {
     setSelecionandoTudo(true);
     try {
+      if (projetoFilter !== "all") {
+        setSelectedIds(new Set(filtered.slice(0, SELECAO_MAX).map(l => l.id)));
+        return;
+      }
       const paramsV1 = buildParams();
       const ids: string[] = [];
       for (let offset = 0; offset < SELECAO_MAX; offset += 200) {
@@ -845,7 +888,7 @@ function LeadsPage() {
   // não só a página de 50 — sem isso o "trabalhar a fila" acabava no lead 50.
   const { data: focusIdsData } = useQuery({
     queryKey: ["leads-focus-ids", baseQueryKey, statusFilter],
-    enabled: focusOpen && source !== "v1",
+    enabled: focusOpen && source !== "v1" && projetoFilter === "all",
     staleTime: 30_000,
     queryFn: async (): Promise<string[]> => {
       const paramsFila = {
@@ -887,12 +930,12 @@ function LeadsPage() {
     },
   });
   const focusQueue = useMemo(() => {
-    const ids = focusIdsData ?? filtered.map((l) => l.id);
+    const ids = projetoFilter !== "all" ? filtered.map(l => l.id) : focusIdsData ?? filtered.map((l) => l.id);
     // "Focar a partir daqui" num lead fora da 1ª leva (ex.: página 5): garante
     // o lead clicado na fila, na frente.
     if (focusStart && !ids.includes(focusStart)) return [focusStart, ...ids];
     return ids;
-  }, [focusIdsData, filtered, focusStart]);
+  }, [focusIdsData, filtered, focusStart, projetoFilter]);
 
   // Atalho F abre o modo foco com a fila filtrada atual (só na view lista,
   // nunca digitando em campo de texto).
@@ -933,6 +976,7 @@ function LeadsPage() {
   const activeFiltersCount =
     (statusFilter !== "all" && statusFilter !== "aguardando_atendimento" ? 1 : 0) +
     (origemFilter !== "all" ? 1 : 0) +
+    (projetoFilter !== "all" ? 1 : 0) +
     (corretorFilter !== "all" ? 1 : 0) +
     (temperaturaFilter !== "all" ? 1 : 0) +
     (periodoFilter !== "all" ? 1 : 0) +
@@ -945,6 +989,7 @@ function LeadsPage() {
     setSearch("");
     setStatusFilter(canManage ? "all" : "aguardando_atendimento");
     setOrigemFilter("all");
+    setProjetoFilter("all");
     setCorretorFilter("all");
     setTemperaturaFilter("all");
     setPeriodoFilter("all");
@@ -1068,10 +1113,10 @@ function LeadsPage() {
                             : "bg-background hover:bg-muted"
                         }`}
                       >
-                        Todos · {statusCountsData ? totalLeadsCount : "—"}
+                        Todos · {effectiveCounts ? totalLeadsCount : "—"}
                       </button>
                       {LEAD_STATUS_ORDER.map((s) => {
-                        const n = statusCountsData ? (statusCounts[s] ?? 0) : "—";
+                        const n = effectiveCounts ? (statusCounts[s] ?? 0) : "—";
                         const active = statusFilter === s;
                         return (
                           <button
@@ -1307,9 +1352,9 @@ function LeadsPage() {
                       </Button>
                       <Button
                         size="icon"
-                        variant={viewMode === "funil" ? "default" : "ghost"}
+                        variant={viewMode === "funil" && projetoFilter === "all" ? "default" : "ghost"}
                         aria-label="Ver funil com os filtros"
-                        aria-pressed={viewMode === "funil"}
+                        aria-pressed={viewMode === "funil" && projetoFilter === "all"}
                         title="Ver funil"
                         onClick={() => setViewMode("funil")}
                       >
@@ -1386,6 +1431,16 @@ function LeadsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Select value={projetoFilter} onValueChange={setProjetoFilter}>
+                      <SelectTrigger aria-label="Filtrar por projeto">
+                        <SelectValue placeholder="Projeto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os projetos</SelectItem>
+                        {(projetos ?? []).map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {projetosError && <p className="text-sm text-destructive">Não foi possível carregar os projetos.</p>}
                     {canManage && (
                       <Select value={corretorFilter} onValueChange={setCorretorFilter}>
                         <SelectTrigger>
@@ -1602,6 +1657,7 @@ function LeadsPage() {
                       className="min-h-11"
                       onClick={() => {
                         void refetchLeads();
+                      if (projetoFilter !== "all") void refetchProjeto();
                         void refetchStatusCounts();
                         if (contatoFilter === "com_followup") void refetchFollowups();
                       }}
@@ -1610,7 +1666,7 @@ function LeadsPage() {
                     </Button>
                   </CardContent>
                 </Card>
-              ) : viewMode === "funil" ? (
+              ) : viewMode === "funil" && projetoFilter === "all" ? (
                 <LeadsFunil params={(({ _status: _s, ...p }) => (void _s, p))(buildParams())} />
               ) : viewMode === "tabela" ? (
                 // Tabela premium (DataTable): substitui a <Table> manual cujas
