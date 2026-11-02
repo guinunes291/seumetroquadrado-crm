@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { TablesInsert } from "@/integrations/supabase/types";
-import { comRpcsPendentes } from "@/integrations/supabase/webhook-lead-pendente";
 import {
   blocoCamposExtras,
   blocoObservacoesCorretor,
@@ -9,6 +8,7 @@ import {
 import {
   MOTIVO_VOLTA,
   lerVolta,
+  semRegistroNovo,
   textoRegistroFilho,
   textoVoltaSemRegistroNovo,
   type Volta,
@@ -220,9 +220,8 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         // que segue daqui como lead novo (mesma roleta, exceções e aviso).
         // Substitui a regra de 01/10, que chamava duas RPCs que nunca
         // existiram: a volta por outro empreendimento virava erro 500.
-        const adminPendente = comRpcsPendentes(supabaseAdmin);
         const decidirVolta = async (): Promise<Volta | null> => {
-          const { data: decisao, error: decisaoErr } = await adminPendente.rpc(
+          const { data: decisao, error: decisaoErr } = await supabaseAdmin.rpc(
             "registrar_volta_campanha",
             { _lead: novoLead },
           );
@@ -262,14 +261,32 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           const quando = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
           const texto = textoVoltaSemRegistroNovo(v.acao, { campanha: nomeCampanha, quando });
 
+          // Base do corretor: a qualificação do Marquinhos é o que muda a
+          // primeira ligação — vai inteira para o histórico do lead.
+          const base = v.acao === "base_do_corretor";
+          const complemento = base ? observacoesFinais : blocoExtras;
           await supabaseAdmin.from("interacoes").insert({
             lead_id: v.lead_id,
             tipo: "nota",
             direcao: "interna",
-            titulo: "Sistema: cliente voltou pela campanha",
-            conteudo: blocoExtras ? `${texto}\n\n${blocoExtras}` : texto,
-            metadata: metaVolta(v),
+            titulo: base
+              ? "Sistema: cliente da sua base qualificado pelo Marquinhos"
+              : "Sistema: cliente voltou pela campanha",
+            conteudo: complemento ? `${texto}\n\n${complemento}` : texto,
+            metadata: base
+              ? { ...metaVolta(v), evento: "disparo_base_qualificado", disparo_id: v.disparo_id }
+              : metaVolta(v),
           });
+          if (base && v.corretor_id) {
+            await supabaseAdmin.from("alertas").insert({
+              user_id: v.corretor_id,
+              tipo: "sistema",
+              titulo: "Cliente da sua base foi qualificado",
+              mensagem: `${data.nome} respondeu ao seu disparo e foi qualificado pelo Marquinhos. Ligue agora.`,
+              link: `/leads/${v.lead_id}`,
+              ref_id: v.lead_id,
+            });
+          }
           if (v.acao === "negociacao_avancada" && v.corretor_id) {
             await supabaseAdmin.from("alertas").insert({
               user_id: v.corretor_id,
@@ -300,7 +317,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         };
 
         let volta = await decidirVolta();
-        if (volta?.acao === "reenvio" || volta?.acao === "negociacao_avancada") {
+        if (semRegistroNovo(volta)) {
           return responderVolta(volta);
         }
 
@@ -319,7 +336,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               // Corrida: outra entrada da mesma pessoa gravou primeiro e o
               // índice único barrou esta. Pergunta de novo — agora ela existe.
               volta = await decidirVolta();
-              if (volta?.acao === "reenvio" || volta?.acao === "negociacao_avancada") {
+              if (semRegistroNovo(volta)) {
                 return responderVolta(volta);
               }
               if (volta?.acao === "registro_filho") {
