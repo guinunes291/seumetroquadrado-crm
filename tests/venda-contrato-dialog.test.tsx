@@ -126,6 +126,45 @@ afterEach(() => {
 });
 
 describe("Venda por contrato: corretor", () => {
+  it("dois contratos consecutivos resolvem clientes diferentes sem reutilizar a venda anterior", async () => {
+    mocks.ler.mockResolvedValue(leituraOk());
+    mocks.achar.mockResolvedValue({ tipo: "nenhum" });
+    mocks.resolver
+      .mockResolvedValueOnce({ leadId: LEAD, corretorId: "corretor-1", criado: true })
+      .mockResolvedValueOnce({ leadId: CLIENTE_MAE, corretorId: "corretor-1", criado: true });
+    const view = abrir();
+    anexar();
+    fireEvent.click(await screen.findByText("Cadastrar cliente novo"));
+    fireEvent.click(screen.getByText("Continuar para a venda"));
+    await screen.findByTestId("registrar-stub");
+    const resolverPrimeiro = mocks.vendaProps?.resolverLead as () => Promise<{ id: string }>;
+    expect((await resolverPrimeiro()).id).toBe(LEAD);
+    expect((await resolverPrimeiro()).id).toBe(LEAD);
+    expect(mocks.resolver).toHaveBeenCalledTimes(1);
+
+    // O diálogo global permanece montado depois de registrar/fechar.
+    const qc = new QueryClient();
+    view.rerender(<QueryClientProvider client={qc}>
+      <VendaContratoDialog open={false} onOpenChange={() => {}} />
+    </QueryClientProvider>);
+    const segundo = leituraOk();
+    segundo.cliente = { ...segundo.cliente, nome: "Lucas Exemplo", telefone: "11987654321" };
+    mocks.ler.mockResolvedValue(segundo);
+    view.rerender(<QueryClientProvider client={qc}>
+      <VendaContratoDialog open onOpenChange={() => {}} />
+    </QueryClientProvider>);
+    anexar();
+    fireEvent.click(await screen.findByText("Cadastrar cliente novo"));
+    fireEvent.click(screen.getByText("Continuar para a venda"));
+    await screen.findByTestId("registrar-stub");
+    const resolverSegundo = mocks.vendaProps?.resolverLead as () => Promise<{ id: string }>;
+    expect((await resolverSegundo()).id).toBe(CLIENTE_MAE);
+    expect(mocks.resolver).toHaveBeenCalledTimes(2);
+    expect(mocks.resolver.mock.calls[1]?.[1]).toMatchObject({
+      nome: "Lucas Exemplo", telefone: "11987654321",
+    });
+  });
+
   it("lê o contrato, preenche o comprador e marca o que a IA não achou", async () => {
     mocks.ler.mockResolvedValue(leituraOk());
     mocks.achar.mockResolvedValue({ tipo: "nenhum" });
