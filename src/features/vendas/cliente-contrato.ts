@@ -24,7 +24,8 @@ import {
 import { criarLeadDedup } from "@/features/leads/novo-lead-queries";
 import { anexarDocumento } from "@/lib/documentacao";
 import { maskCPF } from "@/lib/masks";
-import { onlyDigits } from "@/lib/validators";
+import { escapeLike, onlyDigits } from "@/lib/validators";
+import { casaTelefone, filtroOrTelefone, sufixosTelefone } from "@/lib/lead-busca-telefone";
 import {
   CAMPOS_CLIENTE,
   payloadDadosCliente,
@@ -83,16 +84,32 @@ async function candidatosGestao(por: MatchPor, valor: string): Promise<LinhaCand
     return data ?? [];
   }
   if (por === "email") {
-    const { data, error } = await base().ilike("email", valor);
+    const { data, error } = await base().ilike("email", escapeLike(valor));
     if (error) throw error;
     return data ?? [];
   }
-  // Telefone é salvo com ou sem máscara/DDI: filtra pelos 4 finais no banco
-  // e confere os 9 finais aqui (a mesma chave do registro mãe).
-  const fim = valor.slice(-9);
-  const { data, error } = await base().ilike("telefone", `%${fim.slice(-4)}%`);
-  if (error) throw error;
-  return (data ?? []).filter((l) => onlyDigits(l.telefone).endsWith(fim));
+  return candidatosPorTelefone(valor);
+}
+
+/** Telefone: sufixo de 9 (depois 8) dígitos em telefone_e164 e no texto cru,
+ *  conferido dígito a dígito (lib/lead-busca-telefone, F-063). Filtrar só os 4
+ *  finais com limite de 20 deixava o cliente certo de fora numa base grande. */
+async function candidatosPorTelefone(telefone: string): Promise<LinhaCandidato[]> {
+  for (const sufixo of sufixosTelefone(telefone)) {
+    const { data, error } = await supabase
+      .from("leads")
+      .select(`${CAMPOS_CANDIDATO}, telefone_e164`)
+      .is("deleted_at", null)
+      .eq("na_lixeira", false)
+      .or(filtroOrTelefone(sufixo))
+      .limit(20);
+    if (error) throw error;
+    const achados = (data ?? []).filter(
+      (l) => casaTelefone(l.telefone, sufixo) || casaTelefone(l.telefone_e164, sufixo),
+    );
+    if (achados.length > 0) return achados.map(({ telefone_e164: _e164, ...l }) => l);
+  }
+  return [];
 }
 
 async function nomesCorretores(ids: string[]): Promise<Map<string, string>> {
