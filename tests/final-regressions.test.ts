@@ -37,11 +37,14 @@ describe("regressões críticas do fechamento", () => {
 
     expect(leads).toContain("isError: followupError");
     expect(leads).toContain("isError: statusCountsError");
+    // Com o filtro de projeto, a lista vem de outra consulta: o erro dela
+    // também precisa virar aviso, nunca lista vazia.
+    expect(leads).toContain("isError: projetoError");
     expect(leads).toContain(
-      "const listError = leadsError || statusCountsError || followupFilterFailed",
+      'const listError = projetoFilter !== "all" ? projetoError : leadsError || statusCountsError || followupFilterFailed',
     );
-    expect(leads).toContain("statusCountsData?.total ?? leadQueryTotal");
-    expect(leads).not.toContain("statusCountsData?.total ?? 0");
+    expect(leads).toContain("effectiveCounts?.total ?? leadQueryTotal");
+    expect(leads).not.toMatch(/Counts(Data)?\?\.total \?\? 0/);
     expect(leads).toContain("Não foi possível carregar os leads ou seus filtros");
   });
 
