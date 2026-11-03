@@ -1,3 +1,13 @@
+# Cadastro de venda duplicada
+- [x] Corrigir reutilização do cliente anterior ao abrir outro contrato IA: limpar identificação no reset e novo arquivo; teste de dois compradores consecutivos e 32 testes passaram, compilação OK.
+- [x] Tratar venda ativa existente e envio simultâneo no cadastro compartilhado, preservando registros e regras financeiras; 17 testes passaram e compilação OK.
+- [ ] Conferir o fluxo autenticado sem cadastrar venda real: emissão de sessão do solicitante indisponível; aguarda login no preview. Não foi localizada no banco a venda com nome/valor da imagem.
+
+# Filtro de projeto na Gestão de Carteira
+- [x] Adicionar seleção de projeto na lista, preservando permissões, contagens, paginação e seleção em lote.
+- [x] Testar filtro Playball Cury por vínculo e nome, paginação e URL: 23 testes passaram; compilação OK.
+- [ ] Conferir seleção na tela autenticada: emissão da sessão do solicitante falhou; aguarda login no preview.
+
 # Marquinhos (Mark) pela Sami
 - [x] Separar CANCELAR de DESFAZER: trava também na ferramenta de IA; CANCELAR testado na API com e sem conversa nova, sem alterações.
 - [x] Permitir seleção independente de conversa por lead_id ou nome e status; 54 testes passaram e ambas as seleções leram Teste Qa em conversas novas, sem propostas nem gravações.

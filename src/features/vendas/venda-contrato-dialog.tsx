@@ -96,6 +96,7 @@ export function VendaContratoDialog({
   const ler = useServerFn(lerContratoVenda);
   const validarTelefone = useServerFn(validarTelefoneCliente);
   const fileRef = useRef<HTMLInputElement>(null);
+  const resolvido = useRef<{ leadId: string; corretorId: string | null } | null>(null);
 
   const [etapa, setEtapa] = useState<Etapa>("arquivo");
   const [arquivo, setArquivo] = useState<File | null>(null);
@@ -117,6 +118,7 @@ export function VendaContratoDialog({
   const { data: corretores } = useCorretoresParaAtribuir(open && gestao);
 
   const reset = () => {
+    resolvido.current = null;
     setEtapa("arquivo");
     setArquivo(null);
     setProgresso("");
@@ -142,6 +144,7 @@ export function VendaContratoDialog({
       toast.error("Envie o contrato em PDF, JPG, PNG ou WebP de até 15 MB.");
       return;
     }
+    resolvido.current = null;
     setArquivo(file);
     setEtapa("lendo");
     setProgresso("Abrindo o contrato…");
@@ -332,8 +335,6 @@ export function VendaContratoDialog({
   };
 
   // ------------------------------------------------ cadastro de venda
-  const resolvido = useRef<{ leadId: string; corretorId: string | null } | null>(null);
-
   const leadDaVenda: LeadOption | null = useMemo(() => {
     if (!decisao) return null;
     const corretor =
