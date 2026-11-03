@@ -617,7 +617,10 @@ describe("Onda S4 — um cérebro, dois canais (migration 20260909100000)", () =
     expect(governance).toMatch(/comCanal \? \{ \.\.\.base, _canal: args\.canal \} : base/);
     expect(governance).toMatch(/error && comCanal && isMissingBackendObject\(error\)/);
     expect(memoria).toMatch(/comCanal \? \{ \.\.\.base, _canal: args\.canal \} : base/);
-    expect(memoria).toMatch(/error && comCanal && isMissingBackendObject\(error\)/);
+    // O Marquinhos nunca grava sem o canal: a conversa dele é isolada (sem retry).
+    expect(memoria).toMatch(
+      /error && comCanal && args\.canal !== "marquinhos" && isMissingBackendObject\(error\)/,
+    );
     expect(memoria).toContain('.eq("canal", args.canal)');
     expect(memoria).toContain("deveRetomarConversa(");
     expect(memoria).toContain('.eq("status", "pendente")');
@@ -832,7 +835,10 @@ describe("v8 — o CRM inteiro no WhatsApp, com autonomia por risco (migration 2
     expect(handler).toContain('args.modoEscrita ?? "confirmar_tudo"');
     expect(handler).toContain('if (modo === "por_risco")');
     // WhatsApp por risco, com chave de emergência no banco (confirmar_tudo sem deploy)
-    expect(mensagem).toContain("const modoEscrita = await canal.modoEscritaDoWhatsApp();");
+    // O Marquinhos (diretor) confirma tudo; o WhatsApp do corretor segue a chave.
+    expect(mensagem).toContain(
+      'const modoEscrita = canalMemoria === "marquinhos" ? "confirmar_tudo" : await canal.modoEscritaDoWhatsApp();',
+    );
     expect(canalServer).toContain('("samiq_modo_escrita_whatsapp", {})');
     expect(canalServer).toMatch(/data === "confirmar_tudo" \? "confirmar_tudo" : "por_risco"/);
     expect(painelFn).not.toContain("modoEscrita");
