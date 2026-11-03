@@ -11,12 +11,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useUserRoles } from "@/hooks/use-auth";
+import { useCorretoresAtivos } from "@/features/dashboard/relatorios-nominais";
 import { readTabularFile } from "@/lib/spreadsheets";
 import { importarBaseCorretorLote } from "@/lib/disparo-base.functions";
 import {
   DISPARO_BASE_KEY,
   criarDisparoBase,
+  definirPilotoDisparo,
   useMeusDisparos,
+  usePilotosDisparo,
   usePilotoDisparoBase,
   type DisparoResumo,
 } from "@/features/disparo-base/disparo-client";
@@ -74,11 +86,12 @@ function baixarForaDoDisparo(r: ResultadoImportacao) {
 
 function DisparoBasePage() {
   const { piloto, carregando } = usePilotoDisparoBase();
+  const { isAdmin, loading: carregandoPapel } = useUserRoles();
 
-  if (carregando) {
+  if (carregando || carregandoPapel) {
     return <div className="mx-auto max-w-3xl p-6 text-sm text-muted-foreground">Carregando…</div>;
   }
-  if (!piloto) {
+  if (!piloto && !isAdmin) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         <PageHeader title="Disparo da minha base" />
@@ -96,7 +109,103 @@ function DisparoBasePage() {
       </div>
     );
   }
-  return <DisparoBaseConteudo />;
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      {isAdmin && <PilotosAdmin />}
+      {piloto ? (
+        <DisparoBaseConteudo />
+      ) : (
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            Você vê esta tela como administrador. Para importar uma base, coloque o seu próprio
+            usuário no piloto.
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/** Admin libera e retira corretores do piloto aqui, sem SQL. */
+function PilotosAdmin() {
+  const qc = useQueryClient();
+  const pilotos = usePilotosDisparo(true);
+  const corretores = useCorretoresAtivos(true);
+  const [escolhido, setEscolhido] = useState<string>("");
+  const [salvando, setSalvando] = useState(false);
+
+  const nomeDe = (id: string) =>
+    (corretores.data ?? []).find((c) => c.id === id)?.nome ?? "Usuário sem perfil ativo";
+  const jaNaLista = new Set((pilotos.data ?? []).map((p) => p.corretorId));
+
+  async function definir(corretorId: string, ativo: boolean) {
+    setSalvando(true);
+    try {
+      await definirPilotoDisparo(corretorId, ativo);
+      toast.success(
+        ativo ? `${nomeDe(corretorId)} entrou no piloto.` : `${nomeDe(corretorId)} saiu do piloto.`,
+      );
+      setEscolhido("");
+      await qc.invalidateQueries({ queryKey: ["disparo-base"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-6">
+        <div>
+          <h3 className="font-display text-lg font-bold">Piloto (só administradores)</h3>
+          <p className="text-sm text-muted-foreground">
+            Quem está ligado aqui vê o &ldquo;Disparo da base&rdquo; no menu da Prospecção.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Select value={escolhido} onValueChange={setEscolhido} disabled={salvando}>
+            <SelectTrigger className="sm:w-80">
+              <SelectValue placeholder="Escolha o corretor" />
+            </SelectTrigger>
+            <SelectContent>
+              {(corretores.data ?? [])
+                .filter((c) => !jaNaLista.has(c.id))
+                .map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome ?? c.email ?? c.id}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          <Button disabled={!escolhido || salvando} onClick={() => definir(escolhido, true)}>
+            Colocar no piloto
+          </Button>
+        </div>
+        {pilotos.isPending ? (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        ) : (pilotos.data ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">Ninguém no piloto ainda.</p>
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {(pilotos.data ?? []).map((p) => (
+              <li key={p.corretorId} className="flex items-center justify-between gap-2 p-3">
+                <span className="text-sm">{nomeDe(p.corretorId)}</span>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {p.ativo ? "Ligado" : "Desligado"}
+                  <Switch
+                    checked={p.ativo}
+                    disabled={salvando}
+                    onCheckedChange={(v) => definir(p.corretorId, v)}
+                  />
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function DisparoBaseConteudo() {

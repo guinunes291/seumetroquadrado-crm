@@ -73,11 +73,15 @@ segue igual: registro filho na roleta.
 
 ## Operação
 
-Ligar o piloto de um corretor (admin logado, ou SQL editor):
+Ligar o piloto de um corretor: **pela tela**. O admin abre Prospecção → "Disparo da base"
+(o admin sempre vê a seção), escolhe o corretor no quadro "Piloto" e clica em "Colocar no
+piloto"; o interruptor ao lado do nome desliga. Por baixo é a RPC
+`disparo_base_definir_piloto`, que recusa quem não é admin.
+
+Pelo banco, se precisar:
 
 ```sql
 SELECT public.disparo_base_definir_piloto('<uuid do corretor>', true);
--- desligar: ... , false
 ```
 
 Ver custeio: `SELECT public.disparo_base_custeio();`

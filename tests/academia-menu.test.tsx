@@ -216,4 +216,10 @@ describe("useFlagsNav — disparo da base (piloto)", () => {
     expect(flags().has("disparo_base")).toBe(true);
     Object.assign(estado, { pilotoDisparo: false });
   });
+
+  it("o admin sempre vê, para liberar o piloto pela tela (sem SQL)", () => {
+    Object.assign(estado, { pilotoDisparo: false, isAdmin: true });
+    expect(flags().has("disparo_base")).toBe(true);
+    Object.assign(estado, { isAdmin: false });
+  });
 });

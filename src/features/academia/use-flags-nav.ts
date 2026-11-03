@@ -9,8 +9,9 @@
 //                        de abrir para o time), gestor e superintendente só
 //                        com a flag academia_menu ligada;
 //   academia_card_inicio o card do /inicio, só de quem estuda;
-//   disparo_base         a seção "Disparo da base" da Prospecção, só de quem
-//                        está no piloto (disparo_base_pilotos).
+//   disparo_base         a seção "Disparo da base" da Prospecção: quem está no
+//                        piloto (disparo_base_pilotos) e o admin, que libera o
+//                        piloto pela própria tela.
 //
 // Enquanto carrega, o conjunto sai vazio: o menu aparecer e sumir é pior do
 // que aparecer meio segundo depois.
@@ -48,7 +49,7 @@ export function useFlagsNav(): Set<string> {
     // O card do /inicio é só para quem estuda: admin que não participa não
     // tem "próxima aula" nenhuma para ver.
     if (card.ligada && participa) ligadas.add("academia_card_inicio");
-    if (pilotoDisparo) ligadas.add("disparo_base");
+    if (pilotoDisparo || isAdmin) ligadas.add("disparo_base");
     return ligadas;
   }, [menu.ligada, card.ligada, participa, isAdmin, isGestor, isSuperintendente, pilotoDisparo]);
 }

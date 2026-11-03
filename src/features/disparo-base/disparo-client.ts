@@ -9,6 +9,7 @@ import { funilDoDisparo, type StatusItem } from "./importacao";
 export const DISPARO_BASE_KEY = {
   piloto: (uid: string | null) => ["disparo-base", "piloto", uid] as const,
   lista: (uid: string | null) => ["disparo-base", "lista", uid] as const,
+  pilotos: ["disparo-base", "pilotos"] as const,
 };
 
 /** Está no piloto? Enquanto carrega, false: o menu aparecer depois é melhor
@@ -89,4 +90,39 @@ export async function criarDisparoBase(
   });
   if (error) throw new Error(error.message);
   return data;
+}
+
+// ---------------------------------------------------------------------------
+// Admin: quem está no piloto (sem precisar de SQL)
+// ---------------------------------------------------------------------------
+
+export type PilotoDisparo = { corretorId: string; ativo: boolean; criadoEm: string };
+
+/** Lista do piloto. O RLS só devolve tudo para admin. */
+export function usePilotosDisparo(enabled: boolean) {
+  return useQuery<PilotoDisparo[]>({
+    queryKey: DISPARO_BASE_KEY.pilotos,
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("disparo_base_pilotos")
+        .select("corretor_id, ativo, criado_em")
+        .order("criado_em", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map((p) => ({
+        corretorId: p.corretor_id,
+        ativo: p.ativo,
+        criadoEm: p.criado_em,
+      }));
+    },
+  });
+}
+
+/** Liga/desliga o piloto de um corretor (a RPC confere que quem chama é admin). */
+export async function definirPilotoDisparo(corretorId: string, ativo: boolean): Promise<void> {
+  const { error } = await supabase.rpc("disparo_base_definir_piloto", {
+    _corretor: corretorId,
+    _ativo: ativo,
+  });
+  if (error) throw new Error(error.message);
 }
