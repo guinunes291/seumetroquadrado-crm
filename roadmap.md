@@ -1,3 +1,8 @@
+# Desempenho da Oferta Ativa
+- [ ] Medir a abertura e identificar consultas que causam a espera.
+- [ ] Otimizar o carregamento sem alterar a tela, regras ou permissões.
+- [ ] Executar testes e conferir a abertura autenticada.
+
 # Cadastro de venda duplicada
 - [x] Corrigir reutilização do cliente anterior ao abrir outro contrato IA: limpar identificação no reset e novo arquivo; teste de dois compradores consecutivos e 32 testes passaram, compilação OK.
 - [x] Tratar venda ativa existente e envio simultâneo no cadastro compartilhado, preservando registros e regras financeiras; 17 testes passaram e compilação OK.
