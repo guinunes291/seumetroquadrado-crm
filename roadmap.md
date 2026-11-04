@@ -1,3 +1,9 @@
+# Equipes e acessos — 04/11/2026
+- [x] Conferir planilha e resolver e-mails duplicados de Layza/Gabrielly e identidade de Paloma.
+- [ ] Organizar equipe Paloma e convidar corretores ausentes; manter listas autorizadas Sheldon e Bruno.
+- [ ] Desativar os demais de Sheldon/Bruno preservando históricos e conferir tratamento da carteira ativa.
+- [ ] Conferir composição final e informar convites e eventuais bloqueios.
+
 # Desempenho da Oferta Ativa
 - [x] Medir a abertura autenticada: 156,81 segundos antes, 8,68–9,02 segundos depois; leitura paginada de vínculos substituída por um resumo.
 - [x] Otimizar a abertura com RPC STABLE SECURITY INVOKER, sem mudar políticas; arquivadas carregam ao abrir a aba.
