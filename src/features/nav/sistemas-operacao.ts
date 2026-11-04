@@ -15,6 +15,7 @@ import {
   Kanban,
   ListChecks,
   MapPinArea,
+  InstagramLogo,
   Megaphone,
   Phone,
   PhoneOutgoing,
@@ -137,6 +138,14 @@ export const SISTEMAS_OPERACAO: Sistema[] = [
         label: "Captação (Landing)",
         icon: Megaphone,
         to: "/leads-landing",
+        roles: ["admin", "gestor"],
+      },
+      // Automação de DM por palavra-chave (Zernio): comentário/DM vira lead.
+      {
+        id: "instagram-dm",
+        label: "DM do Instagram",
+        icon: InstagramLogo,
+        to: "/instagram-dm",
         roles: ["admin", "gestor"],
       },
     ],
