@@ -7545,6 +7545,33 @@ export type Database = {
         }
         Relationships: []
       }
+      projetos_backup_20261103_vibra_links: {
+        Row: {
+          backup_em: string | null
+          book_url: string | null
+          construtora: string | null
+          id: string | null
+          nome: string | null
+          tabela_precos_url: string | null
+        }
+        Insert: {
+          backup_em?: string | null
+          book_url?: string | null
+          construtora?: string | null
+          id?: string | null
+          nome?: string | null
+          tabela_precos_url?: string | null
+        }
+        Update: {
+          backup_em?: string | null
+          book_url?: string | null
+          construtora?: string | null
+          id?: string | null
+          nome?: string | null
+          tabela_precos_url?: string | null
+        }
+        Relationships: []
+      }
       projetos_metragem_backup_20260902: {
         Row: {
           corrigido_em: string
