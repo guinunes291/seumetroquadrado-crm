@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { normalizeSearch, onlyDigits } from "@/lib/validators";
 import { renderTemplate } from "@/lib/templates";
 import { fetchAllPaged } from "@/lib/fetch-all-paged";
+import { queryOptions } from "@tanstack/react-query";
 import type { LeadStatus } from "@/lib/leads";
 
 export type OfertaStatus = "rascunho" | "ativa" | "concluida" | "arquivada";
@@ -229,56 +230,32 @@ export function statusVariant(s: string): "default" | "secondary" | "destructive
   return "outline";
 }
 
-/** Lista as ofertas com estatísticas. `arquivadas` filtra no servidor — evita
- *  refazer o fetch paginado dos vínculos das listas da outra aba. */
+/** Resumos agregados no banco, sob as mesmas políticas das listas e vínculos. */
 export async function listOfertas(arquivadas = false): Promise<OfertaAtiva[]> {
-  let query = supabase.from("ofertas_ativas").select("*").order("created_at", { ascending: false });
-  query = arquivadas ? query.eq("status", "arquivada") : query.neq("status", "arquivada");
-  const { data: ofertas, error } = await query;
+  const { data: ofertas, error } = await supabase.rpc("listar_ofertas_ativas_resumo", {
+    _arquivadas: arquivadas,
+  });
   if (error) throw error;
-
-  const filtered = ofertas ?? [];
-  if (filtered.length === 0) return [];
-
-  const ids = filtered.map((o) => o.id);
-  type VinculoStats = {
-    oferta_id: string;
-    contatado: boolean;
-    avancado: boolean;
-  };
-  // Sem join com `leads`: as flags são mantidas pelo trigger de sincronização
-  // no banco, então a contagem é idêntica (e à prova de RLS) para todo papel.
-  const leadsRows = await fetchAllPaged<VinculoStats>(async (from, to) => {
-    const { data, error: e } = await supabase
-      .from("oferta_ativa_leads")
-      .select("oferta_id, contatado, avancado")
-      .in("oferta_id", ids)
-      .order("id")
-      .range(from, to);
-    if (e) throw e;
-    return (data ?? []) as unknown as VinculoStats[];
-  });
-
-  const stats = new Map<string, { total: number; contatados: number; avancados: number }>();
-  for (const row of leadsRows) {
-    const s = stats.get(row.oferta_id) ?? { total: 0, contatados: 0, avancados: 0 };
-    s.total += 1;
-    if (row.contatado) s.contatados += 1;
-    if (row.avancado) s.avancados += 1;
-    stats.set(row.oferta_id, s);
-  }
-
-  return filtered.map((o) => {
-    const s = stats.get(o.id) ?? { total: 0, contatados: 0, avancados: 0 };
-    return {
-      ...(o as Omit<OfertaAtiva, "totalLeads" | "totalContatados" | "totalAvancados" | "filtros">),
-      filtros: normalizeOfertaFiltros(o.filtros),
-      totalLeads: s.total,
-      totalContatados: s.contatados,
-      totalAvancados: s.avancados,
-    } as OfertaAtiva;
-  });
+  return (ofertas ?? []).map((o) => ({
+    id: o.id, nome: o.nome, descricao: o.descricao, status: o.status as OfertaStatus,
+    corretor_id: o.corretor_id, criado_por: o.criado_por,
+    created_at: o.created_at, updated_at: o.updated_at,
+    filtros: normalizeOfertaFiltros(o.filtros),
+    totalLeads: Number(o.total_leads),
+    totalContatados: Number(o.total_contatados),
+    totalAvancados: Number(o.total_avancados),
+  }));
 }
+
+export const ofertasAtivasQueryOptions = queryOptions({
+  queryKey: ["ofertas-ativas", "ativas"],
+  queryFn: async () => {
+    const listas = await listOfertas(false);
+    const ordem: Record<string, number> = { ativa: 0, rascunho: 1, concluida: 2 };
+    return listas.sort((a, b) => (ordem[a.status] ?? 9) - (ordem[b.status] ?? 9));
+  },
+  staleTime: 60_000,
+});
 
 export async function previewFiltros(
   filtros: OfertaFiltros,

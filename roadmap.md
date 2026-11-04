@@ -1,7 +1,7 @@
 # Desempenho da Oferta Ativa
-- [ ] Medir a abertura e identificar consultas que causam a espera.
-- [ ] Otimizar o carregamento sem alterar a tela, regras ou permissões.
-- [ ] Executar testes e conferir a abertura autenticada.
+- [x] Medir a abertura autenticada: 156,81 segundos antes, 8,68–9,02 segundos depois; leitura paginada de vínculos substituída por um resumo.
+- [x] Otimizar a abertura com RPC STABLE SECURITY INVOKER, sem mudar políticas; arquivadas carregam ao abrir a aba.
+- [x] Conferir ambas as abas como Guilherme, igualdade dos totais das 42 listas com a leitura autorizada anterior, desktop/celular e 32 testes; compilação OK.
 
 # Cadastro de venda duplicada
 - [x] Corrigir reutilização do cliente anterior ao abrir outro contrato IA: limpar identificação no reset e novo arquivo; teste de dois compradores consecutivos e 32 testes passaram, compilação OK.
