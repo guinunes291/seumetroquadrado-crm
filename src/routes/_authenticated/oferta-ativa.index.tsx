@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/oferta-ativa/")({
   component: OfertaAtivaPage,
 });
 
-function OfertaError({ error }: { error: Error }) {
+function OfertaError({ error }: { error: unknown }) {
   const router = useRouter();
   return <QueryErrorState title="Não foi possível carregar as listas ativas." error={error} onRetry={() => router.invalidate()} />;
 }
