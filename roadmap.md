@@ -1,8 +1,8 @@
 # Equipes e acessos — 04/11/2026
 - [x] Conferir planilha e resolver e-mails duplicados de Layza/Gabrielly e identidade de Paloma.
-- [ ] Organizar equipe Paloma e convidar corretores ausentes; manter listas autorizadas Sheldon e Bruno.
-- [ ] Desativar os demais de Sheldon/Bruno preservando históricos e conferir tratamento da carteira ativa.
-- [ ] Conferir composição final e informar convites e eventuais bloqueios.
+- [x] Equipe Paloma criada, gerente/corretora vinculada; seis convites enviados; composição confirmada: Paloma 5, Sheldon 7, Bruno 7 incluindo gerentes.
+- [x] Bloquear 16 acessos e remover papéis dos demais já bloqueados; repassar só carteira ativa sem vendas aos gerentes (Bruno 73, Sheldon 44), com registro e históricos intactos.
+- [x] Conferir composição e zero acessos indevidos pelo banco; conferência visual indisponível: Pessoas abriu em branco no preview autenticado; nenhuma tela alterada.
 
 # Desempenho da Oferta Ativa
 - [x] Medir a abertura autenticada: 156,81 segundos antes, 8,68–9,02 segundos depois; leitura paginada de vínculos substituída por um resumo.
