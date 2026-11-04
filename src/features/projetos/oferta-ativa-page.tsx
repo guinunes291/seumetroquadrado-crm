@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
   ArrowCounterClockwise,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   listOfertas,
+  ofertasAtivasQueryOptions,
   archiveOferta,
   restaurarOferta,
   deleteOferta,
@@ -54,19 +55,12 @@ export function OfertaAtivaPage() {
   // redundante (refetch pesado a cada update de qualquer lead do CRM).
   useRealtimeInvalidate(["ofertas_ativas", "oferta_ativa_leads"], [["ofertas-ativas"]]);
 
-  const ativasQ = useQuery({
-    queryKey: ["ofertas-ativas", "ativas"],
-    queryFn: async () => {
-      const listas = await listOfertas(false);
-      // Campanhas em andamento antes das concluídas (sort estável mantém
-      // a ordenação por data dentro de cada grupo).
-      const ordem: Record<string, number> = { ativa: 0, rascunho: 1, concluida: 2 };
-      return [...listas].sort((a, b) => (ordem[a.status] ?? 9) - (ordem[b.status] ?? 9));
-    },
-  });
+  const ativasQ = useSuspenseQuery(ofertasAtivasQueryOptions);
   const arqQ = useQuery({
     queryKey: ["ofertas-ativas", "arquivadas"],
     queryFn: () => listOfertas(true),
+    enabled: tab === "arquivadas",
+    staleTime: 60_000,
   });
 
   const archiveM = useMutation({
@@ -243,13 +237,7 @@ export function OfertaAtivaPage() {
         </TabsList>
 
         <TabsContent value="ativas">
-          {ativasQ.isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" aria-busy="true">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-36 rounded-xl" />
-              ))}
-            </div>
-          ) : ativasQ.isError ? (
+          {ativasQ.isError ? (
             <QueryErrorState
               title="Não foi possível carregar as listas ativas."
               error={ativasQ.error}
@@ -283,7 +271,7 @@ export function OfertaAtivaPage() {
         </TabsContent>
 
         <TabsContent value="arquivadas">
-          {arqQ.isLoading ? (
+          {arqQ.isPending ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" aria-busy="true">
               {Array.from({ length: 2 }).map((_, i) => (
                 <Skeleton key={i} className="h-36 rounded-xl" />
