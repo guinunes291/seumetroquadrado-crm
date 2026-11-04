@@ -14835,6 +14835,23 @@ export type Database = {
         Args: { _antes?: string }
         Returns: number
       }
+      listar_ofertas_ativas_resumo: {
+        Args: { _arquivadas?: boolean }
+        Returns: {
+          corretor_id: string
+          created_at: string
+          criado_por: string
+          descricao: string
+          filtros: Json
+          id: string
+          nome: string
+          status: string
+          total_avancados: number
+          total_contatados: number
+          total_leads: number
+          updated_at: string
+        }[]
+      }
       listar_vitrine_links: {
         Args: { _ator_id: string; _lead_id: string }
         Returns: {
