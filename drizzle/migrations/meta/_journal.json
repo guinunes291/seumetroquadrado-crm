@@ -904,6 +904,13 @@
       "when": 1793792633587,
       "tag": "0128_oferta_ativa_resumo_agregado",
       "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1793795428758,
+      "tag": "0129_instagram_dm_automacao",
+      "breakpoints": true
     }
   ]
 }

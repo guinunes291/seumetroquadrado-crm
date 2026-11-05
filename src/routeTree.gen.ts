@@ -39,6 +39,7 @@ import { Route as AuthenticatedHigieneFunilRouteImport } from './routes/_authent
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedImportarLeadsRouteImport } from './routes/_authenticated/importar-leads'
 import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
+import { Route as AuthenticatedInstagramDmRouteImport } from './routes/_authenticated/instagram-dm'
 import { Route as AuthenticatedInteligenciaRouteImport } from './routes/_authenticated/inteligencia'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedLeadsLandingRouteImport } from './routes/_authenticated/leads-landing'
@@ -101,6 +102,7 @@ import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metri
 import { Route as ApiPublicPropostaAceiteRouteImport } from './routes/api/public/proposta-aceite'
 import { Route as ApiPublicPropostasRouteImport } from './routes/api/public/propostas'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
+import { Route as ApiPublicZernioWebhookRouteImport } from './routes/api/public/zernio-webhook'
 import { Route as ApiSamiAnexoRouteImport } from './routes/api/sami/anexo'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
 import { Route as ApiSamiDiretrizesRouteImport } from './routes/api/sami/diretrizes'
@@ -295,6 +297,12 @@ const AuthenticatedInicioRoute = AuthenticatedInicioRouteImport.update({
   path: '/inicio',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInstagramDmRoute =
+  AuthenticatedInstagramDmRouteImport.update({
+    id: '/instagram-dm',
+    path: '/instagram-dm',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInteligenciaRoute =
   AuthenticatedInteligenciaRouteImport.update({
     id: '/inteligencia',
@@ -624,6 +632,11 @@ const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
   path: '/api/public/vitrine',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicZernioWebhookRoute = ApiPublicZernioWebhookRouteImport.update({
+  id: '/api/public/zernio-webhook',
+  path: '/api/public/zernio-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSamiAnexoRoute = ApiSamiAnexoRouteImport.update({
   id: '/api/sami/anexo',
   path: '/api/sami/anexo',
@@ -846,6 +859,7 @@ export interface FileRoutesByFullPath {
   '/hoje': typeof AuthenticatedHojeRoute
   '/importar-leads': typeof AuthenticatedImportarLeadsRoute
   '/inicio': typeof AuthenticatedInicioRoute
+  '/instagram-dm': typeof AuthenticatedInstagramDmRoute
   '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
@@ -903,6 +917,7 @@ export interface FileRoutesByFullPath {
   '/api/public/proposta-aceite': typeof ApiPublicPropostaAceiteRoute
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/public/zernio-webhook': typeof ApiPublicZernioWebhookRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
@@ -974,6 +989,7 @@ export interface FileRoutesByTo {
   '/hoje': typeof AuthenticatedHojeRoute
   '/importar-leads': typeof AuthenticatedImportarLeadsRoute
   '/inicio': typeof AuthenticatedInicioRoute
+  '/instagram-dm': typeof AuthenticatedInstagramDmRoute
   '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
@@ -1031,6 +1047,7 @@ export interface FileRoutesByTo {
   '/api/public/proposta-aceite': typeof ApiPublicPropostaAceiteRoute
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/public/zernio-webhook': typeof ApiPublicZernioWebhookRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
@@ -1104,6 +1121,7 @@ export interface FileRoutesById {
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
   '/_authenticated/importar-leads': typeof AuthenticatedImportarLeadsRoute
   '/_authenticated/inicio': typeof AuthenticatedInicioRoute
+  '/_authenticated/instagram-dm': typeof AuthenticatedInstagramDmRoute
   '/_authenticated/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/leads-landing': typeof AuthenticatedLeadsLandingRoute
@@ -1161,6 +1179,7 @@ export interface FileRoutesById {
   '/api/public/proposta-aceite': typeof ApiPublicPropostaAceiteRoute
   '/api/public/propostas': typeof ApiPublicPropostasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/public/zernio-webhook': typeof ApiPublicZernioWebhookRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
@@ -1234,6 +1253,7 @@ export interface FileRouteTypes {
     | '/hoje'
     | '/importar-leads'
     | '/inicio'
+    | '/instagram-dm'
     | '/inteligencia'
     | '/kanban'
     | '/leads-landing'
@@ -1291,6 +1311,7 @@ export interface FileRouteTypes {
     | '/api/public/proposta-aceite'
     | '/api/public/propostas'
     | '/api/public/vitrine'
+    | '/api/public/zernio-webhook'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
@@ -1362,6 +1383,7 @@ export interface FileRouteTypes {
     | '/hoje'
     | '/importar-leads'
     | '/inicio'
+    | '/instagram-dm'
     | '/inteligencia'
     | '/kanban'
     | '/leads-landing'
@@ -1419,6 +1441,7 @@ export interface FileRouteTypes {
     | '/api/public/proposta-aceite'
     | '/api/public/propostas'
     | '/api/public/vitrine'
+    | '/api/public/zernio-webhook'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
@@ -1491,6 +1514,7 @@ export interface FileRouteTypes {
     | '/_authenticated/hoje'
     | '/_authenticated/importar-leads'
     | '/_authenticated/inicio'
+    | '/_authenticated/instagram-dm'
     | '/_authenticated/inteligencia'
     | '/_authenticated/kanban'
     | '/_authenticated/leads-landing'
@@ -1548,6 +1572,7 @@ export interface FileRouteTypes {
     | '/api/public/proposta-aceite'
     | '/api/public/propostas'
     | '/api/public/vitrine'
+    | '/api/public/zernio-webhook'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
     | '/api/sami/diretrizes'
@@ -1615,6 +1640,7 @@ export interface RootRouteChildren {
   ApiPublicPropostaAceiteRoute: typeof ApiPublicPropostaAceiteRoute
   ApiPublicPropostasRoute: typeof ApiPublicPropostasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
+  ApiPublicZernioWebhookRoute: typeof ApiPublicZernioWebhookRoute
   ApiSamiAnexoRoute: typeof ApiSamiAnexoRoute
   ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
   ApiSamiDiretrizesRoute: typeof ApiSamiDiretrizesRoute
@@ -1850,6 +1876,13 @@ declare module '@tanstack/react-router' {
       path: '/inicio'
       fullPath: '/inicio'
       preLoaderRoute: typeof AuthenticatedInicioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/instagram-dm': {
+      id: '/_authenticated/instagram-dm'
+      path: '/instagram-dm'
+      fullPath: '/instagram-dm'
+      preLoaderRoute: typeof AuthenticatedInstagramDmRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inteligencia': {
@@ -2286,6 +2319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicVitrineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/zernio-webhook': {
+      id: '/api/public/zernio-webhook'
+      path: '/api/public/zernio-webhook'
+      fullPath: '/api/public/zernio-webhook'
+      preLoaderRoute: typeof ApiPublicZernioWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sami/anexo': {
       id: '/api/sami/anexo'
       path: '/api/sami/anexo'
@@ -2557,6 +2597,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
   AuthenticatedImportarLeadsRoute: typeof AuthenticatedImportarLeadsRoute
   AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
+  AuthenticatedInstagramDmRoute: typeof AuthenticatedInstagramDmRoute
   AuthenticatedInteligenciaRoute: typeof AuthenticatedInteligenciaRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLeadsLandingRoute: typeof AuthenticatedLeadsLandingRoute
@@ -2636,6 +2677,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
   AuthenticatedImportarLeadsRoute: AuthenticatedImportarLeadsRoute,
   AuthenticatedInicioRoute: AuthenticatedInicioRoute,
+  AuthenticatedInstagramDmRoute: AuthenticatedInstagramDmRoute,
   AuthenticatedInteligenciaRoute: AuthenticatedInteligenciaRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLeadsLandingRoute: AuthenticatedLeadsLandingRoute,
@@ -2747,6 +2789,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPropostaAceiteRoute: ApiPublicPropostaAceiteRoute,
   ApiPublicPropostasRoute: ApiPublicPropostasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
+  ApiPublicZernioWebhookRoute: ApiPublicZernioWebhookRoute,
   ApiSamiAnexoRoute: ApiSamiAnexoRoute,
   ApiSamiBriefingRoute: ApiSamiBriefingRoute,
   ApiSamiDiretrizesRoute: ApiSamiDiretrizesRoute,
