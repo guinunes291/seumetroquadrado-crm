@@ -75,6 +75,7 @@ const estado = vi.hoisted(() => ({
   isAdmin: false,
   isGestor: false,
   isSuperintendente: false,
+  pilotoDisparo: false,
 }));
 
 vi.mock("@/hooks/use-app-flags", () => ({
@@ -96,6 +97,9 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 vi.mock("@/features/academia/academia-client", () => ({
   useEhParticipante: () => ({ participa: estado.participa, carregando: false }),
+}));
+vi.mock("@/features/disparo-base/disparo-client", () => ({
+  usePilotoDisparoBase: () => ({ piloto: estado.pilotoDisparo, carregando: false }),
 }));
 
 import { useFlagsNav } from "@/features/academia/use-flags-nav";
@@ -200,5 +204,22 @@ describe("seções da Academia", () => {
     ]) {
       expect(sistemaAtivo({ pathname: rota, search: {} }, SISTEMAS_NAV)?.id, rota).toBe("academia");
     }
+  });
+});
+
+describe("useFlagsNav — disparo da base (piloto)", () => {
+  it("a seção só entra para quem está no piloto", () => {
+    Object.assign(estado, { menu: false, card: false, participa: false, isAdmin: false });
+    Object.assign(estado, { pilotoDisparo: false });
+    expect(flags().has("disparo_base")).toBe(false);
+    Object.assign(estado, { pilotoDisparo: true });
+    expect(flags().has("disparo_base")).toBe(true);
+    Object.assign(estado, { pilotoDisparo: false });
+  });
+
+  it("o admin sempre vê, para liberar o piloto pela tela (sem SQL)", () => {
+    Object.assign(estado, { pilotoDisparo: false, isAdmin: true });
+    expect(flags().has("disparo_base")).toBe(true);
+    Object.assign(estado, { isAdmin: false });
   });
 });

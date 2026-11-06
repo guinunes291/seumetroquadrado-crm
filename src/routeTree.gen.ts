@@ -30,6 +30,7 @@ import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDesignSystemRouteImport } from './routes/_authenticated/design-system'
 import { Route as AuthenticatedDiscadorRouteImport } from './routes/_authenticated/discador'
+import { Route as AuthenticatedDisparoBaseRouteImport } from './routes/_authenticated/disparo-base'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
@@ -247,6 +248,12 @@ const AuthenticatedDiscadorRoute = AuthenticatedDiscadorRouteImport.update({
   path: '/discador',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDisparoBaseRoute =
+  AuthenticatedDisparoBaseRouteImport.update({
+    id: '/disparo-base',
+    path: '/disparo-base',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDistribuicaoRoute =
   AuthenticatedDistribuicaoRouteImport.update({
     id: '/distribuicao',
@@ -837,6 +844,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/design-system': typeof AuthenticatedDesignSystemRoute
   '/discador': typeof AuthenticatedDiscadorRoute
+  '/disparo-base': typeof AuthenticatedDisparoBaseRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
@@ -965,6 +973,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/design-system': typeof AuthenticatedDesignSystemRoute
   '/discador': typeof AuthenticatedDiscadorRoute
+  '/disparo-base': typeof AuthenticatedDisparoBaseRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
@@ -1095,6 +1104,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/design-system': typeof AuthenticatedDesignSystemRoute
   '/_authenticated/discador': typeof AuthenticatedDiscadorRoute
+  '/_authenticated/disparo-base': typeof AuthenticatedDisparoBaseRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
@@ -1225,6 +1235,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/design-system'
     | '/discador'
+    | '/disparo-base'
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
@@ -1353,6 +1364,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/design-system'
     | '/discador'
+    | '/disparo-base'
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
@@ -1482,6 +1494,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/design-system'
     | '/_authenticated/discador'
+    | '/_authenticated/disparo-base'
     | '/_authenticated/distribuicao'
     | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
@@ -1787,6 +1800,13 @@ declare module '@tanstack/react-router' {
       path: '/discador'
       fullPath: '/discador'
       preLoaderRoute: typeof AuthenticatedDiscadorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/disparo-base': {
+      id: '/_authenticated/disparo-base'
+      path: '/disparo-base'
+      fullPath: '/disparo-base'
+      preLoaderRoute: typeof AuthenticatedDisparoBaseRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/distribuicao': {
@@ -2548,6 +2568,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDesignSystemRoute: typeof AuthenticatedDesignSystemRoute
   AuthenticatedDiscadorRoute: typeof AuthenticatedDiscadorRoute
+  AuthenticatedDisparoBaseRoute: typeof AuthenticatedDisparoBaseRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
@@ -2627,6 +2648,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDesignSystemRoute: AuthenticatedDesignSystemRoute,
   AuthenticatedDiscadorRoute: AuthenticatedDiscadorRoute,
+  AuthenticatedDisparoBaseRoute: AuthenticatedDisparoBaseRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
@@ -2774,6 +2796,7 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
 
 import type { getRouter } from './router.tsx'
 import type { startInstance } from './start.ts'

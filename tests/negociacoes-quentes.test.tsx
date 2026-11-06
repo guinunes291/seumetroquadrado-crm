@@ -1,6 +1,6 @@
 // "Perto de fechar" no Painel do Dia (referência de 2026-10, "Hot deals").
 import type React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { rankearQuentes, rotuloFollowup, type LeadQuenteRow } from "@/features/quentes/derive";
 
@@ -86,6 +86,16 @@ vi.mock("@/features/pipeline/queries", () => ({
 }));
 
 describe("NegociacoesQuentes", () => {
+  // O componente conta "parado há N dias" a partir do relógio: sem fixar o
+  // relógio em AGORA, o teste quebrava sozinho com o passar dos dias.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(AGORA);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("mostra etapa, cliente, empreendimento, estimativa declarada e o corretor", async () => {
     estado.quentes.data = [
       lead({

@@ -24,6 +24,16 @@ export const voltaSchema = z.discriminatedUnion("acao", [
     cliente_id: uuid,
     corretor_id: uuid.nullable(),
   }),
+  // Disparo da base do corretor (20261102120000): o Marquinhos qualificou
+  // quem recebeu o disparo; o lead fica com o corretor que importou (ou, com
+  // o dono inativo, com quem a roleta escolheu — null = segue no Marquinhos).
+  z.object({
+    acao: z.literal("base_do_corretor"),
+    lead_id: uuid,
+    cliente_id: uuid,
+    disparo_id: uuid,
+    corretor_id: uuid.nullable(),
+  }),
   // Filho novo, já criado e vinculado à mãe; o webhook distribui.
   z.object({
     acao: z.literal("registro_filho"),
@@ -35,7 +45,17 @@ export const voltaSchema = z.discriminatedUnion("acao", [
 ]);
 
 export type Volta = z.infer<typeof voltaSchema>;
-export type VoltaSemRegistroNovo = Extract<Volta, { acao: "reenvio" | "negociacao_avancada" }>;
+export type VoltaSemRegistroNovo = Extract<
+  Volta,
+  { acao: "reenvio" | "negociacao_avancada" | "base_do_corretor" }
+>;
+
+/** A decisão que NÃO cria registro: o webhook só anota e responde. */
+export function semRegistroNovo(v: Volta | null): v is VoltaSemRegistroNovo {
+  return (
+    v?.acao === "reenvio" || v?.acao === "negociacao_avancada" || v?.acao === "base_do_corretor"
+  );
+}
 
 /**
  * Fail-closed: resposta fora do contrato vira null e o webhook segue o
@@ -50,6 +70,7 @@ export function lerVolta(data: unknown): Volta | null {
 export const MOTIVO_VOLTA = {
   reenvio: "reenvio_recente",
   negociacao_avancada: "mantido_negociacao_avancada",
+  base_do_corretor: "mantido_base_do_corretor",
 } as const satisfies Record<VoltaSemRegistroNovo["acao"], string>;
 
 /** Nota no registro que recebeu a volta, quando não nasce registro novo. */
@@ -57,11 +78,22 @@ export function textoVoltaSemRegistroNovo(
   acao: VoltaSemRegistroNovo["acao"],
   ctx: { campanha: string; quando: string },
 ): string {
-  return acao === "reenvio"
-    ? `O cliente reenviou o formulário (campanha ${ctx.campanha}) em ${ctx.quando}. ` +
-        "É a mesma entrada: nenhum registro novo foi criado."
-    : `Cliente em negociação voltou pela campanha ${ctx.campanha} em ${ctx.quando}. ` +
-        "Ele segue com você: nenhum outro corretor recebe este cliente.";
+  if (acao === "reenvio") {
+    return (
+      `O cliente reenviou o formulário (campanha ${ctx.campanha}) em ${ctx.quando}. ` +
+      "É a mesma entrada: nenhum registro novo foi criado."
+    );
+  }
+  if (acao === "base_do_corretor") {
+    return (
+      `O cliente respondeu ao disparo da sua base e foi qualificado pelo Marquinhos em ${ctx.quando}. ` +
+      "Ele é seu: nenhum outro corretor recebe este cliente."
+    );
+  }
+  return (
+    `Cliente em negociação voltou pela campanha ${ctx.campanha} em ${ctx.quando}. ` +
+    "Ele segue com você: nenhum outro corretor recebe este cliente."
+  );
 }
 
 /** Nota no filho da campanha: de onde ele veio e o que já veio preenchido. */

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   MOTIVO_VOLTA,
   lerVolta,
+  semRegistroNovo,
   textoRegistroFilho,
   textoVoltaSemRegistroNovo,
 } from "@/lib/webhook-lead-volta";
@@ -14,8 +15,43 @@ import {
 const LEAD = "11111111-1111-4111-8111-111111111111";
 const CLIENTE = "22222222-2222-4222-8222-222222222222";
 const CORRETOR = "33333333-3333-4333-8333-333333333333";
+const DISPARO = "44444444-4444-4444-8444-444444444444";
 
 describe("lerVolta — contrato de registrar_volta_campanha", () => {
+  it("lê a base do corretor (disparo da base, 20261102120000)", () => {
+    const v = lerVolta({
+      acao: "base_do_corretor",
+      lead_id: LEAD,
+      cliente_id: CLIENTE,
+      disparo_id: DISPARO,
+      corretor_id: CORRETOR,
+    });
+    expect(v).toMatchObject({
+      acao: "base_do_corretor",
+      corretor_id: CORRETOR,
+      disparo_id: DISPARO,
+    });
+    expect(semRegistroNovo(v)).toBe(true);
+    // Sem o disparo no contrato, fail-closed.
+    expect(
+      lerVolta({ acao: "base_do_corretor", lead_id: LEAD, cliente_id: CLIENTE, corretor_id: null }),
+    ).toBeNull();
+  });
+
+  it("só o registro filho e o cliente novo seguem para o INSERT/distribuição", () => {
+    expect(semRegistroNovo({ acao: "cliente_novo" })).toBe(false);
+    expect(semRegistroNovo(null)).toBe(false);
+    expect(
+      semRegistroNovo({
+        acao: "registro_filho",
+        lead_id: LEAD,
+        cliente_id: CLIENTE,
+        campos_herdados: [],
+        corretores_excluidos: 0,
+      }),
+    ).toBe(false);
+  });
+
   it("lê as quatro decisões", () => {
     expect(lerVolta({ acao: "cliente_novo" })).toEqual({ acao: "cliente_novo" });
     expect(
@@ -53,6 +89,7 @@ describe("o que o webhook escreve", () => {
     expect(MOTIVO_VOLTA).toEqual({
       reenvio: "reenvio_recente",
       negociacao_avancada: "mantido_negociacao_avancada",
+      base_do_corretor: "mantido_base_do_corretor",
     });
   });
 
@@ -72,6 +109,9 @@ describe("o que o webhook escreve", () => {
     expect(textoVoltaSemRegistroNovo("negociacao_avancada", ctx)).toContain(
       "nenhum outro corretor recebe este cliente",
     );
+    const base = textoVoltaSemRegistroNovo("base_do_corretor", ctx);
+    expect(base).toContain("respondeu ao disparo da sua base");
+    expect(base).toContain("nenhum outro corretor recebe este cliente");
   });
 });
 

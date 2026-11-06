@@ -3763,6 +3763,146 @@ export type Database = {
           },
         ]
       }
+      disparo_base_config: {
+        Row: {
+          chave: string
+          descricao: string | null
+          updated_at: string
+          valor: Json
+        }
+        Insert: {
+          chave: string
+          descricao?: string | null
+          updated_at?: string
+          valor: Json
+        }
+        Update: {
+          chave?: string
+          descricao?: string | null
+          updated_at?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
+      disparo_base_pilotos: {
+        Row: {
+          ativo: boolean
+          corretor_id: string
+          criado_em: string
+          criado_por: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          corretor_id: string
+          criado_em?: string
+          criado_por?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          corretor_id?: string
+          criado_em?: string
+          criado_por?: string | null
+        }
+        Relationships: []
+      }
+      disparos_base: {
+        Row: {
+          atualizado_em: string
+          corretor_id: string
+          criado_em: string
+          declarou_base_propria: boolean
+          id: string
+          modelo: string | null
+          nome: string
+          projeto_id: string | null
+          status: string
+          variaveis: Json
+        }
+        Insert: {
+          atualizado_em?: string
+          corretor_id: string
+          criado_em?: string
+          declarou_base_propria?: boolean
+          id?: string
+          modelo?: string | null
+          nome: string
+          projeto_id?: string | null
+          status?: string
+          variaveis?: Json
+        }
+        Update: {
+          atualizado_em?: string
+          corretor_id?: string
+          criado_em?: string
+          declarou_base_propria?: boolean
+          id?: string
+          modelo?: string | null
+          nome?: string
+          projeto_id?: string | null
+          status?: string
+          variaveis?: Json
+        }
+        Relationships: []
+      }
+      disparos_base_itens: {
+        Row: {
+          criado_em: string
+          disparo_id: string
+          entregue_em: string | null
+          enviado_em: string | null
+          erro: string | null
+          id: string
+          lead_id: string
+          lido_em: string | null
+          origem_item: string
+          provider_message_id: string | null
+          qualificado_em: string | null
+          respondeu_em: string | null
+          status: string
+          tentativas: number
+        }
+        Insert: {
+          criado_em?: string
+          disparo_id: string
+          entregue_em?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          id?: string
+          lead_id: string
+          lido_em?: string | null
+          origem_item: string
+          provider_message_id?: string | null
+          qualificado_em?: string | null
+          respondeu_em?: string | null
+          status?: string
+          tentativas?: number
+        }
+        Update: {
+          criado_em?: string
+          disparo_id?: string
+          entregue_em?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          id?: string
+          lead_id?: string
+          lido_em?: string | null
+          origem_item?: string
+          provider_message_id?: string | null
+          qualificado_em?: string | null
+          respondeu_em?: string | null
+          status?: string
+          tentativas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disparos_base_itens_disparo_id_fkey"
+            columns: ["disparo_id"]
+            isOneToOne: false
+            referencedRelation: "disparos_base"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribuicao_config: {
         Row: {
           origem: Database["public"]["Enums"]["lead_origem"]
@@ -13783,6 +13923,16 @@ export type Database = {
           telefone: string
         }[]
       }
+      disparo_base_criar: {
+        Args: { _declarou_base_propria: boolean; _nome: string }
+        Returns: string
+      }
+      disparo_base_custeio: { Args: never; Returns: Json }
+      disparo_base_definir_piloto: {
+        Args: { _ativo: boolean; _corretor: string }
+        Returns: undefined
+      }
+      disparo_base_e_piloto: { Args: { _corretor: string }; Returns: boolean }
       disparar_repasse_sla_lead: {
         Args: { _lead_id: string }
         Returns: boolean
@@ -14411,6 +14561,10 @@ export type Database = {
         }[]
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
+      importar_base_corretor_lote: {
+        Args: { _corretor: string; _disparo: string; _rows: Json }
+        Returns: Json
+      }
       importar_leads_csv_lote: {
         Args: { _batch: string; _rows: Json }
         Returns: Json

@@ -16,6 +16,7 @@ import {
   ListChecks,
   MapPinArea,
   Megaphone,
+  PaperPlaneTilt,
   Phone,
   PhoneOutgoing,
   Shuffle,
@@ -123,6 +124,16 @@ export const SISTEMAS_OPERACAO: Sistema[] = [
         roles: OPERACAO,
       },
       { id: "discador", label: "Discador", icon: Phone, to: "/discador", roles: OPERACAO },
+      // Disparo da base do corretor (piloto, 20261102120000): só aparece para
+      // quem está em disparo_base_pilotos — a flag vem de useFlagsNav.
+      {
+        id: "disparo-base",
+        label: "Disparo da base",
+        icon: PaperPlaneTilt,
+        to: "/disparo-base",
+        roles: OPERACAO,
+        flag: "disparo_base",
+      },
       // As seções de gestão continuam role-gated — invisíveis para o corretor,
       // e o único acesso de navegação da gestão a estas telas.
       {
