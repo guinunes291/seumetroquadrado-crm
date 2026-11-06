@@ -14,6 +14,12 @@
 // * lead não encontrado: 200 com lead:"nao_encontrado" — o n8n decide
 //   (ex.: encaminhar ao lead-intake e reenviar). Nunca criamos lead aqui.
 // * evento "status": atualiza a linha pelo provider_message_id.
+// * mensagem de SAÍDA de um robô (06/11/2026, agente "marquinhos" etc.): o
+//   n8n espelha aqui o que o Marquinhos mandou no 4099, para o corretor ler a
+//   conversa no CRM. Grava sem corretor_id (não é resposta do corretor: a
+//   resposta automática pós-handoff não tira o cliente da fila Responder) e
+//   sem eco na timeline. Com devolução ao Marquinhos ativa, a linha leva o
+//   devolucao_id — aí a resposta do robô conta, porque o corretor pediu.
 
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "node:crypto";
@@ -127,25 +133,50 @@ export const Route = createFileRoute("/api/public/webhooks/whatsapp")({
           .eq("id", leadId)
           .maybeSingle();
 
+        // Devolução ao Marquinhos ativa (migration 20261106120000). Banco sem a
+        // migration: a RPC não existe, devolucaoId fica null e a entrada segue
+        // exatamente como antes (as colunas novas nem entram no insert).
+        const { data: devolucaoId } = await supabaseAdmin.rpc("marquinhos_devolucao_ativa", {
+          _lead_id: leadId,
+        });
+        const saidaDoRobo = evento.direcao === "saida";
+
         const { error: insErr } = await tabelaMensagens(supabaseAdmin).insert({
           lead_id: leadId,
-          corretor_id: lead?.corretor_id ?? null,
-          direcao: "entrada",
+          corretor_id: saidaDoRobo ? null : (lead?.corretor_id ?? null),
+          direcao: evento.direcao,
           canal: "whatsapp",
           provider: evento.provider,
           provider_message_id: evento.providerMessageId,
-          status: "recebida",
+          status: saidaDoRobo ? "enviada" : "recebida",
           conteudo: evento.conteudo,
           midia_url: evento.midiaUrl,
           criado_em: evento.ocorridoEm ?? undefined,
+          ...(saidaDoRobo ? { agente: evento.agente } : {}),
+          ...(devolucaoId ? { devolucao_id: devolucaoId } : {}),
         });
         if (insErr) {
+          const code = (insErr as { code?: string }).code;
           // 23505 = replay do provedor/n8n: a mensagem já está gravada (e a
           // interacao também) — idempotência respondida como sucesso.
-          if ((insErr as { code?: string }).code === "23505") {
+          if (code === "23505") {
             return json({ ok: true, duplicada: true });
           }
+          // Saída de robô antes da migration (coluna agente ausente): ignora
+          // com 200 para o n8n não reenviar em loop; nada do cliente se perde.
+          if (saidaDoRobo && (code === "PGRST204" || code === "42703")) {
+            return json({ ok: true, ignorada: "migracao_pendente" });
+          }
           return json({ ok: false, error: "temporarily_unavailable" }, 503);
+        }
+
+        if (saidaDoRobo) {
+          return json({
+            ok: true,
+            lead_id: leadId,
+            agente: evento.agente,
+            devolucao: devolucaoId ?? null,
+          });
         }
 
         // Eco na timeline (melhor esforço): mantém a mensagem visível na

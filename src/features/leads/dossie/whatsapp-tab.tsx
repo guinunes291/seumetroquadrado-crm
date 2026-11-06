@@ -26,6 +26,7 @@ import {
   registrarEnvioSimulado,
 } from "@/features/mensagens/mensagens-client";
 import { BolhasThread, ComposerConversa } from "@/features/mensagens/thread-conversa";
+import { DevolucaoMarquinhosFaixa } from "@/features/mensagens/devolucao-marquinhos-card";
 
 type LeadDaConversa = {
   nome: string;
@@ -162,6 +163,12 @@ export function WhatsappTab({ leadId, lead }: { leadId: string; lead: LeadDaConv
               </Button>
             </div>
           </div>
+
+          <DevolucaoMarquinhosFaixa
+            leadId={leadId}
+            clienteNome={lead.nome}
+            className="-mx-3 -mt-3 border-b"
+          />
 
           <div className="flex-1 space-y-2 overflow-y-auto pr-1">
             {thread.length === 0 ? (

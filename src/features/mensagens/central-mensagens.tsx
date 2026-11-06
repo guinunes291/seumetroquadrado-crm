@@ -66,6 +66,7 @@ import {
   registrarEnvioSimulado,
 } from "./mensagens-client";
 import { BolhasThread, ComposerConversa } from "./thread-conversa";
+import { DevolucaoMarquinhosFaixa } from "./devolucao-marquinhos-card";
 
 type LeadResumo = {
   id: string;
@@ -457,6 +458,8 @@ function ThreadDaConversa({
           </DropdownMenu>
         )}
       </header>
+
+      {leadId && <DevolucaoMarquinhosFaixa leadId={leadId} clienteNome={nome} />}
 
       <div
         ref={corpoRef}

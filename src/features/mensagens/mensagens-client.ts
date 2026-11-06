@@ -7,6 +7,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import type { Mensagem } from "./derive";
+import { isObjetivoDevolucao, isStatusDevolucao, type Devolucao } from "./devolucao-marquinhos";
 
 type ResultadoDb<T> = PromiseLike<{
   data: T | null;
@@ -52,11 +53,27 @@ function rpcConversa(fn: "conversa_estado" | "marcar_conversa_tratada", leadId: 
   return (holder.rpc as RpcConversa).call(supabase, fn, { _lead_id: leadId });
 }
 
-const COLUNAS =
+const COLUNAS_BASE =
   "id, lead_id, corretor_id, direcao, canal, provider, provider_message_id, status, conteudo, midia_url, criado_em";
+/** + colunas do robô (migration 20261106120000_marquinhos_devolucao). */
+const COLUNAS = `${COLUNAS_BASE}, agente, devolucao_id`;
 
 /** Códigos de "tabela ainda não existe" (migration da 7a pendente no ambiente). */
 const TABELA_AUSENTE = new Set(["PGRST205", "PGRST202", "42P01"]);
+/** Coluna ainda não existe (migration do Marquinhos pendente): lê sem ela. */
+const COLUNA_AUSENTE = new Set(["42703", "PGRST204"]);
+
+/**
+ * Lê com as colunas novas; se o banco ainda não as tem, repete com as antigas
+ * — a Central segue igual a antes até a migration ser aplicada.
+ */
+async function comColunasDoRobo(
+  consulta: (cols: string) => ResultadoDb<Mensagem[]>,
+): Promise<Awaited<ResultadoDb<Mensagem[]>>> {
+  const r = await consulta(COLUNAS);
+  if (r.error && COLUNA_AUSENTE.has(r.error.code ?? "")) return consulta(COLUNAS_BASE);
+  return r;
+}
 
 export type MensagensLista = { rows: Mensagem[]; tabelaAusente: boolean };
 
@@ -66,10 +83,9 @@ export type MensagensLista = { rows: Mensagem[]; tabelaAusente: boolean };
  * estado explicativo em vez de quebrar (mesmo espírito do rpcWithFallback).
  */
 export async function listarMensagensRecentes(limit = 500): Promise<MensagensLista> {
-  const { data, error } = await tabelaMensagens()
-    .select(COLUNAS)
-    .order("criado_em", { ascending: false })
-    .limit(limit);
+  const { data, error } = await comColunasDoRobo((cols) =>
+    tabelaMensagens().select(cols).order("criado_em", { ascending: false }).limit(limit),
+  );
   if (error) {
     if (TABELA_AUSENTE.has(error.code ?? "")) return { rows: [], tabelaAusente: true };
     throw new Error(error.message || "Não foi possível carregar as mensagens.");
@@ -82,11 +98,13 @@ export async function listarMensagensRecentes(limit = 500): Promise<MensagensLis
  * embutida na ficha (Lote 3). O índice mensagens_lead_recentes_idx cobre.
  */
 export async function listarMensagensDoLead(leadId: string, limit = 200): Promise<MensagensLista> {
-  const { data, error } = await tabelaMensagens()
-    .select(COLUNAS)
-    .eq("lead_id", leadId)
-    .order("criado_em", { ascending: false })
-    .limit(limit);
+  const { data, error } = await comColunasDoRobo((cols) =>
+    tabelaMensagens()
+      .select(cols)
+      .eq("lead_id", leadId)
+      .order("criado_em", { ascending: false })
+      .limit(limit),
+  );
   if (error) {
     if (TABELA_AUSENTE.has(error.code ?? "")) return { rows: [], tabelaAusente: true };
     throw new Error(error.message || "Não foi possível carregar a conversa.");
@@ -174,4 +192,52 @@ export async function registrarEnvioSimulado(args: {
     conteudo: args.conteudo,
   });
   if (error) throw new Error(error.message || "Não foi possível registrar a mensagem.");
+}
+
+// ---------------------------------------------------------------------------
+// Devolver ao Marquinhos (migration 20261106120000)
+// ---------------------------------------------------------------------------
+
+const COLUNAS_DEVOLUCAO =
+  "id, lead_id, objetivo, observacao, status, envio_pendente, ultimo_erro, enviado_em, encerrado_em, desfecho, resultado, criado_em";
+
+/**
+ * A devolução mais recente do lead (ativa ou a última encerrada). Banco sem
+ * a migration → `disponivel: false` e a tela esconde o botão.
+ */
+export async function ultimaDevolucaoDoLead(
+  leadId: string,
+): Promise<{ disponivel: boolean; devolucao: Devolucao | null }> {
+  const { data, error } = await supabase
+    .from("marquinhos_devolucoes")
+    .select(COLUNAS_DEVOLUCAO)
+    .eq("lead_id", leadId)
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    if (TABELA_AUSENTE.has(error.code ?? "")) return { disponivel: false, devolucao: null };
+    throw new Error(error.message || "Não foi possível ler a devolução ao Marquinhos.");
+  }
+  if (!data || !isObjetivoDevolucao(data.objetivo) || !isStatusDevolucao(data.status)) {
+    return { disponivel: true, devolucao: null };
+  }
+  return {
+    disponivel: true,
+    devolucao: {
+      ...data,
+      objetivo: data.objetivo,
+      status: data.status,
+      envio_pendente:
+        data.envio_pendente === "devolver" || data.envio_pendente === "retomar"
+          ? data.envio_pendente
+          : null,
+      desfecho:
+        data.desfecho === "objetivo_cumprido" ||
+        data.desfecho === "sem_resposta" ||
+        data.desfecho === "precisa_corretor"
+          ? data.desfecho
+          : null,
+    },
+  };
 }

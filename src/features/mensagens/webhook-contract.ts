@@ -6,6 +6,10 @@
 // Dois eventos:
 // * "mensagem": mensagem recebida do cliente → vira linha em `mensagens`
 //   (direcao entrada) + eco em `interacoes` (aciona a fila Responder).
+//   Desde 06/11/2026 também a mensagem que um ROBÔ mandou no 4099
+//   (direcao "saida" + agente, ex.: "marquinhos"): o corretor lê no CRM o que
+//   o Marquinhos conversou. Saída sem agente é recusada — a saída do corretor
+//   nasce no CRM, nunca neste webhook.
 // * "status": atualização de entrega de uma mensagem ENVIADA (enviada →
 //   entregue → lida, ou falha) → atualiza a linha pelo provider_message_id.
 
@@ -26,6 +30,15 @@ const mensagemSchema = z.object({
   midia_url: z.string().url().max(2048).optional().nullable(),
   /** Quando o provedor carimbou a mensagem (ISO); ausente = agora. */
   ocorrido_em: z.string().datetime({ offset: true }).optional().nullable(),
+  /** Ausente = entrada (contrato original). */
+  direcao: z.enum(["entrada", "saida"]).optional(),
+  /** Robô que escreveu (só na saída): slug minúsculo, ex. "marquinhos". */
+  agente: z
+    .string()
+    .trim()
+    .regex(/^[a-z][a-z_]{1,29}$/)
+    .optional()
+    .nullable(),
 });
 
 const statusSchema = z.object({
@@ -39,6 +52,9 @@ const eventoSchema = z.discriminatedUnion("tipo", [mensagemSchema, statusSchema]
 
 export type EventoMensagem = {
   tipo: "mensagem";
+  direcao: "entrada" | "saida";
+  /** Robô autor da saída; null na entrada. */
+  agente: string | null;
   provider: string;
   providerMessageId: string;
   /** Só dígitos — a chave de busca do lead. */
@@ -56,8 +72,7 @@ export type EventoStatus = {
 };
 
 export type WebhookWhatsAppParse =
-  | { ok: true; evento: EventoMensagem | EventoStatus }
-  | { ok: false; error: string };
+  { ok: true; evento: EventoMensagem | EventoStatus } | { ok: false; error: string };
 
 /**
  * Valida e normaliza o payload do n8n. Fail-closed: shape desconhecido é
@@ -86,11 +101,16 @@ export function parseWebhookWhatsApp(input: unknown): WebhookWhatsAppParse {
   const conteudo = d.conteudo?.trim() || null;
   const midiaUrl = d.midia_url?.trim() || null;
   if (!conteudo && !midiaUrl) return { ok: false, error: "mensagem_vazia" };
+  const direcao = d.direcao ?? "entrada";
+  const agente = d.agente?.trim() || null;
+  if (direcao === "saida" && !agente) return { ok: false, error: "saida_sem_agente" };
 
   return {
     ok: true,
     evento: {
       tipo: "mensagem",
+      direcao,
+      agente: direcao === "saida" ? agente : null,
       provider: d.provider,
       providerMessageId: d.provider_message_id,
       telefoneDigits: digits,

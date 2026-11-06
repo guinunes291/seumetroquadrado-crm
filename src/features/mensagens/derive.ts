@@ -19,7 +19,27 @@ export type Mensagem = {
   conteudo: string | null;
   midia_url: string | null;
   criado_em: string;
+  /** Robô que escreveu a saída no 4099 (ex.: "marquinhos"); ausente = pessoa. */
+  agente?: string | null;
+  /** Devolução ao Marquinhos ativa quando a mensagem passou. */
+  devolucao_id?: string | null;
 };
+
+/**
+ * A saída conta como RESPOSTA ao cliente? Do corretor, sim. Do robô, só
+ * durante uma devolução (o corretor pediu): a resposta automática do
+ * Marquinhos depois do handoff não apaga o "aguardando" do corretor — a
+ * mesma regra de conversas_aguardando_resposta no banco.
+ */
+export function saidaContaComoResposta(m: Mensagem): boolean {
+  return m.direcao === "saida" && (!m.agente || !!m.devolucao_id);
+}
+
+/** Nome do robô para exibir ("marquinhos" → "Marquinhos"). */
+export function nomeAgente(agente: string): string {
+  const limpo = agente.replace(/_/g, " ").trim();
+  return limpo ? limpo[0].toUpperCase() + limpo.slice(1) : "Robô";
+}
 
 export type Conversa = {
   leadId: string;
@@ -60,7 +80,9 @@ export function agruparConversas(rows: Mensagem[], tratadas?: Map<string, string
     const marca = marcaRaw ? Date.parse(marcaRaw) : Number.NaN;
     let aguardando = 0;
     for (let i = thread.length - 1; i >= 0; i--) {
-      if (thread[i].direcao !== "entrada") break;
+      if (saidaContaComoResposta(thread[i])) break;
+      // saída do robô fora de devolução: não é resposta do corretor, segue
+      if (thread[i].direcao !== "entrada") continue;
       // Thread cronológica: se ESTA entrada é anterior à marca, as de trás
       // também são — dá para parar aqui.
       if (Number.isFinite(marca) && ts(thread[i]) <= marca) break;
@@ -78,7 +100,7 @@ export function agruparConversas(rows: Mensagem[], tratadas?: Map<string, string
 
 /** Preview de 1 linha para a lista de conversas. */
 export function previewConversa(m: Mensagem): string {
-  const prefixo = m.direcao === "saida" ? "Você: " : "";
+  const prefixo = m.direcao !== "saida" ? "" : m.agente ? `${nomeAgente(m.agente)}: ` : "Você: ";
   const corpo = m.conteudo?.trim() || (m.midia_url ? "[mídia]" : "[mensagem]");
   const linha = `${prefixo}${corpo}`;
   return linha.length > 80 ? `${linha.slice(0, 79)}…` : linha;

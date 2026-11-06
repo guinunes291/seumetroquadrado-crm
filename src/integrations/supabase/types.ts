@@ -6492,13 +6492,117 @@ export type Database = {
         }
         Relationships: []
       }
+      marquinhos_devolucoes: {
+        Row: {
+          atualizado_em: string
+          corretor_id: string | null
+          criado_em: string
+          desfecho: string | null
+          encerrado_em: string | null
+          enviado_em: string | null
+          envio_pendente: string | null
+          id: string
+          lead_id: string
+          objetivo: string
+          observacao: string | null
+          reivindicado_em: string | null
+          resultado: string | null
+          solicitante_id: string
+          status: string
+          telefone: string
+          tentativas: number
+          ultima_tentativa_em: string | null
+          ultimo_erro: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          corretor_id?: string | null
+          criado_em?: string
+          desfecho?: string | null
+          encerrado_em?: string | null
+          enviado_em?: string | null
+          envio_pendente?: string | null
+          id?: string
+          lead_id: string
+          objetivo: string
+          observacao?: string | null
+          reivindicado_em?: string | null
+          resultado?: string | null
+          solicitante_id: string
+          status?: string
+          telefone: string
+          tentativas?: number
+          ultima_tentativa_em?: string | null
+          ultimo_erro?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          corretor_id?: string | null
+          criado_em?: string
+          desfecho?: string | null
+          encerrado_em?: string | null
+          enviado_em?: string | null
+          envio_pendente?: string | null
+          id?: string
+          lead_id?: string
+          objetivo?: string
+          observacao?: string | null
+          reivindicado_em?: string | null
+          resultado?: string | null
+          solicitante_id?: string
+          status?: string
+          telefone?: string
+          tentativas?: number
+          ultima_tentativa_em?: string | null
+          ultimo_erro?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marquinhos_devolucoes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marquinhos_devolucoes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "marquinhos_devolucoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marquinhos_devolucoes_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marquinhos_devolucoes_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
       mensagens: {
         Row: {
+          agente: string | null
           atualizado_em: string
           canal: string
           conteudo: string | null
           corretor_id: string | null
           criado_em: string
+          devolucao_id: string | null
           direcao: string
           erro: string | null
           id: string
@@ -6511,11 +6615,13 @@ export type Database = {
           template_nome: string | null
         }
         Insert: {
+          agente?: string | null
           atualizado_em?: string
           canal?: string
           conteudo?: string | null
           corretor_id?: string | null
           criado_em?: string
+          devolucao_id?: string | null
           direcao: string
           erro?: string | null
           id?: string
@@ -6528,11 +6634,13 @@ export type Database = {
           template_nome?: string | null
         }
         Update: {
+          agente?: string | null
           atualizado_em?: string
           canal?: string
           conteudo?: string | null
           corretor_id?: string | null
           criado_em?: string
+          devolucao_id?: string | null
           direcao?: string
           erro?: string | null
           id?: string
@@ -6545,6 +6653,13 @@ export type Database = {
           template_nome?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "mensagens_devolucao_id_fkey"
+            columns: ["devolucao_id"]
+            isOneToOne: false
+            referencedRelation: "marquinhos_devolucoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mensagens_corretor_id_fkey"
             columns: ["corretor_id"]
@@ -15034,6 +15149,34 @@ export type Database = {
         Args: { _corretor_id: string; _presente: boolean }
         Returns: undefined
       }
+      marquinhos_devolucao_ativa: { Args: { _lead_id: string }; Returns: string }
+      marquinhos_devolucao_encerrar: {
+        Args: { _desfecho: string; _id: string; _resultado: string }
+        Returns: string
+      }
+      marquinhos_devolucao_registrar_envio: {
+        Args: { _acao: string; _erro?: string; _id: string; _ok: boolean }
+        Returns: string
+      }
+      marquinhos_devolucoes_reivindicar_envio: {
+        Args: { _limite?: number }
+        Returns: {
+          acao: string
+          cliente_nome: string
+          corretor_nome: string
+          id: string
+          lead_id: string
+          objetivo: string
+          observacao: string
+          telefone: string
+          tentativa: number
+        }[]
+      }
+      marquinhos_devolver: {
+        Args: { _lead_id: string; _objetivo: string; _observacao?: string }
+        Returns: string
+      }
+      marquinhos_retomar: { Args: { _devolucao_id: string }; Returns: string }
       mcp_aplicar_guardas: {
         Args: never
         Returns: {

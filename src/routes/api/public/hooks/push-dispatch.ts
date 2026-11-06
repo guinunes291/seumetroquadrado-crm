@@ -49,6 +49,17 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           console.error("[push-dispatch] avisos de proposta falharam", e);
         }
 
+        // Devoluções ao Marquinhos (webhook n8n do 4099): retentativas de quem
+        // falhou no envio imediato. Antes do push, pelo mesmo motivo: a falha
+        // definitiva vira push ao corretor e sai neste mesmo minuto.
+        try {
+          const { despacharDevolucoesMarquinhos } =
+            await import("@/lib/marquinhos-devolucao.server");
+          await despacharDevolucoesMarquinhos(20);
+        } catch (e) {
+          console.error("[push-dispatch] devoluções ao Marquinhos falharam", e);
+        }
+
         const [{ supabaseAdmin }, webPushMod] = await Promise.all([
           import("@/integrations/supabase/client.server"),
           import("web-push"),

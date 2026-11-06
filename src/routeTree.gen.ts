@@ -104,6 +104,7 @@ import { Route as ApiPublicPropostasRouteImport } from './routes/api/public/prop
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiSamiAnexoRouteImport } from './routes/api/sami/anexo'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
+import { Route as ApiSamiDevolucaoRouteImport } from './routes/api/sami/devolucao'
 import { Route as ApiSamiDiretrizesRouteImport } from './routes/api/sami/diretrizes'
 import { Route as ApiSamiMensagemRouteImport } from './routes/api/sami/mensagem'
 import { Route as ApiSamiPropostasRouteImport } from './routes/api/sami/propostas'
@@ -641,6 +642,11 @@ const ApiSamiBriefingRoute = ApiSamiBriefingRouteImport.update({
   path: '/api/sami/briefing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSamiDevolucaoRoute = ApiSamiDevolucaoRouteImport.update({
+  id: '/api/sami/devolucao',
+  path: '/api/sami/devolucao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSamiDiretrizesRoute = ApiSamiDiretrizesRouteImport.update({
   id: '/api/sami/diretrizes',
   path: '/api/sami/diretrizes',
@@ -913,6 +919,7 @@ export interface FileRoutesByFullPath {
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
+  '/api/sami/devolucao': typeof ApiSamiDevolucaoRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
   '/api/sami/propostas': typeof ApiSamiPropostasRoute
@@ -1042,6 +1049,7 @@ export interface FileRoutesByTo {
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
+  '/api/sami/devolucao': typeof ApiSamiDevolucaoRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
   '/api/sami/propostas': typeof ApiSamiPropostasRoute
@@ -1173,6 +1181,7 @@ export interface FileRoutesById {
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/api/sami/anexo': typeof ApiSamiAnexoRoute
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
+  '/api/sami/devolucao': typeof ApiSamiDevolucaoRoute
   '/api/sami/diretrizes': typeof ApiSamiDiretrizesRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
   '/api/sami/propostas': typeof ApiSamiPropostasRoute
@@ -1304,6 +1313,7 @@ export interface FileRouteTypes {
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
+    | '/api/sami/devolucao'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
     | '/api/sami/propostas'
@@ -1433,6 +1443,7 @@ export interface FileRouteTypes {
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
+    | '/api/sami/devolucao'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
     | '/api/sami/propostas'
@@ -1563,6 +1574,7 @@ export interface FileRouteTypes {
     | '/api/public/vitrine'
     | '/api/sami/anexo'
     | '/api/sami/briefing'
+    | '/api/sami/devolucao'
     | '/api/sami/diretrizes'
     | '/api/sami/mensagem'
     | '/api/sami/propostas'
@@ -1630,6 +1642,7 @@ export interface RootRouteChildren {
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiSamiAnexoRoute: typeof ApiSamiAnexoRoute
   ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
+  ApiSamiDevolucaoRoute: typeof ApiSamiDevolucaoRoute
   ApiSamiDiretrizesRoute: typeof ApiSamiDiretrizesRoute
   ApiSamiMensagemRoute: typeof ApiSamiMensagemRoute
   ApiSamiPropostasRoute: typeof ApiSamiPropostasRoute
@@ -2320,6 +2333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSamiBriefingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sami/devolucao': {
+      id: '/api/sami/devolucao'
+      path: '/api/sami/devolucao'
+      fullPath: '/api/sami/devolucao'
+      preLoaderRoute: typeof ApiSamiDevolucaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sami/diretrizes': {
       id: '/api/sami/diretrizes'
       path: '/api/sami/diretrizes'
@@ -2771,6 +2791,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiSamiAnexoRoute: ApiSamiAnexoRoute,
   ApiSamiBriefingRoute: ApiSamiBriefingRoute,
+  ApiSamiDevolucaoRoute: ApiSamiDevolucaoRoute,
   ApiSamiDiretrizesRoute: ApiSamiDiretrizesRoute,
   ApiSamiMensagemRoute: ApiSamiMensagemRoute,
   ApiSamiPropostasRoute: ApiSamiPropostasRoute,
@@ -2796,7 +2817,6 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
 
 import type { getRouter } from './router.tsx'
 import type { startInstance } from './start.ts'
