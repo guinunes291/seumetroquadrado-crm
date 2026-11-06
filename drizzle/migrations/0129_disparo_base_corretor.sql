@@ -40,7 +40,7 @@
 -- como a importação CSV do admin (AGENTS.md): sem auth.uid() o gatilho que
 -- força "aguardando_atendimento" na captação própria não dispara.
 --
--- Idempotente. Espelhada em drizzle/migrations/0128.
+-- Idempotente. Espelhada em drizzle/migrations/0129.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------

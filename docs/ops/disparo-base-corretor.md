@@ -20,7 +20,7 @@ Com um só corretor no piloto, dá no mesmo; se o dono quiser a cota **por corre
 ## Fases
 
 1. **Fase 1 (esta):** regra de dono no webhook, importação da base, piloto e custeio
-   (só a regra). Migration `20261102120000_disparo_base_corretor.sql` (espelho drizzle `0128`).
+   (só a regra). Migration `20261102120000_disparo_base_corretor.sql` (espelho drizzle `0129`).
 2. **Fase 2:** fila de envio pela API oficial (modelo aprovado pela Meta, limite diário,
    horário comercial, status de entrega pelo `provider_message_id`).
 3. **Fase 3:** n8n do Marquinhos: contexto do disparo ao responder ("assistente da Ana"),

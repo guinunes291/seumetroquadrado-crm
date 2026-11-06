@@ -7685,6 +7685,33 @@ export type Database = {
         }
         Relationships: []
       }
+      projetos_backup_20261103_vibra_links: {
+        Row: {
+          backup_em: string | null
+          book_url: string | null
+          construtora: string | null
+          id: string | null
+          nome: string | null
+          tabela_precos_url: string | null
+        }
+        Insert: {
+          backup_em?: string | null
+          book_url?: string | null
+          construtora?: string | null
+          id?: string | null
+          nome?: string | null
+          tabela_precos_url?: string | null
+        }
+        Update: {
+          backup_em?: string | null
+          book_url?: string | null
+          construtora?: string | null
+          id?: string | null
+          nome?: string | null
+          tabela_precos_url?: string | null
+        }
+        Relationships: []
+      }
       projetos_metragem_backup_20260902: {
         Row: {
           corrigido_em: string
@@ -14961,6 +14988,23 @@ export type Database = {
       limpar_vitrine_eventos_expirados: {
         Args: { _antes?: string }
         Returns: number
+      }
+      listar_ofertas_ativas_resumo: {
+        Args: { _arquivadas?: boolean }
+        Returns: {
+          corretor_id: string
+          created_at: string
+          criado_por: string
+          descricao: string
+          filtros: Json
+          id: string
+          nome: string
+          status: string
+          total_avancados: number
+          total_contatados: number
+          total_leads: number
+          updated_at: string
+        }[]
       }
       listar_vitrine_links: {
         Args: { _ator_id: string; _lead_id: string }

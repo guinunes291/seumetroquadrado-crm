@@ -901,8 +901,15 @@
     {
       "idx": 128,
       "version": "7",
-      "when": 1793627171874,
-      "tag": "0128_disparo_base_corretor",
+      "when": 1793792633587,
+      "tag": "0128_oferta_ativa_resumo_agregado",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1793792693587,
+      "tag": "0129_disparo_base_corretor",
       "breakpoints": true
     }
   ]
