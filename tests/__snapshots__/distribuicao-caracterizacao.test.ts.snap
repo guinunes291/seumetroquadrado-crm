@@ -1,0 +1,621 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`API e vocabulário > a API pública do módulo 1`] = `
+[
+  "ACAO_PARTICIPANTE_LABEL",
+  "EXCECAO_STATUS_LABEL",
+  "GATILHO_LABEL",
+  "MOTIVO_EXCECAO_LABEL",
+  "MOTIVO_INAPTIDAO_LABEL",
+  "PRESENCA_OBRIGATORIA_HINT",
+  "RESULTADO_LABEL",
+  "ROLETA_LABEL",
+  "acaoPresencaDaGestao",
+  "agruparFiliais",
+  "calcPctTrabalhado",
+  "dentroDoHorario",
+  "descricaoRoletaFilial",
+  "femininoNaFrase",
+  "filiaisDaRegiao",
+  "filiaisQueAlternam",
+  "frasesAlternancia",
+  "gatilhoLabel",
+  "listarNomes",
+  "motivoExcecaoLabel",
+  "motivoInaptidaoLabel",
+  "ordenarZonas",
+  "participacaoPercentual",
+  "presencaObrigatoria",
+  "proximoDaVez",
+  "resolverRoletaPorOrigem",
+  "resumoDecisao",
+  "roletaLabel",
+  "rotuloFilial",
+  "secoesDeCampanhas",
+  "uniaoDasZonas",
+  "zonasSoltas",
+]
+`;
+
+exports[`API e vocabulário > rótulos por código, inclusive desconhecidos 1`] = `
+{
+  "excecao": [
+    "Zona sem time na filial",
+    "codigo_novo",
+  ],
+  "gatilho": [
+    "Webhook (chatbot)",
+    "Campanha → roleta da filial da zona",
+    "—",
+    "—",
+    "—",
+    "novo",
+  ],
+  "inaptidao": [
+    "Pausado temporariamente",
+    "Teto de leads ativos atingido (42 no funil)",
+    "Teto de leads ativos atingido ( no funil)",
+    "codigo_novo",
+  ],
+  "roletaLabel": [
+    "Roleta Plantão",
+    "Roleta Zona Leste (antiga)",
+    "Roleta Belém",
+    "Belém Centro",
+    "campanha-x",
+    "—",
+    "—",
+    "—",
+  ],
+}
+`;
+
+exports[`API e vocabulário > todos os rótulos 1`] = `
+{
+  "acaoParticipante": {
+    "incluido": "Incluído",
+    "limite_alterado": "Limite alterado",
+    "pausado": "Pausado",
+    "reativado": "Reativado",
+    "removido": "Removido",
+  },
+  "excecao": {
+    "corretor_anterior_inativo": "Corretor anterior inativo",
+    "dados_incompletos": "Lead sem dados mínimos",
+    "duplicado_incerto": "Lead duplicado sem regra clara",
+    "falha_tecnica": "Falha técnica na distribuição",
+    "origem_nao_mapeada": "Origem sem roleta vinculada",
+    "sem_corretor_ativo": "Nenhum corretor ativo na roleta",
+    "sem_corretor_elegivel": "Nenhum corretor apto no momento",
+    "sem_corretor_na_zona": "Esperando a filial da zona (ninguém da filial apto agora)",
+    "zona_sem_roleta": "Zona sem roleta de filial",
+    "zona_sem_time": "Zona sem time na filial",
+  },
+  "excecaoStatus": {
+    "arquivada": "Arquivada",
+    "em_analise": "Em análise",
+    "pendente": "Pendente",
+    "resolvida": "Resolvida",
+  },
+  "gatilho": {
+    "campanha_zona": "Campanha → roleta da filial da zona",
+    "cron": "Rotina automática",
+    "edge_facebook": "Facebook Ads",
+    "excecao_corrigir_origem": "Exceção — origem corrigida",
+    "excecao_manual": "Exceção — atribuição manual",
+    "excecao_reprocesso": "Reprocessamento de exceção",
+    "excecao_roleta_forcada": "Exceção — roleta escolhida",
+    "lead_parado": "Redistribuição de parado",
+    "lead_perdido": "Repasse após perda",
+    "manual": "Manual",
+    "manual_criacao": "Criação manual de lead",
+    "manual_roleta": "Roleta manual (lista de leads)",
+    "reprocesso": "Reprocessamento",
+    "sla_webhook": "Repasse por SLA",
+    "sla_webhook_imediato": "Repasse por SLA (imediato)",
+    "teste": "Teste",
+    "webhook": "Webhook (chatbot)",
+    "webhook_landing": "Webhook (landing page)",
+  },
+  "inaptidao": {
+    "ausente_hoje": "Sem check-in que libere a roleta hoje",
+    "conflito_agenda": "Conflito de agenda no horário da visita",
+    "cota_diaria_atingida": "Cota diária de leads atingida",
+    "fora_da_regiao": "Não atende esta zona",
+    "nao_participante": "Não participa da roleta",
+    "onboarding_pendente": "Onboarding não concluído",
+    "participacao_inativa": "Desativado na roleta",
+    "pausado": "Pausado temporariamente",
+    "pct_trabalhado_abaixo_minimo": "% de leads trabalhados abaixo do mínimo",
+    "perfil_inativo": "Perfil inativo no CRM",
+    "regra_65_sem_vaga": "Em atendimento no teto (regra dos 65)",
+    "roleta_desativada": "Roleta desligada",
+    "sem_modelo_contrato": "Sem modelo de contrato definido",
+    "sem_role_corretor": "Sem papel de corretor",
+    "sem_telefone": "Sem telefone cadastrado",
+    "sem_zona_no_perfil": "Sem zona no perfil (a gestão define a filial)",
+    "vez_em_outra_zona": "A vez agora é em outra zona ou filial",
+  },
+  "presencaHint": "Obrigatória em toda fila: só recebe quem fez check-in hoje (filial, ou em casa com a meta do mês anterior).",
+  "resultado": {
+    "erro": "Erro",
+    "excecao": "Exceção",
+    "sem_corretor": "Sem corretor",
+    "sucesso": "Distribuído",
+  },
+  "roleta": {
+    "agendados-sdr": "Agendados do SDR",
+    "base": "Roleta Base",
+    "filial-barra-funda": "Roleta Barra Funda",
+    "filial-belem": "Roleta Belém",
+    "filial-liberdade": "Roleta Liberdade",
+    "landing": "Roleta Landing Page",
+    "marquinhos": "Roleta Marquinhos",
+    "plantao": "Roleta Plantão",
+    "zona-centro": "Roleta Centro (antiga)",
+    "zona-grande-sp": "Roleta Grande SP (antiga)",
+    "zona-leste": "Roleta Zona Leste (antiga)",
+    "zona-norte": "Roleta Zona Norte (antiga)",
+    "zona-oeste": "Roleta Zona Oeste (antiga)",
+    "zona-sul": "Roleta Zona Sul (antiga)",
+  },
+}
+`;
+
+exports[`mapa das filiais > agrupa, ordena e descreve 1`] = `
+{
+  "alternam": [
+    [
+      "filial-barra-funda",
+      [
+        {
+          "com": [
+            "Água Branca",
+          ],
+          "zona": "Oeste",
+        },
+      ],
+    ],
+    [
+      "filial-zeta",
+      [
+        {
+          "com": [
+            "Barra Funda",
+          ],
+          "zona": "Oeste",
+        },
+      ],
+    ],
+    [
+      "filial-liberdade",
+      [
+        {
+          "com": [
+            "Belém",
+          ],
+          "zona": "Leste",
+        },
+      ],
+    ],
+    [
+      "filial-belem",
+      [
+        {
+          "com": [
+            "Liberdade",
+          ],
+          "zona": "Leste",
+        },
+      ],
+    ],
+    [
+      "filial-nova",
+      [],
+    ],
+  ],
+  "daRegiao": [
+    {
+      "nome": "Barra Funda",
+      "ordem": 1,
+      "roletaNome": "Roleta filial-barra-funda",
+      "roletaSlug": "filial-barra-funda",
+      "slug": "filial-barra-funda",
+      "zonas": [
+        "Norte",
+        "Sul",
+        "Oeste",
+      ],
+    },
+    {
+      "nome": "Água Branca",
+      "ordem": 2,
+      "roletaNome": "Roleta filial-zeta",
+      "roletaSlug": "filial-zeta",
+      "slug": "filial-zeta",
+      "zonas": [
+        "Oeste",
+      ],
+    },
+    {
+      "nome": "Liberdade",
+      "ordem": 2,
+      "roletaNome": "Roleta filial-liberdade",
+      "roletaSlug": "filial-liberdade",
+      "slug": "filial-liberdade",
+      "zonas": [
+        "Leste",
+        "Centro",
+      ],
+    },
+  ],
+  "daRegiaoSemZonas": [],
+  "daRegiaoVazia": [],
+  "descricoes": [
+    "Time fixo da Barra Funda: recebe os leads das zonas Norte, Sul e Oeste. A Oeste alterna com o Água Branca.",
+    "Time fixo da Água Branca: recebe os leads da zona Oeste. A Oeste alterna com a Barra Funda.",
+    "Time fixo da Liberdade: recebe os leads das zonas Leste e Centro. A Leste alterna com a Belém.",
+    "Time fixo da Belém: recebe os leads das zonas Leste e Grande SP. A Leste alterna com a Liberdade.",
+    "Time fixo da filial-nova: recebe os leads da zona Litoral.",
+  ],
+  "feminino": [
+    true,
+    true,
+    true,
+    true,
+    false,
+    false,
+    false,
+  ],
+  "filiais": [
+    {
+      "nome": "Barra Funda",
+      "ordem": 1,
+      "roletaNome": "Roleta filial-barra-funda",
+      "roletaSlug": "filial-barra-funda",
+      "slug": "filial-barra-funda",
+      "zonas": [
+        "Norte",
+        "Sul",
+        "Oeste",
+      ],
+    },
+    {
+      "nome": "Água Branca",
+      "ordem": 2,
+      "roletaNome": "Roleta filial-zeta",
+      "roletaSlug": "filial-zeta",
+      "slug": "filial-zeta",
+      "zonas": [
+        "Oeste",
+      ],
+    },
+    {
+      "nome": "Liberdade",
+      "ordem": 2,
+      "roletaNome": "Roleta filial-liberdade",
+      "roletaSlug": "filial-liberdade",
+      "slug": "filial-liberdade",
+      "zonas": [
+        "Leste",
+        "Centro",
+      ],
+    },
+    {
+      "nome": "Belém",
+      "ordem": 3,
+      "roletaNome": "Roleta filial-belem",
+      "roletaSlug": "filial-belem",
+      "slug": "filial-belem",
+      "zonas": [
+        "Leste",
+        "Grande SP",
+      ],
+    },
+    {
+      "nome": "filial-nova",
+      "ordem": 99,
+      "roletaNome": "Roleta filial-nova",
+      "roletaSlug": "filial-nova",
+      "slug": "filial-nova",
+      "zonas": [
+        "Litoral",
+      ],
+    },
+  ],
+  "frases": [
+    "A Leste alterna entre Liberdade e Belém.",
+    "A Oeste alterna entre Barra Funda e Água Branca.",
+  ],
+  "listar": [
+    "",
+    "A",
+    "A e B",
+    "A, B e C",
+  ],
+  "ordenarZonas": [
+    "Norte",
+    "Leste",
+    "Centro",
+    "Grande SP",
+    "Alfa",
+    "Zeta",
+  ],
+  "rotulos": [
+    [
+      "Barra Funda — Norte, Sul, Oeste",
+      "Barra Funda · Norte, Sul, Oeste",
+    ],
+    [
+      "Água Branca — Oeste",
+      "Água Branca · Oeste",
+    ],
+    [
+      "Liberdade — Leste, Centro",
+      "Liberdade · Leste, Centro",
+    ],
+    [
+      "Belém — Leste, Grande SP",
+      "Belém · Leste, Grande SP",
+    ],
+    [
+      "filial-nova — Litoral",
+      "filial-nova · Litoral",
+    ],
+  ],
+  "soltas": [
+    "Sul",
+    "Leste",
+    "Marte",
+  ],
+  "uniao": [
+    "Leste",
+    "Centro",
+    "Grande SP",
+  ],
+}
+`;
+
+exports[`mapa das filiais > seções de campanhas por filial dona 1`] = `
+{
+  "nada": [],
+  "secoes": [
+    {
+      "chave": "f1",
+      "filas": [
+        {
+          "filial_id": "f1",
+          "id": "c3",
+        },
+      ],
+      "titulo": "Campanhas · Barra Funda",
+    },
+    {
+      "chave": "f2",
+      "filas": [
+        {
+          "filial_id": "f2",
+          "id": "c1",
+        },
+        {
+          "filial_id": "f2",
+          "id": "c5",
+        },
+      ],
+      "titulo": "Campanhas · Liberdade",
+    },
+    {
+      "chave": "sem-filial",
+      "filas": [
+        {
+          "filial_id": null,
+          "id": "c2",
+        },
+        {
+          "filial_id": "fx",
+          "id": "c4",
+        },
+      ],
+      "titulo": "Campanhas · sem filial",
+    },
+  ],
+  "soSemFilial": [
+    {
+      "chave": "sem-filial",
+      "filas": [
+        {
+          "filial_id": null,
+          "id": "c9",
+        },
+      ],
+      "titulo": "Campanhas · sem filial",
+    },
+  ],
+}
+`;
+
+exports[`regras espelhadas do motor > % trabalhado, participação, origem e janela 1`] = `
+{
+  "janela": [
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    false,
+    false,
+  ],
+  "origem": [
+    "plantao",
+    "landing",
+    null,
+    null,
+  ],
+  "participacao": [
+    33.3,
+    0,
+    0,
+    28.6,
+  ],
+  "pct": [
+    100,
+    100,
+    66.7,
+    100,
+    0,
+    33.3,
+  ],
+}
+`;
+
+exports[`regras espelhadas do motor > contexto da decisão 1`] = `
+[
+  {
+    "aptos": [],
+    "corretorAnterior": null,
+    "duplicadoId": null,
+    "gatilho": null,
+    "inaptos": [],
+    "percentualMinimo": null,
+    "regra": null,
+    "roleta": null,
+    "vencedor": null,
+  },
+  {
+    "aptos": [],
+    "corretorAnterior": null,
+    "duplicadoId": null,
+    "gatilho": null,
+    "inaptos": [],
+    "percentualMinimo": null,
+    "regra": null,
+    "roleta": null,
+    "vencedor": null,
+  },
+  {
+    "aptos": [
+      {
+        "corretor_id": "a",
+        "nome": "Ana",
+        "ultimo_lead_em": null,
+      },
+    ],
+    "corretorAnterior": {
+      "ativo": true,
+      "corretor_id": "c",
+      "politica": "manter",
+    },
+    "duplicadoId": "lead-9",
+    "gatilho": "webhook",
+    "inaptos": [
+      {
+        "corretor_id": "b",
+        "motivos": [
+          "pausado",
+        ],
+        "nome": "Bia",
+      },
+    ],
+    "percentualMinimo": 60,
+    "regra": "rodizio",
+    "roleta": "plantao",
+    "vencedor": {
+      "corretor_id": "a",
+      "nome": "Ana",
+    },
+  },
+  {
+    "aptos": [],
+    "corretorAnterior": {
+      "ativo": false,
+      "corretor_id": "",
+      "politica": undefined,
+    },
+    "duplicadoId": null,
+    "gatilho": null,
+    "inaptos": [],
+    "percentualMinimo": null,
+    "regra": null,
+    "roleta": null,
+    "vencedor": null,
+  },
+  {
+    "aptos": [],
+    "corretorAnterior": {
+      "ativo": false,
+      "corretor_id": "",
+      "politica": undefined,
+    },
+    "duplicadoId": null,
+    "gatilho": null,
+    "inaptos": [],
+    "percentualMinimo": null,
+    "regra": null,
+    "roleta": null,
+    "vencedor": {
+      "corretor_id": "",
+      "nome": "",
+    },
+  },
+]
+`;
+
+exports[`regras espelhadas do motor > presença obrigatória e ação da gestão 1`] = `
+{
+  "acao": [
+    "marcar_ausente",
+    "marcar_ausente",
+    null,
+    "marcar_presente",
+    "marcar_presente",
+    "marcar_presente",
+    "marcar_presente",
+  ],
+  "obrigatoria": [
+    false,
+    true,
+    true,
+    true,
+  ],
+}
+`;
+
+exports[`regras espelhadas do motor > rodízio: próximo da vez 1`] = `
+{
+  "empatePorInclusao": {
+    "apto": true,
+    "corretor_id": "b",
+    "incluido_em": "2026-05-01",
+    "ultimo_lead_em": null,
+  },
+  "empateSemInclusao": {
+    "apto": true,
+    "corretor_id": "a",
+    "incluido_em": undefined,
+    "ultimo_lead_em": "2026-10-01",
+  },
+  "empateTotal": {
+    "apto": true,
+    "corretor_id": "a",
+    "incluido_em": "2026-05-01",
+    "ultimo_lead_em": null,
+  },
+  "maisAntigo": {
+    "apto": true,
+    "corretor_id": "b",
+    "incluido_em": undefined,
+    "ultimo_lead_em": "2026-10-01",
+  },
+  "ninguemApto": null,
+  "nuncaRecebeu": {
+    "apto": true,
+    "corretor_id": "b",
+    "incluido_em": undefined,
+    "ultimo_lead_em": null,
+  },
+  "vazio": null,
+}
+`;
